@@ -20,7 +20,7 @@ namespace GameEngine
 		if (!this->render_window.Initialize(this, hInstance, window_title, window_class, width, height))
 			return false;
 
-		if(!gfx.Initialize(render_window.GetHWND(), width, height))
+		if(!gfx.Initialize(render_window.GetHWND(), width, height, true))
 		{
 			return false;
 		}
@@ -55,6 +55,14 @@ namespace GameEngine
 
 		}
 
+		gfx.camera.Update();
+
+		for (auto model : gfx.models)
+		{
+			model->Update();
+
+			model->GetTransform()->AdjustRotation(0, 0.001 * dt, 0);
+		}
 	}
 
 	void Engine::RenderFrame()

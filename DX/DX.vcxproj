@@ -139,6 +139,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CommandQueue.cpp" />
     <ClCompile Include="Component.cpp" />
     <ClCompile Include="DXAdapterReader.cpp" />
     <ClCompile Include="Engine.cpp" />
@@ -147,6 +148,7 @@
     <ClCompile Include="Keyboard\KeyboardInput.cpp" />
     <ClCompile Include="Keyboard\KeyboardEvent.cpp" />
     <ClCompile Include="ErrorLogger.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="Mouse\MouseInput.cpp" />
     <ClCompile Include="Mouse\MouseEvent.cpp" />
     <ClCompile Include="RenderWindow.cpp" />
@@ -159,6 +161,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="COMException.h" />
+    <ClInclude Include="CommandQueue.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DXAdapterReader.h" />
@@ -168,6 +171,7 @@
     <ClInclude Include="Keyboard\KeyboardInput.h" />
     <ClInclude Include="Keyboard\KeyboardEvent.h" />
     <ClInclude Include="ErrorLogger.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="Mouse\MouseInput.h" />
     <ClInclude Include="Mouse\MouseEvent.h" />
     <ClInclude Include="RenderWindow.h" />
