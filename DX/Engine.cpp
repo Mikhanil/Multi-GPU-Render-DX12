@@ -35,7 +35,11 @@ namespace GameEngine
 
 	void Engine::Update()
 	{
+		static float time = 0;
+		
 		float dt = timer.GetMilisecondsElapsed();
+
+		time += dt;
 		timer.Restart();
 
 		while (!keyboard.CharBufferIsEmpty())
@@ -55,6 +59,7 @@ namespace GameEngine
 
 		}
 
+		
 		gfx.camera.Update();
 
 		for (auto model : gfx.models)

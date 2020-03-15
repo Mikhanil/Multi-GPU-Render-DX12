@@ -6,6 +6,7 @@
 #include <d3dcompiler.h>
 
 #include <algorithm> // For std::min and std::max.
+#include "d3dx12.h" // For std::min and std::max.
 #if defined(min)
 #undef min
 #endif
@@ -20,6 +21,29 @@ namespace GameEngine
 	{
 		using namespace Utility;
 		using namespace Logger;
+		using namespace Graphics;
+
+
+		static std::vector< VertexPosColor> g_Vertices {
+	   { Vector3(-1.0f, -1.0f, -1.0f), Vector4(0.0f, 0.0f, 0.0f, 0.0f) }, // 0
+	   { Vector3(-1.0f,  1.0f, -1.0f), Vector4(0.0f, 1.0f, 0.0f, 0.0f) }, // 1
+	   { Vector3(1.0f,  1.0f, -1.0f), Vector4(1.0f, 1.0f, 0.0f, 0.0f) }, // 2
+	   { Vector3(1.0f, -1.0f, -1.0f), Vector4(1.0f, 0.0f, 0.0f, 0.0f) }, // 3
+	   { Vector3(-1.0f, -1.0f,  1.0f), Vector4(0.0f, 0.0f, 1.0f, 0.0f) }, // 4
+	   { Vector3(-1.0f,  1.0f,  1.0f), Vector4(0.0f, 1.0f, 1.0f, 0.0f) }, // 5
+	   { Vector3(1.0f,  1.0f,  1.0f), Vector4(1.0f, 1.0f, 1.0f, 0.0f) }, // 6
+	   { Vector3(1.0f, -1.0f,  1.0f), Vector4(1.0f, 0.0f, 1.0f, 0.0f) }  // 7
+		};
+
+		static std::vector < WORD> g_Indicies
+		{
+			0, 1, 2, 0, 2, 3,
+			4, 6, 5, 4, 7, 6,
+			4, 5, 1, 4, 1, 0,
+			3, 2, 6, 3, 6, 7,
+			1, 5, 6, 1, 6, 2,
+			4, 0, 3, 4, 3, 7
+		};
 
 		// Clamp a value between a min and max range.
 		template <typename T>
@@ -31,19 +55,10 @@ namespace GameEngine
 
 		bool DXGraphics::Initialize(HWND hwnd, int width, int height, bool vSync)
 		{
-			// Check for DirectX Math library support.
-			if (!DirectX::XMVerifyCPUSupport())
-			{
-				MessageBoxA(hwnd, "Failed to verify DirectX Math library support.", "Error", MB_OK | MB_ICONERROR);
-				return false;
-			}
-
-			m_ScissorRect = CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX);
-			m_Viewport = (CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)));
-
 			this->isVsync = vSync;
 			this->windowWidth = width;
 			this->windowHeight = height;
+			m_hwnd = hwnd;
 
 			if (!InitializeDirectX(hwnd))
 				return false;
@@ -59,30 +74,31 @@ namespace GameEngine
 
 		void DXGraphics::RenderFrame()
 		{			
-			float color[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-			HRESULT result;
-
 			auto commandQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 			auto commandList = commandQueue->GetCommandList();
 
 			UINT currentBackBufferIndex = GetCurrentBackBufferIndex();
-			auto backBuffer = this->GetCurrentBackBuffer();
+			auto backBuffer = GetCurrentBackBuffer();
 			auto rtv = GetCurrentRenderTargetView();
 			auto dsv = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
-			TransitionResource(commandList, backBuffer,
-				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			// Clear the render targets.
+			{
+				TransitionResource(commandList, backBuffer,
+					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
+				FLOAT clearColor[] = { 0,0,1, 1.0f };
 
-			ClearRTV(commandList, rtv, color);
-			ClearDepth(commandList, dsv);
+				ClearRTV(commandList, rtv, clearColor);
+				ClearDepth(commandList, dsv);
+			}
 
-			commandList->SetPipelineState(m_PipelineState.Get());
+			commandList->SetPipelineState(m_PipelineState);
 			commandList->SetGraphicsRootSignature(m_RootSignature.Get());
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-			commandList->IASetIndexBuffer(&indexBufferView);
+			commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+			commandList->IASetIndexBuffer(&m_IndexBufferView);
 
 			commandList->RSSetViewports(1, &m_Viewport);
 			commandList->RSSetScissorRects(1, &m_ScissorRect);
@@ -90,111 +106,30 @@ namespace GameEngine
 			commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
 			auto model = models[0];
-			auto modelTranform = model->GetTransform();
-
-			Matrix mvp = modelTranform->GetWorldMatrix() * camera.GetViewMatrix() * camera.GetProjectionMatrix();
-
+			auto tr = model->GetTransform();
 			
-			commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / 4, &mvp, 0);
+			// Update the MVP matrix
+			Matrix mvpMatrix = tr->GetWorldMatrix() * camera.GetViewMatrix() * camera.GetProjectionMatrix();
+			
+			commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / 4, &mvpMatrix, 0);
+			 // Update the MVP matrix
+			/*XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
+			mvpMatrix = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
+			commandList->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &mvpMatrix, 0);*/
 
-			commandList->DrawIndexedInstanced((g_Indicies.size()), 1, 0, 0, 0);
+			commandList->DrawIndexedInstanced(g_Indicies.size(), 1, 0, 0, 0);
 
 			// Present
 			{
 				TransitionResource(commandList, backBuffer,
 					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-				fenceValues[currentBackBufferIndex] = commandQueue->ExecuteCommandList(commandList);
+				m_FenceValues[currentBackBufferIndex] = commandQueue->ExecuteCommandList(commandList);
 
 				currentBackBufferIndex = Present();
 
-				commandQueue->WaitForFenceValue(fenceValues[currentBackBufferIndex]);
+				commandQueue->WaitForFenceValue(m_FenceValues[currentBackBufferIndex]);
 			}
-			
-			//// Reset (re-use) the memory associated command allocator.
-			//result = commandAllocator->Reset();
-			//if (FAILED(result))
-			//{
-			//	return;
-			//}
-
-			//// Reset the command list, use empty pipeline state for now since there are no shaders and we are just clearing the screen.
-			//result = commandList->Reset(commandAllocator.Get(), pipelineState);
-			//if (FAILED(result))
-			//{
-			//	return;
-			//}
-
-			//D3D12_RESOURCE_BARRIER barrier;
-			//ZeroMemory(&barrier, sizeof(barrier));
-			//// Record commands in the command list now.
-			//// Start by setting the resource barrier.
-			//barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-			//barrier.Transition.pResource = backBufferRenderTarget[bufferIndex].Get();
-			//barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-			//barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			//barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-			//barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-			//commandList->ResourceBarrier(1, &barrier);
-
-
-			//// Get the render target view handle for the current back buffer.
-			//auto renderTargetViewHandle = renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
-			//auto renderTargetViewDescriptorSize = device->GetDescriptorHandleIncrementSize(
-			//	D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			//if (bufferIndex == 1)
-			//{
-			//	renderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
-			//}
-
-			//// Set the back buffer as the render target.
-			//commandList->OMSetRenderTargets(1, &renderTargetViewHandle, FALSE, nullptr);
-
-			//// Then set the color to clear the window to.
-			//commandList->ClearRenderTargetView(renderTargetViewHandle, color, 0, nullptr);
-
-			//// Indicate that the back buffer will now be used to present.
-			//barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			//barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-			//commandList->ResourceBarrier(1, &barrier);
-
-			//// Close the list of commands.
-			//result = commandList->Close();
-			//if (FAILED(result))
-			//{
-			//	return;
-			//}
-
-			//// Load the command list array (only one command list for now).
-			//std::vector<ID3D12CommandList*> pCommandList = {commandList.Get()};
-
-			//// Execute the list of commands.
-			//d12commandQueue->ExecuteCommandLists(pCommandList.size(), pCommandList.data());
-
-			//swapChain->Present(1, 0);
-
-			//// Signal and increment the fence value.
-			//const auto fenceToWaitFor = fenceValue;
-			//result = d12commandQueue->Signal(fence.Get(), fenceToWaitFor);
-			//if (FAILED(result))
-			//{
-			//	return;
-			//}
-			//fenceValue++;
-
-			//// Wait until the GPU is done rendering.
-			//if (fence->GetCompletedValue() < fenceToWaitFor)
-			//{
-			//	result = fence->SetEventOnCompletion(fenceToWaitFor, fenceEvent);
-			//	if (FAILED(result))
-			//	{
-			//		return;
-			//	}
-			//	WaitForSingleObject(fenceEvent, INFINITE);
-			//}
-
-			//// Alternate the back buffer index back and forth between 0 and 1 each frame.
-			//bufferIndex == 0 ? bufferIndex = 1 : bufferIndex = 0;
 		}
 
 		std::shared_ptr<CommandQueue> DXGraphics::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
@@ -218,254 +153,70 @@ namespace GameEngine
 			return commandQueue;
 		}
 
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DXGraphics::CreateDescriptorHeap(UINT numDescriptors,
+			D3D12_DESCRIPTOR_HEAP_TYPE type)
+		{
+			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+			desc.Type = type;
+			desc.NumDescriptors = numDescriptors;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			desc.NodeMask = 0;
+
+			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+			CheckComError(m_d3d12Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)), "");
+
+			return descriptorHeap;
+		}
+
+		UINT DXGraphics::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
+		{
+			return m_d3d12Device->GetDescriptorHandleIncrementSize(type);
+		}
+
 		bool DXGraphics::InitializeDirectX(HWND hwnd)
 		{
 			try
 			{
-				const auto adapters = DXAdapterReader::GetAdapters();
-
-				if (adapters.empty())
+				
+				// Check for DirectX Math library support.
+				if (!DirectX::XMVerifyCPUSupport())
 				{
-					ErrorLogger::Log("No IDXGI Adapters found.");
+					MessageBoxA(hwnd, "Failed to verify DirectX Math library support.", "Error", MB_OK | MB_ICONERROR);
 					return false;
 				}
 
-				HRESULT hr;
-
-				std::vector<D3D_FEATURE_LEVEL> feature_levels = {
-					D3D_FEATURE_LEVEL_12_1,
-					D3D_FEATURE_LEVEL_12_0,
-					D3D_FEATURE_LEVEL_11_1,
-					D3D_FEATURE_LEVEL_11_0
-				};
-
-				for (auto adapter : adapters)
+				
+				SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+				m_dxgiAdapter = GetAdapter(false);
+				
+				if (m_dxgiAdapter)
 				{
-					for (auto feature_level : feature_levels)
-					{
-						hr = D3D12CreateDevice(adapter.pAdapter, feature_level, IID_PPV_ARGS(&device));
-						if (SUCCEEDED(hr))
-						{
-							break;
-						}
-					}
-
-					if (SUCCEEDED(hr))
-					{
-						break;
-					}
+					m_d3d12Device = CreateDevice(m_dxgiAdapter);
 				}
-
-				CheckComError(hr, "Failed to create device");
-
-
-				m_DirectCommandQueue = std::make_shared<CommandQueue>();
-				m_DirectCommandQueue->Initialize(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-				m_ComputeCommandQueue = std::make_shared<CommandQueue>();
-				m_ComputeCommandQueue->Initialize(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-				m_CopyCommandQueue = std::make_shared<CommandQueue>();
-				m_CopyCommandQueue->Initialize(device, D3D12_COMMAND_LIST_TYPE_COPY);
-
-
-				D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
-
-				// Initialize the description of the command queue.
-				ZeroMemory(&commandQueueDesc, sizeof(commandQueueDesc));
-
-				// Set up the description of the command queue.
-				commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-				commandQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-				commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-				commandQueueDesc.NodeMask = 0;
-
-				hr = device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&d12commandQueue));
-				CheckComError(hr, "Failed to create command queue.");
-
-				IDXGIOutput* adapterOutput;
-				// Enumerate the primary adapter output (monitor).
-				hr = adapters[0].pAdapter->EnumOutputs(0, &adapterOutput);
-				CheckComError(hr, "Failed get adapter output");
-
-				unsigned int numModes;
-				// Get the number of modes that fit the DXGI_FORMAT_R8G8B8A8_UNORM display format for the adapter output (monitor).
-				hr = adapterOutput->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED,
-				                                       &numModes, nullptr);
-				CheckComError(hr, "Failed to get number of modes");
-
-				// Create a list to hold all the possible display modes for this monitor/video card combination.
-
-				std::vector<DXGI_MODE_DESC> displayModeList(numModes);
-				if (displayModeList.empty())
+				if (m_d3d12Device)
 				{
-					return false;
-				}
+					auto device = GetDevice();
+					m_DirectCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+					m_ComputeCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+					m_CopyCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COPY);
+					m_TearingSupported = CheckTearingSupport();
+				}			
 
-				// Now fill the display mode list structures.
-				hr = adapterOutput->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED,
-				                                       &numModes, displayModeList.data());
-				CheckComError(hr, "Failed fill the display mode list structures");
+				
+				m_dxgiSwapChain = CreateSwapChain();
+				m_d3d12RTVDescriptorHeap = CreateDescriptorHeap(BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+				m_RTVDescriptorSize = GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
+				UpdateRenderTargetViews();
 
-				// Now go through all the display modes and find the one that matches the screen height and width.
-				// When a match is found store the numerator and denominator of the refresh rate for that monitor.
-				unsigned int numerator;
-				unsigned int denominator;
-				for (unsigned int i = 0; i < numModes; i++)
-				{
-					if (displayModeList[i].Height == this->windowHeight)
-					{
-						if (displayModeList[i].Width == this->windowWidth)
-						{
-							numerator = displayModeList[i].RefreshRate.Numerator;
-							denominator = displayModeList[i].RefreshRate.Denominator;
-						}
-					}
-				}
+				
+				m_ScissorRect = CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX);
+				m_Viewport = (CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(windowWidth), static_cast<float>(windowHeight)));
 
-				// Get the adapter (video card) description.
-				DXGI_ADAPTER_DESC adapterDesc;
-				ZeroMemory(&adapterDesc, sizeof(adapterDesc));
-				hr = adapters[0].pAdapter->GetDesc(&adapterDesc);
-				CheckComError(hr, "Failed get the adapter (video card) description");
-
-				// Store the dedicated video card memory in megabytes.
-				videoCardMemory = (int)(adapterDesc.DedicatedVideoMemory / 1024 / 1024);
-				// Convert the name of the video card to a character array and store it.
-				unsigned long long stringLength;
-				auto error = wcstombs_s(&stringLength, videoCardDescription, 128, adapterDesc.Description, 128);
-				if (error != 0)
-				{
-					return false;
-				}
-
-				// Release the display mode list.
-				displayModeList.clear();
-
-				// Release the adapter output.
-				adapterOutput->Release();
+				
 
 
-				// Initialize the swap chain description.
-				DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-				ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
-
-				// Set the swap chain to use double buffering.
-				swapChainDesc.BufferCount = 2;
-
-				// Set the height and width of the back buffers in the swap chain.
-				swapChainDesc.BufferDesc.Height = windowHeight;
-				swapChainDesc.BufferDesc.Width = windowWidth;
-				// Set a regular 32-bit surface for the back buffers.
-				swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				// Set the usage of the back buffers to be render target outputs.
-				swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-				// Set the swap effect to discard the previous buffer contents after swapping.
-				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-				// Set the handle for the window to render to.
-				swapChainDesc.OutputWindow = hwnd;
-				swapChainDesc.Windowed = true;
-
-				//TODO сделать тут красивое условие с учетом частоты обновления монитора
-				swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
-				swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-
-				// Turn multisampling off.
-				swapChainDesc.SampleDesc.Count = 1;
-				swapChainDesc.SampleDesc.Quality = 0;
-				// Set the scan line ordering and scaling to unspecified.
-				swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-				swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-				// Don't set the advanced flags.
-				swapChainDesc.Flags = 0;
-
-				// Finally create the swap chain using the swap chain description.
-				IDXGISwapChain* swapChain0;
-				IDXGIFactory4* factory;
-				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)&factory);
-				CheckComError(hr, "Failed to create swapchain factory.");
-				hr = factory->CreateSwapChain(d12commandQueue.Get(), &swapChainDesc, &swapChain0);
-				CheckComError(hr, "Failed to create Swapchain.");
-
-				// Next upgrade the IDXGISwapChain to a IDXGISwapChain3 interface and store it in a private member variable named m_swapChain.
-				// This will allow us to use the newer functionality such as getting the current back buffer index.
-				hr = swapChain0->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&swapChain);
-				CheckComError(hr, "Failed to create Swapchain.");
-
-				swapChain0->Release();
-				factory->Release();
-
-
-				// Initialize the render target view heap description for the two back buffers.
-				D3D12_DESCRIPTOR_HEAP_DESC renderTargetViewHeapDesc = {};
-				ZeroMemory(&renderTargetViewHeapDesc, sizeof(renderTargetViewHeapDesc));
-				renderTargetViewHeapDesc.NumDescriptors = 2;
-				renderTargetViewHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-				renderTargetViewHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-				hr = device->CreateDescriptorHeap(&renderTargetViewHeapDesc, IID_PPV_ARGS(&renderTargetViewHeap));
-				CheckComError(hr, "Failed to create Description heap.");
-
-				// Get a handle to the starting memory location in the render target view heap to identify where the render target views will be located for the two back buffers.
-				auto renderTargetViewHandle = renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart();
-
-				// Get the size of the memory location for the render target view descriptors.
-				auto renderTargetViewDescriptorSize = device->GetDescriptorHandleIncrementSize(
-					D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-
-				// Get a pointer to the first back buffer from the swap chain.
-				hr = swapChain->GetBuffer(0, __uuidof(ID3D12Resource), (void**)&backBufferRenderTarget[0]);
-				CheckComError(hr, "Failed get a pointer to the first back buffer from the swap chain.");
-
-				// Create a render target view for the first back buffer.
-				device->CreateRenderTargetView(backBufferRenderTarget[0].Get(), nullptr, renderTargetViewHandle);
-
-				// Increment the view handle to the next descriptor location in the render target view heap.
-				renderTargetViewHandle.ptr += renderTargetViewDescriptorSize;
-
-				// Get a pointer to the second back buffer from the swap chain.
-				hr = swapChain->GetBuffer(1, __uuidof(ID3D12Resource), (void**)&backBufferRenderTarget[1]);
-				CheckComError(hr, "Failed get a pointer to the second back buffer from the swap chain.");
-
-				// Create a render target view for the second back buffer.
-				device->CreateRenderTargetView(backBufferRenderTarget[1].Get(), nullptr, renderTargetViewHandle);
-
-				// Finally get the initial index to which buffer is the current back buffer.
-				bufferIndex = swapChain->GetCurrentBackBufferIndex();
-
-				// Create a command allocator.
-				hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
-				CheckComError(hr, "Failed to create Command allocator.");
-
-				// Create a basic command list.
-				hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator.Get(), m_PipelineState.Get(),
-				                               IID_PPV_ARGS(&commandList));
-				CheckComError(hr, "Failed to create Command list.");
-
-				// Initially we need to close the command list during initialization as it is created in a recording state.
-				hr = commandList->Close();
-				CheckComError(
-					hr, "Failed close the command list during initialization as it is created in a recording state.");
-
-				// Create a fence for GPU synchronization.
-				hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), (void**)&fence);
-				CheckComError(hr, "Failed create a fence for GPU synchronization.");
-
-				// Create an event object for the fence.
-				fenceEvent = CreateEventEx(nullptr, FALSE, FALSE, EVENT_ALL_ACCESS);
-				if (fenceEvent == nullptr)
-				{
-					return false;
-				}
-
-				// Initialize the starting fence value. 
-				fenceValue = 1;
-
-
-				//?
-				/*D3D12_GRAPHICS_PIPELINE_STATE_DESC pso = {};
-				hr = device->CreateGraphicsPipelineState(&pso, IID_PPV_ARGS(&m_PipelineState));*/
-				//CheckComError(hr, "Failed to create Graphic pipline.");
+				
 			}
 			catch (COMException& ex)
 			{
@@ -476,75 +227,70 @@ namespace GameEngine
 
 		bool DXGraphics::InitializeShaders()
 		{
-			return true;
-		}
-
-		bool DXGraphics::InitializeScene()
-		{
+			auto device = GetDevice();
 			auto commandQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 			auto commandList = commandQueue->GetCommandList();
 
-
-			auto model = new Model();
-
-			if (!model->Initialize(g_Vertices, g_Indicies))
-			{
-				CheckComError(ERROR, "Can't init model");
-			}
-			else
-			{
-				models.push_back(model);
-			}
-
 			// Upload vertex buffer data.
 			ComPtr<ID3D12Resource> intermediateVertexBuffer;
-			UpdateBufferResource(commandList.Get(),
-			                     &vertexBuffer, &intermediateVertexBuffer,
-			                     g_Vertices.size(), sizeof(VertexPosColor), g_Vertices.data());
+			UpdateBufferResource(commandList,
+				&m_VertexBuffer, &intermediateVertexBuffer,
+				g_Vertices.size(), sizeof(VertexPosColor), g_Vertices.data());
 
 			// Create the vertex buffer view.
-			vertexBufferView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-			vertexBufferView.SizeInBytes = g_Vertices.size();
-			vertexBufferView.StrideInBytes = sizeof(VertexPosColor);
-
+			m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
+			m_VertexBufferView.SizeInBytes = (g_Vertices.size() * sizeof(VertexPosColor));
+			m_VertexBufferView.StrideInBytes = sizeof(VertexPosColor);
 
 			// Upload index buffer data.
 			ComPtr<ID3D12Resource> intermediateIndexBuffer;
 			UpdateBufferResource(commandList,
-			                     &indexBuffer, &intermediateIndexBuffer,
-			                     g_Indicies.size(), sizeof(WORD), g_Indicies.data());
+				&m_IndexBuffer, &intermediateIndexBuffer,
+				(g_Indicies.size()), sizeof(WORD), g_Indicies.data());
 
 			// Create index buffer view.
-			indexBufferView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
-			indexBufferView.Format = DXGI_FORMAT_R16_UINT;
-			indexBufferView.SizeInBytes = (g_Indicies.size());
+			m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
+			m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
+			m_IndexBufferView.SizeInBytes = sizeof(WORD) * g_Indicies.size();
 
 			// Create the descriptor heap for the depth-stencil view.
 			D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
 			dsvHeapDesc.NumDescriptors = 1;
 			dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 			dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			CheckComError(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_DSVHeap)),
-			              "Can't create desctiption");
+			CheckComError(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_DSVHeap)), "");
 
-			// Load the vertex shader.
-			ComPtr<ID3DBlob> vertexShaderBlob;
-			CheckComError(D3DReadFileToBlob(L"VertexShader.hlsl", &vertexShaderBlob), "Failed to load vertex shader");
 
-			// Load the pixel shader.
-			ComPtr<ID3DBlob> pixelShaderBlob;
-			CheckComError(D3DReadFileToBlob(L"PixelShader.hlsl", &pixelShaderBlob), "Failed to load pixel shader");
+			ComPtr<ID3DBlob> vertexShader, pixelShader, errorBlob;
+			{
+				// Compile the shaders
+				HRESULT hr = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, vertexShader.GetAddressOf(), errorBlob.GetAddressOf());
+				if (!SUCCEEDED(hr))
+				{
+					const char* errMessage = (const char*)errorBlob.Get()->GetBufferPointer();
+					printf("%s", errMessage);
+				}
+				hr = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, pixelShader.GetAddressOf(), errorBlob.GetAddressOf());
+				if (!SUCCEEDED(hr))
+				{
+					const char* errMessage = (const char*)errorBlob.Get()->GetBufferPointer();
+					printf("%s", errMessage);
+				}
+			}
+
+			
+			//// Load the vertex shader.
+			//ComPtr<ID3DBlob> vertexShaderBlob;
+			//CheckComError(D3DCompileFromFile(L"VertexShader.hlsl", &vertexShaderBlob), "");
+
+			//// Load the pixel shader.
+			//ComPtr<ID3DBlob> pixelShaderBlob;
+			//CheckComError(D3DReadFileToBlob(L"PixelShader.hlsl", &pixelShaderBlob), "");
 
 			// Create the vertex input layout
 			D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-				{
-					"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
-					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-				},
-				{
-					"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
-					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-				},
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 			};
 
 			// Create a root signature.
@@ -572,14 +318,11 @@ namespace GameEngine
 
 			// Serialize the root signature.
 			ComPtr<ID3DBlob> rootSignatureBlob;
-			ComPtr<ID3DBlob> errorBlob;
-			CheckComError(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
-				              featureData.HighestVersion, &rootSignatureBlob, &errorBlob),
-			              "Failed serialize root signature");
+ 			CheckComError(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
+				featureData.HighestVersion, &rootSignatureBlob, &errorBlob), "");
 			// Create the root signature.
 			CheckComError(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
-				              rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)),
-			              "Failed create root signature");
+				rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)), "");
 
 			struct PipelineStateStream
 			{
@@ -597,10 +340,10 @@ namespace GameEngine
 			rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 			pipelineStateStream.pRootSignature = m_RootSignature.Get();
-			pipelineStateStream.InputLayout = {inputLayout, _countof(inputLayout)};
+			pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
 			pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pipelineStateStream.VS = CD3DX12_SHADER_BYTECODE(vertexShaderBlob.Get());
-			pipelineStateStream.PS = CD3DX12_SHADER_BYTECODE(pixelShaderBlob.Get());
+			pipelineStateStream.VS = { reinterpret_cast<UINT8*>(vertexShader->GetBufferPointer()), vertexShader->GetBufferSize() };
+			pipelineStateStream.PS = { reinterpret_cast<UINT8*>(pixelShader->GetBufferPointer()), pixelShader->GetBufferSize() };
 			pipelineStateStream.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 			pipelineStateStream.RTVFormats = rtvFormats;
 
@@ -608,9 +351,9 @@ namespace GameEngine
 				sizeof(PipelineStateStream), &pipelineStateStream
 			};
 
-			device->CreatePipelineState(&pipelineStateStreamDesc, __uuidof(ID3D12PipelineState), (void**)&m_PipelineState);
-			/*CheckComError(device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState)),
-			              "Failed create Pipeline state");*/
+			
+		
+			CheckComError(device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState)), "");
 
 			auto fenceValue = commandQueue->ExecuteCommandList(commandList);
 			commandQueue->WaitForFenceValue(fenceValue);
@@ -618,17 +361,137 @@ namespace GameEngine
 
 			// Resize/Create the depth buffer.
 			ResizeDepthBuffer(windowWidth, windowHeight);
+			
+			return true;
+		}
 
+		bool DXGraphics::InitializeScene()
+		{
+			auto model = new Model();
+			if(model->Initialize(g_Vertices, g_Indicies))
+			{
+				models.push_back(model);
+			}
+
+		
 
 			auto camTr = camera.GetTransform();
 			camTr->IsUseOnlyParentPosition = true;
 
-			camera.SetProjectionValues(90.0f, static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 0.1f,
+			camera.SetProjectionValues(45.0f, static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 0.1f,
 			                           1000.0f);
-			camTr->SetPosition(0.0f, 12.5, 7.5f);
+			camTr->SetPosition(0.0f, 0, 10);
 
 
 			return true;
+		}
+
+		
+
+		Microsoft::WRL::ComPtr<IDXGIAdapter4> DXGraphics::GetAdapter(bool bUseWarp)
+		{
+			ComPtr<IDXGIFactory4> dxgiFactory;
+			UINT createFactoryFlags = 0;
+#if defined(_DEBUG)
+			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)),"");
+
+			ComPtr<IDXGIAdapter1> dxgiAdapter1;
+			ComPtr<IDXGIAdapter4> dxgiAdapter4;
+
+			if (bUseWarp)
+			{
+				CheckComError(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&dxgiAdapter1)),"");
+				CheckComError(dxgiAdapter1.As(&dxgiAdapter4),"");
+			}
+			else
+			{
+				SIZE_T maxDedicatedVideoMemory = 0;
+				for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &dxgiAdapter1) != DXGI_ERROR_NOT_FOUND; ++i)
+				{
+					DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
+					dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
+
+					if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
+						SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(),
+							D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr)) &&
+						dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+					{
+						maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+						CheckComError(dxgiAdapter1.As(&dxgiAdapter4), "");
+					}
+				}
+			}
+
+			return dxgiAdapter4;
+		}
+
+		Microsoft::WRL::ComPtr<ID3D12Device2> DXGraphics::CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter)
+		{
+			ComPtr<ID3D12Device2> d3d12Device2;
+			CheckComError(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)), "");
+			//    NAME_D3D12_OBJECT(d3d12Device2);
+
+				// Enable debug messages in debug mode.
+#if defined(_DEBUG)
+			ComPtr<ID3D12InfoQueue> pInfoQueue;
+			if (SUCCEEDED(d3d12Device2.As(&pInfoQueue)))
+			{
+				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+
+				// Suppress whole categories of messages
+				//D3D12_MESSAGE_CATEGORY Categories[] = {};
+
+				// Suppress messages based on their severity level
+				D3D12_MESSAGE_SEVERITY Severities[] =
+				{
+					D3D12_MESSAGE_SEVERITY_INFO
+				};
+
+				// Suppress individual messages by their ID
+				D3D12_MESSAGE_ID DenyIds[] = {
+					D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
+					D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
+					D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+				};
+
+				D3D12_INFO_QUEUE_FILTER NewFilter = {};
+				NewFilter.DenyList.NumSeverities = _countof(Severities);
+				NewFilter.DenyList.pSeverityList = Severities;
+				NewFilter.DenyList.NumIDs = _countof(DenyIds);
+				NewFilter.DenyList.pIDList = DenyIds;
+
+				CheckComError(pInfoQueue->PushStorageFilter(&NewFilter), "");
+			}
+#endif
+
+			return d3d12Device2;
+		}
+
+		bool DXGraphics::CheckTearingSupport()
+		{
+			BOOL allowTearing = FALSE;
+
+			// Rather than create the DXGI 1.5 factory interface directly, we create the
+			// DXGI 1.4 interface and query for the 1.5 interface. This is to enable the 
+			// graphics debugging tools which will not support the 1.5 factory interface 
+			// until a future update.
+			ComPtr<IDXGIFactory4> factory4;
+			if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory4))))
+			{
+				ComPtr<IDXGIFactory5> factory5;
+				if (SUCCEEDED(factory4.As(&factory5)))
+				{
+					factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+						&allowTearing, sizeof(allowTearing));
+				}
+			}
+
+			return allowTearing == TRUE;
 		}
 
 		void DXGraphics::TransitionResource(ComPtr<ID3D12GraphicsCommandList2> commandList,
@@ -659,35 +522,38 @@ namespace GameEngine
 		                                      ID3D12Resource** pIntermediateResource, size_t numElements,
 		                                      size_t elementSize, const void* bufferData, D3D12_RESOURCE_FLAGS flags)
 		{
+			auto device = GetDevice();
+
 			size_t bufferSize = numElements * elementSize;
 
 			// Create a committed resource for the GPU resource in a default heap.
 			CheckComError(device->CreateCommittedResource(
-				              &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				              D3D12_HEAP_FLAG_NONE,
-				              &CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags),
-				              D3D12_RESOURCE_STATE_COPY_DEST,
-				              nullptr,
-				              IID_PPV_ARGS(pDestinationResource)), "Failder Create a commited resources");
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS(pDestinationResource)), "");
 
 			// Create an committed resource for the upload.
 			if (bufferData)
 			{
 				CheckComError(device->CreateCommittedResource(
-					              &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-					              D3D12_HEAP_FLAG_NONE,
-					              &CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
-					              D3D12_RESOURCE_STATE_GENERIC_READ,
-					              nullptr,
-					              IID_PPV_ARGS(pIntermediateResource)), "Failed create resource for the upload");
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					D3D12_HEAP_FLAG_NONE,
+					&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(pIntermediateResource)), "");
+
 				D3D12_SUBRESOURCE_DATA subresourceData = {};
 				subresourceData.pData = bufferData;
 				subresourceData.RowPitch = bufferSize;
 				subresourceData.SlicePitch = subresourceData.RowPitch;
 
 				UpdateSubresources(commandList.Get(),
-				                   *pDestinationResource, *pIntermediateResource,
-				                   0, 0, 1, &subresourceData);
+					*pDestinationResource, *pIntermediateResource,
+					0, 0, 1, &subresourceData);
 			}
 		}
 
@@ -698,6 +564,7 @@ namespace GameEngine
 			width = std::max(1, width);
 			height = std::max(1, height);
 
+			auto device = GetDevice();
 
 			// Resize screen dependent resources.
 			// Create a depth buffer.
@@ -735,32 +602,24 @@ namespace GameEngine
 
 		void DXGraphics::UpdateRenderTargetViews()
 		{
-			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart());
+
+			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 			for (int i = 0; i < BufferCount; ++i)
 			{
 				ComPtr<ID3D12Resource> backBuffer;
-				CheckComError(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)), "Failed get bacxk Buffer");
+				CheckComError(m_dxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)), "");
+				
+				m_d3d12Device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
 
-				device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
+				m_d3d12BackBuffers[i] = backBuffer;
 
-				backBufferRenderTarget[i] = backBuffer;
-
-				rtvHandle.Offset(GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+				rtvHandle.Offset(m_RTVDescriptorSize);
 			}
 		}
 
-		UINT DXGraphics::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
-		{
-			return device->GetDescriptorHandleIncrementSize(type);
-		}
+	
 
-		D3D12_CPU_DESCRIPTOR_HANDLE DXGraphics::GetCurrentRenderTargetView()
-		{
-			return CD3DX12_CPU_DESCRIPTOR_HANDLE(renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(),
-			                                     bufferIndex,
-			                                     GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
-		}
 
 		UINT DXGraphics::GetCurrentBackBufferIndex() const
 		{
@@ -770,10 +629,68 @@ namespace GameEngine
 		UINT DXGraphics::Present()
 		{
 			UINT syncInterval = isVsync ? 1 : 0;
-			CheckComError(swapChain->Present(syncInterval, 0), "Failed swap chain present");
-			m_CurrentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
+			UINT presentFlags = m_IsTearingSupported && !isVsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+			CheckComError(m_dxgiSwapChain->Present(syncInterval, presentFlags), "");
+			m_CurrentBackBufferIndex = m_dxgiSwapChain->GetCurrentBackBufferIndex();
 
 			return m_CurrentBackBufferIndex;
+		}
+
+		D3D12_CPU_DESCRIPTOR_HANDLE DXGraphics::GetCurrentRenderTargetView() const
+		{
+			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+				m_CurrentBackBufferIndex, m_RTVDescriptorSize);
+		}
+
+		Microsoft::WRL::ComPtr<ID3D12Resource> DXGraphics::GetCurrentBackBuffer() const
+		{
+			return m_d3d12BackBuffers[m_CurrentBackBufferIndex];
+		}
+
+		Microsoft::WRL::ComPtr<IDXGISwapChain4> DXGraphics::CreateSwapChain()
+		{
+			ComPtr<IDXGISwapChain4> dxgiSwapChain4;
+			ComPtr<IDXGIFactory4> dxgiFactory4;
+			UINT createFactoryFlags = 0;
+#if defined(_DEBUG)
+			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)), "");
+
+			DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+			swapChainDesc.Width = windowWidth;
+			swapChainDesc.Height = windowHeight;
+			swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			swapChainDesc.Stereo = FALSE;
+			swapChainDesc.SampleDesc = { 1, 0 };
+			swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+			swapChainDesc.BufferCount = BufferCount;
+			swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+			swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+			// It is recommended to always allow tearing if tearing support is available.
+			swapChainDesc.Flags = m_IsTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+			ID3D12CommandQueue* pCommandQueue = GetCommandQueue()->GetD3D12CommandQueue().Get();
+
+			ComPtr<IDXGISwapChain1> swapChain1;
+			CheckComError(dxgiFactory4->CreateSwapChainForHwnd(
+				pCommandQueue,
+				m_hwnd,
+				&swapChainDesc,
+				nullptr,
+				nullptr,
+				&swapChain1), "");
+
+			// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
+			// will be handled manually.
+			CheckComError(dxgiFactory4->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER), "");
+
+			CheckComError(swapChain1.As(&dxgiSwapChain4), "");
+
+			m_CurrentBackBufferIndex = dxgiSwapChain4->GetCurrentBackBufferIndex();
+
+			return dxgiSwapChain4;
 		}
 	}
 }

@@ -15,160 +15,142 @@ namespace GameEngine
 	namespace Graphics
 	{
 		using namespace Microsoft::WRL;
-		
+		using namespace DirectX;
 		class DXGraphics : public std::enable_shared_from_this<DXGraphics>
 		{
 		public:
 
 			DXGraphics()
-			{			}
-			
-			bool Initialize(HWND hwnd, int width, int height, bool vSync);
-			void RenderFrame();
-			~DXGraphics()
 			{
-				swapChain->SetFullscreenState(false, nullptr);
-
-				// Close the object handle to the fence event.
-				auto error = CloseHandle(fenceEvent);
-				if (error == 0)
-				{
-				}
-
-				//TODO какие-то не правильные у вас "умные" указатели, которые не могут память почистить за собой 
 			}
 
+			bool Initialize(HWND hwnd, int width, int height, bool vSync);
+			void RenderFrame();
 
-			std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+			~DXGraphics()
+			{
+				
+			}
+
+			std::shared_ptr<CommandQueue> GetCommandQueue(
+				D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+
+			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
+				UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type);
+			UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 
 			Camera camera;
 
 			std::vector<Model*> models;
+			bool m_TearingSupported;
+			HWND m_hwnd;
+
+			ComPtr<ID3D12Device2> GetDevice()
+			{
+				return m_d3d12Device;
+			}
+
+
+			DirectX::XMMATRIX m_ModelMatrix;
+			DirectX::XMMATRIX m_ViewMatrix;
+			DirectX::XMMATRIX m_ProjectionMatrix;
 			
 		private:
 
-			std::vector<VertexPosColor> g_Vertices = {
-				{Vector3(-1.0f, -1.0f, -1.0f), Vector4(0.0f, 0.0f, 0.0f, 0.0f)}, // 0
-				{Vector3(-1.0f, 1.0f, -1.0f), Vector4(0.0f, 1.0f, 0.0f, 0.0f)}, // 1
-				{Vector3(1.0f, 1.0f, -1.0f), Vector4(1.0f, 1.0f, 0.0f, 0.0f)}, // 2
-				{Vector3(1.0f, -1.0f, -1.0f), Vector4(1.0f, 0.0f, 0.0f, 0.0f)}, // 3
-				{Vector3(-1.0f, -1.0f, 1.0f), Vector4(0.0f, 0.0f, 1.0f, 0.0f)}, // 4
-				{Vector3(-1.0f, 1.0f, 1.0f), Vector4(0.0f, 1.0f, 1.0f, 0.0f)}, // 5
-				{Vector3(1.0f, 1.0f, 1.0f), Vector4(1.0f, 1.0f, 1.0f, 0.0f)}, // 6
-				{Vector3(1.0f, -1.0f, 1.0f), Vector4(1.0f, 0.0f, 1.0f, 0.0f)} // 7
-			};
-
-			std::vector<WORD> g_Indicies =
-			{
-				0, 1, 2, 0, 2, 3,
-				4, 6, 5, 4, 7, 6,
-				4, 5, 1, 4, 1, 0,
-				3, 2, 6, 3, 6, 7,
-				1, 5, 6, 1, 6, 2,
-				4, 0, 3, 4, 3, 7
-			};
-
 			
-			// Number of swapchain back buffers.
-			static const UINT BufferCount = 2;
 
+			Microsoft::WRL::ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
+			Microsoft::WRL::ComPtr<ID3D12Device2> CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter);
+			bool CheckTearingSupport();
 			
+			static const UINT BufferCount = 3;
+
+
+			UINT GetCurrentBackBufferIndex() const;
+			UINT Present();
+			D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView() const;
+			Microsoft::WRL::ComPtr<ID3D12Resource> GetCurrentBackBuffer() const;
+			Microsoft::WRL::ComPtr<IDXGISwapChain4> CreateSwapChain();
+			void UpdateRenderTargetViews();
+
+
+			void Flush();
+			void TransitionResource(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList,
+				Microsoft::WRL::ComPtr<ID3D12Resource> resource,
+				D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState);
+
+
+			void ClearRTV(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList,
+				D3D12_CPU_DESCRIPTOR_HANDLE rtv, FLOAT* clearColor);
+
+
+			void ClearDepth(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList,
+				D3D12_CPU_DESCRIPTOR_HANDLE dsv, FLOAT depth = 1.0f);
+
+
+			void UpdateBufferResource(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList,
+				ID3D12Resource** pDestinationResource, ID3D12Resource** pIntermediateResource,
+				size_t numElements, size_t elementSize, const void* bufferData,
+				D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
+
+
+			void ResizeDepthBuffer(int width, int height);
+
+			uint64_t m_FenceValues[BufferCount] = {};
+
+
+			Microsoft::WRL::ComPtr<ID3D12Resource> m_VertexBuffer;
+			D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
+
+
+			Microsoft::WRL::ComPtr<ID3D12Resource> m_IndexBuffer;
+			D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
+
+			Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthBuffer;
+			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
+
+			Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
+
+			ID3D12PipelineState* m_PipelineState;
+
+			D3D12_VIEWPORT m_Viewport;
+			D3D12_RECT m_ScissorRect;
+
+			float m_FoV;
+			
+			bool m_Fullscreen = false;
 			bool isVsync;
 			int videoCardMemory;
 			char videoCardDescription[128];
 			unsigned int bufferIndex;
-
 			UINT m_CurrentBackBufferIndex;
-			
-			ComPtr<ID3D12Resource> backBufferRenderTarget[BufferCount];
-			ComPtr<ID3D12Device2> device;
-			ComPtr<ID3D12CommandAllocator> commandAllocator;
-			ComPtr<ID3D12CommandQueue> d12commandQueue;
-			
-			
-			ComPtr<ID3D12GraphicsCommandList> commandList;
-			ComPtr<ID3D12DescriptorHeap> renderTargetViewHeap;		
-			ComPtr<IDXGISwapChain4> swapChain;
 
-			ComPtr<ID3D12Fence> fence;
-			HANDLE fenceEvent;
-			unsigned long long fenceValue;
-
-			uint64_t fenceValues[BufferCount] = {};
-
-			// Vertex buffer for the cube.
-			ComPtr<ID3D12Resource> vertexBuffer;
-			D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
-			// Index buffer for the cube.
-			ComPtr<ID3D12Resource> indexBuffer;
-			D3D12_INDEX_BUFFER_VIEW indexBufferView;
-
-			// Depth buffer.
-			Microsoft::WRL::ComPtr<ID3D12Resource> m_DepthBuffer;
-			// Descriptor heap for depth buffer.
-			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
-
-			// Root signature
-			Microsoft::WRL::ComPtr<ID3D12RootSignature> m_RootSignature;
-
-			// Pipeline state object.
-			Microsoft::WRL::ComPtr<ID3D12PipelineState> m_PipelineState;
-
-			D3D12_VIEWPORT m_Viewport;
-			D3D12_RECT m_ScissorRect;
+			Microsoft::WRL::ComPtr<IDXGIAdapter4> m_dxgiAdapter;
+			Microsoft::WRL::ComPtr<ID3D12Device2> m_d3d12Device;			
 
 			std::shared_ptr<CommandQueue> m_DirectCommandQueue;
 			std::shared_ptr<CommandQueue> m_ComputeCommandQueue;
 			std::shared_ptr<CommandQueue> m_CopyCommandQueue;
 
-			
 			int windowWidth;
 			int windowHeight;
+
+			Microsoft::WRL::ComPtr<IDXGISwapChain4> m_dxgiSwapChain;
+			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_d3d12RTVDescriptorHeap;
+			Microsoft::WRL::ComPtr<ID3D12Resource> m_d3d12BackBuffers[BufferCount];
+
+			UINT m_RTVDescriptorSize;
+			RECT m_WindowRect;
+			bool m_IsTearingSupported;
 
 			bool InitializeDirectX(HWND hwnd);
 			bool InitializeShaders();
 			bool InitializeScene();
+		
+			
 
-			// Helper functions
-			// Transition a resource
-			void TransitionResource(ComPtr<ID3D12GraphicsCommandList2> commandList,
-			                        ComPtr<ID3D12Resource> resource,
-			                        D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState);
 
-			// Clear a render target view.
-			void ClearRTV(ComPtr<ID3D12GraphicsCommandList2> commandList,
-			              D3D12_CPU_DESCRIPTOR_HANDLE rtv, FLOAT* clearColor);
-
-			// Clear the depth of a depth-stencil view.
-			void ClearDepth(ComPtr<ID3D12GraphicsCommandList2> commandList,
-			                D3D12_CPU_DESCRIPTOR_HANDLE dsv, FLOAT depth = 1.0f);
-
-			// Create a GPU buffer.
-			void UpdateBufferResource(ComPtr<ID3D12GraphicsCommandList2> commandList,
-			                          ID3D12Resource** pDestinationResource, ID3D12Resource** pIntermediateResource,
-			                          size_t numElements, size_t elementSize, const void* bufferData,
-			                          D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
-
-			// Resize the depth buffer to match the size of the client area.
-			void ResizeDepthBuffer(int width, int height);
-
-			void Flush();
-
-			void UpdateRenderTargetViews();
-
-			UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
-
-			D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentRenderTargetView();
-
-			UINT GetCurrentBackBufferIndex() const;
-
-			UINT Present();
-
-			Microsoft::WRL::ComPtr<ID3D12Resource> GetCurrentBackBuffer() const
-			{
-				return backBufferRenderTarget[m_CurrentBackBufferIndex];
-			}
+			
 		};
 	}
 }
-

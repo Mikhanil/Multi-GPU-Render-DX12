@@ -23,9 +23,9 @@ namespace GameEngine
 		Matrix CreateWorldMatrix() const;
 
 	public:
-		Vector3 pos;
-		Vector3 rot;
-		Vector3 scale;
+		Vector3 pos  = Vector3::Zero;
+		Vector3 rot = Vector3::Zero;
+		Vector3 scale = Vector3::One;
 
 		bool IsUseOnlyParentPosition;
 

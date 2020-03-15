@@ -12,15 +12,12 @@ namespace GameEngine
 	{
         using namespace Microsoft::WRL;
 		
-		class CommandQueue
-		{
-			
+        class CommandQueue
+        {
         public:
-            CommandQueue();
-            virtual ~CommandQueue() {};
+            CommandQueue(Microsoft::WRL::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
+            virtual ~CommandQueue();
 
-            bool Initialize(Microsoft::WRL::ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type);
-			
             // Get an available command list from the command queue.
             Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> GetCommandList();
 
@@ -34,8 +31,8 @@ namespace GameEngine
             void Flush();
 
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> GetD3D12CommandQueue() const;
-			
         protected:
+
             Microsoft::WRL::ComPtr<ID3D12CommandAllocator> CreateCommandAllocator();
             Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> CreateCommandList(Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator);
 
@@ -47,20 +44,19 @@ namespace GameEngine
                 Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
             };
 
+            using CommandAllocatorQueue = std::queue<CommandAllocatorEntry>;
+            using CommandListQueue = std::queue< Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> >;
 
+            D3D12_COMMAND_LIST_TYPE                     m_CommandListType;
+            Microsoft::WRL::ComPtr<ID3D12Device2>       m_d3d12Device;
+            Microsoft::WRL::ComPtr<ID3D12CommandQueue>  m_d3d12CommandQueue;
+            Microsoft::WRL::ComPtr<ID3D12Fence>         m_d3d12Fence;
+            HANDLE                                      m_FenceEvent;
+            uint64_t                                    m_FenceValue;
 
-			
-            D3D12_COMMAND_LIST_TYPE commandListType;
-            Microsoft::WRL::ComPtr<ID3D12Device2> device;
-            Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue;
-            Microsoft::WRL::ComPtr<ID3D12Fence> fence;
-            HANDLE fenceEvent;
-            uint64_t fenceValue;
-
-            std::queue<CommandAllocatorEntry> commandAllocatorQueue;
-            std::queue<Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2>> commandListQueue;
-
-		};
+            CommandAllocatorQueue                       m_CommandAllocatorQueue;
+            CommandListQueue                            m_CommandListQueue;
+        };
 	}
 }
 
