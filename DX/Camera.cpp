@@ -5,7 +5,8 @@ namespace GameEngine
 	using namespace DirectX;
 	using namespace DirectX::SimpleMath;
 	
-	Camera::Camera() = default;
+	Camera::Camera() : GameObject()
+	{};
 
 	void Camera::SetProjectionValues(float fovDegrees, float aspectRatio, float nearZ, float farZ)
 	{

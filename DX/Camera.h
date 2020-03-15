@@ -12,6 +12,12 @@ namespace  GameEngine
 		const Matrix& GetViewMatrix() const;
 		const Matrix& GetProjectionMatrix() const;
 
+		/*Костыли велосепеды*/
+		static Camera& Instance()
+		{
+			static Camera camera;
+			return camera;
+		}
 
 
 		void Update() override;
