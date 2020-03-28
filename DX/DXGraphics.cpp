@@ -1,12 +1,12 @@
 #include "DXGraphics.h"
-#include "COMException.h"
 #include "ErrorLogger.h"
 #include "DXAdapterReader.h"
 #include "CommandQueue.h"
 #include <d3dcompiler.h>
 
-#include <algorithm> // For std::min and std::max.
-#include "d3dx12.h" // For std::min and std::max.
+#include <algorithm> 
+#include "d3dx12.h"
+
 #if defined(min)
 #undef min
 #endif
@@ -19,23 +19,22 @@ namespace GameEngine
 {
 	namespace Graphics
 	{
-		using namespace Utility;
 		using namespace Logger;
 		using namespace Graphics;
 
 
-		static std::vector< VertexPosColor> g_Vertices {
-	   { Vector3(-1.0f, -1.0f, -1.0f), Vector4(0.0f, 0.0f, 0.0f, 0.0f) }, // 0
-	   { Vector3(-1.0f,  1.0f, -1.0f), Vector4(0.0f, 1.0f, 0.0f, 0.0f) }, // 1
-	   { Vector3(1.0f,  1.0f, -1.0f), Vector4(1.0f, 1.0f, 0.0f, 0.0f) }, // 2
-	   { Vector3(1.0f, -1.0f, -1.0f), Vector4(1.0f, 0.0f, 0.0f, 0.0f) }, // 3
-	   { Vector3(-1.0f, -1.0f,  1.0f), Vector4(0.0f, 0.0f, 1.0f, 0.0f) }, // 4
-	   { Vector3(-1.0f,  1.0f,  1.0f), Vector4(0.0f, 1.0f, 1.0f, 0.0f) }, // 5
-	   { Vector3(1.0f,  1.0f,  1.0f), Vector4(1.0f, 1.0f, 1.0f, 0.0f) }, // 6
-	   { Vector3(1.0f, -1.0f,  1.0f), Vector4(1.0f, 0.0f, 1.0f, 0.0f) }  // 7
+		static std::vector<VertexPosColor> g_Vertices{
+			{Vector3(-1.0f, -1.0f, -1.0f), Vector4(0.0f, 0.0f, 0.0f, 0.0f)}, // 0
+			{Vector3(-1.0f, 1.0f, -1.0f), Vector4(0.0f, 1.0f, 0.0f, 0.0f)}, // 1
+			{Vector3(1.0f, 1.0f, -1.0f), Vector4(1.0f, 1.0f, 0.0f, 0.0f)}, // 2
+			{Vector3(1.0f, -1.0f, -1.0f), Vector4(1.0f, 0.0f, 0.0f, 0.0f)}, // 3
+			{Vector3(-1.0f, -1.0f, 1.0f), Vector4(0.0f, 0.0f, 1.0f, 0.0f)}, // 4
+			{Vector3(-1.0f, 1.0f, 1.0f), Vector4(0.0f, 1.0f, 1.0f, 0.0f)}, // 5
+			{Vector3(1.0f, 1.0f, 1.0f), Vector4(1.0f, 1.0f, 1.0f, 0.0f)}, // 6
+			{Vector3(1.0f, -1.0f, 1.0f), Vector4(1.0f, 0.0f, 1.0f, 0.0f)} // 7
 		};
 
-		static std::vector < WORD> g_Indicies
+		static std::vector<WORD> g_Indicies
 		{
 			0, 1, 2, 0, 2, 3,
 			4, 6, 5, 4, 7, 6,
@@ -73,7 +72,7 @@ namespace GameEngine
 		}
 
 		void DXGraphics::RenderFrame()
-		{			
+		{
 			auto commandQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 			auto commandList = commandQueue->GetCommandList();
 
@@ -85,9 +84,9 @@ namespace GameEngine
 			// Clear the render targets.
 			{
 				TransitionResource(commandList, backBuffer,
-					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+				                   D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-				FLOAT clearColor[] = { 0,0,1, 1.0f };
+				FLOAT clearColor[] = {0, 0, 1, 1.0f};
 
 				ClearRTV(commandList, rtv, clearColor);
 				ClearDepth(commandList, dsv);
@@ -107,22 +106,18 @@ namespace GameEngine
 
 			auto model = models[0];
 			auto tr = model->GetTransform();
-			
+
 			// Update the MVP matrix
 			Matrix mvpMatrix = tr->GetWorldMatrix() * camera.GetViewMatrix() * camera.GetProjectionMatrix();
-			
+
 			commandList->SetGraphicsRoot32BitConstants(0, sizeof(Matrix) / 4, &mvpMatrix, 0);
-			 // Update the MVP matrix
-			/*XMMATRIX mvpMatrix = XMMatrixMultiply(m_ModelMatrix, m_ViewMatrix);
-			mvpMatrix = XMMatrixMultiply(mvpMatrix, m_ProjectionMatrix);
-			commandList->SetGraphicsRoot32BitConstants(0, sizeof(XMMATRIX) / 4, &mvpMatrix, 0);*/
 
 			commandList->DrawIndexedInstanced(g_Indicies.size(), 1, 0, 0, 0);
 
 			// Present
 			{
 				TransitionResource(commandList, backBuffer,
-					D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+				                   D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
 				m_FenceValues[currentBackBufferIndex] = commandQueue->ExecuteCommandList(commandList);
 
@@ -147,14 +142,14 @@ namespace GameEngine
 				commandQueue = m_CopyCommandQueue;
 				break;
 			default:
-				CheckComError(ERROR, "Invalid command queue type.");
+				CheckComErrorFull(ERROR, "Invalid command queue type.");
 			}
 
 			return commandQueue;
 		}
 
-		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> DXGraphics::CreateDescriptorHeap(UINT numDescriptors,
-			D3D12_DESCRIPTOR_HEAP_TYPE type)
+		ComPtr<ID3D12DescriptorHeap> DXGraphics::CreateDescriptorHeap(UINT numDescriptors,
+		                                                              D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
 			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 			desc.Type = type;
@@ -162,8 +157,8 @@ namespace GameEngine
 			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			desc.NodeMask = 0;
 
-			Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
-			CheckComError(m_d3d12Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)), "");
+			ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+			CheckComError(m_d3d12Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
 
 			return descriptorHeap;
 		}
@@ -175,54 +170,44 @@ namespace GameEngine
 
 		bool DXGraphics::InitializeDirectX(HWND hwnd)
 		{
-			try
+			// Check for DirectX Math library support.
+			if (!XMVerifyCPUSupport())
 			{
-				
-				// Check for DirectX Math library support.
-				if (!DirectX::XMVerifyCPUSupport())
-				{
-					MessageBoxA(hwnd, "Failed to verify DirectX Math library support.", "Error", MB_OK | MB_ICONERROR);
-					return false;
-				}
-
-				
-				SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-				m_dxgiAdapter = GetAdapter(false);
-				
-				if (m_dxgiAdapter)
-				{
-					m_d3d12Device = CreateDevice(m_dxgiAdapter);
-				}
-				if (m_d3d12Device)
-				{
-					auto device = GetDevice();
-					m_DirectCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-					m_ComputeCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-					m_CopyCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COPY);
-					m_TearingSupported = CheckTearingSupport();
-				}			
-
-				
-				m_dxgiSwapChain = CreateSwapChain();
-				m_d3d12RTVDescriptorHeap = CreateDescriptorHeap(BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-				m_RTVDescriptorSize = GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-				UpdateRenderTargetViews();
-
-				
-				m_ScissorRect = CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX);
-				m_Viewport = (CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(windowWidth), static_cast<float>(windowHeight)));
-
-				
-
-
-				
-			}
-			catch (COMException& ex)
-			{
-				ErrorLogger::Log(ex);
+				MessageBoxA(hwnd, "Failed to verify DirectX Math library support.", "Error", MB_OK | MB_ICONERROR);
 				return false;
 			}
+
+
+			SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+			m_dxgiAdapter = GetAdapter(false);
+
+			if (m_dxgiAdapter)
+			{
+				m_d3d12Device = CreateDevice(m_dxgiAdapter);
+			}
+
+			if (m_d3d12Device)
+			{
+				auto device = GetDevice();
+				m_DirectCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+				m_ComputeCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+				m_CopyCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COPY);
+				m_TearingSupported = CheckTearingSupport();
+			}
+
+
+			m_dxgiSwapChain = CreateSwapChain();
+			m_d3d12RTVDescriptorHeap = CreateDescriptorHeap(BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			m_RTVDescriptorSize = GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+			UpdateRenderTargetViews();
+
+
+			m_ScissorRect = CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX);
+			m_Viewport = (CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(windowWidth),
+			                               static_cast<float>(windowHeight)));
+
+			return true;
 		}
 
 		bool DXGraphics::InitializeShaders()
@@ -234,8 +219,8 @@ namespace GameEngine
 			// Upload vertex buffer data.
 			ComPtr<ID3D12Resource> intermediateVertexBuffer;
 			UpdateBufferResource(commandList,
-				&m_VertexBuffer, &intermediateVertexBuffer,
-				g_Vertices.size(), sizeof(VertexPosColor), g_Vertices.data());
+			                     &m_VertexBuffer, &intermediateVertexBuffer,
+			                     g_Vertices.size(), sizeof(VertexPosColor), g_Vertices.data());
 
 			// Create the vertex buffer view.
 			m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
@@ -245,8 +230,8 @@ namespace GameEngine
 			// Upload index buffer data.
 			ComPtr<ID3D12Resource> intermediateIndexBuffer;
 			UpdateBufferResource(commandList,
-				&m_IndexBuffer, &intermediateIndexBuffer,
-				(g_Indicies.size()), sizeof(WORD), g_Indicies.data());
+			                     &m_IndexBuffer, &intermediateIndexBuffer,
+			                     (g_Indicies.size()), sizeof(WORD), g_Indicies.data());
 
 			// Create index buffer view.
 			m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
@@ -258,19 +243,23 @@ namespace GameEngine
 			dsvHeapDesc.NumDescriptors = 1;
 			dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 			dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			CheckComError(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_DSVHeap)), "");
+			CheckComError(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_DSVHeap)));
 
 
 			ComPtr<ID3DBlob> vertexShader, pixelShader, errorBlob;
 			{
 				// Compile the shaders
-				HRESULT hr = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, vertexShader.GetAddressOf(), errorBlob.GetAddressOf());
+				HRESULT hr = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_1",
+				                                D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0,
+				                                vertexShader.GetAddressOf(), errorBlob.GetAddressOf());
 				if (!SUCCEEDED(hr))
 				{
 					const char* errMessage = (const char*)errorBlob.Get()->GetBufferPointer();
 					printf("%s", errMessage);
 				}
-				hr = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, pixelShader.GetAddressOf(), errorBlob.GetAddressOf());
+				hr = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_1",
+				                        D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, pixelShader.GetAddressOf(),
+				                        errorBlob.GetAddressOf());
 				if (!SUCCEEDED(hr))
 				{
 					const char* errMessage = (const char*)errorBlob.Get()->GetBufferPointer();
@@ -278,19 +267,17 @@ namespace GameEngine
 				}
 			}
 
-			
-			//// Load the vertex shader.
-			//ComPtr<ID3DBlob> vertexShaderBlob;
-			//CheckComError(D3DCompileFromFile(L"VertexShader.hlsl", &vertexShaderBlob), "");
-
-			//// Load the pixel shader.
-			//ComPtr<ID3DBlob> pixelShaderBlob;
-			//CheckComError(D3DReadFileToBlob(L"PixelShader.hlsl", &pixelShaderBlob), "");
 
 			// Create the vertex input layout
 			D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{
+					"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+				},
+				{
+					"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+					D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+				},
 			};
 
 			// Create a root signature.
@@ -318,11 +305,12 @@ namespace GameEngine
 
 			// Serialize the root signature.
 			ComPtr<ID3DBlob> rootSignatureBlob;
- 			CheckComError(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
-				featureData.HighestVersion, &rootSignatureBlob, &errorBlob), "");
+			CheckComError(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
+				featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
 			// Create the root signature.
 			CheckComError(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
-				rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)), "");
+				rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
+
 
 			struct PipelineStateStream
 			{
@@ -340,10 +328,14 @@ namespace GameEngine
 			rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 			pipelineStateStream.pRootSignature = m_RootSignature.Get();
-			pipelineStateStream.InputLayout = { inputLayout, _countof(inputLayout) };
+			pipelineStateStream.InputLayout = {inputLayout, _countof(inputLayout)};
 			pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pipelineStateStream.VS = { reinterpret_cast<UINT8*>(vertexShader->GetBufferPointer()), vertexShader->GetBufferSize() };
-			pipelineStateStream.PS = { reinterpret_cast<UINT8*>(pixelShader->GetBufferPointer()), pixelShader->GetBufferSize() };
+			pipelineStateStream.VS = {
+				reinterpret_cast<UINT8*>(vertexShader->GetBufferPointer()), vertexShader->GetBufferSize()
+			};
+			pipelineStateStream.PS = {
+				reinterpret_cast<UINT8*>(pixelShader->GetBufferPointer()), pixelShader->GetBufferSize()
+			};
 			pipelineStateStream.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 			pipelineStateStream.RTVFormats = rtvFormats;
 
@@ -351,9 +343,8 @@ namespace GameEngine
 				sizeof(PipelineStateStream), &pipelineStateStream
 			};
 
-			
-		
-			CheckComError(device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState)), "");
+
+			CheckComError(device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState)));
 
 			auto fenceValue = commandQueue->ExecuteCommandList(commandList);
 			commandQueue->WaitForFenceValue(fenceValue);
@@ -361,19 +352,18 @@ namespace GameEngine
 
 			// Resize/Create the depth buffer.
 			ResizeDepthBuffer(windowWidth, windowHeight);
-			
+
 			return true;
 		}
 
 		bool DXGraphics::InitializeScene()
 		{
 			auto model = new Model();
-			if(model->Initialize(g_Vertices, g_Indicies))
+			if (model->Initialize(g_Vertices, g_Indicies))
 			{
 				models.push_back(model);
 			}
 
-		
 
 			auto camTr = camera.GetTransform();
 			camTr->IsUseOnlyParentPosition = true;
@@ -386,9 +376,8 @@ namespace GameEngine
 			return true;
 		}
 
-		
 
-		Microsoft::WRL::ComPtr<IDXGIAdapter4> DXGraphics::GetAdapter(bool bUseWarp)
+		ComPtr<IDXGIAdapter4> DXGraphics::GetAdapter(bool bUseWarp) const
 		{
 			ComPtr<IDXGIFactory4> dxgiFactory;
 			UINT createFactoryFlags = 0;
@@ -396,15 +385,15 @@ namespace GameEngine
 			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)),"");
+			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
 
 			ComPtr<IDXGIAdapter1> dxgiAdapter1;
 			ComPtr<IDXGIAdapter4> dxgiAdapter4;
 
 			if (bUseWarp)
 			{
-				CheckComError(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&dxgiAdapter1)),"");
-				CheckComError(dxgiAdapter1.As(&dxgiAdapter4),"");
+				CheckComError(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&dxgiAdapter1)));
+				CheckComError(dxgiAdapter1.As(&dxgiAdapter4));
 			}
 			else
 			{
@@ -420,7 +409,7 @@ namespace GameEngine
 						dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
 					{
 						maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-						CheckComError(dxgiAdapter1.As(&dxgiAdapter4), "");
+						CheckComError(dxgiAdapter1.As(&dxgiAdapter4));
 					}
 				}
 			}
@@ -428,13 +417,12 @@ namespace GameEngine
 			return dxgiAdapter4;
 		}
 
-		Microsoft::WRL::ComPtr<ID3D12Device2> DXGraphics::CreateDevice(Microsoft::WRL::ComPtr<IDXGIAdapter4> adapter)
+		ComPtr<ID3D12Device2> DXGraphics::CreateDevice(const ComPtr<IDXGIAdapter4>& adapter) const
 		{
 			ComPtr<ID3D12Device2> d3d12Device2;
-			CheckComError(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)), "");
-			//    NAME_D3D12_OBJECT(d3d12Device2);
+			CheckComError(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&d3d12Device2)));
 
-				// Enable debug messages in debug mode.
+			// Enable debug messages in debug mode.
 #if defined(_DEBUG)
 			ComPtr<ID3D12InfoQueue> pInfoQueue;
 			if (SUCCEEDED(d3d12Device2.As(&pInfoQueue)))
@@ -454,9 +442,12 @@ namespace GameEngine
 
 				// Suppress individual messages by their ID
 				D3D12_MESSAGE_ID DenyIds[] = {
-					D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
-					D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
-					D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+					D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+					// I'm really not sure how to avoid this message.
+					D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
+					// This warning occurs when using capture frame while graphics debugging.
+					D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
+					// This warning occurs when using capture frame while graphics debugging.
 				};
 
 				D3D12_INFO_QUEUE_FILTER NewFilter = {};
@@ -465,14 +456,14 @@ namespace GameEngine
 				NewFilter.DenyList.NumIDs = _countof(DenyIds);
 				NewFilter.DenyList.pIDList = DenyIds;
 
-				CheckComError(pInfoQueue->PushStorageFilter(&NewFilter), "");
+				CheckComError(pInfoQueue->PushStorageFilter(&NewFilter));
 			}
 #endif
 
 			return d3d12Device2;
 		}
 
-		bool DXGraphics::CheckTearingSupport()
+		bool DXGraphics::CheckTearingSupport() const
 		{
 			BOOL allowTearing = FALSE;
 
@@ -487,16 +478,17 @@ namespace GameEngine
 				if (SUCCEEDED(factory4.As(&factory5)))
 				{
 					factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-						&allowTearing, sizeof(allowTearing));
+					                              &allowTearing, sizeof(allowTearing));
 				}
 			}
 
 			return allowTearing == TRUE;
 		}
 
-		void DXGraphics::TransitionResource(ComPtr<ID3D12GraphicsCommandList2> commandList,
-		                                    ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES beforeState,
-		                                    D3D12_RESOURCE_STATES afterState)
+		void DXGraphics::TransitionResource(const ComPtr<ID3D12GraphicsCommandList2>& commandList,
+		                                    const ComPtr<ID3D12Resource>& resource,
+		                                    const D3D12_RESOURCE_STATES beforeState,
+		                                    const D3D12_RESOURCE_STATES afterState)
 		{
 			CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 				resource.Get(),
@@ -505,26 +497,29 @@ namespace GameEngine
 			commandList->ResourceBarrier(1, &barrier);
 		}
 
-		void DXGraphics::ClearRTV(ComPtr<ID3D12GraphicsCommandList2> commandList, D3D12_CPU_DESCRIPTOR_HANDLE rtv,
+		void DXGraphics::ClearRTV(const ComPtr<ID3D12GraphicsCommandList2>& commandList,
+		                          const D3D12_CPU_DESCRIPTOR_HANDLE rtv,
 		                          float* clearColor)
 		{
 			commandList->ClearRenderTargetView(rtv, clearColor, 0, nullptr);
 		}
 
-		void DXGraphics::ClearDepth(ComPtr<ID3D12GraphicsCommandList2> commandList, D3D12_CPU_DESCRIPTOR_HANDLE dsv,
-		                            FLOAT depth)
+		void DXGraphics::ClearDepth(const ComPtr<ID3D12GraphicsCommandList2>& commandList,
+		                            const D3D12_CPU_DESCRIPTOR_HANDLE dsv,
+		                            const FLOAT depth)
 		{
 			commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, depth, 0, 0, nullptr);
 		}
 
-		void DXGraphics::UpdateBufferResource(ComPtr<ID3D12GraphicsCommandList2> commandList,
+		void DXGraphics::UpdateBufferResource(const ComPtr<ID3D12GraphicsCommandList2>& commandList,
 		                                      ID3D12Resource** pDestinationResource,
-		                                      ID3D12Resource** pIntermediateResource, size_t numElements,
-		                                      size_t elementSize, const void* bufferData, D3D12_RESOURCE_FLAGS flags)
+		                                      ID3D12Resource** pIntermediateResource, const size_t numElements,
+		                                      const size_t elementSize, const void* bufferData,
+		                                      const D3D12_RESOURCE_FLAGS flags)
 		{
 			auto device = GetDevice();
 
-			size_t bufferSize = numElements * elementSize;
+			const size_t bufferSize = numElements * elementSize;
 
 			// Create a committed resource for the GPU resource in a default heap.
 			CheckComError(device->CreateCommittedResource(
@@ -533,7 +528,7 @@ namespace GameEngine
 				&CD3DX12_RESOURCE_DESC::Buffer(bufferSize, flags),
 				D3D12_RESOURCE_STATE_COPY_DEST,
 				nullptr,
-				IID_PPV_ARGS(pDestinationResource)), "");
+				IID_PPV_ARGS(pDestinationResource)));
 
 			// Create an committed resource for the upload.
 			if (bufferData)
@@ -544,16 +539,16 @@ namespace GameEngine
 					&CD3DX12_RESOURCE_DESC::Buffer(bufferSize),
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
-					IID_PPV_ARGS(pIntermediateResource)), "");
+					IID_PPV_ARGS(pIntermediateResource)));
 
-				D3D12_SUBRESOURCE_DATA subresourceData = {};
+				D3D12_SUBRESOURCE_DATA subresourceData;
 				subresourceData.pData = bufferData;
 				subresourceData.RowPitch = bufferSize;
 				subresourceData.SlicePitch = subresourceData.RowPitch;
 
 				UpdateSubresources(commandList.Get(),
-					*pDestinationResource, *pIntermediateResource,
-					0, 0, 1, &subresourceData);
+				                   *pDestinationResource, *pIntermediateResource,
+				                   0, 0, 1, &subresourceData);
 			}
 		}
 
@@ -573,14 +568,14 @@ namespace GameEngine
 			optimizedClearValue.DepthStencil = {1.0f, 0};
 
 			CheckComError(device->CreateCommittedResource(
-				              &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				              D3D12_HEAP_FLAG_NONE,
-				              &CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height,
-					              1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
-				              D3D12_RESOURCE_STATE_DEPTH_WRITE,
-				              &optimizedClearValue,
-				              IID_PPV_ARGS(&m_DepthBuffer)
-			              ), "Can't create commit");
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height,
+					1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+				D3D12_RESOURCE_STATE_DEPTH_WRITE,
+				&optimizedClearValue,
+				IID_PPV_ARGS(&m_DepthBuffer)
+			));
 
 			// Update the depth-stencil view.
 			D3D12_DEPTH_STENCIL_VIEW_DESC dsv = {};
@@ -593,7 +588,7 @@ namespace GameEngine
 			                               m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
 		}
 
-		void DXGraphics::Flush()
+		void DXGraphics::Flush() const
 		{
 			m_DirectCommandQueue->Flush();
 			m_ComputeCommandQueue->Flush();
@@ -602,14 +597,13 @@ namespace GameEngine
 
 		void DXGraphics::UpdateRenderTargetViews()
 		{
-
 			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 			for (int i = 0; i < BufferCount; ++i)
 			{
 				ComPtr<ID3D12Resource> backBuffer;
-				CheckComError(m_dxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)), "");
-				
+				CheckComError(m_dxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
+
 				m_d3d12Device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
 
 				m_d3d12BackBuffers[i] = backBuffer;
@@ -617,8 +611,6 @@ namespace GameEngine
 				rtvHandle.Offset(m_RTVDescriptorSize);
 			}
 		}
-
-	
 
 
 		UINT DXGraphics::GetCurrentBackBufferIndex() const
@@ -628,9 +620,9 @@ namespace GameEngine
 
 		UINT DXGraphics::Present()
 		{
-			UINT syncInterval = isVsync ? 1 : 0;
-			UINT presentFlags = m_IsTearingSupported && !isVsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-			CheckComError(m_dxgiSwapChain->Present(syncInterval, presentFlags), "");
+			const UINT syncInterval = isVsync ? 1 : 0;
+			const UINT presentFlags = m_IsTearingSupported && !isVsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+			CheckComError(m_dxgiSwapChain->Present(syncInterval, presentFlags));
 			m_CurrentBackBufferIndex = m_dxgiSwapChain->GetCurrentBackBufferIndex();
 
 			return m_CurrentBackBufferIndex;
@@ -639,15 +631,15 @@ namespace GameEngine
 		D3D12_CPU_DESCRIPTOR_HANDLE DXGraphics::GetCurrentRenderTargetView() const
 		{
 			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-				m_CurrentBackBufferIndex, m_RTVDescriptorSize);
+			                                     m_CurrentBackBufferIndex, m_RTVDescriptorSize);
 		}
 
-		Microsoft::WRL::ComPtr<ID3D12Resource> DXGraphics::GetCurrentBackBuffer() const
+		ComPtr<ID3D12Resource> DXGraphics::GetCurrentBackBuffer() const
 		{
 			return m_d3d12BackBuffers[m_CurrentBackBufferIndex];
 		}
 
-		Microsoft::WRL::ComPtr<IDXGISwapChain4> DXGraphics::CreateSwapChain()
+		ComPtr<IDXGISwapChain4> DXGraphics::CreateSwapChain()
 		{
 			ComPtr<IDXGISwapChain4> dxgiSwapChain4;
 			ComPtr<IDXGIFactory4> dxgiFactory4;
@@ -656,14 +648,14 @@ namespace GameEngine
 			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)), "");
+			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
 
 			DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 			swapChainDesc.Width = windowWidth;
 			swapChainDesc.Height = windowHeight;
 			swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			swapChainDesc.Stereo = FALSE;
-			swapChainDesc.SampleDesc = { 1, 0 };
+			swapChainDesc.SampleDesc = {1, 0};
 			swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 			swapChainDesc.BufferCount = BufferCount;
 			swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
@@ -680,13 +672,13 @@ namespace GameEngine
 				&swapChainDesc,
 				nullptr,
 				nullptr,
-				&swapChain1), "");
+				&swapChain1));
 
 			// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
 			// will be handled manually.
-			CheckComError(dxgiFactory4->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER), "");
+			CheckComError(dxgiFactory4->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
 
-			CheckComError(swapChain1.As(&dxgiSwapChain4), "");
+			CheckComError(swapChain1.As(&dxgiSwapChain4));
 
 			m_CurrentBackBufferIndex = dxgiSwapChain4->GetCurrentBackBufferIndex();
 

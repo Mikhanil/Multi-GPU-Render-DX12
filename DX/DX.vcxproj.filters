@@ -125,9 +125,6 @@
     <ClInclude Include="Mouse\MouseInput.h">
       <Filter>Header Files\Input</Filter>
     </ClInclude>
-    <ClInclude Include="COMException.h">
-      <Filter>Header Files\Utility</Filter>
-    </ClInclude>
     <ClInclude Include="StringConverter.h">
       <Filter>Header Files\Utility</Filter>
     </ClInclude>

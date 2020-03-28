@@ -12,10 +12,8 @@ namespace GameEngine
 		this->hInstance = hInstance;
 		this->width = width;
 		this->height = height;
-		this->window_title = window_title;
-		this->window_title_wide = StringConverter::StringToWide(this->window_title);
-		this->window_class = window_class;
-		this->window_class_wide = StringConverter::StringToWide(this->window_class);
+		this->window_title = Utility::StringConverter::StringToWide(window_title);
+		this->window_class = Utility::StringConverter::StringToWide(window_class);
 
 		this->RegisterWindowClass();
 
@@ -29,22 +27,22 @@ namespace GameEngine
 		wr.bottom = wr.top + this->height;
 		AdjustWindowRect(&wr, WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU, FALSE);
 
-		this->handle = CreateWindowEx(0, //Extended Windows style - we are using the default. For other options, see: https://msdn.microsoft.com/en-us/library/windows/desktop/ff700543(v=vs.85).aspx
-			this->window_class_wide.c_str(), //Window class name
-			this->window_title_wide.c_str(), //Window Title
-			WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU, //Windows style - See: https://msdn.microsoft.com/en-us/library/windows/desktop/ms632600(v=vs.85).aspx
-			wr.left, //Window X Position
-			wr.top, //Window Y Position
-			wr.right - wr.left, //Window Width
-			wr.bottom - wr.top, //Window Height
-			nullptr, //Handle to parent of this window. Since this is the first window, it has no parent window.
-			nullptr, //Handle to menu or child window identifier. Can be set to NULL and use menu in WindowClassEx if a menu is desired to be used.
-			this->hInstance, //Handle to the instance of module to be used with this window
-			pWindowContainer); //Param to create window
+		this->handle = CreateWindowEx(0,
+		                              this->window_class.c_str(),
+		                              this->window_title.c_str(),
+		                              WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU,
+		                              wr.left,
+		                              wr.top,
+		                              wr.right - wr.left,
+		                              wr.bottom - wr.top,
+		                              nullptr,
+		                              nullptr,
+		                              this->hInstance,
+		                              pWindowContainer);
 
 		if (this->handle == nullptr)
 		{
-			ErrorLogger::Log(GetLastError(), "CreateWindowEX Failed for window: " + this->window_title);
+			ErrorLogger::Log(GetLastError(), "CreateWindowEX Failed for window ");
 			return false;
 		}
 
@@ -78,7 +76,7 @@ namespace GameEngine
 			if (!IsWindow(this->handle))
 			{
 				this->handle = nullptr; //Message processing loop takes care of destroying this window
-				UnregisterClass(this->window_class_wide.c_str(), this->hInstance);
+				UnregisterClass(this->window_class.c_str(), this->hInstance);
 				return false;
 			}
 		}
@@ -95,7 +93,7 @@ namespace GameEngine
 	{
 		if (this->handle != nullptr)
 		{
-			UnregisterClass(this->window_class_wide.c_str(), this->hInstance);
+			UnregisterClass(this->window_class.c_str(), this->hInstance);
 			DestroyWindow(handle);
 		}
 	}
@@ -143,19 +141,19 @@ namespace GameEngine
 
 	void RenderWindow::RegisterWindowClass() const
 	{
-		WNDCLASSEX wc; //Our Window Class (This has to be filled before our window can be created) See: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633577(v=vs.85).aspx
-		wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC; //Flags [Redraw on width/height change from resize/movement] See: https://msdn.microsoft.com/en-us/library/windows/desktop/ff729176(v=vs.85).aspx
-		wc.lpfnWndProc = HandleMessageSetup; //Pointer to Window Proc function for handling messages from this window
-		wc.cbClsExtra = 0; //# of extra bytes to allocate following the window-class structure. We are not currently using this.
-		wc.cbWndExtra = 0; //# of extra bytes to allocate following the window instance. We are not currently using this.
-		wc.hInstance = this->hInstance; //Handle to the instance that contains the Window Procedure
-		wc.hIcon = nullptr;   //Handle to the class icon. Must be a handle to an icon resource. We are not currently assigning an icon, so this is null.
-		wc.hIconSm = nullptr; //Handle to small icon for this class. We are not currently assigning an icon, so this is null.
-		wc.hCursor = LoadCursor(nullptr, IDC_ARROW); //Default Cursor - If we leave this null, we have to explicitly set the cursor's shape each time it enters the window.
-		wc.hbrBackground = nullptr; //Handle to the class background brush for the window's background color - we will leave this blank for now and later set this to black. For stock brushes, see: https://msdn.microsoft.com/en-us/library/windows/desktop/dd144925(v=vs.85).aspx
-		wc.lpszMenuName = nullptr; //Pointer to a null terminated character string for the menu. We are not using a menu yet, so this will be NULL.
-		wc.lpszClassName = this->window_class_wide.c_str(); //Pointer to null terminated string of our class name for this window.
-		wc.cbSize = sizeof(WNDCLASSEX); //Need to fill in the size of our struct for cbSize
-		RegisterClassEx(&wc); // Register the class so that it is usable.
+		WNDCLASSEX wc;
+		wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+		wc.lpfnWndProc = HandleMessageSetup;
+		wc.cbClsExtra = 0;
+		wc.cbWndExtra = 0;
+		wc.hInstance = this->hInstance;
+		wc.hIcon = nullptr;
+		wc.hIconSm = nullptr;
+		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		wc.hbrBackground = nullptr;
+		wc.lpszMenuName = nullptr;
+		wc.lpszClassName = this->window_class.c_str();
+		wc.cbSize = sizeof(WNDCLASSEX);
+		RegisterClassEx(&wc);
 	}
 }
