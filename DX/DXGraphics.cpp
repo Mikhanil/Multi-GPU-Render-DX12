@@ -7,13 +7,7 @@
 #include <algorithm> 
 #include "d3dx12.h"
 
-#if defined(min)
-#undef min
-#endif
 
-#if defined(max)
-#undef max
-#endif
 
 namespace GameEngine
 {
@@ -44,22 +38,17 @@ namespace GameEngine
 			4, 0, 3, 4, 3, 7
 		};
 
-		// Clamp a value between a min and max range.
-		template <typename T>
-		constexpr const T& clamp(const T& val, const T& min, const T& max)
-		{
-			return val < min ? min : val > max ? max : val;
-		}
+	
 
 
 		bool DXGraphics::Initialize(HWND hwnd, int width, int height, bool vSync)
 		{
-			this->isVsync = vSync;
+			this->IsVsync = vSync;
 			this->windowWidth = width;
 			this->windowHeight = height;
-			m_hwnd = hwnd;
+			this->hwnd = hwnd;
 
-			if (!InitializeDirectX(hwnd))
+			if (!InitializeDirectX())
 				return false;
 
 			if (!InitializeShaders())
@@ -79,7 +68,7 @@ namespace GameEngine
 			UINT currentBackBufferIndex = GetCurrentBackBufferIndex();
 			auto backBuffer = GetCurrentBackBuffer();
 			auto rtv = GetCurrentRenderTargetView();
-			auto dsv = m_DSVHeap->GetCPUDescriptorHandleForHeapStart();
+			auto dsv = DSVHeap->GetCPUDescriptorHandleForHeapStart();
 
 			// Clear the render targets.
 			{
@@ -92,15 +81,15 @@ namespace GameEngine
 				ClearDepth(commandList, dsv);
 			}
 
-			commandList->SetPipelineState(m_PipelineState);
-			commandList->SetGraphicsRootSignature(m_RootSignature.Get());
+			commandList->SetPipelineState(PipelineState);
+			commandList->SetGraphicsRootSignature(RootSignature.Get());
 
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			commandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
-			commandList->IASetIndexBuffer(&m_IndexBufferView);
+			commandList->IASetVertexBuffers(0, 1, &VertexBufferView);
+			commandList->IASetIndexBuffer(&IndexBufferView);
 
-			commandList->RSSetViewports(1, &m_Viewport);
-			commandList->RSSetScissorRects(1, &m_ScissorRect);
+			commandList->RSSetViewports(1, &Viewport);
+			commandList->RSSetScissorRects(1, &ScissorRect);
 
 			commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
@@ -119,11 +108,11 @@ namespace GameEngine
 				TransitionResource(commandList, backBuffer,
 				                   D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-				m_FenceValues[currentBackBufferIndex] = commandQueue->ExecuteCommandList(commandList);
+				FenceValues[currentBackBufferIndex] = commandQueue->ExecuteCommandList(commandList);
 
 				currentBackBufferIndex = Present();
 
-				commandQueue->WaitForFenceValue(m_FenceValues[currentBackBufferIndex]);
+				commandQueue->WaitForFenceValue(FenceValues[currentBackBufferIndex]);
 			}
 		}
 
@@ -133,13 +122,13 @@ namespace GameEngine
 			switch (type)
 			{
 			case D3D12_COMMAND_LIST_TYPE_DIRECT:
-				commandQueue = m_DirectCommandQueue;
+				commandQueue = DirectCommandQueue;
 				break;
 			case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-				commandQueue = m_ComputeCommandQueue;
+				commandQueue = ComputeCommandQueue;
 				break;
 			case D3D12_COMMAND_LIST_TYPE_COPY:
-				commandQueue = m_CopyCommandQueue;
+				commandQueue = CopyCommandQueue;
 				break;
 			default:
 				CheckComErrorFull(ERROR, "Invalid command queue type.");
@@ -149,7 +138,7 @@ namespace GameEngine
 		}
 
 		ComPtr<ID3D12DescriptorHeap> DXGraphics::CreateDescriptorHeap(UINT numDescriptors,
-		                                                              D3D12_DESCRIPTOR_HEAP_TYPE type) const
+		                                                              const D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
 			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 			desc.Type = type;
@@ -158,17 +147,17 @@ namespace GameEngine
 			desc.NodeMask = 0;
 
 			ComPtr<ID3D12DescriptorHeap> descriptorHeap;
-			CheckComError(m_d3d12Device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
+			CheckComError(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
 
 			return descriptorHeap;
 		}
 
 		UINT DXGraphics::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
 		{
-			return m_d3d12Device->GetDescriptorHandleIncrementSize(type);
+			return device->GetDescriptorHandleIncrementSize(type);
 		}
 
-		bool DXGraphics::InitializeDirectX(HWND hwnd)
+		bool DXGraphics::InitializeDirectX()
 		{
 			// Check for DirectX Math library support.
 			if (!XMVerifyCPUSupport())
@@ -179,32 +168,32 @@ namespace GameEngine
 
 
 			SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-			m_dxgiAdapter = GetAdapter(false);
+			adapter = GetAdapter(false);
 
-			if (m_dxgiAdapter)
+			if (adapter)
 			{
-				m_d3d12Device = CreateDevice(m_dxgiAdapter);
+				device = CreateDevice(adapter);
 			}
 
-			if (m_d3d12Device)
+			if (device)
 			{
 				auto device = GetDevice();
-				m_DirectCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
-				m_ComputeCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-				m_CopyCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COPY);
-				m_TearingSupported = CheckTearingSupport();
+				DirectCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_DIRECT);
+				ComputeCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+				CopyCommandQueue = std::make_shared<CommandQueue>(device, D3D12_COMMAND_LIST_TYPE_COPY);
+				IsTearingSupported = CheckTearingSupport();
 			}
 
 
-			m_dxgiSwapChain = CreateSwapChain();
-			m_d3d12RTVDescriptorHeap = CreateDescriptorHeap(BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			m_RTVDescriptorSize = GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			swapChain = CreateSwapChain();
+			d3d12RTVDescriptorHeap = CreateDescriptorHeap(BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			RTVDescriptorSize = GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 			UpdateRenderTargetViews();
 
 
-			m_ScissorRect = CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX);
-			m_Viewport = (CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(windowWidth),
+			ScissorRect = CD3DX12_RECT(0, 0, LONG_MAX, LONG_MAX);
+			Viewport = (CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(windowWidth),
 			                               static_cast<float>(windowHeight)));
 
 			return true;
@@ -219,31 +208,31 @@ namespace GameEngine
 			// Upload vertex buffer data.
 			ComPtr<ID3D12Resource> intermediateVertexBuffer;
 			UpdateBufferResource(commandList,
-			                     &m_VertexBuffer, &intermediateVertexBuffer,
+			                     &VertexBuffer, &intermediateVertexBuffer,
 			                     g_Vertices.size(), sizeof(VertexPosColor), g_Vertices.data());
 
 			// Create the vertex buffer view.
-			m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
-			m_VertexBufferView.SizeInBytes = (g_Vertices.size() * sizeof(VertexPosColor));
-			m_VertexBufferView.StrideInBytes = sizeof(VertexPosColor);
+			VertexBufferView.BufferLocation = VertexBuffer->GetGPUVirtualAddress();
+			VertexBufferView.SizeInBytes = (g_Vertices.size() * sizeof(VertexPosColor));
+			VertexBufferView.StrideInBytes = sizeof(VertexPosColor);
 
 			// Upload index buffer data.
 			ComPtr<ID3D12Resource> intermediateIndexBuffer;
 			UpdateBufferResource(commandList,
-			                     &m_IndexBuffer, &intermediateIndexBuffer,
+			                     &IndexBuffer, &intermediateIndexBuffer,
 			                     (g_Indicies.size()), sizeof(WORD), g_Indicies.data());
 
 			// Create index buffer view.
-			m_IndexBufferView.BufferLocation = m_IndexBuffer->GetGPUVirtualAddress();
-			m_IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
-			m_IndexBufferView.SizeInBytes = sizeof(WORD) * g_Indicies.size();
+			IndexBufferView.BufferLocation = IndexBuffer->GetGPUVirtualAddress();
+			IndexBufferView.Format = DXGI_FORMAT_R16_UINT;
+			IndexBufferView.SizeInBytes = sizeof(WORD) * g_Indicies.size();
 
 			// Create the descriptor heap for the depth-stencil view.
 			D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
 			dsvHeapDesc.NumDescriptors = 1;
 			dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 			dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			CheckComError(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_DSVHeap)));
+			CheckComError(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&DSVHeap)));
 
 
 			ComPtr<ID3DBlob> vertexShader, pixelShader, errorBlob;
@@ -307,9 +296,10 @@ namespace GameEngine
 			ComPtr<ID3DBlob> rootSignatureBlob;
 			CheckComError(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
 				featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
+
 			// Create the root signature.
 			CheckComError(device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
-				rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature)));
+				rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&RootSignature)));
 
 
 			struct PipelineStateStream
@@ -327,7 +317,7 @@ namespace GameEngine
 			rtvFormats.NumRenderTargets = 1;
 			rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-			pipelineStateStream.pRootSignature = m_RootSignature.Get();
+			pipelineStateStream.pRootSignature = RootSignature.Get();
 			pipelineStateStream.InputLayout = {inputLayout, _countof(inputLayout)};
 			pipelineStateStream.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			pipelineStateStream.VS = {
@@ -344,7 +334,7 @@ namespace GameEngine
 			};
 
 
-			CheckComError(device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&m_PipelineState)));
+			CheckComError(device->CreatePipelineState(&pipelineStateStreamDesc, IID_PPV_ARGS(&PipelineState)));
 
 			auto fenceValue = commandQueue->ExecuteCommandList(commandList);
 			commandQueue->WaitForFenceValue(fenceValue);
@@ -368,7 +358,7 @@ namespace GameEngine
 			auto camTr = camera.GetTransform();
 			camTr->IsUseOnlyParentPosition = true;
 
-			camera.SetProjectionValues(45.0f, static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 0.1f,
+			camera.SetProjectionValues(90.0f, static_cast<float>(windowWidth) / static_cast<float>(windowHeight), 0.1f,
 			                           1000.0f);
 			camTr->SetPosition(0.0f, 0, 10);
 
@@ -376,9 +366,10 @@ namespace GameEngine
 			return true;
 		}
 
-
-		ComPtr<IDXGIAdapter4> DXGraphics::GetAdapter(bool bUseWarp) const
+		ComPtr<IDXGIAdapter4> DXGraphics::GetAdapter(bool bUseWarp)
 		{
+			if (adapter != nullptr) return adapter;
+			
 			ComPtr<IDXGIFactory4> dxgiFactory;
 			UINT createFactoryFlags = 0;
 #if defined(_DEBUG)
@@ -414,7 +405,9 @@ namespace GameEngine
 				}
 			}
 
-			return dxgiAdapter4;
+			adapter = dxgiAdapter4;
+			
+			return adapter;
 		}
 
 		ComPtr<ID3D12Device2> DXGraphics::CreateDevice(const ComPtr<IDXGIAdapter4>& adapter) const
@@ -431,13 +424,16 @@ namespace GameEngine
 				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
 				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 
-				// Suppress whole categories of messages
-				//D3D12_MESSAGE_CATEGORY Categories[] = {};
+				
 
 				// Suppress messages based on their severity level
 				D3D12_MESSAGE_SEVERITY Severities[] =
 				{
-					D3D12_MESSAGE_SEVERITY_INFO
+					D3D12_MESSAGE_SEVERITY_INFO,
+					D3D12_MESSAGE_SEVERITY_ERROR,
+					D3D12_MESSAGE_SEVERITY_CORRUPTION,
+					D3D12_MESSAGE_SEVERITY_MESSAGE,
+					D3D12_MESSAGE_SEVERITY_WARNING,					
 				};
 
 				// Suppress individual messages by their ID
@@ -463,24 +459,31 @@ namespace GameEngine
 			return d3d12Device2;
 		}
 
-		bool DXGraphics::CheckTearingSupport() const
+		ComPtr<IDXGIFactory5> DXGraphics::GetFactory()
+		{
+			if (factory != nullptr) return factory;
+
+			ComPtr<IDXGIFactory4> dxgiFactory4;
+			UINT createFactoryFlags = 0;
+#if defined(_DEBUG)
+			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
+			
+			CheckComError(dxgiFactory4.As(&factory));
+
+			return factory;			
+		}
+		
+		bool DXGraphics::CheckTearingSupport()
 		{
 			BOOL allowTearing = FALSE;
 
-			// Rather than create the DXGI 1.5 factory interface directly, we create the
-			// DXGI 1.4 interface and query for the 1.5 interface. This is to enable the 
-			// graphics debugging tools which will not support the 1.5 factory interface 
-			// until a future update.
-			ComPtr<IDXGIFactory4> factory4;
-			if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory4))))
-			{
-				ComPtr<IDXGIFactory5> factory5;
-				if (SUCCEEDED(factory4.As(&factory5)))
-				{
-					factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-					                              &allowTearing, sizeof(allowTearing));
-				}
-			}
+			auto factory = this->GetFactory();
+
+			factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+				&allowTearing, sizeof(allowTearing));			
 
 			return allowTearing == TRUE;
 		}
@@ -556,8 +559,8 @@ namespace GameEngine
 		{
 			Flush();
 
-			width = std::max(1, width);
-			height = std::max(1, height);
+			width = max(1, width);
+			height = max(1, height);
 
 			auto device = GetDevice();
 
@@ -574,7 +577,7 @@ namespace GameEngine
 					1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
 				D3D12_RESOURCE_STATE_DEPTH_WRITE,
 				&optimizedClearValue,
-				IID_PPV_ARGS(&m_DepthBuffer)
+				IID_PPV_ARGS(&DepthBuffer)
 			));
 
 			// Update the depth-stencil view.
@@ -584,71 +587,63 @@ namespace GameEngine
 			dsv.Texture2D.MipSlice = 0;
 			dsv.Flags = D3D12_DSV_FLAG_NONE;
 
-			device->CreateDepthStencilView(m_DepthBuffer.Get(), &dsv,
-			                               m_DSVHeap->GetCPUDescriptorHandleForHeapStart());
+			device->CreateDepthStencilView(DepthBuffer.Get(), &dsv,
+			                               DSVHeap->GetCPUDescriptorHandleForHeapStart());
 		}
 
 		void DXGraphics::Flush() const
 		{
-			m_DirectCommandQueue->Flush();
-			m_ComputeCommandQueue->Flush();
-			m_CopyCommandQueue->Flush();
+			DirectCommandQueue->Flush();
+			ComputeCommandQueue->Flush();
+			CopyCommandQueue->Flush();
 		}
 
 		void DXGraphics::UpdateRenderTargetViews()
 		{
-			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 			for (int i = 0; i < BufferCount; ++i)
 			{
 				ComPtr<ID3D12Resource> backBuffer;
-				CheckComError(m_dxgiSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
+				CheckComError(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
 
-				m_d3d12Device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
+				device->CreateRenderTargetView(backBuffer.Get(), nullptr, rtvHandle);
 
-				m_d3d12BackBuffers[i] = backBuffer;
+				d3d12BackBuffers[i] = backBuffer;
 
-				rtvHandle.Offset(m_RTVDescriptorSize);
+				rtvHandle.Offset(RTVDescriptorSize);
 			}
 		}
 
-
 		UINT DXGraphics::GetCurrentBackBufferIndex() const
 		{
-			return m_CurrentBackBufferIndex;
+			return CurrentBackBufferIndex;
 		}
 
 		UINT DXGraphics::Present()
 		{
-			const UINT syncInterval = isVsync ? 1 : 0;
-			const UINT presentFlags = m_IsTearingSupported && !isVsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-			CheckComError(m_dxgiSwapChain->Present(syncInterval, presentFlags));
-			m_CurrentBackBufferIndex = m_dxgiSwapChain->GetCurrentBackBufferIndex();
+			const UINT syncInterval = IsVsync ? 1 : 0;
+			const UINT presentFlags = IsTearingSupported && !IsVsync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+			CheckComError(swapChain->Present(syncInterval, presentFlags));
+			CurrentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-			return m_CurrentBackBufferIndex;
+			return CurrentBackBufferIndex;
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE DXGraphics::GetCurrentRenderTargetView() const
 		{
-			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-			                                     m_CurrentBackBufferIndex, m_RTVDescriptorSize);
+			return CD3DX12_CPU_DESCRIPTOR_HANDLE(d3d12RTVDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+			                                     CurrentBackBufferIndex, RTVDescriptorSize);
 		}
 
 		ComPtr<ID3D12Resource> DXGraphics::GetCurrentBackBuffer() const
 		{
-			return m_d3d12BackBuffers[m_CurrentBackBufferIndex];
+			return d3d12BackBuffers[CurrentBackBufferIndex];
 		}
 
 		ComPtr<IDXGISwapChain4> DXGraphics::CreateSwapChain()
 		{
-			ComPtr<IDXGISwapChain4> dxgiSwapChain4;
-			ComPtr<IDXGIFactory4> dxgiFactory4;
-			UINT createFactoryFlags = 0;
-#if defined(_DEBUG)
-			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-			CheckComError(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
+			auto factory = GetFactory();
 
 			DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 			swapChainDesc.Width = windowWidth;
@@ -661,14 +656,15 @@ namespace GameEngine
 			swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 			swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+			
 			// It is recommended to always allow tearing if tearing support is available.
-			swapChainDesc.Flags = m_IsTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+			swapChainDesc.Flags = IsTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 			ID3D12CommandQueue* pCommandQueue = GetCommandQueue()->GetD3D12CommandQueue().Get();
 
 			ComPtr<IDXGISwapChain1> swapChain1;
-			CheckComError(dxgiFactory4->CreateSwapChainForHwnd(
+			CheckComError(factory->CreateSwapChainForHwnd(
 				pCommandQueue,
-				m_hwnd,
+				hwnd,
 				&swapChainDesc,
 				nullptr,
 				nullptr,
@@ -676,13 +672,13 @@ namespace GameEngine
 
 			// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
 			// will be handled manually.
-			CheckComError(dxgiFactory4->MakeWindowAssociation(m_hwnd, DXGI_MWA_NO_ALT_ENTER));
+			CheckComError(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
 
-			CheckComError(swapChain1.As(&dxgiSwapChain4));
+			CheckComError(swapChain1.As(&swapChain));
 
-			m_CurrentBackBufferIndex = dxgiSwapChain4->GetCurrentBackBufferIndex();
+			CurrentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-			return dxgiSwapChain4;
+			return swapChain;
 		}
 	}
 }

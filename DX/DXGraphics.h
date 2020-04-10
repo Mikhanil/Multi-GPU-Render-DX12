@@ -31,38 +31,41 @@ namespace GameEngine
 				
 			}
 
-			std::shared_ptr<CommandQueue> GetCommandQueue(
-				D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
-
-			ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(
-				UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type) const;
+			std::shared_ptr<CommandQueue> GetCommandQueue(D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
+			ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type) const;			
 			UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 
 			Camera camera;
-
 			std::vector<Model*> models;
-			bool m_TearingSupported;
-			HWND m_hwnd;
+			
 
 			ComPtr<ID3D12Device2> GetDevice()
 			{
-				return m_d3d12Device;
+				return device;
 			}
 
 
-			XMMATRIX m_ModelMatrix;
-			XMMATRIX m_ViewMatrix;
-			XMMATRIX m_ProjectionMatrix;
+			
 			
 		private:
 
-			
-
-			ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp) const;
-			ComPtr<ID3D12Device2> CreateDevice(const ComPtr<IDXGIAdapter4>& adapter) const;
-			bool CheckTearingSupport() const;
-			
 			static const UINT BufferCount = 3;
+			
+			HWND hwnd;
+			
+			ComPtr<IDXGIFactory5> factory;
+
+			ComPtr<IDXGIFactory5> GetFactory();
+			
+			ComPtr<IDXGIAdapter4> adapter;
+			
+			ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);			
+			
+			ComPtr<ID3D12Device2> CreateDevice(const ComPtr<IDXGIAdapter4>& adapter) const;
+			
+			bool CheckTearingSupport();
+			
+			
 
 
 			UINT GetCurrentBackBufferIndex() const;
@@ -74,6 +77,7 @@ namespace GameEngine
 
 
 			void Flush() const;
+			
 			static void TransitionResource(const ComPtr<ID3D12GraphicsCommandList2>& commandList,
 			                               const ComPtr<ID3D12Resource>& resource,
 				D3D12_RESOURCE_STATES beforeState, D3D12_RESOURCE_STATES afterState);
@@ -95,54 +99,49 @@ namespace GameEngine
 
 			void ResizeDepthBuffer(int width, int height);
 
-			uint64_t m_FenceValues[BufferCount] = {};
+			uint64_t FenceValues[BufferCount] = {};
 
 
-			ComPtr<ID3D12Resource> m_VertexBuffer;
-			D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
+			ComPtr<ID3D12Resource> VertexBuffer;
+			D3D12_VERTEX_BUFFER_VIEW VertexBufferView;
 
 
-			ComPtr<ID3D12Resource> m_IndexBuffer;
-			D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
+			ComPtr<ID3D12Resource> IndexBuffer;
+			D3D12_INDEX_BUFFER_VIEW IndexBufferView;
 
-			ComPtr<ID3D12Resource> m_DepthBuffer;
-			ComPtr<ID3D12DescriptorHeap> m_DSVHeap;
+			ComPtr<ID3D12Resource> DepthBuffer;
+			ComPtr<ID3D12DescriptorHeap> DSVHeap;
 
-			ComPtr<ID3D12RootSignature> m_RootSignature;
+			ComPtr<ID3D12RootSignature> RootSignature;
 
-			ID3D12PipelineState* m_PipelineState;
+			ID3D12PipelineState* PipelineState;
 
-			D3D12_VIEWPORT m_Viewport;
-			D3D12_RECT m_ScissorRect;
+			D3D12_VIEWPORT Viewport;
+			D3D12_RECT ScissorRect;
 
-			float m_FoV;
+		
+		
+			bool IsVsync;
+
+			UINT CurrentBackBufferIndex;
 			
-			bool m_Fullscreen = false;
-			bool isVsync;
-			int videoCardMemory;
-			char videoCardDescription[128];
-			unsigned int bufferIndex;
-			UINT m_CurrentBackBufferIndex;
+			ComPtr<ID3D12Device2> device;			
 
-			ComPtr<IDXGIAdapter4> m_dxgiAdapter;
-			ComPtr<ID3D12Device2> m_d3d12Device;			
-
-			std::shared_ptr<CommandQueue> m_DirectCommandQueue;
-			std::shared_ptr<CommandQueue> m_ComputeCommandQueue;
-			std::shared_ptr<CommandQueue> m_CopyCommandQueue;
+			std::shared_ptr<CommandQueue> DirectCommandQueue;
+			std::shared_ptr<CommandQueue> ComputeCommandQueue;
+			std::shared_ptr<CommandQueue> CopyCommandQueue;
 
 			int windowWidth;
 			int windowHeight;
 
-			ComPtr<IDXGISwapChain4> m_dxgiSwapChain;
-			ComPtr<ID3D12DescriptorHeap> m_d3d12RTVDescriptorHeap;
-			ComPtr<ID3D12Resource> m_d3d12BackBuffers[BufferCount];
+			ComPtr<IDXGISwapChain4> swapChain;
+			ComPtr<ID3D12DescriptorHeap> d3d12RTVDescriptorHeap;
+			ComPtr<ID3D12Resource> d3d12BackBuffers[BufferCount];
 
-			UINT m_RTVDescriptorSize;
-			RECT m_WindowRect;
-			bool m_IsTearingSupported;
+			UINT RTVDescriptorSize;
+			bool IsTearingSupported;
 
-			bool InitializeDirectX(HWND hwnd);
+			bool InitializeDirectX();
 			bool InitializeShaders();
 			bool InitializeScene();
 		
