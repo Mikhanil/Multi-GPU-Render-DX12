@@ -5,11 +5,25 @@
 #include "DirectXBuffers.h"
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
-
+#include <map>
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
+enum PSOType
+{
+	Opaque,
+	Wireframe,
+    AlphaDrop,
+	Transparent,
+};
+
+enum ShaderType
+{
+	StandartVS,
+	OpaquePS,
+	AlphaDropPS
+};
 
 class ShapesApp : public D3DApp
 {
@@ -46,9 +60,9 @@ private:
     void BuildMaterials();
     void BuildRenderItems();
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems) const;
-    	
-	
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+
+
+    static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
 
 private:
         	
@@ -58,14 +72,16 @@ private:
 
     ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 	
-    ComPtr<ID3D12DescriptorHeap> shaderResourceViewDescriptorHeap = nullptr;
+    ComPtr<ID3D12DescriptorHeap> shaderTextureViewDescriptorHeap = nullptr;
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
-    std::unordered_map<std::string, ComPtr<ID3DBlob>> shaders;
-    std::unordered_map<std::string, ComPtr<ID3D12PipelineState>> psos;
+    std::unordered_map<ShaderType, ComPtr<ID3DBlob>> shaders;
+    std::unordered_map<PSOType, ComPtr<ID3D12PipelineState>> psos;
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
 
+
+	
     ComPtr<ID3D12PipelineState> opaquePSO = nullptr;
 	
     std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
@@ -73,14 +89,16 @@ private:
     // List of all the render items.
     std::vector<std::unique_ptr<RenderItem>> renderItems;
 
+
     // Render items divided by PSO.
-    std::vector<RenderItem*> opaqueRenderItems;
+    std::map<PSOType, std::vector<RenderItem*>> typedRenderItems;
+	
 
     PassConstants mainPassCB;
 
     UINT passCbvOffset = 0;
 
-    bool isWireframe = true;
+    bool isWireframe = false;
 
     XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
     XMFLOAT4X4 mView = MathHelper::Identity4x4();

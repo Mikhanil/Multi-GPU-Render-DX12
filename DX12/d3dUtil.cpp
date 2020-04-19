@@ -94,6 +94,7 @@ ComPtr<ID3DBlob> d3dUtil::CompileShader(
 	const std::string& target)
 {
 	UINT compileFlags = 0;
+	
 #if defined(DEBUG) || defined(_DEBUG)  
 	compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif

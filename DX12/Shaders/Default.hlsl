@@ -1,7 +1,3 @@
-//***************************************************************************************
-// Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 // Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
@@ -55,10 +51,12 @@ struct WorldData
     float DeltaTime;
     float4 AmbientLight;
 
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
+    float4 gFogColor;
+    float gFogStart;
+    float gFogRange;
+    float2 cbPerObjectPad2;
+    
+    
     Light Lights[MaxLights];
 };
 
@@ -98,14 +96,12 @@ VertexOut VS(VertexIn vin)
     // Transform to world space.
     float4 posW = mul(float4(vin.PosL, 1.0f),objectBuffer.World);
     vout.PosWorld = posW.xyz;
-
-    // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
+     
     vout.NormalWorld = mul(vin.NormalL, (float3x3) objectBuffer.World);
 
-    // Transform to homogeneous clip space.
     vout.PosView = mul(posW, worldBuffer.ViewProj);
 	
-	// Output vertex attributes for interpolation across triangle.
+    
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), objectBuffer.TexTransform);
     vout.TexC = mul(texC, materialBuffer.MatTransform).xy;
 	
@@ -118,11 +114,16 @@ float4 PS(VertexOut pin) : SV_Target
     // * gSecondDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC)
     * materialBuffer.DiffuseAlbedo;
 	
-    // Interpolating normal can unnormalize it, so renormalize it.
+#ifdef ALPHA_TEST	
+	clip(diffuseAlbedo.a - 0.1f);
+#endif
+        
     pin.NormalWorld = normalize(pin.NormalWorld);
 
     // Vector from point being lit to eye. 
     float3 toEyeW = normalize(worldBuffer.EyePosW - pin.PosWorld);
+    float distToEye = length(toEyeW);
+    toEyeW /= distToEye;
 
     // Light terms.
     float4 ambient = worldBuffer.AmbientLight * diffuseAlbedo;
@@ -135,7 +136,11 @@ float4 PS(VertexOut pin) : SV_Target
 
     float4 litColor = ambient + directLight;
 
-    // Common convention to take alpha from diffuse albedo.
+#ifdef FOG
+	float fogAmount = saturate((distToEye - worldBuffer.gFogStart) / worldBuffer.gFogRange);
+    litColor = lerp(litColor, worldBuffer.gFogColor, fogAmount);
+#endif    
+    
     litColor.a = diffuseAlbedo.a;
 
     return litColor;
