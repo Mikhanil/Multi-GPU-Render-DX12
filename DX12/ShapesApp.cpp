@@ -21,6 +21,11 @@ bool ShapesApp::Initialize()
 
 	ThrowIfFailed(commandList->Reset(directCommandListAlloc.Get(), nullptr));
 
+	ThrowIfFailed(dxDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, 
+		IID_PPV_ARGS(commandListAllocator.GetAddressOf())));
+
+
+	
 	LoadTextures();
 	BuildRootSignature();
 	BuildDescriptorHeaps();
@@ -50,6 +55,8 @@ void ShapesApp::OnResize()
 
 void ShapesApp::Update(const GameTimer& gt)
 {
+	return;
+	
 	UpdateCamera(gt);
 
 	// Cycle through the circular frame resource array.
@@ -74,6 +81,16 @@ void ShapesApp::Update(const GameTimer& gt)
 
 void ShapesApp::Draw(const GameTimer& gt)
 {
+	auto frameAlloc1 = commandListAllocator;
+	
+	ThrowIfFailed(frameAlloc1->Reset());
+
+	ThrowIfFailed(commandList->Reset(frameAlloc1.Get(), psos[PSOType::Wireframe].Get()));
+
+	ExecuteCommandList();
+	
+	return;
+	
 	auto frameAlloc = currentFrameResource->commandListAllocator;
 
 	
@@ -397,10 +414,8 @@ void ShapesApp::BuildRootSignature()
 	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 	
 	 
-	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
-	// Create root CBV.
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsDescriptorTable(1, &texTable[0], D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[1].InitAsConstantBufferView(0);
@@ -409,13 +424,12 @@ void ShapesApp::BuildRootSignature()
 	slotRootParameter[4].InitAsDescriptorTable(1, &texTable[1], D3D12_SHADER_VISIBILITY_PIXEL);
 
 	auto staticSamplers = GetStaticSamplers();
+
 	
-	// A root signature is an array of root parameters.
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(_countof(slotRootParameter), slotRootParameter,
 		staticSamplers.size(), staticSamplers.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	const HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
@@ -648,9 +662,6 @@ void ShapesApp::BuildMaterials()
 	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	wirefence->Roughness = 0.25f;
 
-
-	// This is not a good water material definition, but we do not have all the rendering
-	// tools we need (transparency, environment reflection), so we fake it for now.
 	auto water = std::make_unique<Material>();
 	water->Name = "water";
 	water->ConstantBufferIndex = 4;
@@ -807,9 +818,9 @@ void ShapesApp::BuildPSOs()
 	// PSO for opaque wireframe objects.
 	//
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
-	opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	ThrowIfFailed(dxDevice->CreateGraphicsPipelineState(&opaqueWireframePsoDesc, IID_PPV_ARGS(&psos[Wireframe])));
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC wireframePsoDesc = opaquePsoDesc;
+	wireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	ThrowIfFailed(dxDevice->CreateGraphicsPipelineState(&wireframePsoDesc, IID_PPV_ARGS(&psos[Wireframe])));
 
 	
 	//
@@ -883,9 +894,6 @@ void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::v
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> ShapesApp::GetStaticSamplers()
 {
-	// Applications usually only need a handful of samplers.  So just define them all up front
-	// and keep them available as part of the root signature.  
-
 	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
 		0, // shaderRegister
 		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter

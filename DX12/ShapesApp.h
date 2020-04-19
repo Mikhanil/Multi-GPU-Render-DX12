@@ -70,6 +70,8 @@ private:
     FrameResource* currentFrameResource = nullptr;
     int currentFrameResourceIndex = 0;
 
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandListAllocator;
+	
     ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 	
     ComPtr<ID3D12DescriptorHeap> shaderTextureViewDescriptorHeap = nullptr;
