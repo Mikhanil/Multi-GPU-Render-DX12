@@ -15,7 +15,6 @@
 #include "LightingUtil.hlsl"
 
 Texture2D gDiffuseMap : register(t0);
-Texture2D gSecondDiffuseMap : register(t1);
 
 
 SamplerState gsamPointWrap : register(s0);

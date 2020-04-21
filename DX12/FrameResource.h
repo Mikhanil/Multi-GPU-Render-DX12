@@ -3,26 +3,15 @@
 #include "d3dUtil.h"
 #include "MathHelper.h"
 #include "DirectXBuffers.h"
-
-struct ObjectConstants
-{
-    DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
-    DirectX::XMFLOAT4X4 TextureTransform = MathHelper::Identity4x4();
-};
-
-struct MaterialConstants
-{
-    DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-    float Roughness = 0.25f;
-
-    // Used in texture mapping.
-    DirectX::XMFLOAT4X4 MaterialTransform = MathHelper::Identity4x4();
-};
+#include "GameObject.h"
+#include "Transform.h"
+#include "Renderer.h"
 
 
 
-const int globalCountFrameResources = 3;
+
+#define MaxLights 16
+
 
 struct Light
 {
@@ -32,62 +21,6 @@ struct Light
     float FalloffEnd = 10.0f;                           // point/spot light only
     DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };  // point/spot light only
     float SpotPower = 64.0f;                            // spot light only
-};
-
-#define MaxLights 16
-
-struct Texture
-{
-	std::wstring Filename;
-	std::string Name;
-	Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
-};
-
-
-struct Material
-{
-    std::string Name;
-
-    int ConstantBufferIndex = -1;
-
-    // Index into SRV heap for diffuse texture.
-    int DiffuseSrvHeapIndex = -1;
-   
-    int NumFramesDirty = globalCountFrameResources;
-
-    // Material constant buffer data used for shading.
-    DirectX::XMFLOAT4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
-    DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-    float Roughness = .25f;
-    DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
-};
-
-
-
-
-struct RenderItem
-{
-    RenderItem() = default;
-    
-    DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
-
-    DirectX::XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
-	
-    int NumFramesDirty = globalCountFrameResources;
-
-    UINT ConstantBufferIndex = -1;
-
-    Material* Material = nullptr;
-    MeshGeometry* Mesh = nullptr;
-
-    // Primitive topology.
-    D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-    // DrawIndexedInstanced parameters.
-    UINT IndexCount = 0;
-    UINT StartIndexLocation = 0;
-    int BaseVertexLocation = 0;
 };
 
 struct PassConstants
@@ -101,7 +34,7 @@ struct PassConstants
     DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
     float tempFloat = 0.0f;
     DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
-    DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };    
+    DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
     float NearZ = 0.0f;
     float FarZ = 0.0f;
     float TotalTime = 0.0f;
@@ -113,7 +46,7 @@ struct PassConstants
     float gFogStart = 5.0f;
     float gFogRange = 150.0f;
     DirectX::XMFLOAT2 cbPerObjectPad2;
-	
+
     // Indices [0, NUM_DIR_LIGHTS) are directional lights;
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
@@ -127,6 +60,36 @@ struct Vertex
     DirectX::XMFLOAT3 normal;
     DirectX::XMFLOAT2 texCord;
 };
+
+
+
+
+class RenderItem : public GameObject
+{
+    std::string name;
+    ID3D12Device* device;
+	
+public:
+    RenderItem(ID3D12Device* device); 
+
+
+    //Material* Material = nullptr;
+    //MeshGeometry* Mesh = nullptr;
+
+    //// Primitive topology.
+    //D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+
+    //// DrawIndexedInstanced parameters.
+    //UINT IndexCount = 0;
+    //UINT StartIndexLocation = 0;
+    //int BaseVertexLocation = 0;
+
+
+    void Update();
+
+    void Draw(ID3D12GraphicsCommandList* cmdList);
+};
+
 
 // Stores the resources needed for the CPU to build the command lists
 // for a frame.  
@@ -146,8 +109,8 @@ public:
     // We cannot update a cbuffer until the GPU is done processing the commands
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
-    std::unique_ptr<ConstantBuffer<ObjectConstants>> ObjectConstantBuffer = nullptr;
-    std::unique_ptr<ConstantBuffer<MaterialConstants>> MaterialConstantBuffer	= nullptr;
+   // std::unique_ptr<ConstantBuffer<ObjectConstants>> ObjectConstantBuffer = nullptr;
+   // std::unique_ptr<ConstantBuffer<MaterialConstants>> MaterialConstantBuffer	= nullptr;
 
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.

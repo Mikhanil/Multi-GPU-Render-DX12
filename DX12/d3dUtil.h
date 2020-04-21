@@ -28,6 +28,7 @@
 #include "d3dx12.h"
 #include "MathHelper.h"
 
+const int globalCountFrameResources = 3;
 
 inline void d3dSetDebugName(IDXGIObject* obj, const char* name)
 {
@@ -140,12 +141,15 @@ public:
     int LineNumber = -1;
 };
 
+struct MeshGeometry;
+
 // Defines a subrange of geometry in a MeshGeometry.  This is for when multiple
 // geometries are stored in one vertex and index buffer.  It provides the offsets
 // and data needed to draw a subset of geometry stores in the vertex and index 
 // buffers
 struct SubmeshGeometry
 {
+    MeshGeometry* geometry;
     UINT IndexCount = 0;
     UINT StartIndexLocation = 0;
     INT BaseVertexLocation = 0;

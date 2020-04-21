@@ -22,10 +22,16 @@ public:
 	DirectXBuffer& operator=(const DirectXBuffer& rhs) = delete;
 	~DirectXBuffer()
 	{
+		if(isDispose)
+		{
+			return;
+		}
+		
 		if (buffer != nullptr)
 			buffer->Unmap(0, nullptr);
 
 		mappedData = nullptr;
+		isDispose = true;
 	}
 
 	ID3D12Resource* Resource()const
@@ -44,7 +50,7 @@ public:
 	}
 	
 protected:
-
+	bool isDispose = false;
 	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
 	BYTE* mappedData = nullptr;
 	UINT elementByteSize = 0;

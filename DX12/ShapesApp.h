@@ -10,20 +10,7 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
 
-enum PSOType
-{
-	Opaque,
-	Wireframe,
-    AlphaDrop,
-	Transparent,
-};
 
-enum ShaderType
-{
-	StandartVS,
-	OpaquePS,
-	AlphaDropPS
-};
 
 class ShapesApp : public D3DApp
 {
@@ -47,12 +34,9 @@ private:
     virtual void OnKeyboardKeyUp(WPARAM key) override;
     void UpdateCamera(const GameTimer& gt);
     void UpdateObjectCBs(const GameTimer& gt);
-    void UpdateMaterialCBs(const GameTimer& gt);
     void UpdateMainPassCB(const GameTimer& gt);
 
     void LoadTextures();
-    void BuildRootSignature();
-    void BuildDescriptorHeaps();
     void BuildShadersAndInputLayout();
     void BuildShapeGeometry();
     void BuildPSOs();
@@ -61,8 +45,7 @@ private:
     void BuildRenderItems();
     void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems) const;
 
-
-    static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+    void SortGOByMaterial();
 
 private:
         	
@@ -78,8 +61,8 @@ private:
 
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
-    std::unordered_map<ShaderType, ComPtr<ID3DBlob>> shaders;
-    std::unordered_map<PSOType, ComPtr<ID3D12PipelineState>> psos;
+    std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
+    //std::unordered_map<PSOType, ComPtr<ID3D12PipelineState>> psos;
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
 
 
@@ -93,7 +76,7 @@ private:
 
 
     // Render items divided by PSO.
-    std::map<PSOType, std::vector<RenderItem*>> typedRenderItems;
+    std::map<MaterialType, std::vector<RenderItem*>> typedRenderItems;
 	
 
     PassConstants mainPassCB;
