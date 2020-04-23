@@ -56,9 +56,9 @@ private:
 	int NumFramesDirty = globalCountFrameResources;
 	ObjectConstants bufferConstant{};
 
-	Vector3 position;
-	Quaternion rotate;
-	Vector3 scale;
+	Vector3 position = Vector3::Zero;
+	Quaternion rotate = Quaternion::Identity;
+	Vector3 scale = Vector3::One;
 
 	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectWorldPositionBuffer = nullptr;
 	

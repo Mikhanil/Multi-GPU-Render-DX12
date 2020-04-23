@@ -4,24 +4,13 @@
 #include "MathHelper.h"
 #include "DirectXBuffers.h"
 #include "GameObject.h"
-#include "Transform.h"
-#include "Renderer.h"
-
-
+#include "Light.h"
 
 
 #define MaxLights 16
 
 
-struct Light
-{
-    DirectX::XMFLOAT3 Strength = { 0.5f, 0.5f, 0.5f };
-    float FalloffStart = 1.0f;                          // point/spot light only
-    DirectX::XMFLOAT3 Direction = { 0.0f, -1.0f, 0.0f };// directional/spot light only
-    float FalloffEnd = 10.0f;                           // point/spot light only
-    DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };  // point/spot light only
-    float SpotPower = 64.0f;                            // spot light only
-};
+
 
 struct PassConstants
 {
@@ -51,7 +40,7 @@ struct PassConstants
     // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
     // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
     // are spot lights for a maximum of MaxLights per object.
-    Light Lights[MaxLights];
+    LightData Lights[MaxLights];
 };
 
 struct Vertex
@@ -63,32 +52,6 @@ struct Vertex
 
 
 
-
-class RenderItem : public GameObject
-{
-    std::string name;
-    ID3D12Device* device;
-	
-public:
-    RenderItem(ID3D12Device* device); 
-
-
-    //Material* Material = nullptr;
-    //MeshGeometry* Mesh = nullptr;
-
-    //// Primitive topology.
-    //D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-    //// DrawIndexedInstanced parameters.
-    //UINT IndexCount = 0;
-    //UINT StartIndexLocation = 0;
-    //int BaseVertexLocation = 0;
-
-
-    void Update();
-
-    void Draw(ID3D12GraphicsCommandList* cmdList);
-};
 
 
 // Stores the resources needed for the CPU to build the command lists
@@ -109,8 +72,6 @@ public:
     // We cannot update a cbuffer until the GPU is done processing the commands
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
-   // std::unique_ptr<ConstantBuffer<ObjectConstants>> ObjectConstantBuffer = nullptr;
-   // std::unique_ptr<ConstantBuffer<MaterialConstants>> MaterialConstantBuffer	= nullptr;
 
     // Fence value to mark commands up to this fence point.  This lets us
     // check if these frame resources are still in use by the GPU.

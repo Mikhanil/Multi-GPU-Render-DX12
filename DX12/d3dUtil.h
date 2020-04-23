@@ -30,6 +30,13 @@
 
 const int globalCountFrameResources = 3;
 
+struct GlobalVariable
+{
+    bool globalIsDebug = false;
+};
+
+static GlobalVariable* globalVar = new GlobalVariable();
+
 inline void d3dSetDebugName(IDXGIObject* obj, const char* name)
 {
     if(obj)

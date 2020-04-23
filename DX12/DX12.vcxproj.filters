@@ -28,6 +28,12 @@
     <Filter Include="Source Files\Engine">
       <UniqueIdentifier>{cc8d5890-24d4-4622-9697-f5f7a131b371}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Engine\Graphic">
+      <UniqueIdentifier>{f3317a98-2e16-42e8-9417-5f1d254d5456}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Engine\Graphic">
+      <UniqueIdentifier>{aa906cd0-a797-4431-acd9-8e6e06a005c2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dUtil.h">
@@ -36,26 +42,11 @@
     <ClInclude Include="d3dx12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DirectXBuffers.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GameTimer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GeometryGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="MathHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="d3dApp.h">
       <Filter>Header Files\App</Filter>
-    </ClInclude>
-    <ClInclude Include="FrameResource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Waves.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="InitDirect3DApp.h">
       <Filter>Header Files\App</Filter>
@@ -72,34 +63,49 @@
     <ClInclude Include="Transform.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
+    <ClInclude Include="DirectXBuffers.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="FrameResource.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometryGenerator.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
     <ClInclude Include="Renderer.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTimer.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicBuffer.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelRenderer.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GameTimer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GeometryGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MathHelper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Source.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="d3dApp.cpp">
       <Filter>Source Files\App</Filter>
-    </ClCompile>
-    <ClCompile Include="FrameResource.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Waves.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="InitDirect3DApp.cpp">
       <Filter>Source Files\App</Filter>
@@ -116,8 +122,44 @@
     <ClCompile Include="Transform.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
+    <ClCompile Include="MathHelper.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="FrameResource.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="GeometryGenerator.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
     <ClCompile Include="Renderer.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="Texture.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="GameTimer.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicBuffer.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="Light.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelRenderer.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="Source.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

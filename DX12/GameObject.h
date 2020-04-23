@@ -6,53 +6,28 @@
 
 class GameObject
 {
-
-
-	
 public:
 
-	GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 scale, Quaternion rotate): name(std::move(name))
-	{
-		transform = std::make_unique<Transform>(device, position, rotate, scale);
-		transform->gameObject = this;
-
-		components.push_back((transform.get()));
-	}
+	GameObject(ID3D12Device* device);
 	
-	void Update();
+	GameObject(ID3D12Device* device, std::string name);
 
-	void Draw(ID3D12GraphicsCommandList* cmdList);
+	GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 scale, Quaternion rotate);
+
+	void virtual Update();
+
+	void virtual Draw(ID3D12GraphicsCommandList* cmdList);
+
+	Transform* GetTransform() const;
+
+	Renderer* GetRenderer();
+
+	template <class T = Component>
+	void AddComponent(T* component);
 
 	template<class T = Component>
-	void AddComponent(T* component)
-	{
-		component->gameObject = this;
-		components.push_back(component);
-	}
+	T* GetComponent();
 
-	Transform* GetTransform() const
-	{
-		return transform.get();
-	}
-
-	Renderer* GetRenderer()
-	{
-		if(renderer == nullptr)
-		{
-			for (auto && component : components)
-			{
-				const auto comp = dynamic_cast<Renderer*> (component);
-				if(comp)
-				{
-					renderer = (comp);
-					break;
-				}
-			}
-		}
-
-		return renderer;
-	}
-	
 protected:
 
 	std::vector<Component*> components;
@@ -60,4 +35,25 @@ protected:
 	Renderer* renderer = nullptr;
 	std::string name;
 };
+
+template <class T>
+void GameObject::AddComponent(T* component)
+{
+	component->gameObject = this;
+	components.push_back(component);
+}
+
+template <class T = Component>
+T* GameObject::GetComponent()
+{
+	for (auto&& component : components)
+	{
+		auto ptr = component;
+		if (dynamic_cast<T*>(ptr) != nullptr)
+		{
+			return (T*)ptr;
+		}
+	}
+	return nullptr;
+}
 

@@ -1,6 +1,9 @@
 #include "ShapesApp.h"
-#include "ResourceUploadBatch.h"
-#include "DDSTextureLoader.h"
+#include "Renderer.h"
+#include "GameObject.h"
+#include "ModelRenderer.h"
+#include "Camera.h"
+#include <ppl.h>
 
 
 ShapesApp::ShapesApp(HINSTANCE hInstance)
@@ -24,7 +27,7 @@ bool ShapesApp::Initialize()
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
 	BuildMaterials();
-	BuildRenderItems();	
+	BuildGameObjects();	
 	BuildFrameResources();
 	BuildPSOs();
 	SortGOByMaterial();
@@ -41,9 +44,16 @@ void ShapesApp::OnResize()
 {
 	D3DApp::OnResize();
 
+	if(camera != nullptr)
+	{
+		camera->SetAspectRatio(AspectRatio());
+	}
+	
+	
+	
 	// The window resized, so update the aspect ratio and recompute the projection matrix.
-	const XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
-	XMStoreFloat4x4(&mProj, P);
+	/*const XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
+	XMStoreFloat4x4(&mProj, P);*/
 }
 
 void ShapesApp::Update(const GameTimer& gt)
@@ -63,8 +73,9 @@ void ShapesApp::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
-	UpdateCamera(gt);
+
 	UpdateObjectCBs(gt);
+	UpdateCamera(gt);
 	UpdateMainPassCB(gt);	
 }
 
@@ -97,27 +108,20 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 	//commandList->SetGraphicsRootSignature(rootSignature.Get());
 
-	commandList->SetGraphicsRootSignature(typedRenderItems.begin()->second[0]->GetRenderer()->Material->GetRootSignature());
+	commandList->SetGraphicsRootSignature(typedGameObjects.begin()->second[0]->GetRenderer()->Material->GetRootSignature());
 		
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();
 	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
 
 	
-	for (auto it = typedRenderItems.begin(); it != typedRenderItems.end(); ++it)
+	for (auto it = typedGameObjects.begin(); it != typedGameObjects.end(); ++it)
 	{
 		commandList->SetPipelineState(it->second[0]->GetRenderer()->Material->GetPSO());
-		/*if (isWireframe)
-		{
-			commandList->SetPipelineState(psos[MaterialType::Wireframe].Get());
-		}
-		else
-		{
-			commandList->SetPipelineState(psos[it->first].Get());
-		}*/
 		
 		
-		DrawRenderItems(commandList.Get(), it->second);
+		
+		DrawGameObjects(commandList.Get(), it->second);
 	}	
 	
 	
@@ -190,6 +194,7 @@ void ShapesApp::OnKeyboardKeyUp(WPARAM key)
 	if(key == VK_F1)
 	{
 		isWireframe = !isWireframe;
+		globalVar->globalIsDebug = isWireframe;
 	}
 
 	const float dt = timer.DeltaTime();
@@ -212,23 +217,27 @@ void ShapesApp::OnKeyboardKeyUp(WPARAM key)
 
 void ShapesApp::UpdateCamera(const GameTimer& gt)
 {
+	auto transform = camera->gameObject->GetTransform();
+
+	transform->SetPosition(Vector3(mRadius * sinf(mPhi) * cosf(mTheta), mRadius * sinf(mPhi) * sinf(mTheta), mRadius * cosf(mPhi)));
+	
 	// Convert Spherical to Cartesian coordinates.
-	mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
+	/*mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
 	mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);
-	mEyePos.y = mRadius * cosf(mPhi);
+	mEyePos.y = mRadius * cosf(mPhi);*/
 
 	// Build the view matrix.
-	const XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
-	const XMVECTOR target = XMVectorZero();
-	const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	//const XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
+	//const XMVECTOR target = XMVectorZero();
+	//const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-	const XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&mView, view);
+	//const XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+	//XMStoreFloat4x4(&mView, view);
 }
 
 void ShapesApp::UpdateObjectCBs(const GameTimer& gt)
-{
-	for (auto& e : renderItems)
+{	
+	for (auto& e : gameObjects)
 	{
 		e->Update();		
 	}
@@ -237,9 +246,9 @@ void ShapesApp::UpdateObjectCBs(const GameTimer& gt)
 
 
 void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
-{
-	const XMMATRIX view = XMLoadFloat4x4(&mView);
-	const XMMATRIX proj = XMLoadFloat4x4(&mProj);
+{	
+	const XMMATRIX view = XMLoadFloat4x4(&camera->GetViewMatrix());
+	const XMMATRIX proj = XMLoadFloat4x4(&camera->GetProjectionMatrix());
 
 	const XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	const XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
@@ -252,7 +261,7 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 	XMStoreFloat4x4(&mainPassCB.InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mainPassCB.ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-	mainPassCB.EyePosW = mEyePos;
+	mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetPosition();
 	mainPassCB.RenderTargetSize = XMFLOAT2((float)clientWidth, (float)clientHeight);
 	mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / clientWidth, 1.0f / clientHeight);
 	mainPassCB.NearZ = 1.0f;
@@ -261,7 +270,19 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.DeltaTime = gt.DeltaTime();
 	mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 
-	const XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
+	for (int i =0; i< MaxLights; ++i)
+	{
+		if(i < lights.size())
+		{
+			mainPassCB.Lights[i] = lights[i]->GetData();
+		}
+		else
+		{
+			break;
+		}
+	}
+	
+	/*const XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
 
 	XMStoreFloat3(&mainPassCB.Lights[0].Direction, lightDir);
 	mainPassCB.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
@@ -269,24 +290,23 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
 	mainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
 	mainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
-	mainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };
+	mainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };*/
 
 	auto currentPassCB = currentFrameResource->PassConstantBuffer.get();
 	currentPassCB->CopyData(0, mainPassCB);
 }
 
-
 void ShapesApp::LoadTextures()
 {	
-	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Textures\\bricks.dds");
+	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks.dds");
 	bricksTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-	auto stoneTex = std::make_unique<Texture>("stoneTex", L"Textures\\stone.dds");
+	auto stoneTex = std::make_unique<Texture>("stoneTex", L"Data\\Textures\\stone.dds");
 	stoneTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-	auto tileTex = std::make_unique<Texture>("tileTex", L"Textures\\tile.dds");
+	auto tileTex = std::make_unique<Texture>("tileTex", L"Data\\Textures\\tile.dds");
 	tileTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-	auto fenceTex = std::make_unique<Texture>("fenceTex", L"Textures\\WireFence.dds");
+	auto fenceTex = std::make_unique<Texture>("fenceTex", L"Data\\Textures\\WireFence.dds");
 	fenceTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-	auto waterTex = std::make_unique<Texture>("waterTex", L"Textures\\water1.dds");
+	auto waterTex = std::make_unique<Texture>("waterTex", L"Data\\Textures\\water1.dds");
 	waterTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
 
 	
@@ -296,7 +316,6 @@ void ShapesApp::LoadTextures()
 	textures[fenceTex->GetName()] = std::move(fenceTex);
 	textures[waterTex->GetName()] = std::move(waterTex);
 }
-
 
 void ShapesApp::BuildShadersAndInputLayout()
 {
@@ -501,13 +520,47 @@ void ShapesApp::BuildMaterials()
 	materials[water->GetName()] = std::move(water);
 }
 
-void ShapesApp::BuildRenderItems()
+void ShapesApp::BuildGameObjects()
 {
-	auto box = std::make_unique<RenderItem>(dxDevice.Get());
+	auto camera = std::make_unique<GameObject>(dxDevice.Get());
+	camera->AddComponent(new Camera(AspectRatio()));
+	gameObjects.push_back(std::move(camera));
+	
+	auto sun1 = std::make_unique<GameObject>(dxDevice.Get());
+	auto light = new Light();	
+	light->Direction(Vector3(-MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi)));
+	light->Strength({ 1.0f, 1.0f, 0.9f });
+	sun1->AddComponent(light);
+	gameObjects.push_back(std::move(sun1));
+
+	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
+	light = new Light();
+	light->Direction({ -0.57735f, -0.57735f, 0.57735f });
+	light->Strength({ 0.3f, 0.3f, 0.3f });
+	sun2->AddComponent(light);
+	gameObjects.push_back(std::move(sun2));
+
+	auto sun3 = std::make_unique<GameObject>(dxDevice.Get());
+	light = new Light();
+	light->Direction({ 0.0f, -0.707f, -0.707f });
+	light->Strength({ 0.15f, 0.15f, 0.15f });
+	sun3->AddComponent(light);
+	gameObjects.push_back(std::move(sun3));
+	
+	
+	auto man = std::make_unique<GameObject>(dxDevice.Get());
+	XMStoreFloat4x4(&man->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	auto modelRenderer = new ModelRenderer();
+	modelRenderer->Material = materials["bricks0"].get();
+	modelRenderer->AddModel(dxDevice.Get(), commandList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj");
+	man->AddComponent(modelRenderer);
+	gameObjects.push_back(std::move(man));
+	
+	auto box = std::make_unique<GameObject>(dxDevice.Get());
 	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f));
 	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));	
 	XMStoreFloat4x4(&box->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	auto renderer = new Renderer(dxDevice.Get(), shaderTextureViewDescriptorHeap.Get());
+	auto renderer = new Renderer();
 	renderer->Material = materials["water"].get();
 	renderer->Mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -515,12 +568,12 @@ void ShapesApp::BuildRenderItems()
 	renderer->StartIndexLocation = renderer->Mesh->Submeshs["box"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["box"].BaseVertexLocation;
 	box->AddComponent(renderer);
-	renderItems.push_back(std::move(box));
+	gameObjects.push_back(std::move(box));
 
 	
-	auto grid = std::make_unique<RenderItem>(dxDevice.Get());
+	auto grid = std::make_unique<GameObject>(dxDevice.Get());
 	XMStoreFloat4x4(&grid->GetTransform()->TextureTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
-	renderer = new Renderer(dxDevice.Get(), shaderTextureViewDescriptorHeap.Get());
+	renderer = new Renderer();
 	renderer->Material = materials["tile0"].get();
 	renderer->Mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -528,26 +581,19 @@ void ShapesApp::BuildRenderItems()
 	renderer->StartIndexLocation = renderer->Mesh->Submeshs["grid"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["grid"].BaseVertexLocation;
 	grid->AddComponent(renderer);
-	renderItems.push_back(std::move(grid));
+	gameObjects.push_back(std::move(grid));
 
 	const XMMATRIX brickTexTransform = XMMatrixScaling(1.0f, 1.0f, 1.0f);
 	for (int i = 0; i < 5; ++i)
 	{
-		auto leftCylRitem = std::make_unique<RenderItem>(dxDevice.Get());
-		auto rightCylRitem = std::make_unique<RenderItem>(dxDevice.Get());
-		auto leftSphereRitem = std::make_unique<RenderItem>(dxDevice.Get());
-		auto rightSphereRitem = std::make_unique<RenderItem>(dxDevice.Get());
-
-		const XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f, 1.5f, -10.0f + i * 5.0f);
-		const XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f, 1.5f, -10.0f + i * 5.0f);
-
-		const XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
-		const XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
-
+		auto leftCylRitem = std::make_unique<GameObject>(dxDevice.Get());
+		auto rightCylRitem = std::make_unique<GameObject>(dxDevice.Get());
+		auto leftSphereRitem = std::make_unique<GameObject>(dxDevice.Get());
+		auto rightSphereRitem = std::make_unique<GameObject>(dxDevice.Get());
 		
 		leftCylRitem->GetTransform()->SetPosition(Vector3(+5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&leftCylRitem->GetTransform()->TextureTransform, brickTexTransform);
-		renderer = new Renderer(dxDevice.Get(), shaderTextureViewDescriptorHeap.Get());
+		renderer = new Renderer();
 		renderer->Material = materials["bricks0"].get();
 		renderer->Mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -558,7 +604,7 @@ void ShapesApp::BuildRenderItems()
 		
 		rightCylRitem->GetTransform()->SetPosition(Vector3(-5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&rightCylRitem->GetTransform()->TextureTransform, brickTexTransform);
-		renderer = new Renderer(dxDevice.Get(), shaderTextureViewDescriptorHeap.Get());
+		renderer = new Renderer();
 		renderer->Material = materials["bricks0"].get();
 		renderer->Mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -570,7 +616,7 @@ void ShapesApp::BuildRenderItems()
 		
 		leftSphereRitem->GetTransform()->SetPosition(Vector3(-5.0f, 3.5f, -10.0f + i * 5.0f));
 		leftSphereRitem->GetTransform()->TextureTransform = MathHelper::Identity4x4();
-		renderer = new Renderer(dxDevice.Get(), shaderTextureViewDescriptorHeap.Get());
+		renderer = new Renderer();
 		renderer->Material = materials["wirefence"].get();
 		renderer->Mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -582,7 +628,7 @@ void ShapesApp::BuildRenderItems()
 		
 		rightSphereRitem->GetTransform()->SetPosition(Vector3(+5.0f, 3.5f, -10.0f + i * 5.0f));
 		rightSphereRitem->GetTransform()->TextureTransform = MathHelper::Identity4x4();
-		renderer = new Renderer(dxDevice.Get(), shaderTextureViewDescriptorHeap.Get());
+		renderer = new Renderer();
 		renderer->Material = materials["wirefence"].get();
 		renderer->Mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -591,10 +637,10 @@ void ShapesApp::BuildRenderItems()
 		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
 		rightSphereRitem->AddComponent(renderer);
 
-		renderItems.push_back(std::move(leftCylRitem));
-		renderItems.push_back(std::move(rightCylRitem));
-		renderItems.push_back(std::move(leftSphereRitem));
-		renderItems.push_back(std::move(rightSphereRitem));
+		gameObjects.push_back(std::move(leftCylRitem));
+		gameObjects.push_back(std::move(rightCylRitem));
+		gameObjects.push_back(std::move(leftSphereRitem));
+		gameObjects.push_back(std::move(rightSphereRitem));
 	}
 }
 
@@ -602,7 +648,7 @@ void ShapesApp::BuildFrameResources()
 {
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
-		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 1, renderItems.size(), materials.size()));
+		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 1, gameObjects.size(), materials.size()));
 	}
 }
 
@@ -614,7 +660,7 @@ void ShapesApp::BuildPSOs()
 	}	
 }
 
-void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems) const
+void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems)
 {	
 	// For each render item...
 	for (auto& ri : ritems)
@@ -625,13 +671,27 @@ void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::v
 
 void ShapesApp::SortGOByMaterial()
 {
-	typedRenderItems.clear();
-	for (auto && item : renderItems)
+	typedGameObjects.clear();
+	for (auto && item : gameObjects)
 	{
 		auto renderer = item->GetRenderer();
 		if(renderer != nullptr)
 		{
-			typedRenderItems[renderer->Material->GetType()].push_back(item.get());
+			typedGameObjects[renderer->Material->GetType()].push_back(item.get());
+		}
+
+		auto light = item->GetComponent<Light>();
+		if(light != nullptr)
+		{
+			lights.push_back(light);
+		}
+
+		auto cam = item->GetComponent<Camera>();
+		if(cam != nullptr)
+		{
+			camera = std::unique_ptr<Camera>(cam);
 		}
 	}
+
+	std::sort(lights.begin(), lights.end(), [](Light const* a, Light const* b) { return a->Type() < b->Type(); });
 }

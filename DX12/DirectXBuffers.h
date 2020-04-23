@@ -2,10 +2,10 @@
 
 #include "d3dUtil.h"
 
-class DirectXBuffer
+class ShaderBuffer
 {
 public:
-	DirectXBuffer(ID3D12Device* device, UINT elementCount, UINT elementByteSize) : elementByteSize(elementByteSize)
+	ShaderBuffer(ID3D12Device* device, UINT elementCount, UINT elementByteSize) : elementByteSize(elementByteSize)
 	{
 		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -18,9 +18,9 @@ public:
 		ThrowIfFailed(buffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedData)));
 	}
 
-	DirectXBuffer(const DirectXBuffer& rhs) = delete;
-	DirectXBuffer& operator=(const DirectXBuffer& rhs) = delete;
-	~DirectXBuffer()
+	ShaderBuffer(const ShaderBuffer& rhs) = delete;
+	ShaderBuffer& operator=(const ShaderBuffer& rhs) = delete;
+	~ShaderBuffer()
 	{
 		if(isDispose)
 		{
@@ -57,7 +57,7 @@ protected:
 };
 
 template<typename T>
-class ConstantBuffer : public virtual DirectXBuffer
+class ConstantBuffer : public virtual ShaderBuffer
 {
 public:
 	// Constant buffer elements need to be multiples of 256 bytes.
@@ -67,26 +67,27 @@ public:
 	//  UINT64 OffsetInBytes; // multiple of 256
 	//  UINT  SizeInBytes;  // multiple of 256
 	// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
-	ConstantBuffer(ID3D12Device* device, UINT elementCount) : DirectXBuffer(device, elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)))
+	ConstantBuffer(ID3D12Device* device, UINT elementCount) : ShaderBuffer(device, elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)))
 	{
 	}
 
 	void CopyData(int elementIndex, const T& data)
 	{
-		DirectXBuffer::CopyData(elementIndex, &data, sizeof(T));
+		ShaderBuffer::CopyData(elementIndex, &data, sizeof(T));
 	}
 };
 
 template<typename T>
-class UploadBuffer : public virtual DirectXBuffer
+class UploadBuffer : public virtual ShaderBuffer
 {
 public:
-	UploadBuffer(ID3D12Device* device, UINT elementCount) : DirectXBuffer(device, elementCount, (sizeof(T)))
+	UploadBuffer(ID3D12Device* device, UINT elementCount) : ShaderBuffer(device, elementCount, (sizeof(T)))
 	{
 	}
 
 	void CopyData(int elementIndex, const T& data)
 	{
-		DirectXBuffer::CopyData(elementIndex, &data, sizeof(T));
+		ShaderBuffer::CopyData(elementIndex, &data, sizeof(T));
 	}
 };
+

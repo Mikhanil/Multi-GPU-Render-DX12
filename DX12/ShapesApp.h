@@ -6,6 +6,9 @@
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
 #include <map>
+#include "ModelRenderer.h"
+#include "Camera.h"
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
@@ -42,8 +45,8 @@ private:
     void BuildPSOs();
     void BuildFrameResources();
     void BuildMaterials();
-    void BuildRenderItems();
-    void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems) const;
+    void BuildGameObjects();
+    static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems);
 
     void SortGOByMaterial();
 
@@ -62,21 +65,21 @@ private:
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
     std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
-    //std::unordered_map<PSOType, ComPtr<ID3D12PipelineState>> psos;
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
-
-
+    std::unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes;
+    std::vector<Light*> lights;
+    std::unique_ptr<Camera> camera = nullptr;
 	
     ComPtr<ID3D12PipelineState> opaquePSO = nullptr;
 	
     std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
     // List of all the render items.
-    std::vector<std::unique_ptr<RenderItem>> renderItems;
+    std::vector<std::unique_ptr<GameObject>> gameObjects;
 
 
     // Render items divided by PSO.
-    std::map<MaterialType, std::vector<RenderItem*>> typedRenderItems;
+    std::map<MaterialType, std::vector<GameObject*>> typedGameObjects;
 	
 
     PassConstants mainPassCB;
@@ -85,9 +88,9 @@ private:
 
     bool isWireframe = false;
 
-    XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
-    XMFLOAT4X4 mView = MathHelper::Identity4x4();
-    XMFLOAT4X4 mProj = MathHelper::Identity4x4();
+    //XMFLOAT3 mEyePos = { 0.0f, 0.0f, 0.0f };
+    //XMFLOAT4X4 mView = MathHelper::Identity4x4();
+    //XMFLOAT4X4 mProj = MathHelper::Identity4x4();
 
     float mTheta = 1.5f * XM_PI;
     float mPhi = 0.2f * XM_PI;
