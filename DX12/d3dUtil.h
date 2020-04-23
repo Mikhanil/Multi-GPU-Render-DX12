@@ -26,7 +26,6 @@
 #include <sstream>
 #include <cassert>
 #include "d3dx12.h"
-#include "MathHelper.h"
 
 
 inline void d3dSetDebugName(IDXGIObject* obj, const char* name)

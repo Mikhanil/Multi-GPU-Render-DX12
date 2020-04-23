@@ -21,7 +21,6 @@ D3DApp* D3DApp::GetApp()
 D3DApp::D3DApp(HINSTANCE hInstance)
 	: appInstance(hInstance)
 {
-	// Only one D3DApp can be constructed.
 	assert(instance == nullptr);
 	instance = this;
 }
@@ -412,7 +411,14 @@ bool D3DApp::InitDirect3D()
 	}
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory)));
+	dxgiFactory.Reset();
+	UINT createFactoryFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+
+	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
 
 	HRESULT hardwareResult = D3D12CreateDevice(
 		nullptr,             // default adapter
@@ -429,6 +435,40 @@ bool D3DApp::InitDirect3D()
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&dxDevice)));
 	}
+
+#if defined(DEBUG) || defined(_DEBUG)
+
+	Microsoft::WRL::ComPtr<ID3D12InfoQueue> pInfoQueue;
+	if (SUCCEEDED(dxDevice.As(&pInfoQueue)))
+	{
+		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+
+
+
+		// Suppress messages based on their severity level
+		D3D12_MESSAGE_SEVERITY Severities[] =
+		{
+			D3D12_MESSAGE_SEVERITY_INFO
+		};
+
+		// Suppress individual messages by their ID
+		D3D12_MESSAGE_ID DenyIds[] = {
+			D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
+			D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
+			D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+		};
+
+		D3D12_INFO_QUEUE_FILTER NewFilter = {};
+		NewFilter.DenyList.NumSeverities = _countof(Severities);
+		NewFilter.DenyList.pSeverityList = Severities;
+		NewFilter.DenyList.NumIDs = _countof(DenyIds);
+		NewFilter.DenyList.pIDList = DenyIds;
+
+		ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
+	}
+#endif
 
 	ThrowIfFailed(dxDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE,
 		IID_PPV_ARGS(&fence)));
@@ -449,10 +489,6 @@ bool D3DApp::InitDirect3D()
 
 	m4xMsaaQuality = msQualityLevels.NumQualityLevels;
 	assert(m4xMsaaQuality > 0 && "Unexpected MSAA quality level.");
-
-#ifdef _DEBUG
-	LogAdapters();
-#endif
 
 	CreateCommandObjects();
 	CreateSwapChain();
@@ -510,7 +546,6 @@ void D3DApp::CreateSwapChain()
 void D3DApp::FlushCommandQueue()
 {	
 	currentFence++;
-
 	
 	ThrowIfFailed(commandQueue->Signal(fence.Get(), currentFence));
 
@@ -571,80 +606,6 @@ void D3DApp::CalculateFrameStats()
 	}
 }
 
-void D3DApp::LogAdapters()
-{
-	UINT i = 0;
-	IDXGIAdapter* adapter = nullptr;
-	std::vector<IDXGIAdapter*> adapterList;
-	while (dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
-	{
-		DXGI_ADAPTER_DESC desc;
-		adapter->GetDesc(&desc);
-
-		std::wstring text = L"***Adapter: ";
-		text += desc.Description;
-		text += L"\n";
-
-		OutputDebugString(text.c_str());
-
-		adapterList.push_back(adapter);
-
-		++i;
-	}
-
-	for (size_t i = 0; i < adapterList.size(); ++i)
-	{
-		LogAdapterOutputs(adapterList[i]);
-		ReleaseCom(adapterList[i]);
-	}
-}
-
-void D3DApp::LogAdapterOutputs(IDXGIAdapter* adapter)
-{
-	UINT i = 0;
-	IDXGIOutput* output = nullptr;
-	while (adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND)
-	{
-		DXGI_OUTPUT_DESC desc;
-		output->GetDesc(&desc);
-
-		std::wstring text = L"***Output: ";
-		text += desc.DeviceName;
-		text += L"\n";
-		OutputDebugString(text.c_str());
-
-		LogOutputDisplayModes(output, backBufferFormat);
-
-		ReleaseCom(output);
-
-		++i;
-	}
-}
-
-void D3DApp::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
-{
-	UINT count = 0;
-	UINT flags = 0;
-
-	// Call with nullptr to get list count.
-	output->GetDisplayModeList(format, flags, &count, nullptr);
-
-	std::vector<DXGI_MODE_DESC> modeList(count);
-	output->GetDisplayModeList(format, flags, &count, &modeList[0]);
-
-	for (auto& x : modeList)
-	{
-		UINT n = x.RefreshRate.Numerator;
-		UINT d = x.RefreshRate.Denominator;
-		std::wstring text =
-			L"Width = " + std::to_wstring(x.Width) + L" " +
-			L"Height = " + std::to_wstring(x.Height) + L" " +
-			L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
-			L"\n";
-
-		::OutputDebugString(text.c_str());
-	}
-}
 
 void D3DApp::ExecuteCommandList() const
 {

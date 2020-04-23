@@ -108,9 +108,6 @@ protected:
 
     void CalculateFrameStats();
 
-    void LogAdapters();
-    void LogAdapterOutputs(IDXGIAdapter* adapter);
-    void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
     void ExecuteCommandList() const;
     void ResetCommandList(ID3D12PipelineState* pipelinestate = nullptr) const;   
 };
