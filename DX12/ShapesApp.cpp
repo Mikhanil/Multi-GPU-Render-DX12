@@ -24,7 +24,6 @@ bool ShapesApp::Initialize()
 	BuildFrameResources();
 	
 	ExecuteCommandList();
-
 	FlushCommandQueue();
 	
 	return true;
@@ -85,7 +84,7 @@ void ShapesApp::BuildFrameResources()
 	//по смыслу, создаем 3 комманд алокатора и итерируемся по ним в update и draw
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
-		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 1, 1, 1));
+		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get()));
 	}
 }
 
