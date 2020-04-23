@@ -17,14 +17,9 @@ ShapesApp::~ShapesApp()
 bool ShapesApp::Initialize()
 {
 	if (!D3DApp::Initialize())
-		return false;
-
-	ThrowIfFailed(commandList->Reset(directCommandListAlloc.Get(), nullptr));
+		return false;	
 		
 	BuildFrameResources();
-	
-	ExecuteCommandList();
-	FlushCommandQueue();
 	
 	return true;
 }
