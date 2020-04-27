@@ -9,6 +9,8 @@
 #include <Windows.h>
 #include <DirectXMath.h>
 #include <cstdint>
+#include "d3d12.h"
+#include <SimpleMath.h>
 
 class MathHelper
 {
@@ -95,6 +97,11 @@ public:
 	static const float Infinity;
 	static const float Pi;
 
+	static DirectX::SimpleMath::Vector3 ToEulerAngles(DirectX::SimpleMath::Quaternion q);
 
+
+	// yaw (Z), pitch (Y), roll (X)
+	static DirectX::SimpleMath::Quaternion ToQuaternion(double xRoll, double yPitch, double zYaw)
+	;
 };
 

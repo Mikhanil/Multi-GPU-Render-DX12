@@ -15,6 +15,7 @@
 #include "LightingUtil.hlsl"
 
 Texture2D gDiffuseMap : register(t0);
+TextureCube SkyMap : register(t1);
 
 
 SamplerState gsamPointWrap : register(s0);
@@ -23,6 +24,7 @@ SamplerState gsamLinearWrap : register(s2);
 SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
+SamplerState gsamCubeTextureWrap : register(s6);
 
 struct ObjectData
 {
@@ -88,6 +90,12 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
+struct SkyMapOut
+{
+    float4 Pos : SV_POSITION;
+    float3 texCoord : TEXCOORD;
+};
+
 VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
@@ -109,10 +117,9 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) 
-    // * gSecondDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC)
-    * materialBuffer.DiffuseAlbedo;
-	
+
+    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * materialBuffer.DiffuseAlbedo;
+    
 #ifdef ALPHA_TEST	
 	clip(diffuseAlbedo.a - 0.1f);
 #endif
@@ -145,4 +152,20 @@ float4 PS(VertexOut pin) : SV_Target
     return litColor;
 }
 
+SkyMapOut SKYMAP_VS(VertexIn vin)
+{
+    SkyMapOut output = (SkyMapOut) 0;
+
+    //Set Pos to xyww instead of xyzw, so that z will always be 1 (furthest from camera)
+    output.Pos = mul(mul(float4(vin.PosL, 1.0f), objectBuffer.World), worldBuffer.ViewProj).xyww;
+
+    output.texCoord = vin.PosL;
+
+    return output;
+}
+
+float4 SKYMAP_PS(SkyMapOut input) : SV_Target
+{
+    return SkyMap.Sample(gsamCubeTextureWrap, input.texCoord);
+}
 

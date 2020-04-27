@@ -4,6 +4,7 @@
 #include "ModelRenderer.h"
 #include "Camera.h"
 #include <ppl.h>
+#include "CameraController.h"
 
 
 ShapesApp::ShapesApp(HINSTANCE hInstance)
@@ -35,8 +36,7 @@ bool ShapesApp::Initialize()
 	ExecuteCommandList();
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
-
+	FlushCommandQueue();	
 	return true;
 }
 
@@ -47,13 +47,7 @@ void ShapesApp::OnResize()
 	if(camera != nullptr)
 	{
 		camera->SetAspectRatio(AspectRatio());
-	}
-	
-	
-	
-	// The window resized, so update the aspect ratio and recompute the projection matrix.
-	/*const XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.0f, 1000.0f);
-	XMStoreFloat4x4(&mProj, P);*/
+	}		
 }
 
 void ShapesApp::Update(const GameTimer& gt)
@@ -72,11 +66,10 @@ void ShapesApp::Update(const GameTimer& gt)
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-
-
-	UpdateObjectCBs(gt);
-	UpdateCamera(gt);
-	UpdateMainPassCB(gt);	
+	
+	UpdateGameObjects(gt);
+	UpdateGlobalCB(gt);
+	
 }
 
 void ShapesApp::Draw(const GameTimer& gt)
@@ -144,98 +137,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 	commandQueue->Signal(fence.Get(), currentFence);
 }
 
-void ShapesApp::OnMouseDown(WPARAM btnState, int x, int y)
-{
-	mLastMousePos.x = x;
-	mLastMousePos.y = y;
-
-	SetCapture(mainWindow);
-}
-
-void ShapesApp::OnMouseUp(WPARAM btnState, int x, int y)
-{
-	ReleaseCapture();
-}
-
-void ShapesApp::OnMouseMove(WPARAM btnState, int x, int y)
-{
-	if ((btnState & MK_LBUTTON) != 0)
-	{
-		// Make each pixel correspond to a quarter of a degree.
-		const float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
-		const float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
-
-		// Update angles based on input to orbit camera around box.
-		mTheta += dx;
-		mPhi += dy;
-
-		// Restrict the angle mPhi.
-		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
-	}
-	else if ((btnState & MK_RBUTTON) != 0)
-	{
-		// Make each pixel correspond to 0.2 unit in the scene.
-		const float dx = 0.05f * static_cast<float>(x - mLastMousePos.x);
-		const float dy = 0.05f * static_cast<float>(y - mLastMousePos.y);
-
-		// Update the camera radius based on input.
-		mRadius += dx - dy;
-
-		// Restrict the radius.
-		mRadius = MathHelper::Clamp(mRadius, 5.0f, 150.0f);
-	}
-
-	mLastMousePos.x = x;
-	mLastMousePos.y = y;
-}
-
-void ShapesApp::OnKeyboardKeyUp(WPARAM key)
-{
-	if(key == VK_F1)
-	{
-		isWireframe = !isWireframe;
-		globalVar->globalIsDebug = isWireframe;
-	}
-
-	const float dt = timer.DeltaTime();
-	const float value = 10;
-
-	if (key == (VK_LEFT))
-		mSunTheta -= value * dt;
-
-	if (key == (VK_RIGHT) )
-		mSunTheta += value * dt;
-
-	if (key == (VK_UP) )
-		mSunPhi -= value  * dt;
-
-	if (key == (VK_DOWN) )
-		mSunPhi += value * dt;
-
-	mSunPhi = MathHelper::Clamp(mSunPhi, 0.1f, XM_PIDIV2);
-}
-
-void ShapesApp::UpdateCamera(const GameTimer& gt)
-{
-	auto transform = camera->gameObject->GetTransform();
-
-	transform->SetPosition(Vector3(mRadius * sinf(mPhi) * cosf(mTheta), mRadius * sinf(mPhi) * sinf(mTheta), mRadius * cosf(mPhi)));
-	
-	// Convert Spherical to Cartesian coordinates.
-	/*mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
-	mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);
-	mEyePos.y = mRadius * cosf(mPhi);*/
-
-	// Build the view matrix.
-	//const XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.0f);
-	//const XMVECTOR target = XMVectorZero();
-	//const XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	//const XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-	//XMStoreFloat4x4(&mView, view);
-}
-
-void ShapesApp::UpdateObjectCBs(const GameTimer& gt)
+void ShapesApp::UpdateGameObjects(const GameTimer& gt)
 {	
 	for (auto& e : gameObjects)
 	{
@@ -245,7 +147,7 @@ void ShapesApp::UpdateObjectCBs(const GameTimer& gt)
 
 
 
-void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
+void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
 {	
 	const XMMATRIX view = XMLoadFloat4x4(&camera->GetViewMatrix());
 	const XMMATRIX proj = XMLoadFloat4x4(&camera->GetProjectionMatrix());
@@ -308,13 +210,15 @@ void ShapesApp::LoadTextures()
 	fenceTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
 	auto waterTex = std::make_unique<Texture>("waterTex", L"Data\\Textures\\water1.dds");
 	waterTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-
+	auto skyTex = std::make_unique<Texture>("skyTex", L"Data\\Textures\\skymap.dds");
+	skyTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
 	
 	textures[bricksTex->GetName()] = std::move(bricksTex);
 	textures[stoneTex->GetName()] = std::move(stoneTex);
 	textures[tileTex->GetName()] = std::move(tileTex);
 	textures[fenceTex->GetName()] = std::move(fenceTex);
 	textures[waterTex->GetName()] = std::move(waterTex);
+	textures[skyTex->GetName()] = std::move(skyTex);
 }
 
 void ShapesApp::BuildShadersAndInputLayout()
@@ -335,6 +239,8 @@ void ShapesApp::BuildShadersAndInputLayout()
 	shaders["StandardVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::VertexShader , nullptr, "VS", "vs_5_1"));
 	shaders["StandardAlphaDrop"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, alphaTestDefines, "PS", "ps_5_1"));
 	shaders["StandardPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, defines, "PS", "ps_5_1"));
+	shaders["SkyBoxVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
+	shaders["SkyBoxPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
 
 	for (auto && pair : shaders)
 	{
@@ -357,6 +263,7 @@ void ShapesApp::BuildShapeGeometry()
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
 	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
 	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
+	GeometryGenerator::MeshData skySphere = geoGen.CreateSkySphere(10,10);
 
 	//
 	// We are concatenating all the geometry into one big vertex/index buffer.  So
@@ -368,12 +275,14 @@ void ShapesApp::BuildShapeGeometry()
 	UINT gridVertexOffset = (UINT)box.Vertices.size();
 	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
+	UINT skySphererVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
 
 	// Cache the starting index for each object in the concatenated index buffer.
 	UINT boxIndexOffset = 0;
 	UINT gridIndexOffset = (UINT)box.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
+	UINT skySphererIndexOffset = sphereIndexOffset + (UINT)cylinder.Indices32.size();
 
 	SubmeshGeometry boxSubmeshs;
 	boxSubmeshs.IndexCount = (UINT)box.Indices32.size();
@@ -395,6 +304,11 @@ void ShapesApp::BuildShapeGeometry()
 	cylinderSubmeshs.StartIndexLocation = cylinderIndexOffset;
 	cylinderSubmeshs.BaseVertexLocation = cylinderVertexOffset;
 
+	SubmeshGeometry skySphererSubmeshs;
+	skySphererSubmeshs.IndexCount = (UINT)skySphere.Indices32.size();
+	skySphererSubmeshs.StartIndexLocation = skySphererIndexOffset;
+	skySphererSubmeshs.BaseVertexLocation = skySphererVertexOffset;
+
 	//
 	// Extract the vertex elements we are interested in and pack the
 	// vertices of all the meshes into one vertex buffer.
@@ -404,7 +318,7 @@ void ShapesApp::BuildShapeGeometry()
 		box.Vertices.size() +
 		grid.Vertices.size() +
 		sphere.Vertices.size() +
-		cylinder.Vertices.size();
+		cylinder.Vertices.size() + skySphere.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -437,11 +351,19 @@ void ShapesApp::BuildShapeGeometry()
 		vertices[k].texCord = cylinder.Vertices[i].TexCord;
 	}
 
+	for (size_t i =0; i < skySphere.Vertices.size(); ++i, ++k)
+	{
+		vertices[k].position = skySphere.Vertices[i].Position;
+		vertices[k].normal = skySphere.Vertices[i].Normal;
+		vertices[k].texCord = skySphere.Vertices[i].TexCord;
+	}
+	
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
 	indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
+	indices.insert(indices.end(), std::begin(skySphere.GetIndices16()), std::end(skySphere.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -470,6 +392,7 @@ void ShapesApp::BuildShapeGeometry()
 	geo->Submeshs["grid"] = gridSubmeshs;
 	geo->Submeshs["sphere"] = sphereSubmeshs;
 	geo->Submeshs["cylinder"] = cylinderSubmeshs;
+	geo->Submeshs["sky"] = skySphererSubmeshs;
 
 	meshes[geo->Name] = std::move(geo);
 }
@@ -518,17 +441,23 @@ void ShapesApp::BuildMaterials()
 	water->AddShader(shaders["StandardVertex"].get());
 	water->AddShader(shaders["StandardPixel"].get());
 	materials[water->GetName()] = std::move(water);
+
+
+	auto skyBox = std::make_unique<Material>(dxDevice.Get(), "sky", MaterialType::SkyBox, backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	skyBox->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	skyBox->SetDiffuseTexture(textures["skyTex"].get());
+	skyBox->AddShader(shaders["SkyBoxVertex"].get());
+	skyBox->AddShader(shaders["SkyBoxPixel"].get());
+	materials[skyBox->GetName()] = std::move(skyBox);
 }
 
 void ShapesApp::BuildGameObjects()
 {
-	auto camera = std::make_unique<GameObject>(dxDevice.Get());
-	camera->AddComponent(new Camera(AspectRatio()));
-	gameObjects.push_back(std::move(camera));
+	
 	
 	auto sun1 = std::make_unique<GameObject>(dxDevice.Get());
 	auto light = new Light();	
-	light->Direction(Vector3(-MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi)));
+	light->Direction({ 1.0f,1.0f,1.0f });
 	light->Strength({ 1.0f, 1.0f, 0.9f });
 	sun1->AddComponent(light);
 	gameObjects.push_back(std::move(sun1));
@@ -555,6 +484,9 @@ void ShapesApp::BuildGameObjects()
 	modelRenderer->AddModel(dxDevice.Get(), commandList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 	man->AddComponent(modelRenderer);
 	gameObjects.push_back(std::move(man));
+
+	
+
 	
 	auto box = std::make_unique<GameObject>(dxDevice.Get());
 	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f));
@@ -570,6 +502,7 @@ void ShapesApp::BuildGameObjects()
 	box->AddComponent(renderer);
 	gameObjects.push_back(std::move(box));
 
+	
 	
 	auto grid = std::make_unique<GameObject>(dxDevice.Get());
 	XMStoreFloat4x4(&grid->GetTransform()->TextureTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
@@ -642,6 +575,33 @@ void ShapesApp::BuildGameObjects()
 		gameObjects.push_back(std::move(leftSphereRitem));
 		gameObjects.push_back(std::move(rightSphereRitem));
 	}
+
+
+	auto camera = std::make_unique<GameObject>(dxDevice.Get());
+	camera->AddComponent(new Camera(AspectRatio()));	
+	/*renderer = new Renderer();
+	renderer->Material = materials["sky"].get();
+	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	camera->AddComponent(renderer);*/
+	camera->AddComponent(new CameraController());
+	gameObjects.push_back(std::move(camera));
+	
+	auto skySphere = std::make_unique<GameObject>(dxDevice.Get());
+	skySphere->GetTransform()->SetScale({ 500,500,500 });
+	XMStoreFloat4x4(&skySphere->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	renderer = new Renderer();
+	renderer->Material = materials["sky"].get();
+	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	skySphere->AddComponent(renderer);
+	gameObjects.push_back(std::move(skySphere));
 }
 
 void ShapesApp::BuildFrameResources()

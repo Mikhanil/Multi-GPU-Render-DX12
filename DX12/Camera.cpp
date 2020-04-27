@@ -5,20 +5,27 @@ void Camera::Update()
 {
 	const auto transform = gameObject->GetTransform();
 
-	Vector3 camtarget = DirectX::XMVector3TransformCoord(Vector3::Forward, Matrix::CreateFromQuaternion(transform->GetRotate()));
+	std::wstring debug = L"Camera position " + std::to_wstring(transform->GetPosition().x) + L" : " + std::to_wstring(transform->GetPosition().y) + L" : " + std::to_wstring(transform->GetPosition().z) + L"\n"
+		+ L"Camera rotation " + std::to_wstring(transform->GetEulerAngels().x) + L" : " + std::to_wstring(transform->GetEulerAngels().y) + L" : " + std::to_wstring(transform->GetEulerAngels().z) + L"\n";
 	
-	view =  DirectX::XMMatrixLookAtLH(transform->GetPosition(), camtarget += transform->GetPosition(), Vector3::Up);
+	OutputDebugString(debug.c_str());
+	
+	Vector3 camtarget = DirectX::XMVector3TransformCoord(Vector3::Forward, Matrix::CreateFromQuaternion(transform->GetQuaternionRotate()));
+
+	focusPosition = camtarget += transform->GetPosition();
+	
+	view =  DirectX::XMMatrixLookAtLH(transform->GetPosition(), focusPosition, Vector3::Up);
 
 	if (NumFramesDirty > 0)
 	{
-		CreateProjection(fov, aspectRatio, nearZ, farZ);
+		CreateProjection();
 		NumFramesDirty--;
 	}
 }
 
-void Camera::CreateProjection(float fovDegrees, float aspectRatio, float nearZ, float farZ)
+void Camera::CreateProjection()
 {
-	const float fovRadians = DirectX::XMConvertToRadians(fovDegrees);  //(fovDegrees / 360.0f)* DirectX::XM_2PI;
+	const float fovRadians = DirectX::XMConvertToRadians(fov);
 	projection = DirectX::XMMatrixPerspectiveFovLH(fovRadians, aspectRatio, nearZ, farZ);
 }
 

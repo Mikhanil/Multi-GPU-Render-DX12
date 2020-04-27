@@ -16,8 +16,6 @@ Transform::Transform( ID3D12Device* device) : Transform( device, Vector3::Zero, 
 
 void Transform::Update()
 {
-	// Only update the cbuffer data if the constants have changed.  
-	// This needs to be tracked per frame resource.
 	if (NumFramesDirty > 0)
 	{
 		bufferConstant.TextureTransform = TextureTransform.Transpose();
@@ -39,8 +37,7 @@ void Transform::SetParent(Transform* transform)
 
 Matrix Transform::GetWorldMatrix() const
 {
-	Matrix mat = Matrix::CreateTranslation(position) * Matrix::CreateFromQuaternion(rotate) * Matrix::
-		CreateScale(scale);
+	Matrix mat = Matrix::CreateTranslation(position) * Matrix::CreateFromQuaternion(rotate)	* Matrix::CreateScale(scale);
 
 	if (Parent != nullptr)
 	{
@@ -62,9 +59,10 @@ void Transform::SetScale(const Vector3& s)
 	NumFramesDirty = globalCountFrameResources;
 }
 
-void Transform::SetRotate(const Quaternion& quat)
+void Transform::SetEulerRotate(const Vector3& eulerAngl)
 {
-	rotate = quat;
+	eulerAngles = eulerAngl;	
+	rotate = DirectX::XMQuaternionRotationRollPitchYaw((eulerAngles.x), (eulerAngles.y), (eulerAngles.z));
 	NumFramesDirty = globalCountFrameResources;
 }
 
@@ -78,6 +76,16 @@ void Transform::AdjustPosition(float x, float y, float z)
 	SetPosition(position + Vector3(x, y, z));
 }
 
+void Transform::AdjustEulerRotation(const Vector3& rot)
+{
+	SetEulerRotate(eulerAngles + rot);
+}
+
+void Transform::AdjustEulerRotation(float roll, float pitch, float yaw)
+{	
+	SetEulerRotate(eulerAngles + Vector3(roll, pitch, yaw));
+}
+
 Vector3 Transform::GetPosition() const
 {
 	return position;
@@ -88,7 +96,12 @@ Vector3 Transform::GetScale() const
 	return scale;
 }
 
-Quaternion Transform::GetRotate() const
+Quaternion Transform::GetQuaternionRotate() const
 {
 	return rotate;
+}
+
+Vector3 Transform::GetEulerAngels() const
+{
+	return eulerAngles;
 }

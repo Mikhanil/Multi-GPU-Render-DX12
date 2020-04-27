@@ -92,6 +92,8 @@ public:
 	///</summary>
 	MeshData CreateGeosphere(float radius, uint32 numSubdivisions);
 
+	MeshData CreateSkySphere(int LatLines, int LongLines);
+
 	///<summary>
 	/// Creates a cylinder parallel to the y-axis, and centered about the origin.  
 	/// The bottom and top radius can vary to form various cone shapes rather than true

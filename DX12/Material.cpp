@@ -1,6 +1,6 @@
 #include "Material.h"
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> Material::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> Material::GetStaticSamplers()
 {
 	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
 		0, // shaderRegister
@@ -48,10 +48,21 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> Material::GetStaticSamplers()
 		0.0f, // mipLODBias
 		8); // maxAnisotropy
 
+	const CD3DX12_STATIC_SAMPLER_DESC cubesTexSampler(
+		6, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
+		0.0f, // mipLODBias
+		8, // maxAnisotropy
+		D3D12_COMPARISON_FUNC_NEVER); 
+
+	
 	return {
 		pointWrap, pointClamp,
 		linearWrap, linearClamp,
-		anisotropicWrap, anisotropicClamp
+		anisotropicWrap, anisotropicClamp, cubesTexSampler
 	};
 }
 
@@ -65,20 +76,22 @@ void Material::CreateRootSignature(ID3D12Device* device)
 {
 	if (rootSignature != nullptr) rootSignature->Release();
 
-	CD3DX12_DESCRIPTOR_RANGE texTable[1];
+	CD3DX12_DESCRIPTOR_RANGE texTable[2];
 
-	for (int i = 0; i < _countof(texTable); ++i)
-	{
-		texTable[i].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-		                 1, // number of descriptors
-		                 i); // register t
-	}
+	texTable[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1, // number of descriptors
+		0); // register t
+	
+	texTable[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+		1, // number of descriptors
+		1); // register t
+	
 
-
-	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+	CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
 	slotRootParameter[0].InitAsDescriptorTable(1, &texTable[0], D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[4].InitAsDescriptorTable(1, &texTable[1], D3D12_SHADER_VISIBILITY_PIXEL);
 	slotRootParameter[1].InitAsConstantBufferView(0);
 	slotRootParameter[2].InitAsConstantBufferView(1);
 	slotRootParameter[3].InitAsConstantBufferView(2);
@@ -195,6 +208,14 @@ void Material::CreatePso(ID3D12Device* device)
 			psoDesc.BlendState.RenderTarget[0] = transparencyBlendDesc;
 			break;
 		}
+	case SkyBox:
+		{
+		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+		psoDesc.DepthStencilState.DepthEnable = true;
+		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+			break;
+		}
 	}
 
 
@@ -253,14 +274,27 @@ void Material::InitMaterial(ID3D12Device* device)
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+	
+	
 
 	for (int i = 0; i < textures.size(); ++i)
 	{
 		srvDesc.Format = textures[i]->GetResource()->GetDesc().Format;
-		srvDesc.Texture2D.MipLevels = textures[i]->GetResource()->GetDesc().MipLevels;
+		if (type == MaterialType::SkyBox)
+		{
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+			srvDesc.TextureCube.MipLevels = textures[i]->GetResource()->GetDesc().MipLevels;
+			srvDesc.TextureCube.MostDetailedMip = 0;
+		}
+		else
+		{
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MostDetailedMip = 0;
+			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;			
+			srvDesc.Texture2D.MipLevels = textures[i]->GetResource()->GetDesc().MipLevels;
+		}
+		
+		
 		device->CreateShaderResourceView(textures[i]->GetResource(), &srvDesc, hDescriptor);
 		hDescriptor.Offset(1, cbvSrvUavDescriptorSize);
 	}
@@ -294,7 +328,15 @@ void Material::Draw(ID3D12GraphicsCommandList* cmdList) const
 	for (int i = 0; i < textures.size(); ++i)
 	{
 		tex.Offset(i, cbvSrvUavDescriptorSize);
-		cmdList->SetGraphicsRootDescriptorTable(i, tex);
+		if (type == MaterialType::SkyBox)
+		{
+			cmdList->SetGraphicsRootDescriptorTable(4, tex);
+		}
+		else
+		{
+			cmdList->SetGraphicsRootDescriptorTable(0, tex);
+		}
+		
 	}
 }
 

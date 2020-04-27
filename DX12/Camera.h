@@ -11,7 +11,7 @@ class Camera :	public Component
 	void Draw(ID3D12GraphicsCommandList* cmdList) override {};
 	void Update() override;
 
-	void CreateProjection(float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	void CreateProjection();
 
 	Matrix view = Matrix::Identity;
 	Matrix projection = Matrix::Identity;
@@ -20,10 +20,19 @@ class Camera :	public Component
 	float aspectRatio = 0;
 	float nearZ = 0.1;
 	float farZ = 10000;
+
+	Vector3 focusPosition = Vector3::Zero;
+
+	
 	
 	int NumFramesDirty = globalCountFrameResources;
 public:
 
+	const Vector3& GetFocusPosition() const
+	{
+		return focusPosition;
+	}
+	
 	Camera(float aspect);;
 
 	void SetAspectRatio(float aspect);

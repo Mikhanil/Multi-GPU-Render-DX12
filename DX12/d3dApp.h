@@ -7,6 +7,8 @@
 
 #include "d3dUtil.h"
 #include "GameTimer.h"
+#include "Keyboard.h"
+#include "Mouse.h"
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
@@ -25,6 +27,11 @@ protected:
 
 public:
 
+    GameTimer* GetTimer()
+    {
+        return &timer;
+    }
+	
     static D3DApp* GetApp();
 
     HINSTANCE AppInst()const;
@@ -44,11 +51,6 @@ protected:
     virtual void OnResize();
     virtual void Update(const GameTimer& gt) = 0;
     virtual void Draw(const GameTimer& gt) = 0;
-    virtual void OnKeyboardKeyUp(WPARAM key) {};
-    virtual void OnKeyboardKeyDown(WPARAM key) {};
-    virtual void OnMouseDown(WPARAM btnState, int x, int y) { }
-    virtual void OnMouseUp(WPARAM btnState, int x, int y) { }
-    virtual void OnMouseMove(WPARAM btnState, int x, int y) { }
 
 protected:
     	
@@ -73,6 +75,11 @@ protected:
     UINT      m4xMsaaQuality = 0;      // quality level of 4X MSAA
 
     GameTimer timer;
+
+    Keyboard keyboard;
+
+    Mouse mouse;
+	
     bool InitMainWindow();
 
     Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;

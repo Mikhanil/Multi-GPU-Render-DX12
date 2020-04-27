@@ -9,10 +9,11 @@ using namespace Microsoft::WRL;
 
 enum MaterialType
 {
+	SkyBox,
 	Opaque,
 	Wireframe,
 	AlphaDrop,
-	Transparent,
+	Transparent
 };
 
 struct MaterialConstants
@@ -49,7 +50,7 @@ class Material
 	bool ism4xmsaa;
 	UINT m4xMsaaQuality = 0;
 
-	static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 6> GetStaticSamplers();
+	static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 
 	D3D12_INPUT_LAYOUT_DESC GetInputLayoutInfo();
 
