@@ -67,7 +67,7 @@ private:
 
     std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 	
-   ComPtr<ID3D12RootSignature> rootSignature = nullptr;
+   std::unique_ptr<RootSignature> rootSignature = nullptr;
 	
     std::vector<std::unique_ptr<FrameResource>> frameResources;
     FrameResource* currentFrameResource = nullptr;

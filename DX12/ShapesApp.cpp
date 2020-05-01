@@ -100,7 +100,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 	
 
-	commandList->SetGraphicsRootSignature(rootSignature.Get());
+	commandList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
 		
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();	
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
@@ -109,10 +109,12 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 	commandList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
 	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::SkyBox]);
-	//DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Opaque]);
+
+	commandList->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Opaque]);
 
 
-	/*commandList->OMSetStencilRef(1);
+	commandList->OMSetStencilRef(1);
 	commandList->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
 	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Mirror]);
 
@@ -131,7 +133,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 
 	commandList->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Shadow]);*/
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Shadow]);
 	
 	// Indicate a state transition on the resource usage.
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
@@ -140,7 +142,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 	ExecuteCommandList();
 
 	
-	ThrowIfFailed(swapChain->Present(1, 0));
+	ThrowIfFailed(swapChain->Present(0, 0));
 	currBackBufferIndex = (currBackBufferIndex + 1) % swapChainBufferCount;
 
 	currentFrameResource->FenceValue = ++currentFence;
@@ -314,44 +316,44 @@ void ShapesApp::BuildShadersAndInputLayout()
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
-	CD3DX12_DESCRIPTOR_RANGE texTable;
-	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	//CD3DX12_DESCRIPTOR_RANGE texTable;
+	//texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-	// Root parameter can be a table, root descriptor or root constants.
-	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+	//// Root parameter can be a table, root descriptor or root constants.
+	//CD3DX12_ROOT_PARAMETER slotRootParameter[4];
 
-	// Perfomance TIP: Order from most frequent to least frequent.
-	slotRootParameter[0].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	slotRootParameter[1].InitAsConstantBufferView(0);
-	slotRootParameter[2].InitAsConstantBufferView(1);
-	slotRootParameter[3].InitAsConstantBufferView(2);
+	//// Perfomance TIP: Order from most frequent to least frequent.
+	//slotRootParameter[0].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	//slotRootParameter[1].InitAsConstantBufferView(0);
+	//slotRootParameter[2].InitAsConstantBufferView(1);
+	//slotRootParameter[3].InitAsConstantBufferView(2);
 
-	auto staticSamplers = GetStaticSamplers();
+	//auto staticSamplers = GetStaticSamplers();
 
-	// A root signature is an array of root parameters.
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
-		(UINT)staticSamplers.size(), staticSamplers.data(),
-		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	//// A root signature is an array of root parameters.
+	//CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
+	//	(UINT)staticSamplers.size(), staticSamplers.data(),
+	//	D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-	ComPtr<ID3DBlob> serializedRootSig = nullptr;
-	ComPtr<ID3DBlob> errorBlob = nullptr;
-	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+	//// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+	//ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	//ComPtr<ID3DBlob> errorBlob = nullptr;
+	//HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+	//	serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
 
-	if (errorBlob != nullptr)
-	{
-		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-	}
-	ThrowIfFailed(hr);
+	//if (errorBlob != nullptr)
+	//{
+	//	::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	//}
+	//ThrowIfFailed(hr);
 
-	ThrowIfFailed(dxDevice->CreateRootSignature(
-		0,
-		serializedRootSig->GetBufferPointer(),
-		serializedRootSig->GetBufferSize(),
-		IID_PPV_ARGS(rootSignature.GetAddressOf())));
+	//ThrowIfFailed(dxDevice->CreateRootSignature(
+	//	0,
+	//	serializedRootSig->GetBufferPointer(),
+	//	serializedRootSig->GetBufferSize(),
+	//	IID_PPV_ARGS(rootSignature.GetAddressOf())));
 
-	/*rootSignature = std::make_unique<RootSignature>();
+	rootSignature = std::make_unique<RootSignature>();
 
 	CD3DX12_DESCRIPTOR_RANGE texParam[2];
 	texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
@@ -363,7 +365,7 @@ void ShapesApp::BuildShadersAndInputLayout()
 	rootSignature->AddConstantBufferParameter(2);
 	rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
-	rootSignature->Initialize(dxDevice.Get());*/
+	rootSignature->Initialize(dxDevice.Get());
 }
 
 void ShapesApp::BuildShapeGeometry()
@@ -687,7 +689,8 @@ void ShapesApp::BuildMaterials()
 void ShapesApp::BuildGameObjects()
 {
 	auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
-	//camera->GetTransform()->SetEulerRotate({ XMConvertToRadians(0), XMConvertToRadians(0), XMConvertToRadians(0) });
+	camera->GetTransform()->SetPosition({ -3.667396 , 3.027442 , -12.024042 });
+	camera->GetTransform()->SetEulerRotate({ -0.100110 , -2.716100 , 0.000000 });
 	camera->AddComponent(new Camera(AspectRatio()));
 	camera->AddComponent(new CameraController());
 	gameObjects.push_back(std::move(camera));
@@ -707,8 +710,8 @@ void ShapesApp::BuildGameObjects()
 	
 	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
 	auto light = new Light();	
-	light->Direction({ 1.0f,1.0f,1.0f });
-	light->Strength({ 1.0f, 1.0f, 0.9f });
+	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
+	light->Strength({ 0.6f, 0.6f, 0.6f });
 	sun1->AddComponent(light);
 	gameObjects.push_back(std::move(sun1));
 
@@ -920,8 +923,8 @@ void ShapesApp::BuildFrameResources()
 void ShapesApp::BuildPSOs()
 {
 	auto opaquePSO = std::make_unique<PSO>();
-	opaquePSO->SetInputLayout({ inputLayout.data(), (UINT)inputLayout.size() });	
-	opaquePSO->SetRootSignature(rootSignature.Get());
+	opaquePSO->SetInputLayout({ inputLayout.data(), (UINT)inputLayout.size() });
+	opaquePSO->SetRootSignature(rootSignature->GetRootSignature().Get());
 	opaquePSO->SetShader(shaders["StandardVertex"].get());
 	opaquePSO->SetShader(shaders["OpaquePixel"].get());
 	opaquePSO->SetRTVFormat(0, backBufferFormat);
@@ -931,13 +934,27 @@ void ShapesApp::BuildPSOs()
 
 	auto alphaDropPso = std::make_unique<PSO>(PsoType::AlphaDrop);
 	alphaDropPso->SetPsoDesc(opaquePSO->GetPsoDescription());
+	D3D12_RASTERIZER_DESC alphaDropRaster = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	alphaDropRaster.CullMode = D3D12_CULL_MODE_NONE;
+	alphaDropPso->SetRasterizationState(alphaDropRaster);
 	alphaDropPso->SetShader(shaders["AlphaDrop"].get());
+
 
 	auto skyBoxPSO = std::make_unique<PSO>(PsoType::SkyBox);
 	skyBoxPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+	D3D12_DEPTH_STENCIL_DESC skyBoxDSS = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	skyBoxDSS.DepthEnable = true;
+	skyBoxDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	skyBoxDSS.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	skyBoxPSO->SetDepthStencilState(skyBoxDSS);
+	D3D12_RASTERIZER_DESC skyBoxRaster = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	skyBoxRaster.CullMode = D3D12_CULL_MODE_NONE;
+	skyBoxPSO->SetRasterizationState(skyBoxRaster);
 	skyBoxPSO->SetShader(shaders["SkyBoxVertex"].get());
 	skyBoxPSO->SetShader(shaders["SkyBoxPixel"].get());
-	
+
+
+
 	auto transperentPSO = std::make_unique<PSO>(PsoType::Transparent);
 	transperentPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
 	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
@@ -950,16 +967,16 @@ void ShapesApp::BuildPSOs()
 	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
 	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
-	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;	
+	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	transperentPSO->SetRenderTargetBlendState(0, transparencyBlendDesc);
 
-	
+
 	auto mirrorPSO = std::make_unique<PSO>(PsoType::Mirror);
-	
+
 	CD3DX12_BLEND_DESC mirrorBlendState(D3D12_DEFAULT);
 	mirrorBlendState.RenderTarget[0].RenderTargetWriteMask = 0;
 
-	D3D12_DEPTH_STENCIL_DESC mirrorDSS;
+	D3D12_DEPTH_STENCIL_DESC mirrorDSS = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	mirrorDSS.DepthEnable = true;
 	mirrorDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	mirrorDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
@@ -975,14 +992,14 @@ void ShapesApp::BuildPSOs()
 	mirrorDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
 	mirrorDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	
+
 	mirrorPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
 	mirrorPSO->SetBlendState(mirrorBlendState);
 	mirrorPSO->SetDepthStencilState(mirrorDSS);
 
-	auto reflectionPSO = std::make_unique<PSO>(PsoType::Reflection);	
+	auto reflectionPSO = std::make_unique<PSO>(PsoType::Reflection);
 
-	D3D12_DEPTH_STENCIL_DESC reflectionsDSS;
+	D3D12_DEPTH_STENCIL_DESC reflectionsDSS = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	reflectionsDSS.DepthEnable = true;
 	reflectionsDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	reflectionsDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
@@ -1002,15 +1019,15 @@ void ShapesApp::BuildPSOs()
 	auto reflectionRasterState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	reflectionRasterState.CullMode = D3D12_CULL_MODE_BACK;
 	reflectionRasterState.FrontCounterClockwise = true;
-	
+
 	reflectionPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
 	reflectionPSO->SetDepthStencilState(reflectionsDSS);
 	reflectionPSO->SetRasterizationState(reflectionRasterState);
 
-	auto shadowPSO = std::make_unique<PSO>(PsoType::Shadow);	
-	
+	auto shadowPSO = std::make_unique<PSO>(PsoType::Shadow);
+
 	// We are going to draw shadows with transparency, so base it off the transparency description.
-	D3D12_DEPTH_STENCIL_DESC shadowDSS;
+	D3D12_DEPTH_STENCIL_DESC shadowDSS = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	shadowDSS.DepthEnable = true;
 	shadowDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 	shadowDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
@@ -1026,7 +1043,7 @@ void ShapesApp::BuildPSOs()
 	shadowDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	shadowDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
 	shadowDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
-	
+
 	shadowPSO->SetPsoDesc(transperentPSO->GetPsoDescription());
 	shadowPSO->SetDepthStencilState(shadowDSS);
 
