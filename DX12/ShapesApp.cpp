@@ -27,11 +27,12 @@ bool ShapesApp::Initialize()
 	LoadTextures();
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
+	BuildRoomGeometry();
+	BuildPSOs();
 	BuildMaterials();
 	BuildGameObjects();	
 	BuildFrameResources();
-	BuildPSOs();
-	SortGOByMaterial();
+	SortGO();
 	
 	ExecuteCommandList();
 
@@ -80,7 +81,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 	ThrowIfFailed(frameAlloc->Reset());
 
 
-	ThrowIfFailed(commandList->Reset(frameAlloc.Get(), nullptr));
+	ThrowIfFailed(commandList->Reset(frameAlloc.Get(), psos[PsoType::SkyBox]->GetPSO().Get()));
 	
 	
 
@@ -88,35 +89,49 @@ void ShapesApp::Draw(const GameTimer& gt)
 	commandList->RSSetViewports(1, &screenViewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
 
-	// Indicate a state transition on the resource usage.
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	// Clear the back buffer and depth buffer.
 	commandList->ClearRenderTargetView(GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
 	commandList->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
 	commandList->OMSetRenderTargets(1, &GetCurrentBackBufferView(), true, &GetDepthStencilView());
 
-	//commandList->SetGraphicsRootSignature(rootSignature.Get());
+	
 
-	commandList->SetGraphicsRootSignature(typedGameObjects.begin()->second[0]->GetRenderer()->Material->GetRootSignature());
+	commandList->SetGraphicsRootSignature(rootSignature.Get());
 		
-	auto passCB = currentFrameResource->PassConstantBuffer->Resource();
+	auto passCB = currentFrameResource->PassConstantBuffer->Resource();	
+	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
 	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
+	commandList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::SkyBox]);
+	//DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Opaque]);
 
-	
-	for (auto it = typedGameObjects.begin(); it != typedGameObjects.end(); ++it)
-	{
-		commandList->SetPipelineState(it->second[0]->GetRenderer()->Material->GetPSO());
-		
-		
-		
-		DrawGameObjects(commandList.Get(), it->second);
-	}	
-	
+
+	/*commandList->OMSetStencilRef(1);
+	commandList->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Mirror]);
+
+
+	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
+	commandList->SetPipelineState(psos[PsoType::Reflection]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Reflection]);
+
+
+	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	commandList->OMSetStencilRef(0);
+
+
+	commandList->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Transparent]);
+
+
+	commandList->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Shadow]);*/
 	
 	// Indicate a state transition on the resource usage.
 	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
@@ -124,31 +139,66 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 	ExecuteCommandList();
 
-	// Swap the back and front buffers
-	ThrowIfFailed(swapChain->Present(0, 0));
+	
+	ThrowIfFailed(swapChain->Present(1, 0));
 	currBackBufferIndex = (currBackBufferIndex + 1) % swapChainBufferCount;
 
-	// Advance the fence value to mark commands up to this fence point.
 	currentFrameResource->FenceValue = ++currentFence;
 
-	// Add an instruction to the command queue to set a new fence point. 
-	// Because we are on the GPU timeline, the new fence point won't be 
-	// set until the GPU finishes processing all the commands prior to this Signal().
+	
 	commandQueue->Signal(fence.Get(), currentFence);
 }
 
 void ShapesApp::UpdateGameObjects(const GameTimer& gt)
-{	
+{
+	const float dt = gt.DeltaTime();
+	
+	if (keyboard.KeyIsPressed(VK_UP))
+	{
+		mSkullTranslation.y += 1.0f * dt;
+	}
+	if (keyboard.KeyIsPressed(VK_DOWN))
+	{
+		mSkullTranslation.y -= 1.0f * dt;
+	}
+	if (keyboard.KeyIsPressed(VK_LEFT))
+	{
+		mSkullTranslation.x -= 1.0f * dt;
+	}
+	if (keyboard.KeyIsPressed(VK_RIGHT))
+	{
+		mSkullTranslation.x += 1.0f * dt;
+	}
+
+	mSkullTranslation.y = MathHelper::Max(mSkullTranslation.y, 0.0f);
+
+
+	XMMATRIX skullRotate = XMMatrixRotationY(0.5f * MathHelper::Pi);
+	XMMATRIX skullScale = XMMatrixScaling(2.0f, 2.0f, 2.0f);
+	XMMATRIX skullOffset = XMMatrixTranslation(mSkullTranslation.x, mSkullTranslation.y, mSkullTranslation.z);
+	XMMATRIX skullWorld = skullRotate * skullScale * skullOffset;
+	skull->GetTransform()->SetWorldMatrix(skullWorld);
+
+	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+	//XMStoreFloat4x4(&mReflectedSkullRitem->World, skullWorld * R);
+	reflectedSkull->GetTransform()->SetWorldMatrix(skullWorld * R);
+
+	XMVECTOR shadowPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
+	XMVECTOR toMainLight = -XMLoadFloat3(&mainPassCB.Lights[0].Direction);
+	XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
+	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);
+	//XMStoreFloat4x4(&mShadowedSkullRitem->World, skullWorld * S * shadowOffsetY);
+	shadowSkull->GetTransform()->SetWorldMatrix(skullWorld * S * shadowOffsetY);
+	
 	for (auto& e : gameObjects)
 	{
 		e->Update();		
 	}
 }
 
-
-
 void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
-{	
+{
 	const XMMATRIX view = XMLoadFloat4x4(&camera->GetViewMatrix());
 	const XMMATRIX proj = XMLoadFloat4x4(&camera->GetProjectionMatrix());
 
@@ -172,30 +222,39 @@ void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
 	mainPassCB.DeltaTime = gt.DeltaTime();
 	mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
 
-	for (int i =0; i< MaxLights; ++i)
+	for (int i = 0; i < MaxLights; ++i)
 	{
-		if(i < lights.size())
+		if (i < lights.size())
 		{
 			mainPassCB.Lights[i] = lights[i]->GetData();
 		}
 		else
 		{
 			break;
-		}
+		}		
 	}
-	
-	/*const XMVECTOR lightDir = -MathHelper::SphericalToCartesian(1.0f, mSunTheta, mSunPhi);
-
-	XMStoreFloat3(&mainPassCB.Lights[0].Direction, lightDir);
-	mainPassCB.Lights[0].Strength = { 1.0f, 1.0f, 0.9f };
-	
-	mainPassCB.Lights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
-	mainPassCB.Lights[1].Strength = { 0.3f, 0.3f, 0.3f };
-	mainPassCB.Lights[2].Direction = { 0.0f, -0.707f, -0.707f };
-	mainPassCB.Lights[2].Strength = { 0.15f, 0.15f, 0.15f };*/
-
 	auto currentPassCB = currentFrameResource->PassConstantBuffer.get();
 	currentPassCB->CopyData(0, mainPassCB);
+
+	reflectedPassCB = mainPassCB;
+
+	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	XMMATRIX R = XMMatrixReflect(mirrorPlane);
+
+
+	for (int i = 0; i < MaxLights; ++i)
+	{
+		if (i < lights.size())
+		{
+			XMVECTOR lightDir = XMLoadFloat3(&mainPassCB.Lights[i].Direction);
+			XMVECTOR reflectedLightDir = XMVector3TransformNormal(lightDir, R);
+			XMStoreFloat3(&reflectedPassCB.Lights[i].Direction, reflectedLightDir);
+		}
+		else { break; }
+	}
+
+
+	currentPassCB->CopyData(1, reflectedPassCB);
 }
 
 void ShapesApp::LoadTextures()
@@ -237,10 +296,10 @@ void ShapesApp::BuildShadersAndInputLayout()
 	};
 	
 	shaders["StandardVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::VertexShader , nullptr, "VS", "vs_5_1"));
-	shaders["StandardAlphaDrop"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, alphaTestDefines, "PS", "ps_5_1"));
-	shaders["StandardPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, defines, "PS", "ps_5_1"));
-	shaders["SkyBoxVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
-	shaders["SkyBoxPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
+	shaders["AlphaDrop"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+	shaders["OpaquePixel"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, defines, "PS", "ps_5_1"));
+	shaders["SkyBoxVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", ShaderType::VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
+	shaders["SkyBoxPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", ShaderType::PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
 
 	for (auto && pair : shaders)
 	{
@@ -254,6 +313,57 @@ void ShapesApp::BuildShadersAndInputLayout()
 		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
+
+	CD3DX12_DESCRIPTOR_RANGE texTable;
+	texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+	// Root parameter can be a table, root descriptor or root constants.
+	CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+
+	// Perfomance TIP: Order from most frequent to least frequent.
+	slotRootParameter[0].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
+	slotRootParameter[1].InitAsConstantBufferView(0);
+	slotRootParameter[2].InitAsConstantBufferView(1);
+	slotRootParameter[3].InitAsConstantBufferView(2);
+
+	auto staticSamplers = GetStaticSamplers();
+
+	// A root signature is an array of root parameters.
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
+		(UINT)staticSamplers.size(), staticSamplers.data(),
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
+	ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	ComPtr<ID3DBlob> errorBlob = nullptr;
+	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+	if (errorBlob != nullptr)
+	{
+		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	}
+	ThrowIfFailed(hr);
+
+	ThrowIfFailed(dxDevice->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(rootSignature.GetAddressOf())));
+
+	/*rootSignature = std::make_unique<RootSignature>();
+
+	CD3DX12_DESCRIPTOR_RANGE texParam[2];
+	texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+	
+	rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);	
+	rootSignature->AddConstantBufferParameter(0);
+	rootSignature->AddConstantBufferParameter(1);
+	rootSignature->AddConstantBufferParameter(2);
+	rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+
+	rootSignature->Initialize(dxDevice.Get());*/
 }
 
 void ShapesApp::BuildShapeGeometry()
@@ -397,72 +507,291 @@ void ShapesApp::BuildShapeGeometry()
 	meshes[geo->Name] = std::move(geo);
 }
 
+void ShapesApp::BuildRoomGeometry()
+{
+	// Create and specify geometry.  For this sample we draw a floor
+	// and a wall with a mirror on it.  We put the floor, wall, and
+	// mirror geometry in one vertex buffer.
+	//
+	//   |--------------|
+	//   |              |
+	//   |----|----|----|
+	//   |Wall|Mirr|Wall|
+	//   |    | or |    |
+	//   /--------------/
+	//  /   Floor      /
+	// /--------------/
+
+	std::array<Vertex, 20> vertices =
+	{
+		// Floor: Observe we tile texture coordinates.
+		Vertex(-3.5f, 0.0f, -10.0f, 0.0f, 1.0f, 0.0f, 0.0f, 4.0f), // 0 
+		Vertex(-3.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f),
+		Vertex(7.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 4.0f, 0.0f),
+		Vertex(7.5f, 0.0f, -10.0f, 0.0f, 1.0f, 0.0f, 4.0f, 4.0f),
+
+		// Wall: Observe we tile texture coordinates, and that we
+		// leave a gap in the middle for the mirror.
+		Vertex(-3.5f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 2.0f), // 4
+		Vertex(-3.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f),
+		Vertex(-2.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.5f, 0.0f),
+		Vertex(-2.5f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.5f, 2.0f),
+
+		Vertex(2.5f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 2.0f), // 8 
+		Vertex(2.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f),
+		Vertex(7.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 2.0f, 0.0f),
+		Vertex(7.5f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 2.0f, 2.0f),
+
+		Vertex(-3.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f), // 12
+		Vertex(-3.5f, 6.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f),
+		Vertex(7.5f, 6.0f, 0.0f, 0.0f, 0.0f, -1.0f, 6.0f, 0.0f),
+		Vertex(7.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 6.0f, 1.0f),
+
+		// Mirror
+		Vertex(-2.5f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f), // 16
+		Vertex(-2.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f),
+		Vertex(2.5f, 4.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f),
+		Vertex(2.5f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f)
+	};
+
+	std::array<std::int16_t, 30> indices =
+	{
+		// Floor
+		0, 1, 2,
+		0, 2, 3,
+
+		// Walls
+		4, 5, 6,
+		4, 6, 7,
+
+		8, 9, 10,
+		8, 10, 11,
+
+		12, 13, 14,
+		12, 14, 15,
+
+		// Mirror
+		16, 17, 18,
+		16, 18, 19
+	};
+
+	SubmeshGeometry floorSubmesh;
+	floorSubmesh.IndexCount = 6;
+	floorSubmesh.StartIndexLocation = 0;
+	floorSubmesh.BaseVertexLocation = 0;
+
+	SubmeshGeometry wallSubmesh;
+	wallSubmesh.IndexCount = 18;
+	wallSubmesh.StartIndexLocation = 6;
+	wallSubmesh.BaseVertexLocation = 0;
+
+	SubmeshGeometry mirrorSubmesh;
+	mirrorSubmesh.IndexCount = 6;
+	mirrorSubmesh.StartIndexLocation = 24;
+	mirrorSubmesh.BaseVertexLocation = 0;
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "roomGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
+	                                                    commandList.Get(), vertices.data(), vbByteSize,
+	                                                    geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
+	                                                   commandList.Get(), indices.data(), ibByteSize,
+	                                                   geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	geo->Submeshs["floor"] = floorSubmesh;
+	geo->Submeshs["wall"] = wallSubmesh;
+	geo->Submeshs["mirror"] = mirrorSubmesh;
+
+	meshes[geo->Name] = std::move(geo);
+}
+
 void ShapesApp::BuildMaterials()
 {
-	auto bricks0 = std::make_unique<Material>(dxDevice.Get(),"bricks0", MaterialType::Opaque , backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	auto bricks0 = std::make_unique<Material>("bricks", psos[PsoType::Opaque].get());
 	bricks0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	bricks0->Roughness = 0.1f;
 	bricks0->SetDiffuseTexture(textures["bricksTex"].get());
-	bricks0->AddShader(shaders["StandardVertex"].get());
-	bricks0->AddShader(shaders["StandardPixel"].get());
-	materials["bricks0"] = std::move(bricks0);
+	materials[bricks0->GetName()] = std::move(bricks0);
 
 	
-	auto stone0 = std::make_unique<Material>(dxDevice.Get(), "stone0", MaterialType::Opaque, backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	auto stone0 = std::make_unique<Material>("stone0", psos[PsoType::Opaque].get());
 	stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
 	stone0->Roughness = 0.3f;
 	stone0->SetDiffuseTexture(textures["stoneTex"].get());
-	stone0->AddShader(shaders["StandardVertex"].get());
-	stone0->AddShader(shaders["StandardPixel"].get());
-	materials["stone0"] = std::move(stone0);
+	materials[stone0->GetName()] = std::move(stone0);
 	
-	auto tile0 = std::make_unique<Material>(dxDevice.Get(), "tile0", MaterialType::Opaque, backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	auto tile0 = std::make_unique<Material>("tile0", psos[PsoType::Opaque].get());
 	tile0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	tile0->Roughness = 0.3f;
 	tile0->SetDiffuseTexture(textures["tileTex"].get());
-	tile0->AddShader(shaders["StandardVertex"].get());
-	tile0->AddShader(shaders["StandardPixel"].get());
-	materials["tile0"] = std::move(tile0);
+	materials[tile0->GetName()] = std::move(tile0);
 
-	auto wirefence = std::make_unique<Material>(dxDevice.Get(), "wirefence", MaterialType::AlphaDrop, backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	auto wirefence = std::make_unique<Material>( "wirefence", psos[ PsoType::AlphaDrop].get());
 	wirefence->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	wirefence->Roughness = 0.25f;
 	wirefence->SetDiffuseTexture(textures["fenceTex"].get());
-	wirefence->AddShader(shaders["StandardVertex"].get());
-	wirefence->AddShader(shaders["StandardAlphaDrop"].get());
-	materials["wirefence"] = std::move(wirefence);
+	materials[wirefence->GetName()] = std::move(wirefence);
 	
-	auto water = std::make_unique<Material>(dxDevice.Get(), "water", MaterialType::Transparent, backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	auto water = std::make_unique<Material>("water", psos[PsoType::Transparent].get());
 	water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 0.0f;
 	water->SetDiffuseTexture(textures["waterTex"].get());
-	water->AddShader(shaders["StandardVertex"].get());
-	water->AddShader(shaders["StandardPixel"].get());
 	materials[water->GetName()] = std::move(water);
 
+	auto icemirror = std::make_unique<Material>("mirror", psos[PsoType::Mirror].get());
+	icemirror->SetDiffuseTexture(textures["waterTex"].get());
+	icemirror->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
+	icemirror->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	icemirror->Roughness = 0.5f;
+	materials[icemirror->GetName()] = std::move(icemirror);
+	
 
-	auto skyBox = std::make_unique<Material>(dxDevice.Get(), "sky", MaterialType::SkyBox, backBufferFormat, depthStencilFormat, inputLayout, isM4xMsaa, m4xMsaaQuality);
+	auto shadowMat = std::make_unique<Material>("shadow", psos[PsoType::Shadow].get());
+	shadowMat->DiffuseAlbedo = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.5f);
+	shadowMat->SetDiffuseTexture(textures["bricksTex"].get());
+	shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
+	shadowMat->Roughness = 0.0f;
+	materials[shadowMat->GetName()] = std::move(shadowMat);
+
+	
+	auto skyBox = std::make_unique<Material>("sky", psos[PsoType::SkyBox].get());
 	skyBox->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	skyBox->SetDiffuseTexture(textures["skyTex"].get());
-	skyBox->AddShader(shaders["SkyBoxVertex"].get());
-	skyBox->AddShader(shaders["SkyBoxPixel"].get());
 	materials[skyBox->GetName()] = std::move(skyBox);
+
+	for (auto && pair : materials)
+	{
+		pair.second->InitMaterial(dxDevice.Get());
+	}
 }
 
 void ShapesApp::BuildGameObjects()
 {
+	auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
+	//camera->GetTransform()->SetEulerRotate({ XMConvertToRadians(0), XMConvertToRadians(0), XMConvertToRadians(0) });
+	camera->AddComponent(new Camera(AspectRatio()));
+	camera->AddComponent(new CameraController());
+	gameObjects.push_back(std::move(camera));
+
+	auto skySphere = std::make_unique<GameObject>(dxDevice.Get(), "Sky");
+	skySphere->GetTransform()->SetScale({ 500,500,500 });
+	auto renderer = new Renderer();
+	renderer->Material = materials["sky"].get();
+	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	skySphere->AddComponent(renderer);
+	typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
+	gameObjects.push_back(std::move(skySphere));
 	
-	
-	auto sun1 = std::make_unique<GameObject>(dxDevice.Get());
+	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
 	auto light = new Light();	
 	light->Direction({ 1.0f,1.0f,1.0f });
 	light->Strength({ 1.0f, 1.0f, 0.9f });
 	sun1->AddComponent(light);
 	gameObjects.push_back(std::move(sun1));
 
-	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
+
+	auto floorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Floor");
+	renderer = new Renderer();
+	renderer->Material = materials["bricks"].get();
+	renderer->Mesh = meshes["roomGeo"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["floor"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["floor"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["floor"].BaseVertexLocation;
+	floorRitem->AddComponent(renderer);
+	typedGameObjects[(int)PsoType::Opaque].push_back(floorRitem.get());
+	gameObjects.push_back(std::move(floorRitem));
+
+	auto wallsRitem = std::make_unique<GameObject>(dxDevice.Get(), "Wall");
+	renderer = new Renderer();
+	renderer->Material = materials["bricks"].get();
+	renderer->Mesh = meshes["roomGeo"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["wall"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["wall"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["wall"].BaseVertexLocation;
+	wallsRitem->AddComponent(renderer);
+	typedGameObjects[(int)PsoType::Opaque].push_back(wallsRitem.get());
+	gameObjects.push_back(std::move(wallsRitem));
+
+	auto skullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
+	renderer = new Renderer();
+	renderer->Material = materials["bricks"].get();
+	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	skullRitem->AddComponent(renderer);
+	skull = skullRitem.get();
+	typedGameObjects[(int)PsoType::Opaque].push_back(skullRitem.get());
+	gameObjects.push_back(std::move(skullRitem));
+
+	// Reflected skull will have different world matrix, so it needs to be its own render item.
+	auto reflectedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "SkullReflect");
+	renderer = new Renderer();
+	renderer->Material = materials["bricks"].get();
+	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	reflectedSkullRitem->AddComponent(renderer);
+	reflectedSkull = reflectedSkullRitem.get();
+	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedSkullRitem.get());
+	gameObjects.push_back(std::move(reflectedSkullRitem));
+
+	// Shadowed skull will have different world matrix, so it needs to be its own render item.
+	auto shadowedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull Shadow");
+	renderer = new Renderer();
+	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	renderer->Material = materials["shadow"].get();
+	shadowedSkullRitem->AddComponent(renderer);
+	shadowSkull = shadowedSkullRitem.get();
+	typedGameObjects[(int)PsoType::Shadow].push_back(shadowedSkullRitem.get());
+	gameObjects.push_back(std::move(shadowedSkullRitem));
+
+	auto mirrorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Mirror");
+	renderer = new Renderer();
+	renderer->Mesh = meshes["roomGeo"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["mirror"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["mirror"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["mirror"].BaseVertexLocation;
+	renderer->Material = materials["mirror"].get();
+	mirrorRitem->AddComponent(renderer);	
+	typedGameObjects[(int)PsoType::Mirror].push_back(mirrorRitem.get());
+	typedGameObjects[(int)PsoType::Transparent].push_back(mirrorRitem.get());
+	gameObjects.push_back(std::move(mirrorRitem));	
+
+	/*auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({ -0.57735f, -0.57735f, 0.57735f });
 	light->Strength({ 0.3f, 0.3f, 0.3f });
@@ -492,7 +821,7 @@ void ShapesApp::BuildGameObjects()
 	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f));
 	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));	
 	XMStoreFloat4x4(&box->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	auto renderer = new Renderer();
+	renderer = new Renderer();
 	renderer->Material = materials["water"].get();
 	renderer->Mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -577,47 +906,142 @@ void ShapesApp::BuildGameObjects()
 	}
 
 
-	auto camera = std::make_unique<GameObject>(dxDevice.Get());
-	camera->AddComponent(new Camera(AspectRatio()));	
-	/*renderer = new Renderer();
-	renderer->Material = materials["sky"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
-	camera->AddComponent(renderer);*/
-	camera->AddComponent(new CameraController());
-	gameObjects.push_back(std::move(camera));
-	
-	auto skySphere = std::make_unique<GameObject>(dxDevice.Get());
-	skySphere->GetTransform()->SetScale({ 500,500,500 });
-	XMStoreFloat4x4(&skySphere->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	renderer = new Renderer();
-	renderer->Material = materials["sky"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
-	skySphere->AddComponent(renderer);
-	gameObjects.push_back(std::move(skySphere));
+	*/
 }
 
 void ShapesApp::BuildFrameResources()
 {
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
-		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 1, gameObjects.size(), materials.size()));
+		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 2, gameObjects.size(), materials.size()));
 	}
 }
 
 void ShapesApp::BuildPSOs()
 {
-	for (auto& material : materials)
-	{		
-		material.second->InitMaterial(dxDevice.Get());
-	}	
+	auto opaquePSO = std::make_unique<PSO>();
+	opaquePSO->SetInputLayout({ inputLayout.data(), (UINT)inputLayout.size() });	
+	opaquePSO->SetRootSignature(rootSignature.Get());
+	opaquePSO->SetShader(shaders["StandardVertex"].get());
+	opaquePSO->SetShader(shaders["OpaquePixel"].get());
+	opaquePSO->SetRTVFormat(0, backBufferFormat);
+	opaquePSO->SetSampleCount(isM4xMsaa ? 4 : 1);
+	opaquePSO->SetSampleQuality(isM4xMsaa ? (m4xMsaaQuality - 1) : 0);
+	opaquePSO->SetDSVFormat(depthStencilFormat);
+
+	auto alphaDropPso = std::make_unique<PSO>(PsoType::AlphaDrop);
+	alphaDropPso->SetPsoDesc(opaquePSO->GetPsoDescription());
+	alphaDropPso->SetShader(shaders["AlphaDrop"].get());
+
+	auto skyBoxPSO = std::make_unique<PSO>(PsoType::SkyBox);
+	skyBoxPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+	skyBoxPSO->SetShader(shaders["SkyBoxVertex"].get());
+	skyBoxPSO->SetShader(shaders["SkyBoxPixel"].get());
+	
+	auto transperentPSO = std::make_unique<PSO>(PsoType::Transparent);
+	transperentPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+	D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc;
+	transparencyBlendDesc.BlendEnable = true;
+	transparencyBlendDesc.LogicOpEnable = false;
+	transparencyBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	transparencyBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	transparencyBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+	transparencyBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+	transparencyBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;	
+	transperentPSO->SetRenderTargetBlendState(0, transparencyBlendDesc);
+
+	
+	auto mirrorPSO = std::make_unique<PSO>(PsoType::Mirror);
+	
+	CD3DX12_BLEND_DESC mirrorBlendState(D3D12_DEFAULT);
+	mirrorBlendState.RenderTarget[0].RenderTargetWriteMask = 0;
+
+	D3D12_DEPTH_STENCIL_DESC mirrorDSS;
+	mirrorDSS.DepthEnable = true;
+	mirrorDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	mirrorDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	mirrorDSS.StencilEnable = true;
+	mirrorDSS.StencilReadMask = 0xff;
+	mirrorDSS.StencilWriteMask = 0xff;
+	mirrorDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	mirrorDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	mirrorDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	mirrorDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	// We are not rendering backfacing polygons, so these settings do not matter.
+	mirrorDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	mirrorDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	mirrorDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	mirrorDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	
+	mirrorPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+	mirrorPSO->SetBlendState(mirrorBlendState);
+	mirrorPSO->SetDepthStencilState(mirrorDSS);
+
+	auto reflectionPSO = std::make_unique<PSO>(PsoType::Reflection);	
+
+	D3D12_DEPTH_STENCIL_DESC reflectionsDSS;
+	reflectionsDSS.DepthEnable = true;
+	reflectionsDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	reflectionsDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	reflectionsDSS.StencilEnable = true;
+	reflectionsDSS.StencilReadMask = 0xff;
+	reflectionsDSS.StencilWriteMask = 0xff;
+	reflectionsDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionsDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionsDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	reflectionsDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	// We are not rendering backfacing polygons, so these settings do not matter.
+	reflectionsDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionsDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	reflectionsDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
+	reflectionsDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+
+	auto reflectionRasterState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	reflectionRasterState.CullMode = D3D12_CULL_MODE_BACK;
+	reflectionRasterState.FrontCounterClockwise = true;
+	
+	reflectionPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+	reflectionPSO->SetDepthStencilState(reflectionsDSS);
+	reflectionPSO->SetRasterizationState(reflectionRasterState);
+
+	auto shadowPSO = std::make_unique<PSO>(PsoType::Shadow);	
+	
+	// We are going to draw shadows with transparency, so base it off the transparency description.
+	D3D12_DEPTH_STENCIL_DESC shadowDSS;
+	shadowDSS.DepthEnable = true;
+	shadowDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	shadowDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+	shadowDSS.StencilEnable = true;
+	shadowDSS.StencilReadMask = 0xff;
+	shadowDSS.StencilWriteMask = 0xff;
+	shadowDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	shadowDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	// We are not rendering backfacing polygons, so these settings do not matter.
+	shadowDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	shadowDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	shadowDSS.BackFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	
+	shadowPSO->SetPsoDesc(transperentPSO->GetPsoDescription());
+	shadowPSO->SetDepthStencilState(shadowDSS);
+
+	psos[opaquePSO->GetType()] = std::move(opaquePSO);
+	psos[transperentPSO->GetType()] = std::move(transperentPSO);
+	psos[shadowPSO->GetType()] = std::move(shadowPSO);
+	psos[mirrorPSO->GetType()] = std::move(mirrorPSO);
+	psos[reflectionPSO->GetType()] = std::move(reflectionPSO);
+	psos[alphaDropPso->GetType()] = std::move(alphaDropPso);
+	psos[skyBoxPSO->GetType()] = std::move(skyBoxPSO);
+
+	for (auto & pso : psos)
+	{
+		pso.second->Initialize(dxDevice.Get());
+	}
 }
 
 void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems)
@@ -629,17 +1053,10 @@ void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::v
 	}
 }
 
-void ShapesApp::SortGOByMaterial()
+void ShapesApp::SortGO()
 {
-	typedGameObjects.clear();
 	for (auto && item : gameObjects)
 	{
-		auto renderer = item->GetRenderer();
-		if(renderer != nullptr)
-		{
-			typedGameObjects[renderer->Material->GetType()].push_back(item.get());
-		}
-
 		auto light = item->GetComponent<Light>();
 		if(light != nullptr)
 		{
@@ -654,4 +1071,71 @@ void ShapesApp::SortGOByMaterial()
 	}
 
 	std::sort(lights.begin(), lights.end(), [](Light const* a, Light const* b) { return a->Type() < b->Type(); });
+}
+
+
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> ShapesApp::GetStaticSamplers()
+{
+	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
+		0, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+		1, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+		2, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+		3, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
+		4, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
+		0.0f, // mipLODBias
+		8); // maxAnisotropy
+
+	const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
+		5, // shaderRegister
+		D3D12_FILTER_ANISOTROPIC, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressW
+		0.0f, // mipLODBias
+		8); // maxAnisotropy
+
+	const CD3DX12_STATIC_SAMPLER_DESC cubesTexSampler(
+		6, // shaderRegister
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
+		0.0f, // mipLODBias
+		8, // maxAnisotropy
+		D3D12_COMPARISON_FUNC_NEVER);
+
+
+	return {
+		pointWrap, pointClamp,
+		linearWrap, linearClamp,
+		anisotropicWrap, anisotropicClamp, cubesTexSampler
+	};
 }

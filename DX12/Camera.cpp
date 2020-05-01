@@ -5,16 +5,16 @@ void Camera::Update()
 {
 	const auto transform = gameObject->GetTransform();
 
-	std::wstring debug = L"Camera position " + std::to_wstring(transform->GetPosition().x) + L" : " + std::to_wstring(transform->GetPosition().y) + L" : " + std::to_wstring(transform->GetPosition().z) + L"\n"
+	/*std::wstring debug = L"Camera position " + std::to_wstring(transform->GetPosition().x) + L" : " + std::to_wstring(transform->GetPosition().y) + L" : " + std::to_wstring(transform->GetPosition().z) + L"\n"
 		+ L"Camera rotation " + std::to_wstring(transform->GetEulerAngels().x) + L" : " + std::to_wstring(transform->GetEulerAngels().y) + L" : " + std::to_wstring(transform->GetEulerAngels().z) + L"\n";
 	
-	OutputDebugString(debug.c_str());
+	OutputDebugString(debug.c_str());*/
 	
 	Vector3 camtarget = DirectX::XMVector3TransformCoord(Vector3::Forward, Matrix::CreateFromQuaternion(transform->GetQuaternionRotate()));
 
-	focusPosition = camtarget += transform->GetPosition();
+	focusPosition = transform->GetForwardVector() + transform->GetPosition();
 	
-	view =  DirectX::XMMatrixLookAtLH(transform->GetPosition(), focusPosition, Vector3::Up);
+	view =  DirectX::XMMatrixLookAtLH(transform->GetPosition(), focusPosition, transform->GetUpVector());
 
 	if (NumFramesDirty > 0)
 	{

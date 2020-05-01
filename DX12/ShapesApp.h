@@ -8,6 +8,9 @@
 #include <map>
 #include "ModelRenderer.h"
 #include "Camera.h"
+#include "Shader.h"
+#include "PSO.h"
+#include "RootSignature.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -51,23 +54,26 @@ private:
     void LoadTextures();
     void BuildShadersAndInputLayout();
     void BuildShapeGeometry();
+    void BuildRoomGeometry();
     void BuildPSOs();
     void BuildFrameResources();
     void BuildMaterials();
     void BuildGameObjects();
     static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems);
 
-    void SortGOByMaterial();
+    void SortGO();
 
 private:
-        	
+
+    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
+	
+   ComPtr<ID3D12RootSignature> rootSignature = nullptr;
+	
     std::vector<std::unique_ptr<FrameResource>> frameResources;
     FrameResource* currentFrameResource = nullptr;
     int currentFrameResourceIndex = 0;
 
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandListAllocator;
-	
-    ComPtr<ID3D12RootSignature> rootSignature = nullptr;
 	
     ComPtr<ID3D12DescriptorHeap> shaderTextureViewDescriptorHeap = nullptr;
 
@@ -76,6 +82,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
     std::unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes;
+    std::unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos;
     std::vector<Light*> lights;
     std::unique_ptr<Camera> camera = nullptr;
 	
@@ -83,15 +90,19 @@ private:
 	
     std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
 
-    // List of all the render items.
+	
     std::vector<std::unique_ptr<GameObject>> gameObjects;
 
-
-    // Render items divided by PSO.
-    std::map<MaterialType, std::vector<GameObject*>> typedGameObjects;
+    std::vector<GameObject*> typedGameObjects[ PsoType::Count ];
 	
+    GameObject* skull;
+    GameObject* reflectedSkull;
+    GameObject* shadowSkull;
 
+    XMFLOAT3 mSkullTranslation = { 0.0f, 1.0f, -5.0f };
+	
     PassConstants mainPassCB;
+    PassConstants reflectedPassCB;
 
     UINT passCbvOffset = 0;
 

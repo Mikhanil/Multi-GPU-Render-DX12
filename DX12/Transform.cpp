@@ -19,7 +19,7 @@ void Transform::Update()
 	if (NumFramesDirty > 0)
 	{
 		bufferConstant.TextureTransform = TextureTransform.Transpose();
-		bufferConstant.World = GetWorldMatrix().Transpose();
+		bufferConstant.World = world.Transpose();
 		objectWorldPositionBuffer->CopyData(0, bufferConstant);
 		NumFramesDirty--;
 	}
@@ -35,27 +35,71 @@ void Transform::SetParent(Transform* transform)
 	Parent = std::unique_ptr<Transform>(transform);
 }
 
-Matrix Transform::GetWorldMatrix() const
+Vector3 Transform::GetBackwardVector() const
+{
+	auto v = Vector3{bufferConstant.World._13, bufferConstant.World._23, bufferConstant.World._33};
+	v.Normalize();
+	return v;
+}
+
+Vector3 Transform::GetForwardVector() const
+{
+	return GetBackwardVector() * -1;
+}
+
+Vector3 Transform::GetLeftVector() const
+{
+	auto v = Vector3{bufferConstant.World._11, bufferConstant.World._21, bufferConstant.World._31};
+	v.Normalize();
+	return v;
+}
+
+Vector3 Transform::GetRightVector() const
+{
+	return GetLeftVector() * -1;
+}
+
+Vector3 Transform::GetUpVector() const
+{
+	auto v = Vector3{bufferConstant.World._12, bufferConstant.World._22, bufferConstant.World._32};
+	v.Normalize();
+	return v;
+}
+
+Vector3 Transform::GetDownVector() const
+{
+	return GetUpVector() * -1;
+}
+
+Matrix Transform::CalculateWorldMatrix() const
 {
 	Matrix mat = Matrix::CreateTranslation(position) * Matrix::CreateFromQuaternion(rotate)	* Matrix::CreateScale(scale);
 
 	if (Parent != nullptr)
 	{
-		mat *= Parent->GetWorldMatrix();
+		mat *= Parent->CalculateWorldMatrix();
 	}
 
 	return mat;
 }
 
+void Transform::SetWorldMatrix(const Matrix& mat)
+{
+	world = mat;
+	NumFramesDirty = globalCountFrameResources;
+}
+
 void Transform::SetPosition(const Vector3& pos)
 {
 	position = pos;
+	world = CalculateWorldMatrix();
 	NumFramesDirty = globalCountFrameResources;
 }
 
 void Transform::SetScale(const Vector3& s)
 {
 	scale = s;
+	world = CalculateWorldMatrix();
 	NumFramesDirty = globalCountFrameResources;
 }
 
@@ -63,6 +107,7 @@ void Transform::SetEulerRotate(const Vector3& eulerAngl)
 {
 	eulerAngles = eulerAngl;	
 	rotate = DirectX::XMQuaternionRotationRollPitchYaw((eulerAngles.x), (eulerAngles.y), (eulerAngles.z));
+	world = CalculateWorldMatrix();
 	NumFramesDirty = globalCountFrameResources;
 }
 

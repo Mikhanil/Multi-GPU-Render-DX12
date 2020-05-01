@@ -39,8 +39,7 @@ void CameraController::Update()
 		{
 			if (me.GetType() == MouseEvent::EventType::RAW_MOVE)
 			{
-				gameObject->GetTransform()->AdjustEulerRotation(-1 * (float)me.GetPosY() * dt * yMouseSpeed, (float)me.GetPosX() * dt * xMouseSpeed,
-				                   0);
+				gameObject->GetTransform()->AdjustEulerRotation(-1 * (float)me.GetPosY() * dt * yMouseSpeed, (float)me.GetPosX() * dt * xMouseSpeed,0);
 			}
 		}
 	}

@@ -36,7 +36,7 @@ public:
 		return shaderBlob.Get();
 	}
 
-	D3D12_SHADER_BYTECODE GetShaderInfo() const
+	D3D12_SHADER_BYTECODE GetShaderResource() const
 	{
 		D3D12_SHADER_BYTECODE info{ shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
 		return info;

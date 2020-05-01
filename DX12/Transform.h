@@ -48,47 +48,25 @@ public:
 
 	void SetParent(Transform* transform);
 
-	Vector3 GetForwardVector()
-	{		
-		auto v = Vector3{ bufferConstant.World._13, bufferConstant.World._23, bufferConstant.World._33 };
-		v.Normalize();
-		return v;
-	}
+	Vector3 GetForwardVector() const;
 
-	Vector3 GetBackwardVector()
-	{
-		return GetForwardVector() * -1;
-	}
+	Vector3 GetBackwardVector() const;
 
-	Vector3 GetRightVector()
-	{
-		auto v = Vector3{ bufferConstant.World._11, bufferConstant.World._21, bufferConstant.World._31 };
-		v.Normalize();
-		return v;
-	}
+	Vector3 GetRightVector() const;
 
-	Vector3 GetLeftVector()
-	{
-		return GetRightVector() * -1;
-	}
+	Vector3 GetLeftVector() const;
 
-	Vector3 GetUpVector()
-	{
-		auto v = Vector3{ bufferConstant.World._12, bufferConstant.World._22, bufferConstant.World._32 };
-		v.Normalize();
-		return v;
-	}
+	Vector3 GetUpVector() const;
 
-	Vector3 GetDownVector()
-	{
-		return GetUpVector() * -1;
-	}
+	Vector3 GetDownVector() const;
 
+	Matrix CalculateWorldMatrix() const;
 
-	
+	void SetWorldMatrix(const Matrix& mat);
+
 private:
 
-	[[nodiscard]] Matrix GetWorldMatrix() const;
+	Matrix world = Matrix::Identity;
 
 
 	static UINT gConstantBufferIndex;

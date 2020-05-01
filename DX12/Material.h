@@ -2,19 +2,10 @@
 
 #include "d3dUtil.h"
 #include "DirectXBuffers.h"
-#include "Shader.h"
 #include "Texture.h"
 
+class PSO;
 using namespace Microsoft::WRL;
-
-enum MaterialType
-{
-	SkyBox,
-	Opaque,
-	Wireframe,
-	AlphaDrop,
-	Transparent
-};
 
 struct MaterialConstants
 {
@@ -30,55 +21,27 @@ class Material
 {
 	std::unique_ptr<ConstantBuffer<MaterialConstants>> materialBuffer = nullptr;
 	ComPtr<ID3D12DescriptorHeap> materialViewDescriptorHeap;
-	ComPtr<ID3D12PipelineState> pso;
-	ComPtr<ID3D12PipelineState> debugPso;
-	ComPtr<ID3D12RootSignature> rootSignature = nullptr;
+	
 	std::string Name;
-
-	std::vector<Shader*> shaders;
+	PSO* pso = nullptr;
 
 	MaterialConstants matConstants{};
 
 	UINT NumFramesDirty = globalCountFrameResources;
 	UINT cbvSrvUavDescriptorSize = 0;
 
-	std::vector<Texture*> textures{ 1 };
-	DXGI_FORMAT backBufferFormat;
-	DXGI_FORMAT depthStencilFormat;
-
-	std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
-	bool ism4xmsaa;
-	UINT m4xMsaaQuality = 0;
-
-	static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
-
-	D3D12_INPUT_LAYOUT_DESC GetInputLayoutInfo();
-
-	void CreateRootSignature(ID3D12Device* device);
-
-	void CreatePso(ID3D12Device* device);
-
-	MaterialType type;
+	std::vector<Texture*> textures{ 1 };	
 
 public:
 
-	MaterialType GetType();
+	PSO* GetPSO();
 
 	void SetDiffuseTexture(Texture* texture);
 
-
-	Material(ID3D12Device* device, std::string name, MaterialType type, DXGI_FORMAT backBufferFormat,
-	         DXGI_FORMAT depthStencilFormat,
-	         const std::vector<D3D12_INPUT_ELEMENT_DESC> layout, bool isM4xMsaa, UINT m4xMsaaQuality);
-
-	void AddShader(Shader* shader);
+	Material(std::string name, PSO* pso);	
 
 	void InitMaterial(ID3D12Device* device);
-
-	ID3D12PipelineState* GetPSO();
-
-	ID3D12RootSignature* GetRootSignature();
-
+		
 	void Draw(ID3D12GraphicsCommandList* cmdList) const;
 
 	void Update();

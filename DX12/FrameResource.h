@@ -36,26 +36,23 @@ struct PassConstants
     float gFogRange = 150.0f;
     DirectX::XMFLOAT2 cbPerObjectPad2;
 
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
     LightData Lights[MaxLights];
 };
 
 struct Vertex
 {
+    Vertex(){}
+    Vertex(float x, float y, float z, float nx, float ny, float nz, float u, float v) :
+        position(x, y, z),
+        normal(nx, ny, nz),
+        texCord(u, v) {}
+	
     DirectX::XMFLOAT3 position;
     DirectX::XMFLOAT3 normal;
     DirectX::XMFLOAT2 texCord;
 };
 
-
-
-
-
-// Stores the resources needed for the CPU to build the command lists
-// for a frame.  
+ 
 struct FrameResource
 {
 public:
