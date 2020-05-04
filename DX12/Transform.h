@@ -60,7 +60,7 @@ public:
 
 	Vector3 GetDownVector() const;
 
-	Matrix CalculateWorldMatrix() const;
+	Matrix GetWorldMatrix() const;
 
 	void SetWorldMatrix(const Matrix& mat);
 
@@ -68,6 +68,8 @@ private:
 
 	Matrix world = Matrix::Identity;
 
+
+	Matrix CalculateWorldMatrix() const;
 
 	static UINT gConstantBufferIndex;
 

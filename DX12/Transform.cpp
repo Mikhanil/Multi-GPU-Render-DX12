@@ -71,6 +71,11 @@ Vector3 Transform::GetDownVector() const
 	return GetUpVector() * -1;
 }
 
+Matrix Transform::GetWorldMatrix() const
+{
+	return world;
+}
+
 Matrix Transform::CalculateWorldMatrix() const
 {
 	Matrix mat = Matrix::CreateTranslation(position) * Matrix::CreateFromQuaternion(rotate)	* Matrix::CreateScale(scale);

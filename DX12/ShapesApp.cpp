@@ -5,6 +5,9 @@
 #include "Camera.h"
 #include <ppl.h>
 #include "CameraController.h"
+#include "Reflected.h"
+#include "ObjectMover.h"
+#include "Shadow.h"
 
 
 ShapesApp::ShapesApp(HINSTANCE hInstance)
@@ -154,44 +157,12 @@ void ShapesApp::Draw(const GameTimer& gt)
 void ShapesApp::UpdateGameObjects(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
-	
-	if (keyboard.KeyIsPressed(VK_UP))
-	{
-		mSkullTranslation.y += 1.0f * dt;
-	}
-	if (keyboard.KeyIsPressed(VK_DOWN))
-	{
-		mSkullTranslation.y -= 1.0f * dt;
-	}
-	if (keyboard.KeyIsPressed(VK_LEFT))
-	{
-		mSkullTranslation.x -= 1.0f * dt;
-	}
-	if (keyboard.KeyIsPressed(VK_RIGHT))
-	{
-		mSkullTranslation.x += 1.0f * dt;
-	}
 
-	mSkullTranslation.y = MathHelper::Max(mSkullTranslation.y, 0.0f);
-
-
-	XMMATRIX skullRotate = XMMatrixRotationY(0.5f * MathHelper::Pi);
-	XMMATRIX skullScale = XMMatrixScaling(2.0f, 2.0f, 2.0f);
-	XMMATRIX skullOffset = XMMatrixTranslation(mSkullTranslation.x, mSkullTranslation.y, mSkullTranslation.z);
-	XMMATRIX skullWorld = skullRotate * skullScale * skullOffset;
-	skull->GetTransform()->SetWorldMatrix(skullWorld);
-
-	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
-	XMMATRIX R = XMMatrixReflect(mirrorPlane);
-	//XMStoreFloat4x4(&mReflectedSkullRitem->World, skullWorld * R);
-	reflectedSkull->GetTransform()->SetWorldMatrix(skullWorld * R);
-
-	XMVECTOR shadowPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
-	XMVECTOR toMainLight = -XMLoadFloat3(&mainPassCB.Lights[0].Direction);
-	XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
-	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);
-	//XMStoreFloat4x4(&mShadowedSkullRitem->World, skullWorld * S * shadowOffsetY);
-	shadowSkull->GetTransform()->SetWorldMatrix(skullWorld * S * shadowOffsetY);
+	//XMVECTOR shadowPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
+	//XMVECTOR toMainLight = -XMLoadFloat3(&mainPassCB.Lights[0].Direction);
+	//XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
+	//XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);
+	//shadowSkull->GetTransform()->SetWorldMatrix(skull->GetTransform()->GetWorldMatrix() * S * shadowOffsetY);
 	
 	for (auto& e : gameObjects)
 	{
@@ -312,58 +283,20 @@ void ShapesApp::BuildShadersAndInputLayout()
 	inputLayout =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
-	//CD3DX12_DESCRIPTOR_RANGE texTable;
-	//texTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-
-	//// Root parameter can be a table, root descriptor or root constants.
-	//CD3DX12_ROOT_PARAMETER slotRootParameter[4];
-
-	//// Perfomance TIP: Order from most frequent to least frequent.
-	//slotRootParameter[0].InitAsDescriptorTable(1, &texTable, D3D12_SHADER_VISIBILITY_PIXEL);
-	//slotRootParameter[1].InitAsConstantBufferView(0);
-	//slotRootParameter[2].InitAsConstantBufferView(1);
-	//slotRootParameter[3].InitAsConstantBufferView(2);
-
-	//auto staticSamplers = GetStaticSamplers();
-
-	//// A root signature is an array of root parameters.
-	//CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
-	//	(UINT)staticSamplers.size(), staticSamplers.data(),
-	//	D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-	//// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-	//ComPtr<ID3DBlob> serializedRootSig = nullptr;
-	//ComPtr<ID3DBlob> errorBlob = nullptr;
-	//HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-	//	serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
-
-	//if (errorBlob != nullptr)
-	//{
-	//	::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
-	//}
-	//ThrowIfFailed(hr);
-
-	//ThrowIfFailed(dxDevice->CreateRootSignature(
-	//	0,
-	//	serializedRootSig->GetBufferPointer(),
-	//	serializedRootSig->GetBufferSize(),
-	//	IID_PPV_ARGS(rootSignature.GetAddressOf())));
-
+	
 	rootSignature = std::make_unique<RootSignature>();
 
 	CD3DX12_DESCRIPTOR_RANGE texParam[2];
 	texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 	
 	rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);	
 	rootSignature->AddConstantBufferParameter(0);
 	rootSignature->AddConstantBufferParameter(1);
 	rootSignature->AddConstantBufferParameter(2);
-	rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	rootSignature->Initialize(dxDevice.Get());
 }
@@ -707,13 +640,15 @@ void ShapesApp::BuildGameObjects()
 	skySphere->AddComponent(renderer);
 	typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 	gameObjects.push_back(std::move(skySphere));
+
+
 	
 	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
 	auto light = new Light();	
 	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
 	light->Strength({ 0.6f, 0.6f, 0.6f });
 	sun1->AddComponent(light);
-	gameObjects.push_back(std::move(sun1));
+	
 
 
 	auto floorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Floor");
@@ -726,7 +661,7 @@ void ShapesApp::BuildGameObjects()
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["floor"].BaseVertexLocation;
 	floorRitem->AddComponent(renderer);
 	typedGameObjects[(int)PsoType::Opaque].push_back(floorRitem.get());
-	gameObjects.push_back(std::move(floorRitem));
+	
 
 	auto wallsRitem = std::make_unique<GameObject>(dxDevice.Get(), "Wall");
 	renderer = new Renderer();
@@ -741,6 +676,8 @@ void ShapesApp::BuildGameObjects()
 	gameObjects.push_back(std::move(wallsRitem));
 
 	auto skullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
+	skullRitem->GetTransform()->SetPosition({ 0,1,-3 });
+	skullRitem->GetTransform()->SetScale({ 2,2,2 });
 	renderer = new Renderer();
 	renderer->Material = materials["bricks"].get();
 	renderer->Mesh = meshes["shapeMesh"].get();
@@ -749,27 +686,26 @@ void ShapesApp::BuildGameObjects()
 	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
 	skullRitem->AddComponent(renderer);
+	skullRitem->AddComponent(new ObjectMover());
 	skull = skullRitem.get();
 	typedGameObjects[(int)PsoType::Opaque].push_back(skullRitem.get());
 	gameObjects.push_back(std::move(skullRitem));
 
 	// Reflected skull will have different world matrix, so it needs to be its own render item.
-	auto reflectedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "SkullReflect");
-	renderer = new Renderer();
-	renderer->Material = materials["bricks"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
-	reflectedSkullRitem->AddComponent(renderer);
-	reflectedSkull = reflectedSkullRitem.get();
+	auto reflectedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "SkullReflect");	
+	reflectedSkullRitem->AddComponent(new Reflected(skull->GetComponent<Renderer>()));
 	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedSkullRitem.get());
 	gameObjects.push_back(std::move(reflectedSkullRitem));
 
+	auto reflectedflorRitem = std::make_unique<GameObject>(dxDevice.Get(), "FloorReflect");
+	reflectedflorRitem->AddComponent(new Reflected(floorRitem->GetComponent<Renderer>()));
+	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedflorRitem.get());
+	gameObjects.push_back(std::move(reflectedflorRitem));
+	gameObjects.push_back(std::move(floorRitem));
+
 	// Shadowed skull will have different world matrix, so it needs to be its own render item.
 	auto shadowedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull Shadow");
-	renderer = new Renderer();
+	renderer = new Shadow(skull->GetTransform(),sun1->GetComponent<Light>());
 	renderer->Mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
@@ -777,10 +713,16 @@ void ShapesApp::BuildGameObjects()
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
 	renderer->Material = materials["shadow"].get();
 	shadowedSkullRitem->AddComponent(renderer);
-	shadowSkull = shadowedSkullRitem.get();
 	typedGameObjects[(int)PsoType::Shadow].push_back(shadowedSkullRitem.get());
+	
+
+	auto reflectedShadowRitem = std::make_unique<GameObject>(dxDevice.Get(), "ShadowReflect");
+	reflectedShadowRitem->AddComponent(new Reflected(shadowedSkullRitem->GetComponent<Renderer>()));
+	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedShadowRitem.get());
+	gameObjects.push_back(std::move(reflectedShadowRitem));
 	gameObjects.push_back(std::move(shadowedSkullRitem));
 
+	
 	auto mirrorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Mirror");
 	renderer = new Renderer();
 	renderer->Mesh = meshes["roomGeo"].get();
@@ -794,6 +736,8 @@ void ShapesApp::BuildGameObjects()
 	typedGameObjects[(int)PsoType::Transparent].push_back(mirrorRitem.get());
 	gameObjects.push_back(std::move(mirrorRitem));	
 
+	gameObjects.push_back(std::move(sun1));
+	
 	/*auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({ -0.57735f, -0.57735f, 0.57735f });
@@ -1089,7 +1033,6 @@ void ShapesApp::SortGO()
 
 	std::sort(lights.begin(), lights.end(), [](Light const* a, Light const* b) { return a->Type() < b->Type(); });
 }
-
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> ShapesApp::GetStaticSamplers()
 {

@@ -177,10 +177,13 @@
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="ModelRenderer.h" />
     <ClInclude Include="Mouse.h" />
+    <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="PSO.h" />
+    <ClInclude Include="Reflected.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RootSignature.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="Shadow.h" />
     <ClInclude Include="ShapesApp.h" />
     <ClInclude Include="SkyBox.h" />
     <ClInclude Include="Texture.h" />
@@ -204,10 +207,13 @@
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ModelRenderer.cpp" />
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="PSO.cpp" />
+    <ClCompile Include="Reflected.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RootSignature.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="Shadow.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
     <ClCompile Include="SkyBox.cpp" />
     <ClCompile Include="Source.cpp" />

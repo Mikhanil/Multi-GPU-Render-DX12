@@ -65,9 +65,9 @@ private:
 
 private:
 
-    std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
+    static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 	
-   std::unique_ptr<RootSignature> rootSignature = nullptr;
+    std::unique_ptr<RootSignature> rootSignature = nullptr;
 	
     std::vector<std::unique_ptr<FrameResource>> frameResources;
     FrameResource* currentFrameResource = nullptr;
@@ -96,17 +96,11 @@ private:
     std::vector<GameObject*> typedGameObjects[ PsoType::Count ];
 	
     GameObject* skull;
-    GameObject* reflectedSkull;
-    GameObject* shadowSkull;
-
-    XMFLOAT3 mSkullTranslation = { 0.0f, 1.0f, -5.0f };
 	
     PassConstants mainPassCB;
     PassConstants reflectedPassCB;
 
     UINT passCbvOffset = 0;
 
-    bool isWireframe = false;
-
-   
+    bool isWireframe = false;   
 };
