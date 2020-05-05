@@ -12,11 +12,11 @@ void ObjectMover::Update()
 	Vector3 offset = Vector3::Zero;
 	if (keyboard->KeyIsPressed(VK_UP))
 	{
-		offset.y += 1.0f * dt;
+		offset.z += 1.0f * dt;
 	}
 	if (keyboard->KeyIsPressed(VK_DOWN))
 	{
-		offset.y -= 1.0f * dt;
+		offset.z -= 1.0f * dt;
 	}
 	if (keyboard->KeyIsPressed(VK_LEFT))
 	{

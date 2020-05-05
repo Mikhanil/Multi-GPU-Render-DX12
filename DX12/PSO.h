@@ -14,6 +14,7 @@ public:
 		Opaque,
 		Wireframe,
 		AlphaDrop,
+		AlphaSprites,
 		Mirror,
 		Reflection,
 		Shadow,

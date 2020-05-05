@@ -21,6 +21,21 @@ ShapesApp::~ShapesApp()
 		FlushCommandQueue();
 }
 
+Keyboard* ShapesApp::GetKeyboard()
+{
+	return &keyboard;
+}
+
+Mouse* ShapesApp::GetMouse()
+{
+	return &mouse;
+}
+
+Camera* ShapesApp::GetMainCamera() const
+{
+	return camera.get();
+}
+
 bool ShapesApp::Initialize()
 {
 	if (!D3DApp::Initialize())
@@ -30,6 +45,8 @@ bool ShapesApp::Initialize()
 	LoadTextures();
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
+	BuildLandGeometry();
+	BuildTreesGeometry();
 	BuildRoomGeometry();
 	BuildPSOs();
 	BuildMaterials();
@@ -54,6 +71,30 @@ void ShapesApp::OnResize()
 	}		
 }
 
+void ShapesApp::AnimatedMaterial(const GameTimer& gt)
+{
+	// Scroll the water material texture coordinates.
+	auto waterMat = materials["water"].get();
+
+	float& tu = waterMat->MatTransform(3, 0);
+	float& tv = waterMat->MatTransform(3, 1);
+
+	tu += 0.1f * gt.DeltaTime();
+	tv += 0.02f * gt.DeltaTime();
+
+	if (tu >= 1.0f)
+		tu -= 1.0f;
+
+	if (tv >= 1.0f)
+		tv -= 1.0f;
+
+	waterMat->MatTransform(3, 0) = tu;
+	waterMat->MatTransform(3, 1) = tv;
+
+	// Material has changed, so need to update cbuffer.
+	waterMat->SetDirty();
+}
+
 void ShapesApp::Update(const GameTimer& gt)
 {		
 	
@@ -70,7 +111,8 @@ void ShapesApp::Update(const GameTimer& gt)
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-	
+
+	AnimatedMaterial(gt);
 	UpdateGameObjects(gt);
 	UpdateGlobalCB(gt);
 	
@@ -85,9 +127,6 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 
 	ThrowIfFailed(commandList->Reset(frameAlloc.Get(), psos[PsoType::SkyBox]->GetPSO().Get()));
-	
-	
-
 	
 	commandList->RSSetViewports(1, &screenViewport);
 	commandList->RSSetScissorRects(1, &scissorRect);
@@ -116,7 +155,12 @@ void ShapesApp::Draw(const GameTimer& gt)
 	commandList->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
 	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Opaque]);
 
+	commandList->SetPipelineState(psos[PsoType::AlphaDrop]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::AlphaDrop]);
 
+	commandList->SetPipelineState(psos[PsoType::AlphaSprites]->GetPSO().Get());
+	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::AlphaSprites]);
+	
 	commandList->OMSetStencilRef(1);
 	commandList->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
 	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Mirror]);
@@ -234,23 +278,36 @@ void ShapesApp::LoadTextures()
 {	
 	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks.dds");
 	bricksTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	textures[bricksTex->GetName()] = std::move(bricksTex);
+	
 	auto stoneTex = std::make_unique<Texture>("stoneTex", L"Data\\Textures\\stone.dds");
 	stoneTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	textures[stoneTex->GetName()] = std::move(stoneTex);
+	
 	auto tileTex = std::make_unique<Texture>("tileTex", L"Data\\Textures\\tile.dds");
 	tileTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	textures[tileTex->GetName()] = std::move(tileTex);
+	
 	auto fenceTex = std::make_unique<Texture>("fenceTex", L"Data\\Textures\\WireFence.dds");
 	fenceTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	textures[fenceTex->GetName()] = std::move(fenceTex);
+	
 	auto waterTex = std::make_unique<Texture>("waterTex", L"Data\\Textures\\water1.dds");
 	waterTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-	auto skyTex = std::make_unique<Texture>("skyTex", L"Data\\Textures\\skymap.dds");
-	skyTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
-	
-	textures[bricksTex->GetName()] = std::move(bricksTex);
-	textures[stoneTex->GetName()] = std::move(stoneTex);
-	textures[tileTex->GetName()] = std::move(tileTex);
-	textures[fenceTex->GetName()] = std::move(fenceTex);
 	textures[waterTex->GetName()] = std::move(waterTex);
+	
+	auto skyTex = std::make_unique<Texture>("skyTex", L"Data\\Textures\\skymap.dds");
+	skyTex->LoadTexture(dxDevice.Get(), commandQueue.Get());	
 	textures[skyTex->GetName()] = std::move(skyTex);
+
+	auto grassTex = std::make_unique<Texture>("grassTex", L"Data\\Textures\\grass.dds");
+	grassTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	textures[grassTex->GetName()] = std::move(grassTex);
+
+	auto treeArrayTex = std::make_unique<Texture>("treeArrayTex", L"Data\\Textures\\treeArray2.dds");
+	treeArrayTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
+
 }
 
 void ShapesApp::BuildShadersAndInputLayout()
@@ -274,19 +331,30 @@ void ShapesApp::BuildShadersAndInputLayout()
 	shaders["SkyBoxVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", ShaderType::VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
 	shaders["SkyBoxPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", ShaderType::PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
 
+	shaders["treeSpriteVS"] = std::move(std::make_unique < Shader>(L"Shaders\\TreeSprite.hlsl", ShaderType::VertexShader , nullptr, "VS", "vs_5_1"));
+	shaders["treeSpriteGS"] = std::move(std::make_unique < Shader>(L"Shaders\\TreeSprite.hlsl", ShaderType::GeometryShader, nullptr, "GS", "gs_5_1"));
+	shaders["treeSpritePS"] = std::move(std::make_unique < Shader>(L"Shaders\\TreeSprite.hlsl", ShaderType::PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+
+	
 	for (auto && pair : shaders)
 	{
 		pair.second->LoadAndCompile();
 	}
 
 	
-	inputLayout =
+	defaultInputLayout =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
+	treeSpriteInputLayout =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "SIZE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	};
+	
 	
 	rootSignature = std::make_unique<RootSignature>();
 
@@ -557,6 +625,141 @@ void ShapesApp::BuildRoomGeometry()
 	meshes[geo->Name] = std::move(geo);
 }
 
+float GetHillsHeight(float x, float z) 
+{
+	return 0.3f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
+}
+
+XMFLOAT3 GetHillsNormal(float x, float z)
+{
+	// n = (-df/dx, 1, -df/dz)
+	XMFLOAT3 n(
+		-0.03f * z * cosf(0.1f * x) - 0.3f * cosf(0.1f * z),
+		1.0f,
+		-0.3f * sinf(0.1f * x) + 0.03f * x * sinf(0.1f * z));
+
+	XMVECTOR unitNormal = XMVector3Normalize(XMLoadFloat3(&n));
+	XMStoreFloat3(&n, unitNormal);
+
+	return n;
+}
+
+
+void ShapesApp::BuildLandGeometry()
+{
+	GeometryGenerator geoGen;
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
+
+	//
+	// Extract the vertex elements we are interested and apply the height function to
+	// each vertex.  In addition, color the vertices based on their height so we have
+	// sandy looking beaches, grassy low hills, and snow mountain peaks.
+	//
+
+	std::vector<Vertex> vertices(grid.Vertices.size());
+	for (size_t i = 0; i < grid.Vertices.size(); ++i)
+	{
+		auto& p = grid.Vertices[i].Position;
+		vertices[i].position = p;
+		vertices[i].position.y = GetHillsHeight(p.x, p.z);
+		vertices[i].normal = GetHillsNormal(p.x, p.z);
+		vertices[i].texCord = grid.Vertices[i].TexCord;
+	}
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+
+	std::vector<std::uint16_t> indices = grid.GetIndices16();
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "landGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
+		commandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
+		commandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(Vertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->Submeshs["grid"] = submesh;
+
+	meshes["landGeo"] = std::move(geo);
+}
+
+void ShapesApp::BuildTreesGeometry()
+{
+	struct TreeSpriteVertex
+	{
+		XMFLOAT3 Pos;
+		XMFLOAT2 Size;
+	};
+
+	static const int treeCount = 16;
+	std::vector<TreeSpriteVertex> vertices;
+	std::vector<uint16_t> indices;
+	
+	for (UINT i = 0; i < treeCount; ++i)
+	{
+		float x = MathHelper::RandF(-45.0f, 45.0f);
+		float z = MathHelper::RandF(-45.0f, 45.0f);
+		float y = 0;
+
+		TreeSpriteVertex vertex{ XMFLOAT3(x, y, z), XMFLOAT2(20.0f, 20.0f) };
+
+		vertices.push_back(vertex);
+
+		indices.push_back(i);
+	}
+
+	
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(TreeSpriteVertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "treeSpritesGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
+		commandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
+		commandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStride = sizeof(TreeSpriteVertex);
+	geo->VertexBufferByteSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->Submeshs["points"] = submesh;
+
+	meshes["treeSpritesGeo"] = std::move(geo);
+}
+
 void ShapesApp::BuildMaterials()
 {
 	auto bricks0 = std::make_unique<Material>("bricks", psos[PsoType::Opaque].get());
@@ -613,6 +816,14 @@ void ShapesApp::BuildMaterials()
 	skyBox->SetDiffuseTexture(textures["skyTex"].get());
 	materials[skyBox->GetName()] = std::move(skyBox);
 
+
+	auto treeSprites = std::make_unique<Material>("treeSprites", psos[PsoType::AlphaSprites].get());
+	treeSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	treeSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	treeSprites->Roughness = 0.125f;
+	treeSprites->SetDiffuseTexture(textures["treeArrayTex"].get());
+	materials[treeSprites->GetName()] = std::move(treeSprites);
+	
 	for (auto && pair : materials)
 	{
 		pair.second->InitMaterial(dxDevice.Get());
@@ -641,29 +852,26 @@ void ShapesApp::BuildGameObjects()
 	typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 	gameObjects.push_back(std::move(skySphere));
 
-
+	auto treeSpritesRitem = std::make_unique<GameObject>(dxDevice.Get(), "Trees");
+	renderer = new Renderer();
+	renderer->Material = materials["treeSprites"].get();
+	renderer->Mesh = meshes["treeSpritesGeo"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["points"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["points"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["points"].BaseVertexLocation;
+	treeSpritesRitem->AddComponent(renderer);
+	typedGameObjects[(int)PsoType::AlphaSprites].push_back(treeSpritesRitem.get());
+	gameObjects.push_back(std::move(treeSpritesRitem));
 	
 	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
 	auto light = new Light();	
 	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
 	light->Strength({ 0.6f, 0.6f, 0.6f });
 	sun1->AddComponent(light);
-	
-
-
-	auto floorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Floor");
-	renderer = new Renderer();
-	renderer->Material = materials["bricks"].get();
-	renderer->Mesh = meshes["roomGeo"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["floor"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["floor"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["floor"].BaseVertexLocation;
-	floorRitem->AddComponent(renderer);
-	typedGameObjects[(int)PsoType::Opaque].push_back(floorRitem.get());
-	
 
 	auto wallsRitem = std::make_unique<GameObject>(dxDevice.Get(), "Wall");
+	wallsRitem->GetTransform()->SetPosition(Vector3::Backward * 12);
 	renderer = new Renderer();
 	renderer->Material = materials["bricks"].get();
 	renderer->Mesh = meshes["roomGeo"].get();
@@ -675,9 +883,23 @@ void ShapesApp::BuildGameObjects()
 	typedGameObjects[(int)PsoType::Opaque].push_back(wallsRitem.get());
 	gameObjects.push_back(std::move(wallsRitem));
 
-	auto skullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
-	skullRitem->GetTransform()->SetPosition({ 0,1,-3 });
-	skullRitem->GetTransform()->SetScale({ 2,2,2 });
+	auto mirrorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Mirror");
+	mirrorRitem->GetTransform()->SetPosition(Vector3::Backward * 12);
+	renderer = new Renderer();
+	renderer->Mesh = meshes["roomGeo"].get();
+	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	renderer->IndexCount = renderer->Mesh->Submeshs["mirror"].IndexCount;
+	renderer->StartIndexLocation = renderer->Mesh->Submeshs["mirror"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["mirror"].BaseVertexLocation;
+	renderer->Material = materials["mirror"].get();
+	mirrorRitem->AddComponent(renderer);
+	typedGameObjects[(int)PsoType::Mirror].push_back(mirrorRitem.get());
+	typedGameObjects[(int)PsoType::Transparent].push_back(mirrorRitem.get());
+	gameObjects.push_back(std::move(mirrorRitem));
+	
+	auto sphere = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
+	sphere->GetTransform()->SetPosition(Vector3{ 0,1,-3 } + Vector3::Backward );
+	sphere->GetTransform()->SetScale({ 2,2,2 });
 	renderer = new Renderer();
 	renderer->Material = materials["bricks"].get();
 	renderer->Mesh = meshes["shapeMesh"].get();
@@ -685,27 +907,26 @@ void ShapesApp::BuildGameObjects()
 	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
 	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
-	skullRitem->AddComponent(renderer);
-	skullRitem->AddComponent(new ObjectMover());
-	skull = skullRitem.get();
-	typedGameObjects[(int)PsoType::Opaque].push_back(skullRitem.get());
-	gameObjects.push_back(std::move(skullRitem));
+	sphere->AddComponent(renderer);
+	sphere->AddComponent(new ObjectMover());
+	player = sphere.get();
+	typedGameObjects[(int)PsoType::Opaque].push_back(sphere.get());
+	gameObjects.push_back(std::move(sphere));
 
 	// Reflected skull will have different world matrix, so it needs to be its own render item.
-	auto reflectedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "SkullReflect");	
-	reflectedSkullRitem->AddComponent(new Reflected(skull->GetComponent<Renderer>()));
+	auto reflectedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "SkullReflect");
+	auto reflected = new Reflected(player->GetComponent<Renderer>());
+	reflected->mirrorPlane.w += -12;
+	reflectedSkullRitem->AddComponent(reflected);
+	
 	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedSkullRitem.get());
 	gameObjects.push_back(std::move(reflectedSkullRitem));
 
-	auto reflectedflorRitem = std::make_unique<GameObject>(dxDevice.Get(), "FloorReflect");
-	reflectedflorRitem->AddComponent(new Reflected(floorRitem->GetComponent<Renderer>()));
-	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedflorRitem.get());
-	gameObjects.push_back(std::move(reflectedflorRitem));
-	gameObjects.push_back(std::move(floorRitem));
+	
 
 	// Shadowed skull will have different world matrix, so it needs to be its own render item.
 	auto shadowedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull Shadow");
-	renderer = new Shadow(skull->GetTransform(),sun1->GetComponent<Light>());
+	renderer = new Shadow(player->GetTransform(),sun1->GetComponent<Light>());
 	renderer->Mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
@@ -717,28 +938,19 @@ void ShapesApp::BuildGameObjects()
 	
 
 	auto reflectedShadowRitem = std::make_unique<GameObject>(dxDevice.Get(), "ShadowReflect");
-	reflectedShadowRitem->AddComponent(new Reflected(shadowedSkullRitem->GetComponent<Renderer>()));
+	reflected = new Reflected(shadowedSkullRitem->GetComponent<Renderer>());
+	reflected->mirrorPlane.w += -12;
+	reflectedShadowRitem->AddComponent(reflected);
 	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedShadowRitem.get());
 	gameObjects.push_back(std::move(reflectedShadowRitem));
 	gameObjects.push_back(std::move(shadowedSkullRitem));
 
 	
-	auto mirrorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Mirror");
-	renderer = new Renderer();
-	renderer->Mesh = meshes["roomGeo"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["mirror"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["mirror"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["mirror"].BaseVertexLocation;
-	renderer->Material = materials["mirror"].get();
-	mirrorRitem->AddComponent(renderer);	
-	typedGameObjects[(int)PsoType::Mirror].push_back(mirrorRitem.get());
-	typedGameObjects[(int)PsoType::Transparent].push_back(mirrorRitem.get());
-	gameObjects.push_back(std::move(mirrorRitem));	
+	
 
 	gameObjects.push_back(std::move(sun1));
 	
-	/*auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
+	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({ -0.57735f, -0.57735f, 0.57735f });
 	light->Strength({ 0.3f, 0.3f, 0.3f });
@@ -754,19 +966,21 @@ void ShapesApp::BuildGameObjects()
 	
 	
 	auto man = std::make_unique<GameObject>(dxDevice.Get());
+	man->GetTransform()->SetPosition(Vector3::Forward * 12);
 	XMStoreFloat4x4(&man->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	auto modelRenderer = new ModelRenderer();
-	modelRenderer->Material = materials["bricks0"].get();
+	modelRenderer->Material = materials["bricks"].get();
 	modelRenderer->AddModel(dxDevice.Get(), commandList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 	man->AddComponent(modelRenderer);
+	typedGameObjects[PsoType::Opaque].push_back(man.get());
 	gameObjects.push_back(std::move(man));
 
 	
 
 	
 	auto box = std::make_unique<GameObject>(dxDevice.Get());
-	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f));
-	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));	
+	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));
+	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f) + (Vector3::Forward * 2.4));	
 	XMStoreFloat4x4(&box->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	renderer = new Renderer();
 	renderer->Material = materials["water"].get();
@@ -776,12 +990,13 @@ void ShapesApp::BuildGameObjects()
 	renderer->StartIndexLocation = renderer->Mesh->Submeshs["box"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["box"].BaseVertexLocation;
 	box->AddComponent(renderer);
+	typedGameObjects[PsoType::Transparent].push_back(box.get());
 	gameObjects.push_back(std::move(box));
 
 	
 	
+	
 	auto grid = std::make_unique<GameObject>(dxDevice.Get());
-	XMStoreFloat4x4(&grid->GetTransform()->TextureTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	renderer = new Renderer();
 	renderer->Material = materials["tile0"].get();
 	renderer->Mesh = meshes["shapeMesh"].get();
@@ -789,7 +1004,16 @@ void ShapesApp::BuildGameObjects()
 	renderer->IndexCount = renderer->Mesh->Submeshs["grid"].IndexCount;
 	renderer->StartIndexLocation = renderer->Mesh->Submeshs["grid"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["grid"].BaseVertexLocation;
+	XMStoreFloat4x4(&renderer->Material->MatTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));	
 	grid->AddComponent(renderer);
+	typedGameObjects[PsoType::Opaque].push_back(grid.get());
+	
+	auto reflectedflorRitem = std::make_unique<GameObject>(dxDevice.Get(), "FloorReflect");
+	reflected = new Reflected(grid->GetComponent<Renderer>());
+	reflected->mirrorPlane.w += -12;
+	reflectedflorRitem->AddComponent(reflected);
+	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedflorRitem.get());
+	gameObjects.push_back(std::move(reflectedflorRitem));
 	gameObjects.push_back(std::move(grid));
 
 	const XMMATRIX brickTexTransform = XMMatrixScaling(1.0f, 1.0f, 1.0f);
@@ -803,7 +1027,7 @@ void ShapesApp::BuildGameObjects()
 		leftCylRitem->GetTransform()->SetPosition(Vector3(+5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&leftCylRitem->GetTransform()->TextureTransform, brickTexTransform);
 		renderer = new Renderer();
-		renderer->Material = materials["bricks0"].get();
+		renderer->Material = materials["bricks"].get();
 		renderer->Mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		renderer->IndexCount = renderer->Mesh->Submeshs["cylinder"].IndexCount;
@@ -814,7 +1038,7 @@ void ShapesApp::BuildGameObjects()
 		rightCylRitem->GetTransform()->SetPosition(Vector3(-5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&rightCylRitem->GetTransform()->TextureTransform, brickTexTransform);
 		renderer = new Renderer();
-		renderer->Material = materials["bricks0"].get();
+		renderer->Material = materials["bricks"].get();
 		renderer->Mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 		renderer->IndexCount = renderer->Mesh->Submeshs["cylinder"].IndexCount;
@@ -846,6 +1070,11 @@ void ShapesApp::BuildGameObjects()
 		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
 		rightSphereRitem->AddComponent(renderer);
 
+		typedGameObjects[PsoType::Opaque].push_back(leftCylRitem.get());
+		typedGameObjects[PsoType::Opaque].push_back(rightCylRitem.get());
+		typedGameObjects[PsoType::AlphaDrop].push_back(leftSphereRitem.get());
+		typedGameObjects[PsoType::AlphaDrop].push_back(rightSphereRitem.get());
+		
 		gameObjects.push_back(std::move(leftCylRitem));
 		gameObjects.push_back(std::move(rightCylRitem));
 		gameObjects.push_back(std::move(leftSphereRitem));
@@ -853,7 +1082,7 @@ void ShapesApp::BuildGameObjects()
 	}
 
 
-	*/
+	
 }
 
 void ShapesApp::BuildFrameResources()
@@ -867,7 +1096,7 @@ void ShapesApp::BuildFrameResources()
 void ShapesApp::BuildPSOs()
 {
 	auto opaquePSO = std::make_unique<PSO>();
-	opaquePSO->SetInputLayout({ inputLayout.data(), (UINT)inputLayout.size() });
+	opaquePSO->SetInputLayout({ defaultInputLayout.data(), (UINT)defaultInputLayout.size() });
 	opaquePSO->SetRootSignature(rootSignature->GetRootSignature().Get());
 	opaquePSO->SetShader(shaders["StandardVertex"].get());
 	opaquePSO->SetShader(shaders["OpaquePixel"].get());
@@ -991,6 +1220,18 @@ void ShapesApp::BuildPSOs()
 	shadowPSO->SetPsoDesc(transperentPSO->GetPsoDescription());
 	shadowPSO->SetDepthStencilState(shadowDSS);
 
+
+	auto treeSprite = std::make_unique<PSO>(PsoType::AlphaSprites);
+	treeSprite->SetPsoDesc(opaquePSO->GetPsoDescription());
+	treeSprite->SetShader(shaders["treeSpriteVS"].get());
+	treeSprite->SetShader(shaders["treeSpriteGS"].get());
+	treeSprite->SetShader(shaders["treeSpritePS"].get());
+	treeSprite->SetInputLayout({ treeSpriteInputLayout.data(), (UINT)treeSpriteInputLayout.size() });
+	treeSprite->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+	auto treeSpriteRasterState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	reflectionRasterState.CullMode = D3D12_CULL_MODE_NONE;
+	treeSprite->SetRasterizationState(treeSpriteRasterState);
+
 	psos[opaquePSO->GetType()] = std::move(opaquePSO);
 	psos[transperentPSO->GetType()] = std::move(transperentPSO);
 	psos[shadowPSO->GetType()] = std::move(shadowPSO);
@@ -998,6 +1239,7 @@ void ShapesApp::BuildPSOs()
 	psos[reflectionPSO->GetType()] = std::move(reflectionPSO);
 	psos[alphaDropPso->GetType()] = std::move(alphaDropPso);
 	psos[skyBoxPSO->GetType()] = std::move(skyBoxPSO);
+	psos[treeSprite->GetType()] = std::move(treeSprite);
 
 	for (auto & pso : psos)
 	{

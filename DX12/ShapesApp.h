@@ -26,25 +26,17 @@ public:
     ShapesApp& operator=(const ShapesApp& rhs) = delete;
     ~ShapesApp();
 
-    Keyboard* GetKeyboard() 
-    {
-        return &keyboard;
-    }
+    Keyboard* GetKeyboard();
 
-    Mouse* GetMouse() 
-    {
-        return  &mouse;
-    }
+    Mouse* GetMouse();
 
-    Camera* GetMainCamera()
-    {
-        return camera.get();
-    }
-	
+    Camera* GetMainCamera() const;
+
     virtual bool Initialize()override;
 
 private:
     virtual void OnResize()override;
+    void AnimatedMaterial(const GameTimer& gt);
     virtual void Update(const GameTimer& gt)override;
     virtual void Draw(const GameTimer& gt)override;
 
@@ -57,6 +49,8 @@ private:
     void BuildRoomGeometry();
     void BuildPSOs();
     void BuildFrameResources();
+    void BuildLandGeometry();
+    void BuildTreesGeometry();
     void BuildMaterials();
     void BuildGameObjects();
     static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems);
@@ -88,14 +82,15 @@ private:
 	
     ComPtr<ID3D12PipelineState> opaquePSO = nullptr;
 	
-    std::vector<D3D12_INPUT_ELEMENT_DESC> inputLayout;
+    std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
 
+    std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout;
 	
     std::vector<std::unique_ptr<GameObject>> gameObjects;
 
     std::vector<GameObject*> typedGameObjects[ PsoType::Count ];
 	
-    GameObject* skull;
+    GameObject* player;
 	
     PassConstants mainPassCB;
     PassConstants reflectedPassCB;

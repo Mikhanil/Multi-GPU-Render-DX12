@@ -229,6 +229,12 @@
     <FxCompile Include="Shaders\SkyBoxShader.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\TreeSprite.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Common.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\LightingUtil.hlsl">

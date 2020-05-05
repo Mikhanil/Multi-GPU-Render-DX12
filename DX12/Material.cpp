@@ -46,21 +46,31 @@ void Material::InitMaterial(ID3D12Device* device)
 
 	for (int i = 0; i < textures.size(); ++i)
 	{
-		srvDesc.Format = textures[i]->GetResource()->GetDesc().Format;
-		if (pso->GetType() == PsoType::SkyBox)
+		auto desc = textures[i]->GetResource()->GetDesc();
+		srvDesc.Format = desc.Format;
+
+		switch (pso->GetType())
 		{
+		case PsoType::SkyBox:
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-			srvDesc.TextureCube.MipLevels = textures[i]->GetResource()->GetDesc().MipLevels;
+			srvDesc.TextureCube.MipLevels = desc.MipLevels;
 			srvDesc.TextureCube.MostDetailedMip = 0;
+			break;
+		case PsoType::AlphaSprites:
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DARRAY;
+			srvDesc.Texture2DArray.MostDetailedMip = 0;
+			srvDesc.Texture2DArray.MipLevels = -1;
+			srvDesc.Texture2DArray.FirstArraySlice = 0;
+			srvDesc.Texture2DArray.ArraySize = desc.DepthOrArraySize;
+			break;
+		default:
+			{
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				srvDesc.Texture2D.MostDetailedMip = 0;
+				srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+				srvDesc.Texture2D.MipLevels = desc.MipLevels;
+			};
 		}
-		else
-		{
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MostDetailedMip = 0;
-			srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;			
-			srvDesc.Texture2D.MipLevels = textures[i]->GetResource()->GetDesc().MipLevels;
-		}
-		
 		
 		device->CreateShaderResourceView(textures[i]->GetResource(), &srvDesc, hDescriptor);
 		hDescriptor.Offset(1, cbvSrvUavDescriptorSize);

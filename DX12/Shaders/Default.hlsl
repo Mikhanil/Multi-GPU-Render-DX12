@@ -1,18 +1,4 @@
-// Defaults for number of lights.
-#ifndef NUM_DIR_LIGHTS
-    #define NUM_DIR_LIGHTS 3
-#endif
-
-#ifndef NUM_POINT_LIGHTS
-    #define NUM_POINT_LIGHTS 0
-#endif
-
-#ifndef NUM_SPOT_LIGHTS
-    #define NUM_SPOT_LIGHTS 0
-#endif
-
-// Include structures and functions for lighting.
-#include "LightingUtil.hlsl"
+#include "Common.hlsl"
 
 Texture2D gDiffuseMap : register(t0);
 
@@ -24,54 +10,6 @@ SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 SamplerState gsamCubeTextureWrap : register(s6);
-
-struct ObjectData
-{
-    float4x4 World;
-    float4x4 TexTransform;
-};
-
-ConstantBuffer<ObjectData> objectBuffer : register(b0);
-
-struct WorldData
-{
-    float4x4 View;
-    float4x4 InvView;
-    float4x4 Proj;
-    float4x4 InvProj;
-    float4x4 ViewProj;
-    float4x4 InvViewProj;
-    float3 EyePosW;
-    float cbPerObjectPad1;
-    float2 RenderTargetSize;
-    float2 InvRenderTargetSize;
-    float NearZ;
-    float FarZ;
-    float TotalTime;
-    float DeltaTime;
-    float4 AmbientLight;
-
-    float4 gFogColor;
-    float gFogStart;
-    float gFogRange;
-    float2 cbPerObjectPad2;
-    
-    
-    Light Lights[MaxLights];
-};
-
-ConstantBuffer<WorldData> worldBuffer : register(b1);
-
-// Constant data that varies per material.
-struct MaterialData
-{
-    float4 DiffuseAlbedo;
-    float3 FresnelR0;
-    float Roughness;
-    float4x4 MatTransform;
-};
-
-ConstantBuffer<MaterialData> materialBuffer : register(b2);
 
 
 struct VertexIn
@@ -94,8 +32,7 @@ VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
 	
-    // Transform to world space.
-    float4 posW = mul(float4(vin.PosL, 1.0f),objectBuffer.World);
+    float4 posW = mul(float4(vin.PosL, 1.0f), objectBuffer.World);
     vout.PosWorld = posW.xyz;
      
     vout.NormalWorld = mul(vin.NormalL, (float3x3) objectBuffer.World);

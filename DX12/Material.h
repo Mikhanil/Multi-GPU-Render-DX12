@@ -34,6 +34,11 @@ class Material
 
 public:
 
+	void SetDirty()
+	{
+		NumFramesDirty = globalCountFrameResources;
+	}
+	
 	PSO* GetPSO();
 
 	void SetDiffuseTexture(Texture* texture);
