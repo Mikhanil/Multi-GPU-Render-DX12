@@ -585,9 +585,6 @@ references/
 references/*
 .vscode/
 .vscode/*
-/Test/WebApi.Test/UserValidationCheck/TestData.txt
-/Test/WebApi.Test/DecoderTest/links.json
-*/.vs/
-*/.vs/
-!*/DLL
-!*/DLL/*
+
+!**/Data/**
+!**/Data/
