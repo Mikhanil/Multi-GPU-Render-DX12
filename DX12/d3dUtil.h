@@ -1,9 +1,3 @@
-//***************************************************************************************
-// d3dUtil.h by Frank Luna (C) 2015 All Rights Reserved.
-//
-// General helper code.
-//***************************************************************************************
-
 #pragma once
 
 #include <windows.h>
@@ -57,6 +51,37 @@ inline void d3dSetDebugName(ID3D12DeviceChild* obj, const char* name)
     {
         obj->SetPrivateData(WKPDID_D3DDebugObjectName, lstrlenA(name), name);
     }
+}
+
+inline DXGI_FORMAT GetSRGBFormat(DXGI_FORMAT format)
+{
+    DXGI_FORMAT srgbFormat = format;
+    switch (format)
+    {
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+        srgbFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        break;
+    case DXGI_FORMAT_BC1_UNORM:
+        srgbFormat = DXGI_FORMAT_BC1_UNORM_SRGB;
+        break;
+    case DXGI_FORMAT_BC2_UNORM:
+        srgbFormat = DXGI_FORMAT_BC2_UNORM_SRGB;
+        break;
+    case DXGI_FORMAT_BC3_UNORM:
+        srgbFormat = DXGI_FORMAT_BC3_UNORM_SRGB;
+        break;
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+        srgbFormat = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        break;
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+        srgbFormat = DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
+        break;
+    case DXGI_FORMAT_BC7_UNORM:
+        srgbFormat = DXGI_FORMAT_BC7_UNORM_SRGB;
+        break;
+    }
+
+    return srgbFormat;
 }
 
 inline std::wstring AnsiToWString(const std::string& str)

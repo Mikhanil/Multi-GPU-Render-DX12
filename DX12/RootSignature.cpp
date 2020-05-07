@@ -95,14 +95,31 @@ void RootSignature::AddConstantParameter(UINT value, UINT shaderRegister, UINT r
 	AddParameter(slotParameter);
 }
 
+void RootSignature::AddStaticSampler(const CD3DX12_STATIC_SAMPLER_DESC sampler)
+{
+	staticSampler.push_back(sampler);
+}
+
 void RootSignature::Initialize(ID3D12Device* device)
 {
-	auto staticSamplers = GetStaticSamplers();
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
+	if(!staticSampler.empty())
+	{
+		rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
+			staticSampler.size(), staticSampler.data(),
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(slotRootParameters.size(), slotRootParameters.data(),
-	                                        staticSamplers.size(), staticSamplers.data(),
-	                                        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	}
+	else
+	{
+		auto defaultSampler = GetStaticSamplers();
 
+		rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC (slotRootParameters.size(), slotRootParameters.data(),
+			defaultSampler.size(), defaultSampler.data(),
+			D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	}
+	
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	const HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,

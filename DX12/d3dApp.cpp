@@ -154,11 +154,15 @@ void D3DApp::OnResize()
 
 	currBackBufferIndex = 0;
 
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format = GetSRGBFormat(backBufferFormat);
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < swapChainBufferCount; i++)
 	{
 		ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainBuffers[i])));
-		dxDevice->CreateRenderTargetView(swapChainBuffers[i].Get(), nullptr, rtvHeapHandle);
+		dxDevice->CreateRenderTargetView(swapChainBuffers[i].Get(), &rtvDesc, rtvHeapHandle);
 		rtvHeapHandle.Offset(1, rtvDescriptorSize);
 	}
 

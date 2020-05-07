@@ -132,6 +132,12 @@
     <ClInclude Include="Keyboard.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
+    <ClInclude Include="GeneratedMipsPSO.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
@@ -221,6 +227,12 @@
     <ClCompile Include="Keyboard.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedMipsPSO.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Default.hlsl">
@@ -232,7 +244,7 @@
     <FxCompile Include="Shaders\TreeSprite.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\Common.hlsl">
+    <FxCompile Include="Shaders\MipMapCS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>
@@ -241,5 +253,8 @@
       <Filter>Shader</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="Shaders\Common.hlsl">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
 </Project>

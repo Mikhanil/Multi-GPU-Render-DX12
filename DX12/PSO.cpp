@@ -106,6 +106,10 @@ void PSO::SetShader(Shader* shader)
 			psoDesc.HS = shader->GetShaderResource();
 			break;
 		}
+	default:
+		{
+		assert("Bad Shader!!");
+		};
 	}
 }
 

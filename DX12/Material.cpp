@@ -1,7 +1,6 @@
 #include "Material.h"
 #include "PSO.h"
 
-
 PSO* Material::GetPSO()
 {
 	return pso;
@@ -47,8 +46,17 @@ void Material::InitMaterial(ID3D12Device* device)
 	for (int i = 0; i < textures.size(); ++i)
 	{
 		auto desc = textures[i]->GetResource()->GetDesc();
-		srvDesc.Format = desc.Format;
 
+		if(i == 0)
+		{
+			srvDesc.Format = GetSRGBFormat(desc.Format);
+		}
+		else
+		{
+			srvDesc.Format = (desc.Format);
+		}
+		
+		
 		switch (pso->GetType())
 		{
 		case PsoType::SkyBox:
@@ -71,7 +79,6 @@ void Material::InitMaterial(ID3D12Device* device)
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			};
 		}
-		
 		device->CreateShaderResourceView(textures[i]->GetResource(), &srvDesc, hDescriptor);
 		hDescriptor.Offset(1, cbvSrvUavDescriptorSize);
 	}
