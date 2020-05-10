@@ -31,6 +31,12 @@ struct GlobalVariable
 
 static GlobalVariable* globalVar = new GlobalVariable();
 
+template <typename T>
+inline T DivideByMultiple(T value, size_t alignment)
+{
+    return (T)((value + alignment - 1) / alignment);
+}
+
 inline void d3dSetDebugName(IDXGIObject* obj, const char* name)
 {
     if(obj)

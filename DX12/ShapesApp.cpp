@@ -36,13 +36,140 @@ Camera* ShapesApp::GetMainCamera() const
 	return camera.get();
 }
 
+void ShapesApp::GeneratedMipMap()
+{	
+	UINT requiredHeapSize = 0;
+
+	std::vector<Texture*> generatedMipTextures;
+	
+	for (auto&& texture : textures)
+	{
+		texture.second->ClearTrack();
+
+		/*ТОлько те что можно использовать как UAV*/
+		if(texture.second->GetResource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+			continue;
+		
+		if (texture.second->GetResource()->GetDesc().MipLevels > 1)
+		{
+			requiredHeapSize += texture.second->GetResource()->GetDesc().MipLevels - 1;
+			generatedMipTextures.push_back(texture.second.get());
+		}
+	}
+
+	if (requiredHeapSize == 0)
+	{
+		return;
+	}
+
+	auto genMipMapPSO = new GeneratedMipsPSO(dxDevice.Get());
+
+	
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.NumDescriptors = 2 * requiredHeapSize;
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ID3D12DescriptorHeap* descriptorHeap;
+	dxDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap));
+	UINT descriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	
+	D3D12_SHADER_RESOURCE_VIEW_DESC srcTextureSRVDesc = {};
+	srcTextureSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srcTextureSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+
+	
+	D3D12_UNORDERED_ACCESS_VIEW_DESC destTextureUAVDesc = {};
+	destTextureUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+
+	
+	commandListDirect->SetComputeRootSignature(genMipMapPSO->GetRootSignature().Get());
+	commandListDirect->SetPipelineState(genMipMapPSO->GetPipelineState().Get());
+	commandListDirect->SetDescriptorHeaps(1, &descriptorHeap);
+
+	
+	CD3DX12_CPU_DESCRIPTOR_HANDLE currentCPUHandle(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0, descriptorSize);
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE currentGPUHandle(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 0, descriptorSize);
+
+
+	/*Почему-то логика взаимодействия с константным буфером как для отрисовки тут не работает*/
+	//auto mipBuffer = genMipMapPSO->GetBuffer();
+
+	
+	
+	for (auto& textur : generatedMipTextures)
+	{		
+
+		auto texture = textur->GetResource();
+		auto textureDesc = texture->GetDesc();
+
+		
+		commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture, 
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+
+		for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
+		{
+			
+			uint32_t dstWidth = max(textureDesc.Width >> (TopMip + 1), 1);
+			uint32_t dstHeight = max(textureDesc.Height >> (TopMip + 1), 1);
+
+			
+			srcTextureSRVDesc.Format = textureDesc.Format;
+			srcTextureSRVDesc.Texture2D.MipLevels = 1;
+			srcTextureSRVDesc.Texture2D.MostDetailedMip = TopMip;
+			dxDevice->CreateShaderResourceView(texture, &srcTextureSRVDesc, currentCPUHandle);
+			currentCPUHandle.Offset(1, descriptorSize);
+
+			
+			destTextureUAVDesc.Format = textureDesc.Format;
+			destTextureUAVDesc.Texture2D.MipSlice = TopMip + 1;
+			dxDevice->CreateUnorderedAccessView(texture, nullptr, &destTextureUAVDesc, currentCPUHandle);
+			currentCPUHandle.Offset(1, descriptorSize);
+
+			//GenerateMipsCB mipData = {};			
+			//mipData.TexelSize = Vector2{ (1.0f / dstWidth) ,(1.0f / dstHeight) };			
+			//mipBuffer->CopyData(0, mipData);			
+			//commandListDirect->SetComputeRootConstantBufferView(0, mipBuffer->Resource()->GetGPUVirtualAddress());
+			
+			Vector2 texelSize = Vector2{ (1.0f / dstWidth) ,(1.0f / dstHeight) };
+			commandListDirect->SetComputeRoot32BitConstants(0, 2, &texelSize, 0);			
+		
+
+			commandListDirect->SetComputeRootDescriptorTable(1, currentGPUHandle);
+			currentGPUHandle.Offset(1, descriptorSize);
+			commandListDirect->SetComputeRootDescriptorTable(2, currentGPUHandle);
+			currentGPUHandle.Offset(1, descriptorSize);
+
+			commandListDirect->Dispatch(max(dstWidth / 8, 1u), max(dstHeight / 8, 1u), 1);
+
+			commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
+		}
+
+		commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+		
+	}
+}
+
+
+
 bool ShapesApp::Initialize()
 {
 	if (!D3DApp::Initialize())
 		return false;
 
-	ThrowIfFailed(commandList->Reset(directCommandListAlloc.Get(), nullptr));
+	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
 	LoadTextures();
+	ExecuteCommandList();
+	FlushCommandQueue();
+	
+	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
+	GeneratedMipMap();
+	ExecuteCommandList();
+	FlushCommandQueue();
+	
+	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));	
 	BuildShadersAndInputLayout();
 	BuildShapeGeometry();
 	BuildLandGeometry();
@@ -126,64 +253,64 @@ void ShapesApp::Draw(const GameTimer& gt)
 	ThrowIfFailed(frameAlloc->Reset());
 
 
-	ThrowIfFailed(commandList->Reset(frameAlloc.Get(), psos[PsoType::SkyBox]->GetPSO().Get()));
+	ThrowIfFailed(commandListDirect->Reset(frameAlloc.Get(), psos[PsoType::SkyBox]->GetPSO().Get()));
 	
-	commandList->RSSetViewports(1, &screenViewport);
-	commandList->RSSetScissorRects(1, &scissorRect);
+	commandListDirect->RSSetViewports(1, &screenViewport);
+	commandListDirect->RSSetScissorRects(1, &scissorRect);
 
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
+	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	commandList->ClearRenderTargetView(GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
-	commandList->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	commandListDirect->ClearRenderTargetView(GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
+	commandListDirect->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	commandList->OMSetRenderTargets(1, &GetCurrentBackBufferView(), true, &GetDepthStencilView());
+	commandListDirect->OMSetRenderTargets(1, &GetCurrentBackBufferView(), true, &GetDepthStencilView());
 
 	
 
-	commandList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
+	commandListDirect->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
 		
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();	
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	commandListDirect->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 
-	commandList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::SkyBox]);
+	commandListDirect->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::SkyBox]);
 
-	commandList->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Opaque]);
+	commandListDirect->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Opaque]);
 
-	commandList->SetPipelineState(psos[PsoType::AlphaDrop]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::AlphaDrop]);
+	commandListDirect->SetPipelineState(psos[PsoType::AlphaDrop]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::AlphaDrop]);
 
-	commandList->SetPipelineState(psos[PsoType::AlphaSprites]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::AlphaSprites]);
+	commandListDirect->SetPipelineState(psos[PsoType::AlphaSprites]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::AlphaSprites]);
 	
-	commandList->OMSetStencilRef(1);
-	commandList->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Mirror]);
+	commandListDirect->OMSetStencilRef(1);
+	commandListDirect->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Mirror]);
 
 
-	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
-	commandList->SetPipelineState(psos[PsoType::Reflection]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Reflection]);
+	commandListDirect->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
+	commandListDirect->SetPipelineState(psos[PsoType::Reflection]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Reflection]);
 
 
-	commandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
-	commandList->OMSetStencilRef(0);
+	commandListDirect->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	commandListDirect->OMSetStencilRef(0);
 
 
-	commandList->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Transparent]);
+	commandListDirect->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Transparent]);
 
 
-	commandList->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
-	DrawGameObjects(commandList.Get(), typedGameObjects[(int)PsoType::Shadow]);
+	commandListDirect->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Shadow]);
 	
 	// Indicate a state transition on the resource usage.
-	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
+	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	ExecuteCommandList();
@@ -195,7 +322,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 	currentFrameResource->FenceValue = ++currentFence;
 
 	
-	commandQueue->Signal(fence.Get(), currentFence);
+	commandQueueDirect->Signal(fence.Get(), currentFence);
 }
 
 void ShapesApp::UpdateGameObjects(const GameTimer& gt)
@@ -277,36 +404,40 @@ void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
 void ShapesApp::LoadTextures()
 {	
 	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks.dds");
-	bricksTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	bricksTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[bricksTex->GetName()] = std::move(bricksTex);
 	
 	auto stoneTex = std::make_unique<Texture>("stoneTex", L"Data\\Textures\\stone.dds");
-	stoneTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	stoneTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[stoneTex->GetName()] = std::move(stoneTex);
 	
 	auto tileTex = std::make_unique<Texture>("tileTex", L"Data\\Textures\\tile.dds");
-	tileTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	tileTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[tileTex->GetName()] = std::move(tileTex);
 	
 	auto fenceTex = std::make_unique<Texture>("fenceTex", L"Data\\Textures\\WireFence.dds");
-	fenceTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	fenceTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[fenceTex->GetName()] = std::move(fenceTex);
 	
 	auto waterTex = std::make_unique<Texture>("waterTex", L"Data\\Textures\\water1.dds");
-	waterTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	waterTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[waterTex->GetName()] = std::move(waterTex);
 	
 	auto skyTex = std::make_unique<Texture>("skyTex", L"Data\\Textures\\skymap.dds");
-	skyTex->LoadTexture(dxDevice.Get(), commandQueue.Get());	
+	skyTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[skyTex->GetName()] = std::move(skyTex);
 
 	auto grassTex = std::make_unique<Texture>("grassTex", L"Data\\Textures\\grass.dds");
-	grassTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	grassTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[grassTex->GetName()] = std::move(grassTex);
 
 	auto treeArrayTex = std::make_unique<Texture>("treeArrayTex", L"Data\\Textures\\treeArray2.dds");
-	treeArrayTex->LoadTexture(dxDevice.Get(), commandQueue.Get());
+	treeArrayTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
+	
+	auto seamless = std::make_unique<Texture>("seamless", L"Data\\Textures\\seamless_grass.jpg");
+	seamless->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
+	textures[seamless->GetName()] = std::move(seamless);
 
 }
 
@@ -491,10 +622,10 @@ void ShapesApp::BuildShapeGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+		commandListDirect.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+		commandListDirect.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -606,11 +737,11 @@ void ShapesApp::BuildRoomGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-	                                                    commandList.Get(), vertices.data(), vbByteSize,
+	                                                    commandListDirect.Get(), vertices.data(), vbByteSize,
 	                                                    geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-	                                                   commandList.Get(), indices.data(), ibByteSize,
+	                                                   commandListDirect.Get(), indices.data(), ibByteSize,
 	                                                   geo->IndexBufferUploader);
 
 	geo->VertexByteStride = sizeof(Vertex);
@@ -681,10 +812,10 @@ void ShapesApp::BuildLandGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+		commandListDirect.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+		commandListDirect.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -740,10 +871,10 @@ void ShapesApp::BuildTreesGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandList.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
+		commandListDirect.Get(), vertices.data(), vbByteSize, geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+		commandListDirect.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
 	geo->VertexByteStride = sizeof(TreeSpriteVertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -767,6 +898,12 @@ void ShapesApp::BuildMaterials()
 	bricks0->Roughness = 0.1f;
 	bricks0->SetDiffuseTexture(textures["bricksTex"].get());
 	materials[bricks0->GetName()] = std::move(bricks0);
+
+	auto seamless = std::make_unique<Material>("seamless", psos[PsoType::Opaque].get());
+	seamless->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+	seamless->Roughness = 0.1f;
+	seamless->SetDiffuseTexture(textures["seamless"].get());
+	materials[seamless->GetName()] = std::move(seamless);
 
 	
 	auto stone0 = std::make_unique<Material>("stone0", psos[PsoType::Opaque].get());
@@ -969,8 +1106,8 @@ void ShapesApp::BuildGameObjects()
 	man->GetTransform()->SetPosition(Vector3::Forward * 12);
 	XMStoreFloat4x4(&man->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	auto modelRenderer = new ModelRenderer();
-	modelRenderer->Material = materials["bricks"].get();
-	modelRenderer->AddModel(dxDevice.Get(), commandList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj");
+	modelRenderer->Material = materials["seamless"].get();
+	modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 	man->AddComponent(modelRenderer);
 	typedGameObjects[PsoType::Opaque].push_back(man.get());
 	gameObjects.push_back(std::move(man));
@@ -1100,7 +1237,7 @@ void ShapesApp::BuildPSOs()
 	opaquePSO->SetRootSignature(rootSignature->GetRootSignature().Get());
 	opaquePSO->SetShader(shaders["StandardVertex"].get());
 	opaquePSO->SetShader(shaders["OpaquePixel"].get());
-	opaquePSO->SetRTVFormat(0, backBufferFormat);
+	opaquePSO->SetRTVFormat(0, GetSRGBFormat( backBufferFormat));
 	opaquePSO->SetSampleCount(isM4xMsaa ? 4 : 1);
 	opaquePSO->SetSampleQuality(isM4xMsaa ? (m4xMsaaQuality - 1) : 0);
 	opaquePSO->SetDSVFormat(depthStencilFormat);

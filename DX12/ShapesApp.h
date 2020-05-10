@@ -32,6 +32,7 @@ public:
 
     Camera* GetMainCamera() const;
 
+    void GeneratedMipMap();
     virtual bool Initialize()override;
 
 private:

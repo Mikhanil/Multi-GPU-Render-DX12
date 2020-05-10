@@ -15,6 +15,7 @@
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "RuntimeObject.lib")
 
 class D3DApp
 {
@@ -89,9 +90,12 @@ protected:
     UINT64 currentFence = 0;
     bool InitDirect3D();
 
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue;
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueueDirect;
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueueCompute;
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> directCommandListAlloc;
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandList;   
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> computeCommandListAlloc;
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandListDirect;   
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandListCompute;   
     void CreateCommandObjects();
 
     static const int swapChainBufferCount = 2;
@@ -119,6 +123,8 @@ protected:
     void LogAdapterOutputs(IDXGIAdapter* adapter);
     void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
     void ExecuteCommandList() const;
+    void ExecuteComputeCommandList() const;
+    void FlushComputeCommandQueue();
     void ResetCommandList(ID3D12PipelineState* pipelinestate = nullptr) const;   
 };
 

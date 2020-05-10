@@ -1,32 +1,38 @@
 #include "GeneratedMipsPSO.h"
+#include "Shader.h"
 
 GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 {
-	CD3DX12_DESCRIPTOR_RANGE srcMip(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0,
-	                                D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
-	CD3DX12_DESCRIPTOR_RANGE outMip(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 4, 0, 0,
-	                                D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+	//The compute shader expects 2 floats, the source texture and the destination texture
+	CD3DX12_DESCRIPTOR_RANGE srvCbvRanges[2];
+	srvCbvRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+	srvCbvRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
 
-	CD3DX12_ROOT_PARAMETER rootParameters[3];
-	rootParameters[0].InitAsConstantBufferView(0);
-	rootParameters[1].InitAsDescriptorTable(1, &srcMip);
-	rootParameters[2].InitAsDescriptorTable(1, &outMip);
 
-	CD3DX12_STATIC_SAMPLER_DESC linearClampSampler(0,
-	                                               D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-	                                               D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-	                                               D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-	                                               D3D12_TEXTURE_ADDRESS_MODE_CLAMP
-	);
+	//Static sampler used to get the linearly interpolated color for the mipmaps
+	D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
+	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	samplerDesc.MinLOD = 0.0f;
+	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+	samplerDesc.MaxAnisotropy = 0;
+	samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+	samplerDesc.ShaderRegister = 0;
+	samplerDesc.RegisterSpace = 0;
+	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(3,
-	                                              rootParameters, 1, &linearClampSampler);
 
-	m_RootSignature.AddConstantBufferParameter(0);
-	m_RootSignature.AddDescriptorParameter(&srcMip, 1);
-	m_RootSignature.AddDescriptorParameter(&outMip, 1);
-	m_RootSignature.AddStaticSampler(linearClampSampler);
-
+	
+	m_RootSignature.AddConstantParameter(2,0);
+	m_RootSignature.AddDescriptorParameter(&srvCbvRanges[0], 1);
+	m_RootSignature.AddDescriptorParameter(&srvCbvRanges[1], 1);
+	m_RootSignature.AddStaticSampler(samplerDesc);
+	m_RootSignature.Initialize(device);
+	
 	D3D12_COMPUTE_PIPELINE_STATE_DESC computePSOdesc{};
 
 	auto shader = std::make_unique<Shader>(L"Shaders\\MipMapCS.hlsl", ShaderType::ComputeShader, nullptr, "GenerateMipMaps", "cs_5_1");
@@ -45,29 +51,12 @@ GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 
 	device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&UAVdescriptorHeap));
 	
-	UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE handler = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-		UAVdescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
-	for (UINT i = 0; i < 4; ++i)
-	{
-		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		uavDesc.Texture2D.MipSlice = i;
-		uavDesc.Texture2D.PlaneSlice = 0;
-
-		device->CreateUnorderedAccessView(nullptr, nullptr, &uavDesc,
-		                                  UAVdescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-		handler.Offset(1, descriptorSize);
-	}
+	mipsBuffer = std::make_unique<ConstantBuffer<GenerateMipsCB>>(device,1);
 }
 
-const RootSignature& GeneratedMipsPSO::GetRootSignature() const
+const ComPtr<ID3D12RootSignature> GeneratedMipsPSO::GetRootSignature() const
 {
-	return m_RootSignature;
+	return m_RootSignature.GetRootSignature();
 }
 
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GeneratedMipsPSO::GetUAVHeap() const

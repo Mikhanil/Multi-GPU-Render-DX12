@@ -100,6 +100,12 @@ void RootSignature::AddStaticSampler(const CD3DX12_STATIC_SAMPLER_DESC sampler)
 	staticSampler.push_back(sampler);
 }
 
+void RootSignature::AddStaticSampler(const D3D12_STATIC_SAMPLER_DESC sampler)
+{
+	staticSampler.push_back(sampler);
+}
+
+
 void RootSignature::Initialize(ID3D12Device* device)
 {
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
