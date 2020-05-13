@@ -1,16 +1,3 @@
-//***************************************************************************************
-// GeometryGenerator.h by Frank Luna (C) 2011 All Rights Reserved.
-//   
-// Defines a static class for procedurally generating the geometry of 
-// common mathematical objects.
-//
-// All triangles are generated "outward" facing.  If you want "inward" 
-// facing triangles (for example, if you want to place the camera inside
-// a sphere to simulate a sky), you will need to:
-//   1. Change the Direct3D cull mode or manually reverse the winding order.
-//   2. Invert the normal.
-//   3. Update the texture coordinates and tangent vectors.
-//***************************************************************************************
 
 #pragma once
 
