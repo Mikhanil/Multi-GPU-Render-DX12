@@ -116,7 +116,7 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
-	ThrowIfFailed(PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
+	ThrowIfFailed(PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), metadata,
 		subresources));
 
 	if (directxResource)

@@ -103,10 +103,12 @@ bool D3DApp::Initialize()
 {
 	if (!InitMainWindow())
 		return false;
-
+		
 	if (!InitDirect3D())
 		return false;
 
+	InitializeD2D();
+	
 	OnResize();
 
 	return true;
@@ -137,32 +139,78 @@ void D3DApp::OnResize()
 	assert(dxDevice);
 	assert(swapChain);
 	assert(directCommandListAlloc);
-	
-	FlushCommandQueue();
 
+	d2dContext->SetTarget(nullptr);
+	d3d11DeviceContext->Flush();
+	FlushCommandQueue();
+	
 	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
 
+	
 	for (int i = 0; i < swapChainBufferCount; ++i)
+	{
 		swapChainBuffers[i].Reset();
-	depthStencilBuffer.Reset();
+		wrappedBackBuffers[i].Reset();
+		d2dRenderTargets[i].Reset();
+		d2dSurfaces[i].Reset();
+	}
 
+	d3d11DeviceContext->Flush();
+	
 	ThrowIfFailed(swapChain->ResizeBuffers(
 		swapChainBufferCount,
 		clientWidth, clientHeight,
 		backBufferFormat,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH ));
 
 	currBackBufferIndex = 0;
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = GetSRGBFormat(backBufferFormat);
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+	// Query the desktop's dpi settings, which will be used to create
+	// D2D's render targets.
+	auto dpi = GetDpiForWindow(MainWnd());
+
+
+	D2D1_BITMAP_PROPERTIES1 bitmapProperties =
+		D2D1::BitmapProperties1(
+			D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+			D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),
+			dpi,
+			dpi
+		);
 	
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < swapChainBufferCount; i++)
 	{
 		ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainBuffers[i])));
 		dxDevice->CreateRenderTargetView(swapChainBuffers[i].Get(), &rtvDesc, rtvHeapHandle);
+		
+		// Create a wrapped 11On12 resource of this back buffer. Since we are 
+		// rendering all D3D12 content first and then all D2D content, we specify 
+		// the In resource state as RENDER_TARGET - because D3D12 will have last 
+		// used it in this state - and the Out resource state as PRESENT. When 
+		// ReleaseWrappedResources() is called on the 11On12 device, the resource 
+		// will be transitioned to the PRESENT state.
+		D3D11_RESOURCE_FLAGS d3d11Flags = { D3D11_BIND_RENDER_TARGET };
+
+		
+		
+		ThrowIfFailed(d3d11On12Device->CreateWrappedResource(
+			swapChainBuffers[i].Get(),
+			&d3d11Flags,
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT,
+			IID_PPV_ARGS(&wrappedBackBuffers[i])));
+
+		// Create a render target for D2D to draw directly to this back buffer.		
+		ThrowIfFailed(wrappedBackBuffers[i].As(&d2dSurfaces[i]));
+
+		ThrowIfFailed(d2dContext->CreateBitmapFromDxgiSurface(d2dSurfaces[i].Get(),
+			&bitmapProperties, &d2dRenderTargets[i]));
+
 		rtvHeapHandle.Offset(1, rtvDescriptorSize);
 	}
 
@@ -665,6 +713,63 @@ void D3DApp::CreateCommandObjects()
 	commandListCompute->Close();
 }
 
+void D3DApp::InitializeD2D()
+{
+	// Create an 11 device wrapped around the 12 device and share
+	// 12's command queue.
+
+	ThrowIfFailed(D3D11On12CreateDevice(
+		dxDevice.Get(),
+		D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+		nullptr,
+		0,
+		reinterpret_cast<IUnknown**>(commandQueueDirect.GetAddressOf()),
+		1,
+		0,
+		&d3d11Device,
+		&d3d11DeviceContext,
+		nullptr
+	));
+
+	// Query the 11On12 device from the 11 device.
+	ThrowIfFailed(d3d11Device.As(&d3d11On12Device));
+
+	D2D1_FACTORY_OPTIONS d2dFactoryOptions = {};
+	d2dFactoryOptions.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
+
+	D2D1_DEVICE_CONTEXT_OPTIONS deviceOptions = D2D1_DEVICE_CONTEXT_OPTIONS_NONE;
+	ThrowIfFailed(
+		D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory3), &d2dFactoryOptions, &d2dFactory));
+
+	ThrowIfFailed(d3d11On12Device.As(&dxgiDevice));
+
+	ThrowIfFailed(d2dFactory->CreateDevice(dxgiDevice.Get(), &d2dDevice));
+
+	ThrowIfFailed(d2dDevice->CreateDeviceContext(deviceOptions, &d2dContext));
+
+	ThrowIfFailed(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &d2dWriteFactory));
+
+	d2dContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow), &d2dBrush);
+
+	
+
+	ThrowIfFailed(d2dWriteFactory->CreateTextFormat(L"Gabriola", nullptr,
+		DWRITE_FONT_WEIGHT_REGULAR,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		72.0f,
+		L"en-us",
+		&d2dTextFormat));
+
+	ThrowIfFailed(d2dWriteFactory->CreateTextFormat(L"Comic Sans MS", nullptr,
+		DWRITE_FONT_WEIGHT_REGULAR,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		36.0f,
+		L"en-us",
+		&d2dTextFormatSans));
+}
+
 void D3DApp::CreateSwapChain()
 {	
 	swapChain.Reset();
@@ -742,7 +847,7 @@ void D3DApp::CalculateFrameStats()
 		float fps = (float)frameCnt; // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
-		wstring fpsStr = to_wstring(fps);
+		fpsStr = to_wstring(fps);
 		wstring mspfStr = to_wstring(mspf);
 
 		wstring windowText = mainWindowCaption +

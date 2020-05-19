@@ -12,9 +12,10 @@
 #include "PSO.h"
 #include "RootSignature.h"
 
+
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
-using namespace DirectX::PackedVector;
+using namespace PackedVector;
 
 
 
@@ -39,6 +40,7 @@ private:
     virtual void OnResize()override;
     void AnimatedMaterial(const GameTimer& gt);
     virtual void Update(const GameTimer& gt)override;
+    void RenderUI();
     virtual void Draw(const GameTimer& gt)override;
 
     void UpdateGameObjects(const GameTimer& gt);
@@ -68,10 +70,11 @@ private:
     FrameResource* currentFrameResource = nullptr;
     int currentFrameResourceIndex = 0;
 
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandListAllocator;
-	
-    ComPtr<ID3D12DescriptorHeap> shaderTextureViewDescriptorHeap = nullptr;
+    
+    D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
 
+
+	
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
     std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;

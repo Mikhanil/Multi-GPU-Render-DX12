@@ -12,11 +12,24 @@
 
 // Link necessary d3d12 libraries.
 #pragma comment(lib,"d3dcompiler.lib")
+
+#pragma comment(lib, "d2d1.lib")
+#pragma comment(lib,"dwrite.lib")
+#pragma comment(lib,"d3d11.lib")
+
 #pragma comment(lib, "D3D12.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "RuntimeObject.lib")
 
+
+#include "d2d1_3.h"
+#include "dwrite.h"
+
+#include "d3d11on12.h"
+#include "d3d11.h"
+
+using Microsoft::WRL::ComPtr;
 class D3DApp
 {
 protected:
@@ -54,7 +67,8 @@ protected:
     virtual void Draw(const GameTimer& gt) = 0;
 
 protected:
-    	
+
+    std::wstring fpsStr;
     std::wstring mainWindowCaption = L"d3d App";
     D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
     DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -80,6 +94,9 @@ protected:
     Keyboard keyboard;
 
     Mouse mouse;
+
+  
+	
 	
     bool InitMainWindow();
 
@@ -109,6 +126,25 @@ protected:
     UINT rtvDescriptorSize = 0;
     UINT dsvDescriptorSize = 0;
     UINT cbvSrvUavDescriptorSize = 0;
+
+    ComPtr<ID3D11Device> d3d11Device;
+    ComPtr<ID3D11On12Device> d3d11On12Device;
+    ComPtr<ID3D11DeviceContext> d3d11DeviceContext;
+    ComPtr<IDXGIDevice3> dxgiDevice;
+    ComPtr<IDWriteFactory> d2dWriteFactory;
+    ComPtr<IDWriteTextFormat> d2dTextFormat;
+    ComPtr<IDWriteTextFormat> d2dTextFormatSans;
+    ComPtr<ID2D1Factory3> d2dFactory;
+    ComPtr<ID2D1Device> d2dDevice;
+    ComPtr<ID2D1DeviceContext> d2dContext;
+    ComPtr<ID2D1SolidColorBrush> d2dBrush;
+    ComPtr<IDWriteTextLayout> d2dTextLayout;
+    ComPtr<ID3D11Resource> wrappedBackBuffers[swapChainBufferCount];
+    ComPtr<IDXGISurface> d2dSurfaces[swapChainBufferCount];
+    ComPtr<ID2D1Bitmap1> d2dRenderTargets[swapChainBufferCount];
+
+    void InitializeD2D();
+
     void CreateSwapChain();
 
     void FlushCommandQueue();

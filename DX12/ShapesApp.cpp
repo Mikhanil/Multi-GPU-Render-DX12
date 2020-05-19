@@ -8,7 +8,7 @@
 #include "Reflected.h"
 #include "ObjectMover.h"
 #include "Shadow.h"
-
+#include "pix3.h"
 
 ShapesApp::ShapesApp(HINSTANCE hInstance)
 	: D3DApp(hInstance)
@@ -153,12 +153,12 @@ void ShapesApp::GeneratedMipMap()
 }
 
 
-
 bool ShapesApp::Initialize()
 {
+
 	if (!D3DApp::Initialize())
 		return false;
-
+	
 	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
 	LoadTextures();
 	ExecuteCommandList();
@@ -224,7 +224,7 @@ void ShapesApp::AnimatedMaterial(const GameTimer& gt)
 
 void ShapesApp::Update(const GameTimer& gt)
 {		
-	
+		
 	// Cycle through the circular frame resource array.
 	currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
 	currentFrameResource = frameResources[currentFrameResourceIndex].get();
@@ -245,8 +245,36 @@ void ShapesApp::Update(const GameTimer& gt)
 	
 }
 
+void ShapesApp::RenderUI()
+{
+	// Acquire our wrapped render target resource for the current back buffer.
+	d3d11On12Device->AcquireWrappedResources(wrappedBackBuffers[currBackBufferIndex].GetAddressOf(), 1);
+
+	// Render text directly to the back buffer.
+	d2dContext->SetTarget(d2dRenderTargets[currBackBufferIndex].Get());
+	d2dContext->BeginDraw();
+	d2dContext->SetTransform(D2D1::Matrix3x2F::Identity());	
+	d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+	d2dBrush->SetColor(D2D1::ColorF(D2D1::ColorF::WhiteSmoke));
+	d2dContext->DrawTextW(fpsStr.c_str(), fpsStr.length(), d2dTextFormat.Get(), &fpsRect, d2dBrush.Get());
+	ThrowIfFailed(d2dContext->EndDraw());
+
+	// Release our wrapped render target resource. Releasing 
+   // transitions the back buffer resource to the state specified
+   // as the OutState when the wrapped resource was created.
+	d3d11On12Device->ReleaseWrappedResources(wrappedBackBuffers[currBackBufferIndex].GetAddressOf(), 1);
+
+	// Flush to submit the 11 command list to the shared command queue.
+	d3d11DeviceContext->Flush();
+}
+
 void ShapesApp::Draw(const GameTimer& gt)
-{	
+{
+
+	if(isResizing) return;
+	
+	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render 3D");
+	
 	auto frameAlloc = currentFrameResource->commandListAllocator;
 
 	
@@ -309,20 +337,26 @@ void ShapesApp::Draw(const GameTimer& gt)
 	commandListDirect->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Shadow]);
 	
-	// Indicate a state transition on the resource usage.
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+	
+	/*Если рисуем UI то не нужно для текущего backBuffer переводить состояние
+	 * потому что после вызова d3d11DeviceContext->Flush() он сам его переведет
+	 */
+	/*commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));*/
 
 	ExecuteCommandList();
 
+	PIXEndEvent(commandQueueDirect.Get());
+
+	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render UI");
+	RenderUI();
+	PIXEndEvent(commandQueueDirect.Get());
 	
 	ThrowIfFailed(swapChain->Present(0, 0));
 	currBackBufferIndex = (currBackBufferIndex + 1) % swapChainBufferCount;
 
-	currentFrameResource->FenceValue = ++currentFence;
-
-	
-	commandQueueDirect->Signal(fence.Get(), currentFence);
+	currentFrameResource->FenceValue = ++currentFence;	
+	commandQueueDirect->Signal(fence.Get(), currentFence);	
 }
 
 void ShapesApp::UpdateGameObjects(const GameTimer& gt)
@@ -1297,7 +1331,6 @@ void ShapesApp::BuildPSOs()
 	mirrorDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
 	mirrorDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	// We are not rendering backfacing polygons, so these settings do not matter.
 	mirrorDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
