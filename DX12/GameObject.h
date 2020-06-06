@@ -3,9 +3,9 @@
 #include "Transform.h"
 #include "Renderer.h"
 
-
 class GameObject
 {
+	
 public:
 
 	GameObject(ID3D12Device* device);
@@ -30,6 +30,9 @@ public:
 
 protected:
 
+	ObjectConstants bufferConstant{};
+	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectWorldPositionBuffer = nullptr;
+	
 	std::vector<Component*> components;
 	std::unique_ptr<Transform> transform = nullptr;
 	Renderer* renderer = nullptr;

@@ -1,7 +1,14 @@
 #include "Material.h"
 #include "PSO.h"
 
-PSO* Material::GetPSO()
+UINT Material::materialIndexGlobal = 0;
+
+MaterialConstants& Material::GetMaterialConstantData()
+{
+	return matConstants;
+}
+
+PSO* Material::GetPSO() const
 {
 	return pso;
 }
@@ -9,40 +16,28 @@ PSO* Material::GetPSO()
 void Material::SetDiffuseTexture(Texture* texture)
 {
 	textures[0] = texture;
+	DiffuseMapIndex = texture->GetTextureIndex();
 }
 
 Material::Material( std::string name, PSO* pso): Name(std::move(name)), pso(pso)
-{	
+{
+	materialIndex = materialIndexGlobal++;
 }
 
 
-void Material::InitMaterial(ID3D12Device* device)
-{	
-	if (materialViewDescriptorHeap != nullptr) materialViewDescriptorHeap->Release();
+void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureHeap)
+{		
 
-	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);	
 
-	materialBuffer = std::make_unique<ConstantBuffer<MaterialConstants>>(device, 1);
-	//
-	// Create the SRV heap.
-	//		
-	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = textures.size();
-	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	ThrowIfFailed(device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&materialViewDescriptorHeap)));
-
-
-	//
-	// Fill out the heap with actual descriptors.
-	//
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(materialViewDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-
+	gpuTextureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(textureHeap->GetGPUDescriptorHandleForHeapStart(), this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
+	cpuTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap->GetCPUDescriptorHandleForHeapStart(), this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
+	
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	
-	
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;	
 
+
+	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
 	for (int i = 0; i < textures.size(); ++i)
 	{
 		auto desc = textures[i]->GetResource()->GetDesc();
@@ -79,23 +74,21 @@ void Material::InitMaterial(ID3D12Device* device)
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			};
 		}
-		device->CreateShaderResourceView(textures[i]->GetResource(), &srvDesc, hDescriptor);
-		hDescriptor.Offset(1, cbvSrvUavDescriptorSize);
+		device->CreateShaderResourceView(textures[i]->GetResource(), &srvDesc, cpuTextureHandle);
 	}
+
+	
 }
 
 void Material::Draw(ID3D12GraphicsCommandList* cmdList) const
 {
-	cmdList->SetGraphicsRootConstantBufferView(3, materialBuffer->Resource()->GetGPUVirtualAddress());
-
-	cmdList->SetDescriptorHeaps(1, materialViewDescriptorHeap.GetAddressOf());
-
-	CD3DX12_GPU_DESCRIPTOR_HANDLE tex(materialViewDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
-	for (int i = 0; i < textures.size(); ++i)
+	
+	//TODO: Спросить у Павла, можно ли как-то это обойти, как получилось с билбордами деревьев, через привязку одного большого массива текстур, а дальше в зависимости от индекса и шейдера работать с текстурой как с текстурой нужного мне типа (Texture2DArray, TextureCube)
+	const auto psoType = pso->GetType();
+	if(psoType == PsoType::SkyBox )
 	{
-		tex.Offset(i, cbvSrvUavDescriptorSize);
-		cmdList->SetGraphicsRootDescriptorTable(0, tex);		
-	}
+		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::DiffuseTexture, gpuTextureHandle);
+	}	
 }
 
 void Material::Update()
@@ -106,10 +99,8 @@ void Material::Update()
 		matConstants.FresnelR0 = FresnelR0;
 		matConstants.Roughness = Roughness;
 		XMStoreFloat4x4(&matConstants.MaterialTransform, XMMatrixTranspose(XMLoadFloat4x4(&MatTransform)));
-
-		materialBuffer->CopyData(0, matConstants);
-
-		// Next FrameResource need to be updated too.
+		matConstants.DiffuseMapIndex = DiffuseMapIndex;
+		
 		NumFramesDirty--;
 	}
 }

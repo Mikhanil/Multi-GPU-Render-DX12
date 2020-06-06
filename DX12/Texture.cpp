@@ -8,9 +8,17 @@
 using namespace std::filesystem;
 using namespace DirectX;
 
+UINT Texture::textureIndexGlobal = 0;
+
+UINT Texture::GetTextureIndex() const
+{
+	return textureIndex;
+}
+
 Texture::Texture(std::string name, std::wstring filename, TextureUsage use):
 	Filename(std::move(filename)), Name(std::move(name)), usage(use)
 {
+	textureIndex = textureIndexGlobal++;
 }
 
 
@@ -87,10 +95,10 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	}
 
 	/*Пока выключил гамма корекцию.*/
-	//if (usage == TextureUsage::Albedo)
-	//{	
-	//	metadata.format = GetTypelessFormat(metadata.format); // MakeSRGB(metadata.format);
-	//}
+	/*if (usage == TextureUsage::Albedo && filePath.extension() != ".dds")
+	{	
+		metadata.format = MakeSRGB(metadata.format); 
+	}*/
 
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Width = static_cast<UINT>(metadata.width);
@@ -116,7 +124,7 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
-	ThrowIfFailed(PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), metadata,
+	ThrowIfFailed(PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
 		subresources));
 
 	if (directxResource)

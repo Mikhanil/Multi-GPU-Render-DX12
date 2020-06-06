@@ -6,7 +6,7 @@ Renderer::Renderer(): Component()
 
 void Renderer::Update()
 {
-	Material->Update();	
+	//Material->Update();	
 }
 
 void Renderer::Draw(ID3D12GraphicsCommandList* cmdList)

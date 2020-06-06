@@ -37,7 +37,9 @@ Camera* ShapesApp::GetMainCamera() const
 }
 
 void ShapesApp::GeneratedMipMap()
-{	
+{
+	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
+	
 	UINT requiredHeapSize = 0;
 
 	std::vector<Texture*> generatedMipTextures;
@@ -150,6 +152,9 @@ void ShapesApp::GeneratedMipMap()
 
 		
 	}
+
+	ExecuteCommandList();
+	FlushCommandQueue();
 }
 
 
@@ -159,15 +164,10 @@ bool ShapesApp::Initialize()
 	if (!D3DApp::Initialize())
 		return false;
 	
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
-	LoadTextures();
-	ExecuteCommandList();
-	FlushCommandQueue();
 	
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
+	LoadTextures();	
 	GeneratedMipMap();
-	ExecuteCommandList();
-	FlushCommandQueue();
+	
 	
 	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));	
 	BuildShadersAndInputLayout();
@@ -240,9 +240,24 @@ void ShapesApp::Update(const GameTimer& gt)
 	}
 
 	AnimatedMaterial(gt);
+	UpdateMaterial(gt);
 	UpdateGameObjects(gt);
 	UpdateGlobalCB(gt);
 	
+}
+
+void ShapesApp::UpdateMaterial(const GameTimer& gt)
+{
+	auto currentMaterialBuffer = currentFrameResource->MaterialBuffer.get();
+
+	for (auto && material : materials)
+	{
+		material.second->Update();
+		auto constantData = material.second->GetMaterialConstantData();
+		currentMaterialBuffer->CopyData(material.second->GetIndex(), constantData);
+	}
+	
+	//currentPassCB->CopyData(0, mainPassCB);
 }
 
 void ShapesApp::RenderUI()
@@ -298,15 +313,29 @@ void ShapesApp::Draw(const GameTimer& gt)
 	
 
 	commandListDirect->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
-		
+	ID3D12DescriptorHeap* descriptorHeaps[] = { textureSRVHeap.Get() };	
+	commandListDirect->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
+	// set as a root descriptor.
+	auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
+	commandListDirect->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
+
+	
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();	
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-	commandListDirect->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
 
+	/*Даем отрисовать скайсферу с ее текстурными ресурсами*/
 	commandListDirect->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::SkyBox]);
 
+
+	/*Подключаем все текстуры*/
+	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::DiffuseTexture, textureSRVHeap->GetGPUDescriptorHandleForHeapStart());
+	
+	
 	commandListDirect->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Opaque]);
 
@@ -315,18 +344,18 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 	commandListDirect->SetPipelineState(psos[PsoType::AlphaSprites]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::AlphaSprites]);
-	
+		
 	commandListDirect->OMSetStencilRef(1);
 	commandListDirect->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Mirror]);
 
 
-	commandListDirect->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
+	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
 	commandListDirect->SetPipelineState(psos[PsoType::Reflection]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Reflection]);
 
 
-	commandListDirect->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
+	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
 	commandListDirect->OMSetStencilRef(0);
 
 
@@ -361,13 +390,7 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 void ShapesApp::UpdateGameObjects(const GameTimer& gt)
 {
-	const float dt = gt.DeltaTime();
-
-	//XMVECTOR shadowPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
-	//XMVECTOR toMainLight = -XMLoadFloat3(&mainPassCB.Lights[0].Direction);
-	//XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
-	//XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);
-	//shadowSkull->GetTransform()->SetWorldMatrix(skull->GetTransform()->GetWorldMatrix() * S * shadowOffsetY);
+	const float dt = gt.DeltaTime();	
 	
 	for (auto& e : gameObjects)
 	{
@@ -436,7 +459,9 @@ void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
 }
 
 void ShapesApp::LoadTextures()
-{	
+{
+	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
+	
 	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks.dds");
 	bricksTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[bricksTex->GetName()] = std::move(bricksTex);
@@ -473,6 +498,16 @@ void ShapesApp::LoadTextures()
 	seamless->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[seamless->GetName()] = std::move(seamless);
 
+	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+	srvHeapDesc.NumDescriptors = textures.size();
+	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ThrowIfFailed(dxDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&textureSRVHeap)));
+
+	
+	
+	ExecuteCommandList();
+	FlushCommandQueue();
 }
 
 void ShapesApp::BuildShadersAndInputLayout()
@@ -529,7 +564,7 @@ void ShapesApp::BuildShadersAndInputLayout()
 	rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);	
 	rootSignature->AddConstantBufferParameter(0);
 	rootSignature->AddConstantBufferParameter(1);
-	rootSignature->AddConstantBufferParameter(2);
+	rootSignature->AddShaderResourceView(0, 1);
 
 	rootSignature->Initialize(dxDevice.Get());
 }
@@ -997,7 +1032,7 @@ void ShapesApp::BuildMaterials()
 	
 	for (auto && pair : materials)
 	{
-		pair.second->InitMaterial(dxDevice.Get());
+		pair.second->InitMaterial(dxDevice.Get(), textureSRVHeap.Get());
 	}
 }
 
@@ -1040,33 +1075,8 @@ void ShapesApp::BuildGameObjects()
 	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
 	light->Strength({ 0.6f, 0.6f, 0.6f });
 	sun1->AddComponent(light);
-
-	auto wallsRitem = std::make_unique<GameObject>(dxDevice.Get(), "Wall");
-	wallsRitem->GetTransform()->SetPosition(Vector3::Backward * 12);
-	renderer = new Renderer();
-	renderer->Material = materials["bricks"].get();
-	renderer->Mesh = meshes["roomGeo"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["wall"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["wall"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["wall"].BaseVertexLocation;
-	wallsRitem->AddComponent(renderer);
-	typedGameObjects[(int)PsoType::Opaque].push_back(wallsRitem.get());
-	gameObjects.push_back(std::move(wallsRitem));
-
-	auto mirrorRitem = std::make_unique<GameObject>(dxDevice.Get(), "Mirror");
-	mirrorRitem->GetTransform()->SetPosition(Vector3::Backward * 12);
-	renderer = new Renderer();
-	renderer->Mesh = meshes["roomGeo"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["mirror"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["mirror"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["mirror"].BaseVertexLocation;
-	renderer->Material = materials["mirror"].get();
-	mirrorRitem->AddComponent(renderer);
-	typedGameObjects[(int)PsoType::Mirror].push_back(mirrorRitem.get());
-	typedGameObjects[(int)PsoType::Transparent].push_back(mirrorRitem.get());
-	gameObjects.push_back(std::move(mirrorRitem));
+	gameObjects.push_back(std::move(sun1));
+	
 	
 	auto sphere = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
 	sphere->GetTransform()->SetPosition(Vector3{ 0,1,-3 } + Vector3::Backward );
@@ -1083,43 +1093,7 @@ void ShapesApp::BuildGameObjects()
 	player = sphere.get();
 	typedGameObjects[(int)PsoType::Opaque].push_back(sphere.get());
 	gameObjects.push_back(std::move(sphere));
-
-	// Reflected skull will have different world matrix, so it needs to be its own render item.
-	auto reflectedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "SkullReflect");
-	auto reflected = new Reflected(player->GetComponent<Renderer>());
-	reflected->mirrorPlane.w += -12;
-	reflectedSkullRitem->AddComponent(reflected);
 	
-	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedSkullRitem.get());
-	gameObjects.push_back(std::move(reflectedSkullRitem));
-
-	
-
-	// Shadowed skull will have different world matrix, so it needs to be its own render item.
-	auto shadowedSkullRitem = std::make_unique<GameObject>(dxDevice.Get(), "Skull Shadow");
-	renderer = new Shadow(player->GetTransform(),sun1->GetComponent<Light>());
-	renderer->Mesh = meshes["shapeMesh"].get();
-	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
-	renderer->Material = materials["shadow"].get();
-	shadowedSkullRitem->AddComponent(renderer);
-	typedGameObjects[(int)PsoType::Shadow].push_back(shadowedSkullRitem.get());
-	
-
-	auto reflectedShadowRitem = std::make_unique<GameObject>(dxDevice.Get(), "ShadowReflect");
-	reflected = new Reflected(shadowedSkullRitem->GetComponent<Renderer>());
-	reflected->mirrorPlane.w += -12;
-	reflectedShadowRitem->AddComponent(reflected);
-	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedShadowRitem.get());
-	gameObjects.push_back(std::move(reflectedShadowRitem));
-	gameObjects.push_back(std::move(shadowedSkullRitem));
-
-	
-	
-
-	gameObjects.push_back(std::move(sun1));
 	
 	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
@@ -1177,14 +1151,7 @@ void ShapesApp::BuildGameObjects()
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["grid"].BaseVertexLocation;
 	XMStoreFloat4x4(&renderer->Material->MatTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));	
 	grid->AddComponent(renderer);
-	typedGameObjects[PsoType::Opaque].push_back(grid.get());
-	
-	auto reflectedflorRitem = std::make_unique<GameObject>(dxDevice.Get(), "FloorReflect");
-	reflected = new Reflected(grid->GetComponent<Renderer>());
-	reflected->mirrorPlane.w += -12;
-	reflectedflorRitem->AddComponent(reflected);
-	typedGameObjects[(int)PsoType::Reflection].push_back(reflectedflorRitem.get());
-	gameObjects.push_back(std::move(reflectedflorRitem));
+	typedGameObjects[PsoType::Opaque].push_back(grid.get());	
 	gameObjects.push_back(std::move(grid));
 
 	const XMMATRIX brickTexTransform = XMMatrixScaling(1.0f, 1.0f, 1.0f);

@@ -18,6 +18,10 @@ struct ObjectData
 {
     float4x4 World;
     float4x4 TexTransform;
+    uint materialIndex;
+    uint gObjPad0;
+    uint gObjPad1;
+    uint gObjPad2;
 };
 
 ConstantBuffer<ObjectData> objectBuffer : register(b0);
@@ -57,6 +61,14 @@ struct MaterialData
     float3 FresnelR0;
     float Roughness;
     float4x4 MatTransform;
+    uint DiffuseMapIndex;
+    uint MatPad0;
+    uint MatPad1;
+    uint MatPad2;
 };
 
-ConstantBuffer<MaterialData> materialBuffer : register(b2);
+// Put in space1, so the texture array does not overlap with these resources.  
+// The texture array will occupy registers t0, t1, ..., t3 in space0. 
+StructuredBuffer<MaterialData> materialData : register(t0, space1);
+
+//ConstantBuffer<MaterialData> materialBuffer : register(b2);

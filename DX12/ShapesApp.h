@@ -8,6 +8,7 @@
 #include <map>
 #include "ModelRenderer.h"
 #include "Camera.h"
+#include "Light.h"
 #include "Shader.h"
 #include "PSO.h"
 #include "RootSignature.h"
@@ -40,6 +41,7 @@ private:
     virtual void OnResize()override;
     void AnimatedMaterial(const GameTimer& gt);
     virtual void Update(const GameTimer& gt)override;
+    void UpdateMaterial(const GameTimer& gt);
     void RenderUI();
     virtual void Draw(const GameTimer& gt)override;
 
@@ -74,6 +76,7 @@ private:
     D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
 
 
+    ComPtr<ID3D12DescriptorHeap> textureSRVHeap = nullptr;
 	
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;

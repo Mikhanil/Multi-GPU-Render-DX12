@@ -95,6 +95,20 @@ void RootSignature::AddConstantParameter(UINT value, UINT shaderRegister, UINT r
 	AddParameter(slotParameter);
 }
 
+void RootSignature::AddShaderResourceView(UINT shaderRegister, UINT registerSpace, D3D12_SHADER_VISIBILITY visibility)
+{
+	CD3DX12_ROOT_PARAMETER slotParameter;
+	slotParameter.InitAsShaderResourceView(shaderRegister, registerSpace, visibility);
+	AddParameter(slotParameter);
+}
+
+void RootSignature::AddUnorderedAccessView(UINT shaderRegister, UINT registerSpace, D3D12_SHADER_VISIBILITY visibility)
+{
+	CD3DX12_ROOT_PARAMETER slotParameter;
+	slotParameter.InitAsUnorderedAccessView(shaderRegister, registerSpace, visibility);
+	AddParameter(slotParameter);
+}
+
 void RootSignature::AddStaticSampler(const CD3DX12_STATIC_SAMPLER_DESC sampler)
 {
 	staticSampler.push_back(sampler);

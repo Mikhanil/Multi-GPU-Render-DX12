@@ -1,6 +1,6 @@
 #include "Common.hlsl"
 
-Texture2D gDiffuseMap : register(t0);
+Texture2D diffuseMaps[] : register(t0);
 
 
 SamplerState gsamPointWrap : register(s0);
@@ -41,15 +41,16 @@ VertexOut VS(VertexIn vin)
 	
     
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), objectBuffer.TexTransform);
-    vout.TexC = mul(texC, materialBuffer.MatTransform).xy;
+    vout.TexC = mul(texC, materialData[objectBuffer.materialIndex].MatTransform).
+    xy;
 	
     return vout;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
-
-    float4 diffuseAlbedo = gDiffuseMap.Sample(gsamAnisotropicWrap, pin.TexC) * materialBuffer.DiffuseAlbedo;
+    MaterialData materialBuffer = materialData[objectBuffer.materialIndex];
+    float4 diffuseAlbedo = diffuseMaps[materialBuffer.DiffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC) * materialBuffer.DiffuseAlbedo;
     
 #ifdef ALPHA_TEST	
 	clip(diffuseAlbedo.a - 0.1f);

@@ -4,12 +4,6 @@
 #include "DirectXBuffers.h"
 using namespace DirectX::SimpleMath;
 
-struct ObjectConstants
-{
-	DirectX::XMFLOAT4X4 World = Matrix::Identity;
-	DirectX::XMFLOAT4X4 TextureTransform = Matrix::CreateScale(Vector3::One);
-};
-
 
 class Transform :	public Component
 {
@@ -41,7 +35,12 @@ public:
 	[[nodiscard]] Vector3 GetEulerAngels() const;;
 
 	Matrix TextureTransform = Matrix::CreateScale(Vector3::One);
+	Matrix worldTranspose;
 
+	bool IsDirty()
+	{
+		return NumFramesDirty > 0;
+	}
 
 	void Update() override;;
 	void Draw(ID3D12GraphicsCommandList* cmdList) override;;
@@ -77,7 +76,6 @@ private:
 
 	UINT bufferIndex = -1;	
 	int NumFramesDirty = globalCountFrameResources;
-	ObjectConstants bufferConstant{};
 
 	Vector3 position = Vector3::Zero;
 
@@ -86,7 +84,7 @@ private:
 	Quaternion rotate = Quaternion::Identity;
 	Vector3 scale = Vector3::One;
 
-	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectWorldPositionBuffer = nullptr;
+	
 	
 };
 

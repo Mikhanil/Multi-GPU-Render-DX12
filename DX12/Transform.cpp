@@ -4,8 +4,7 @@
 UINT Transform::gConstantBufferIndex = 0;
 
 Transform::Transform( ID3D12Device* device, Vector3 pos, Quaternion rot, Vector3 scale): Component(), position(pos), rotate(rot), scale(scale)
-{
-	objectWorldPositionBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(device, 1);
+{	
 	bufferIndex = gConstantBufferIndex++;
 }
 
@@ -18,16 +17,14 @@ void Transform::Update()
 {
 	if (NumFramesDirty > 0)
 	{
-		bufferConstant.TextureTransform = TextureTransform.Transpose();
-		bufferConstant.World = world.Transpose();
-		objectWorldPositionBuffer->CopyData(0, bufferConstant);
+		 worldTranspose = world.Transpose();
 		NumFramesDirty--;
 	}
 }
 
 void Transform::Draw(ID3D12GraphicsCommandList* cmdList)
 {
-	cmdList->SetGraphicsRootConstantBufferView(1, objectWorldPositionBuffer->Resource()->GetGPUVirtualAddress());
+	
 }
 
 void Transform::SetParent(Transform* transform)
@@ -37,7 +34,8 @@ void Transform::SetParent(Transform* transform)
 
 Vector3 Transform::GetBackwardVector() const
 {
-	auto v = Vector3{bufferConstant.World._13, bufferConstant.World._23, bufferConstant.World._33};
+	
+	auto v = Vector3{ worldTranspose._13, worldTranspose._23, worldTranspose._33};
 	v.Normalize();
 	return v;
 }
@@ -49,7 +47,7 @@ Vector3 Transform::GetForwardVector() const
 
 Vector3 Transform::GetLeftVector() const
 {
-	auto v = Vector3{bufferConstant.World._11, bufferConstant.World._21, bufferConstant.World._31};
+	auto v = Vector3{ worldTranspose._11, worldTranspose._21, worldTranspose._31};
 	v.Normalize();
 	return v;
 }
@@ -61,7 +59,7 @@ Vector3 Transform::GetRightVector() const
 
 Vector3 Transform::GetUpVector() const
 {
-	auto v = Vector3{bufferConstant.World._12, bufferConstant.World._22, bufferConstant.World._32};
+	auto v = Vector3{ worldTranspose._12, worldTranspose._22, worldTranspose._32};
 	v.Normalize();
 	return v;
 }

@@ -2,26 +2,19 @@
 
 #include "d3dUtil.h"
 #include "DirectXBuffers.h"
+#include "ShaderBuffersData.h"
 #include "Texture.h"
 
 class PSO;
 using namespace Microsoft::WRL;
 
-struct MaterialConstants
-{
-	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-	DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
-	float Roughness = 0.25f;
-
-	// Used in texture mapping.
-	DirectX::XMFLOAT4X4 MaterialTransform = MathHelper::Identity4x4();
-};
 
 class Material
 {
-	std::unique_ptr<ConstantBuffer<MaterialConstants>> materialBuffer = nullptr;
-	ComPtr<ID3D12DescriptorHeap> materialViewDescriptorHeap;
-	
+	static UINT materialIndexGlobal;
+
+	UINT materialIndex = -1;
+		
 	std::string Name;
 	PSO* pso = nullptr;
 
@@ -30,22 +23,34 @@ class Material
 	UINT NumFramesDirty = globalCountFrameResources;
 	UINT cbvSrvUavDescriptorSize = 0;
 
-	std::vector<Texture*> textures{ 1 };	
+	std::vector<Texture*> textures{ 1 };
+
+	UINT DiffuseMapIndex = -1;
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE gpuTextureHandle;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE cpuTextureHandle;
 
 public:
 
+	MaterialConstants& GetMaterialConstantData();
+
+	UINT GetIndex() const
+	{
+		return materialIndex;
+	}
+	
 	void SetDirty()
 	{
 		NumFramesDirty = globalCountFrameResources;
 	}
 	
-	PSO* GetPSO();
+	PSO* GetPSO() const;
 
 	void SetDiffuseTexture(Texture* texture);
 
 	Material(std::string name, PSO* pso);	
 
-	void InitMaterial(ID3D12Device* device);
+	void InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureHeap);
 		
 	void Draw(ID3D12GraphicsCommandList* cmdList) const;
 

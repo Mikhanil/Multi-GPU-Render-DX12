@@ -26,6 +26,12 @@ public:
 
 	void AddConstantParameter(UINT value, UINT shaderRegister, UINT registerSpace = 0,
 	                          D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+	
+	void AddShaderResourceView(UINT shaderRegister, UINT registerSpace = 0,
+	                           D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
+
+	void AddUnorderedAccessView(UINT shaderRegister, UINT registerSpace = 0,
+	                            D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
 
 	void AddStaticSampler(const CD3DX12_STATIC_SAMPLER_DESC sampler);
 	void AddStaticSampler(D3D12_STATIC_SAMPLER_DESC sampler);;

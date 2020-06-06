@@ -15,6 +15,10 @@ enum class TextureUsage
 
 class Texture
 {
+    static UINT textureIndexGlobal;
+
+    UINT textureIndex = -1;
+	
 	std::wstring Filename;
 	std::string Name;
 	Microsoft::WRL::ComPtr<ID3D12Resource> directxResource = nullptr;
@@ -28,6 +32,8 @@ class Texture
     Microsoft::WRL::ComPtr < ID3D12DescriptorHeap> UAVdescriptorHeap;
 
 public:
+
+    UINT GetTextureIndex() const;
 
 	Texture(std::string name, std::wstring filename, TextureUsage use = TextureUsage::Diffuse);
 	static DXGI_FORMAT GetUAVCompatableFormat(DXGI_FORMAT format);
