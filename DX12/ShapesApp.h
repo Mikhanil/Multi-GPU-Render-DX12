@@ -12,6 +12,7 @@
 #include "Shader.h"
 #include "PSO.h"
 #include "RootSignature.h"
+#include "ShadowMap.h"
 
 
 using Microsoft::WRL::ComPtr;
@@ -40,14 +41,19 @@ public:
 private:
     virtual void OnResize()override;
     void AnimatedMaterial(const GameTimer& gt);
+    void UpdateShadowTransform(const GameTimer& gt);
+    void UpdateShadowPassCB(const GameTimer& gt);
     virtual void Update(const GameTimer& gt)override;
     void UpdateMaterial(const GameTimer& gt);
     void RenderUI();
+    void DrawSceneToShadowMap();
     virtual void Draw(const GameTimer& gt)override;
 
     void UpdateGameObjects(const GameTimer& gt);
     void UpdateGlobalCB(const GameTimer& gt);
 
+    void CreateRtvAndDsvDescriptorHeaps() override;
+	
     void LoadTextures();
     void BuildShadersAndInputLayout();
     void BuildShapeGeometry();
@@ -77,6 +83,7 @@ private:
 
 
     ComPtr<ID3D12DescriptorHeap> textureSRVHeap = nullptr;
+    ComPtr<ID3D12DescriptorHeap> normalSRVHeap = nullptr;
 	
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
@@ -100,7 +107,31 @@ private:
     GameObject* player;
 	
     PassConstants mainPassCB;
-    PassConstants reflectedPassCB;
+    //PassConstants reflectedPassCB;
+    PassConstants mShadowPassCB;
+
+    float mLightNearZ = 0.0f;
+    float mLightFarZ = 0.0f;
+    Vector3 mLightPosW;
+    Matrix mLightView = Matrix::Identity;
+    Matrix mLightProj = Matrix::Identity;
+    Matrix mShadowTransform = Matrix::Identity;
+
+    UINT mShadowMapHeapIndex = 0;
+    	
+	
+    float mLightRotationAngle = 0.0f;
+    Vector3 mBaseLightDirections[3] = {
+        Vector3(0.57735f, -0.57735f, 0.57735f),
+        Vector3(-0.57735f, -0.57735f, 0.57735f),
+        Vector3(0.0f, -0.707f, -0.707f)
+    };
+    Vector3 mRotatedLightDirections[3];
+
+	
+    std::unique_ptr<ShadowMap> mShadowMap;
+
+    DirectX::BoundingSphere mSceneBounds;
 
     UINT passCbvOffset = 0;
 

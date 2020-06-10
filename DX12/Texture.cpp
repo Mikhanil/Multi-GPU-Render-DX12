@@ -2,6 +2,7 @@
 #include "DirectXTex.h"
 #include "filesystem"
 #include "DDSTextureLoader.h"
+#include "WICTextureLoader.h"
 #include "ResourceUploadBatch.h"
 #include <winrt/base.h>
 
@@ -9,6 +10,11 @@ using namespace std::filesystem;
 using namespace DirectX;
 
 UINT Texture::textureIndexGlobal = 0;
+
+TextureUsage Texture::GetTextureType() const
+{
+	return usage;
+}
 
 UINT Texture::GetTextureIndex() const
 {
@@ -51,32 +57,47 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 {
 	if (isLoaded) return;
 
-	winrt::init_apartment();
 	
-	//DirectX::ResourceUploadBatch upload(device);
-	//upload.Begin();
 
-	//ThrowIfFailed(DirectX::CreateDDSTextureFromFile(device,
-	//	upload, Filename.c_str(), directxResource.GetAddressOf()));
-
-
-	//// Upload the resources to the GPU.
-	//upload.End(queue).wait();
-	
 	path filePath(Filename);
 	if (!exists(filePath))
 	{
 		assert("File not found.");
 	}
 
+
+	//winrt::init_apartment();
+
+	//DirectX::ResourceUploadBatch upload(device);
+	//upload.Begin();
+	//
+	//if (filePath.extension() == ".dds")
+	//{
+
+	//	ThrowIfFailed(DirectX::CreateDDSTextureFromFile(device,
+	//		upload, Filename.c_str(), directxResource.GetAddressOf()));
+	//}
+	//else
+	//{
+	//	DirectX::CreateWICTextureFromFile(device, upload, Filename.c_str(), directxResource.GetAddressOf(), true);
+	//}
+	//
+
+	//// Upload the resources to the GPU.
+	//upload.End(queue).wait();
+
+	//isLoaded = true;
+	//return;
+
 	TexMetadata metadata;
 	ScratchImage scratchImage;
 
+	
 	UINT resFlags = D3D12_RESOURCE_FLAG_NONE;
 	
 	if (filePath.extension() == ".dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(Filename.c_str(), DDS_FLAGS_FORCE_RGB , &metadata, scratchImage));
+		ThrowIfFailed(LoadFromDDSFile(Filename.c_str(), DDS_FLAGS_NONE , &metadata, scratchImage));
 	}
 	else if (filePath.extension() == ".hdr")
 	{
@@ -161,6 +182,192 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	isLoaded = true;
 }
 
+void Texture::ClearTrack()
+{
+	track.clear();
+}
+
+bool Texture::IsUAVCompatibleFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+	case DXGI_FORMAT_R32G32B32A32_UINT:
+	case DXGI_FORMAT_R32G32B32A32_SINT:
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+	case DXGI_FORMAT_R16G16B16A16_UINT:
+	case DXGI_FORMAT_R16G16B16A16_SINT:
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UINT:
+	case DXGI_FORMAT_R8G8B8A8_SINT:
+	case DXGI_FORMAT_R32_FLOAT:
+	case DXGI_FORMAT_R32_UINT:
+	case DXGI_FORMAT_R32_SINT:
+	case DXGI_FORMAT_R16_FLOAT:
+	case DXGI_FORMAT_R16_UINT:
+	case DXGI_FORMAT_R16_SINT:
+	case DXGI_FORMAT_R8_UNORM:
+	case DXGI_FORMAT_R8_UINT:
+	case DXGI_FORMAT_R8_SINT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool Texture::IsSRGBFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool Texture::IsBGRFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool Texture::IsDepthFormat(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+	case DXGI_FORMAT_D32_FLOAT:
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+	case DXGI_FORMAT_D16_UNORM:
+		return true;
+	default:
+		return false;
+	}
+}
+
+DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
+{
+	DXGI_FORMAT typelessFormat = format;
+
+	switch (format)
+	{
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+	case DXGI_FORMAT_R32G32B32A32_UINT:
+	case DXGI_FORMAT_R32G32B32A32_SINT:
+		typelessFormat = DXGI_FORMAT_R32G32B32A32_TYPELESS;
+		break;
+	case DXGI_FORMAT_R32G32B32_FLOAT:
+	case DXGI_FORMAT_R32G32B32_UINT:
+	case DXGI_FORMAT_R32G32B32_SINT:
+		typelessFormat = DXGI_FORMAT_R32G32B32_TYPELESS;
+		break;
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+	case DXGI_FORMAT_R16G16B16A16_UNORM:
+	case DXGI_FORMAT_R16G16B16A16_UINT:
+	case DXGI_FORMAT_R16G16B16A16_SNORM:
+	case DXGI_FORMAT_R16G16B16A16_SINT:
+		typelessFormat = DXGI_FORMAT_R16G16B16A16_TYPELESS;
+		break;
+	case DXGI_FORMAT_R32G32_FLOAT:
+	case DXGI_FORMAT_R32G32_UINT:
+	case DXGI_FORMAT_R32G32_SINT:
+		typelessFormat = DXGI_FORMAT_R32G32_TYPELESS;
+		break;
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+		typelessFormat = DXGI_FORMAT_R32G8X24_TYPELESS;
+		break;
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+	case DXGI_FORMAT_R10G10B10A2_UINT:
+		typelessFormat = DXGI_FORMAT_R10G10B10A2_TYPELESS;
+		break;
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_R8G8B8A8_UINT:
+	case DXGI_FORMAT_R8G8B8A8_SNORM:
+	case DXGI_FORMAT_R8G8B8A8_SINT:
+		typelessFormat = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+		break;
+	case DXGI_FORMAT_R16G16_FLOAT:
+	case DXGI_FORMAT_R16G16_UNORM:
+	case DXGI_FORMAT_R16G16_UINT:
+	case DXGI_FORMAT_R16G16_SNORM:
+	case DXGI_FORMAT_R16G16_SINT:
+		typelessFormat = DXGI_FORMAT_R16G16_TYPELESS;
+		break;
+	case DXGI_FORMAT_D32_FLOAT:
+	case DXGI_FORMAT_R32_FLOAT:
+	case DXGI_FORMAT_R32_UINT:
+	case DXGI_FORMAT_R32_SINT:
+		typelessFormat = DXGI_FORMAT_R32_TYPELESS;
+		break;
+	case DXGI_FORMAT_R8G8_UNORM:
+	case DXGI_FORMAT_R8G8_UINT:
+	case DXGI_FORMAT_R8G8_SNORM:
+	case DXGI_FORMAT_R8G8_SINT:
+		typelessFormat = DXGI_FORMAT_R8G8_TYPELESS;
+		break;
+	case DXGI_FORMAT_R16_FLOAT:
+	case DXGI_FORMAT_D16_UNORM:
+	case DXGI_FORMAT_R16_UNORM:
+	case DXGI_FORMAT_R16_UINT:
+	case DXGI_FORMAT_R16_SNORM:
+	case DXGI_FORMAT_R16_SINT:
+		typelessFormat = DXGI_FORMAT_R16_TYPELESS;
+	case DXGI_FORMAT_R8_UNORM:
+	case DXGI_FORMAT_R8_UINT:
+	case DXGI_FORMAT_R8_SNORM:
+	case DXGI_FORMAT_R8_SINT:
+		typelessFormat = DXGI_FORMAT_R8_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC1_UNORM:
+	case DXGI_FORMAT_BC1_UNORM_SRGB:
+		typelessFormat = DXGI_FORMAT_BC1_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC2_UNORM:
+	case DXGI_FORMAT_BC2_UNORM_SRGB:
+		typelessFormat = DXGI_FORMAT_BC2_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC3_UNORM:
+	case DXGI_FORMAT_BC3_UNORM_SRGB:
+		typelessFormat = DXGI_FORMAT_BC3_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC4_UNORM:
+	case DXGI_FORMAT_BC4_SNORM:
+		typelessFormat = DXGI_FORMAT_BC4_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC5_UNORM:
+	case DXGI_FORMAT_BC5_SNORM:
+		typelessFormat = DXGI_FORMAT_BC5_TYPELESS;
+		break;
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		typelessFormat = DXGI_FORMAT_B8G8R8A8_TYPELESS;
+		break;
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+		typelessFormat = DXGI_FORMAT_B8G8R8X8_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC6H_UF16:
+	case DXGI_FORMAT_BC6H_SF16:
+		typelessFormat = DXGI_FORMAT_BC6H_TYPELESS;
+		break;
+	case DXGI_FORMAT_BC7_UNORM:
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
+		typelessFormat = DXGI_FORMAT_BC7_TYPELESS;
+		break;
+	}
+
+	return typelessFormat;
+}
 
 
 ID3D12Resource* Texture::GetResource() const

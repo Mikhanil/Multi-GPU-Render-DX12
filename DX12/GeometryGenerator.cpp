@@ -376,102 +376,6 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 	return meshData;
 }
 
-GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(int LatLines, int LongLines)
-{
-	MeshData meshData;
-	
-	double NumSphereVertices = ((LatLines - 2) * LongLines) + 2;
-	double NumSphereFaces = ((LatLines - 3) * (LongLines) * 2) + (LongLines * 2);
-
-	float sphereYaw = 0.0f;
-	float spherePitch = 0.0f;
-
-	meshData.Vertices.resize(NumSphereVertices);
-
-	XMVECTOR currVertPos = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-
-	meshData.Vertices[0].Position.x = 0.0f;
-	meshData.Vertices[0].Position.y = 0.0f;
-	meshData.Vertices[0].Position.z = 1.0f;
-
-	for (size_t i = 0; i < LatLines - 2; ++i)
-	{
-		spherePitch = (i + 1) * (3.14 / (LatLines - 1));
-		auto Rotationx = XMMatrixRotationX(spherePitch);
-		for (size_t j = 0; j < LongLines; ++j)
-		{
-			sphereYaw = j * (6.28 / (LongLines));
-			auto Rotationy = XMMatrixRotationZ(sphereYaw);
-			currVertPos = XMVector3TransformNormal(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), (Rotationx * Rotationy));
-			currVertPos = XMVector3Normalize(currVertPos);
-			meshData.Vertices[i * LongLines + j + 1].Position.x = XMVectorGetX(currVertPos);
-			meshData.Vertices[i * LongLines + j + 1].Position.y = XMVectorGetY(currVertPos);
-			meshData.Vertices[i * LongLines + j + 1].Position.z = XMVectorGetZ(currVertPos);
-		}
-	}
-
-	meshData.Vertices[NumSphereVertices - 1].Position.x = 0.0f;
-	meshData.Vertices[NumSphereVertices - 1].Position.y = 0.0f;
-	meshData.Vertices[NumSphereVertices - 1].Position.z = -1.0f;
-	
-
-	meshData.Indices32.resize(NumSphereFaces * 3);
-
-	int k = 0;
-	for (size_t l = 0; l < LongLines - 1; ++l)
-	{
-		meshData.Indices32[k] = 0;
-		meshData.Indices32[k + 1] = l + 1;
-		meshData.Indices32[k + 2] = l + 2;
-		k += 3;
-	}
-
-	meshData.Indices32[k] = 0;
-	meshData.Indices32[k + 1] = LongLines;
-	meshData.Indices32[k + 2] = 1;
-	k += 3;
-
-	for (size_t i = 0; i < LatLines - 3; ++i)
-	{
-		for (size_t j = 0; j < LongLines - 1; ++j)
-		{
-			meshData.Indices32[k] = i * LongLines + j + 1;
-			meshData.Indices32[k + 1] = i * LongLines + j + 2;
-			meshData.Indices32[k + 2] = (i + 1) * LongLines + j + 1;
-
-			meshData.Indices32[k + 3] = (i + 1) * LongLines + j + 1;
-			meshData.Indices32[k + 4] = i * LongLines + j + 2;
-			meshData.Indices32[k + 5] = (i + 1) * LongLines + j + 2;
-
-			k += 6; // next quad
-		}
-
-		meshData.Indices32[k] = (i * LongLines) + LongLines;
-		meshData.Indices32[k + 1] = (i * LongLines) + 1;
-		meshData.Indices32[k + 2] = ((i + 1) * LongLines) + LongLines;
-
-		meshData.Indices32[k + 3] = ((i + 1) * LongLines) + LongLines;
-		meshData.Indices32[k + 4] = (i * LongLines) + 1;
-		meshData.Indices32[k + 5] = ((i + 1) * LongLines) + 1;
-
-		k += 6;
-	}
-
-	for (size_t l = 0; l < LongLines - 1; ++l)
-	{
-		meshData.Indices32[k] = NumSphereVertices - 1;
-		meshData.Indices32[k + 1] = (NumSphereVertices - 1) - (l + 1);
-		meshData.Indices32[k + 2] = (NumSphereVertices - 1) - (l + 2);
-		k += 3;
-	}
-
-	meshData.Indices32[k] = NumSphereVertices - 1;
-	meshData.Indices32[k + 1] = (NumSphereVertices - 1) - LongLines;
-	meshData.Indices32[k + 2] = NumSphereVertices - 2;
-
-	return meshData;
-}
-
 GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount)
 {
 	MeshData meshData;
@@ -745,6 +649,102 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, floa
 	meshData.Indices32[3] = 0;
 	meshData.Indices32[4] = 2;
 	meshData.Indices32[5] = 3;
+
+	return meshData;
+}
+
+GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(int LatLines, int LongLines)
+{
+	MeshData meshData;
+
+	double NumSphereVertices = ((LatLines - 2) * LongLines) + 2;
+	double NumSphereFaces = ((LatLines - 3) * (LongLines) * 2) + (LongLines * 2);
+
+	float sphereYaw = 0.0f;
+	float spherePitch = 0.0f;
+
+	meshData.Vertices.resize(NumSphereVertices);
+
+	XMVECTOR currVertPos = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+	meshData.Vertices[0].Position.x = 0.0f;
+	meshData.Vertices[0].Position.y = 0.0f;
+	meshData.Vertices[0].Position.z = 1.0f;
+
+	for (size_t i = 0; i < LatLines - 2; ++i)
+	{
+		spherePitch = (i + 1) * (3.14 / (LatLines - 1));
+		auto Rotationx = XMMatrixRotationX(spherePitch);
+		for (size_t j = 0; j < LongLines; ++j)
+		{
+			sphereYaw = j * (6.28 / (LongLines));
+			auto Rotationy = XMMatrixRotationZ(sphereYaw);
+			currVertPos = XMVector3TransformNormal(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), (Rotationx * Rotationy));
+			currVertPos = XMVector3Normalize(currVertPos);
+			meshData.Vertices[i * LongLines + j + 1].Position.x = XMVectorGetX(currVertPos);
+			meshData.Vertices[i * LongLines + j + 1].Position.y = XMVectorGetY(currVertPos);
+			meshData.Vertices[i * LongLines + j + 1].Position.z = XMVectorGetZ(currVertPos);
+		}
+	}
+
+	meshData.Vertices[NumSphereVertices - 1].Position.x = 0.0f;
+	meshData.Vertices[NumSphereVertices - 1].Position.y = 0.0f;
+	meshData.Vertices[NumSphereVertices - 1].Position.z = -1.0f;
+
+
+	meshData.Indices32.resize(NumSphereFaces * 3);
+
+	int k = 0;
+	for (size_t l = 0; l < LongLines - 1; ++l)
+	{
+		meshData.Indices32[k] = 0;
+		meshData.Indices32[k + 1] = l + 1;
+		meshData.Indices32[k + 2] = l + 2;
+		k += 3;
+	}
+
+	meshData.Indices32[k] = 0;
+	meshData.Indices32[k + 1] = LongLines;
+	meshData.Indices32[k + 2] = 1;
+	k += 3;
+
+	for (size_t i = 0; i < LatLines - 3; ++i)
+	{
+		for (size_t j = 0; j < LongLines - 1; ++j)
+		{
+			meshData.Indices32[k] = i * LongLines + j + 1;
+			meshData.Indices32[k + 1] = i * LongLines + j + 2;
+			meshData.Indices32[k + 2] = (i + 1) * LongLines + j + 1;
+
+			meshData.Indices32[k + 3] = (i + 1) * LongLines + j + 1;
+			meshData.Indices32[k + 4] = i * LongLines + j + 2;
+			meshData.Indices32[k + 5] = (i + 1) * LongLines + j + 2;
+
+			k += 6; // next quad
+		}
+
+		meshData.Indices32[k] = (i * LongLines) + LongLines;
+		meshData.Indices32[k + 1] = (i * LongLines) + 1;
+		meshData.Indices32[k + 2] = ((i + 1) * LongLines) + LongLines;
+
+		meshData.Indices32[k + 3] = ((i + 1) * LongLines) + LongLines;
+		meshData.Indices32[k + 4] = (i * LongLines) + 1;
+		meshData.Indices32[k + 5] = ((i + 1) * LongLines) + 1;
+
+		k += 6;
+	}
+
+	for (size_t l = 0; l < LongLines - 1; ++l)
+	{
+		meshData.Indices32[k] = NumSphereVertices - 1;
+		meshData.Indices32[k + 1] = (NumSphereVertices - 1) - (l + 1);
+		meshData.Indices32[k + 2] = (NumSphereVertices - 1) - (l + 2);
+		k += 3;
+	}
+
+	meshData.Indices32[k] = NumSphereVertices - 1;
+	meshData.Indices32[k + 1] = (NumSphereVertices - 1) - LongLines;
+	meshData.Indices32[k + 2] = NumSphereVertices - 2;
 
 	return meshData;
 }

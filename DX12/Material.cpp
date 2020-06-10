@@ -38,11 +38,11 @@ void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureH
 
 
 	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
-	for (int i = 0; i < textures.size(); ++i)
+	if (textures[0])
 	{
-		auto desc = textures[i]->GetResource()->GetDesc();
+		auto desc = textures[0]->GetResource()->GetDesc();
 
-		if(i == 0)
+		if(textures[0])
 		{
 			srvDesc.Format = GetSRGBFormat(desc.Format);
 		}
@@ -74,9 +74,19 @@ void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureH
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			};
 		}
-		device->CreateShaderResourceView(textures[i]->GetResource(), &srvDesc, cpuTextureHandle);
+		device->CreateShaderResourceView(textures[0]->GetResource(), &srvDesc, cpuTextureHandle);
 	}
 
+	if(normalMap)
+	{
+		srvDesc.Format = normalMap->GetResource()->GetDesc().Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+		srvDesc.Texture2D.MipLevels = normalMap->GetResource()->GetDesc().MipLevels;
+		auto cpuNormalMapTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap->GetCPUDescriptorHandleForHeapStart(), NormalMapIndex, cbvSrvUavDescriptorSize);
+		device->CreateShaderResourceView(normalMap->GetResource(), &srvDesc, cpuNormalMapTextureHandle);
+	}
 	
 }
 
@@ -87,7 +97,7 @@ void Material::Draw(ID3D12GraphicsCommandList* cmdList) const
 	const auto psoType = pso->GetType();
 	if(psoType == PsoType::SkyBox )
 	{
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::DiffuseTexture, gpuTextureHandle);
+		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
 	}	
 }
 
@@ -100,6 +110,7 @@ void Material::Update()
 		matConstants.Roughness = Roughness;
 		XMStoreFloat4x4(&matConstants.MaterialTransform, XMMatrixTranspose(XMLoadFloat4x4(&MatTransform)));
 		matConstants.DiffuseMapIndex = DiffuseMapIndex;
+		matConstants.NormalMapIndex = NormalMapIndex;
 		
 		NumFramesDirty--;
 	}

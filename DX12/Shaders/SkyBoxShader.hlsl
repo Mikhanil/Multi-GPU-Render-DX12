@@ -1,22 +1,11 @@
 
 #include "Common.hlsl"
 
-TextureCube SkyMap : register(t0);
 
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-SamplerState gsamCubeTextureWrap : register(s6);
-
-
-
-struct SkyMapOut
+struct VertexOut
 {
-    float4 Pos : SV_POSITION;
-    float3 texCoord : TEXCOORD;
+    float4 PosH : SV_POSITION;
+    float3 PosL : POSITION;
 };
 
 struct VertexIn
@@ -27,19 +16,36 @@ struct VertexIn
 };
 
 
-SkyMapOut SKYMAP_VS(VertexIn vin)
+VertexOut SKYMAP_VS(VertexIn vin)
 {
-    SkyMapOut output = (SkyMapOut) 0;
 
-    //Set Pos to xyww instead of xyzw, so that z will always be 1 (furthest from camera)
-    output.Pos = mul(mul(float4(vin.PosL, 1.0f), objectBuffer.World), worldBuffer.ViewProj).xyww;
+    VertexOut vout;
 
-    output.texCoord = vin.PosL;
+	// Use local vertex position as cubemap lookup vector.
+    vout.PosL = vin.PosL;
+	
+	// Transform to world space.
+    float4 posW = mul(float4(vin.PosL, 1.0f), objectBuffer.World);
 
-    return output;
+	// Always center sky about camera.
+    posW.xyz += worldBuffer.EyePosW;
+
+	// Set z = w so that z/w = 1 (i.e., skydome always on far plane).
+    vout.PosH = mul(posW, worldBuffer.ViewProj).xyww;
+	
+    return vout;
+	
+    //SkyMapOut output = (SkyMapOut) 0;
+
+    ////Set Pos to xyww instead of xyzw, so that z will always be 1 (furthest from camera)
+    //output.Pos = mul(mul(float4(vin.PosL, 1.0f), objectBuffer.World), worldBuffer.ViewProj).xyww;
+
+    //output.texCoord = vin.PosL;
+
+    //return output;
 }
 
-float4 SKYMAP_PS(SkyMapOut input) : SV_Target
+float4 SKYMAP_PS(VertexOut pin) : SV_Target
 {
-    return SkyMap.Sample(gsamCubeTextureWrap, input.texCoord);
+    return SkyMap.Sample(gsamLinearWrap, pin.PosL);
 }

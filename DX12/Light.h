@@ -11,22 +11,8 @@ private:
     int NumFramesDirty = globalCountFrameResources;
     LightData lightData{};
 
-	void Update() override
-	{
-        if (NumFramesDirty > 0)
-        {
-            lightData.Strength = strength;
-            lightData.FalloffEnd = falloffEnd;
-            lightData.FalloffStart = falloffStart;
-            lightData.Position = gameObject->GetTransform()->GetPosition();
-            lightData.SpotPower = spotPower;
-            lightData.Direction = direction;
-
-            NumFramesDirty--;
-        }
-       
-	};
-    void Draw(ID3D12GraphicsCommandList* cmdList) override {};
+	void Update() override;;
+	void Draw(ID3D12GraphicsCommandList* cmdList) override;;
 	
     DirectX::XMFLOAT3 strength = { 0.5f, 0.5f, 0.5f };
     DirectX::XMFLOAT3 direction = { 0, 0, 0 };
@@ -34,69 +20,36 @@ private:
     float falloffEnd = 10.0f;
     float spotPower = 64.0f;
     LightType type;
+
+	Matrix view = Matrix::Identity;
+	Matrix projection = Matrix::Identity;
 	
 public:
-
-    LightData GetData() const { return  lightData; }
 	
-    LightType Type() const
-    {
-        return type;
-    }
-	
-    Light(LightType type = LightType::Directional) : type(type) {};
+	LightData GetData() const;
 
-    DirectX::XMFLOAT3 Direction() const { return direction; }
+	LightType Type() const;
 
-	void Direction(DirectX::XMFLOAT3 direct)
-    {
-        direction = direct;
-        NumFramesDirty = globalCountFrameResources;
-    }
-	
-    DirectX::XMFLOAT3 Strength() const
-    {
-	    return strength;
-    }
-	
-	void Strength(DirectX::XMFLOAT3 strength)
-    {
-        this->strength = strength;
-        NumFramesDirty = globalCountFrameResources;
-    }
-	
-    void FalloffStart(float start)
-    {
-        falloffStart = start;
-        NumFramesDirty = globalCountFrameResources;
-    }
-	
-	float FalloffStart() const
-	{
-        return falloffStart;
-    }
+	Light(LightType type = LightType::Directional);;
 
-	void FalloffEnd(float end)
-    {
-        falloffEnd = end;
-        NumFramesDirty = globalCountFrameResources;
-    }
-	
-	float FalloffEnd() const
-	{
-        return falloffEnd;
-    }
+	DirectX::XMFLOAT3 Direction() const;
 
-	void SpotPower(float power)
-    {
-        spotPower = power;
-        NumFramesDirty = globalCountFrameResources;
-    }
+	void Direction(DirectX::XMFLOAT3 direct);
 
-	float SpotPower() const
-	{
-        return spotPower;
-    }
+	DirectX::XMFLOAT3 Strength() const;
 
+	void Strength(DirectX::XMFLOAT3 strength);
+
+	void FalloffStart(float start);
+
+	float FalloffStart() const;
+
+	void FalloffEnd(float end);
+
+	float FalloffEnd() const;
+
+	void SpotPower(float power);
+
+	float SpotPower() const;
 };
 

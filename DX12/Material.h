@@ -25,7 +25,10 @@ class Material
 
 	std::vector<Texture*> textures{ 1 };
 
+	Texture* normalMap = nullptr;
+	
 	UINT DiffuseMapIndex = -1;
+	UINT NormalMapIndex = -1;
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE gpuTextureHandle;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE cpuTextureHandle;
@@ -46,6 +49,12 @@ public:
 	
 	PSO* GetPSO() const;
 
+	void SetNormalMap(Texture* texture)
+	{
+		normalMap = texture;
+		NormalMapIndex = texture->GetTextureIndex();
+	}
+	
 	void SetDiffuseTexture(Texture* texture);
 
 	Material(std::string name, PSO* pso);	

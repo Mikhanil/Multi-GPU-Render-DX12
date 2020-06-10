@@ -1,16 +1,7 @@
 #include "Common.hlsl"
 
-Texture2D diffuseMaps[] : register(t0);
 
-//Texture2DArray gTreeMapArray : register(t0);
-
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-
+//Texture2DArray gTreeMapArray : register(t1);
  
 struct VertexIn
 {
@@ -109,7 +100,7 @@ float4 PS(GeoOut pin) : SV_Target
     float3 uvw = float3(pin.TexC, pin.PrimID % 3);
 	/*загрузили все текстуры как один большой массив, по этому идексу лежит Texture2DArray
 	 *поэтому Общаемся с текстурой как с массивом текстур. POG*/
-    float4 diffuseAlbedo = diffuseMaps[materialBuffer.DiffuseMapIndex].Sample(gsamAnisotropicWrap, uvw) * materialBuffer.DiffuseAlbedo;
+    float4 diffuseAlbedo = texturesMaps[materialBuffer.DiffuseMapIndex].Sample(gsamAnisotropicWrap, uvw) * materialBuffer.DiffuseAlbedo;
 	
 #ifdef ALPHA_TEST
 	// Discard pixel if texture alpha < 0.1.  We do this test as soon 

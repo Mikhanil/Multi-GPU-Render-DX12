@@ -13,6 +13,8 @@
 ShapesApp::ShapesApp(HINSTANCE hInstance)
 	: D3DApp(hInstance)
 {
+	mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	mSceneBounds.Radius = sqrtf(10.0f * 10.0f + 15.0f * 15.0f);
 }
 
 ShapesApp::~ShapesApp()
@@ -164,6 +166,9 @@ bool ShapesApp::Initialize()
 	if (!D3DApp::Initialize())
 		return false;
 	
+	mShadowMap = std::make_unique<ShadowMap>(
+		dxDevice.Get(), 2048, 2048);
+
 	
 	LoadTextures();	
 	GeneratedMipMap();
@@ -222,6 +227,76 @@ void ShapesApp::AnimatedMaterial(const GameTimer& gt)
 	waterMat->SetDirty();
 }
 
+void ShapesApp::UpdateShadowTransform(const GameTimer& gt)
+{
+	// Only the first "main" light casts a shadow.
+	Vector3 lightDir = mRotatedLightDirections[0];
+	Vector3 lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+	Vector3 targetPos = mSceneBounds.Center;
+	Vector3 lightUp = Vector3::Up ;
+	Matrix lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
+
+	mLightPosW = lightPos;
+	
+
+	// Transform bounding sphere to light space.
+	Vector3 sphereCenterLS = Vector3::Transform(targetPos, lightView);
+	
+
+	// Ortho frustum in light space encloses scene.
+	float l = sphereCenterLS.x - mSceneBounds.Radius;
+	float b = sphereCenterLS.y - mSceneBounds.Radius;
+	float n = sphereCenterLS.z - mSceneBounds.Radius;
+	float r = sphereCenterLS.x + mSceneBounds.Radius;
+	float t = sphereCenterLS.y + mSceneBounds.Radius;
+	float f = sphereCenterLS.z + mSceneBounds.Radius;
+
+	mLightNearZ = n;
+	mLightFarZ = f;
+	Matrix lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+	Matrix T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f);
+
+	Matrix S = lightView * lightProj * T;
+	mLightView = lightView;
+	mLightProj = lightProj;
+	mShadowTransform =S;
+}
+
+void ShapesApp::UpdateShadowPassCB(const GameTimer& gt)
+{
+	auto view = mLightView;
+	auto proj = mLightProj ;
+
+	auto viewProj = (view * proj);
+	auto invView = view.Invert();
+	auto invProj = proj.Invert(); 
+	auto invViewProj = viewProj.Invert();
+
+	UINT w = mShadowMap->Width();
+	UINT h = mShadowMap->Height();
+
+	mShadowPassCB.View = view.Transpose();
+	mShadowPassCB.InvView = invView.Transpose();
+	mShadowPassCB.Proj = proj.Transpose();
+	mShadowPassCB.InvProj = invProj.Transpose();
+	mShadowPassCB.ViewProj = viewProj.Transpose(); 
+	mShadowPassCB.InvViewProj = invViewProj.Transpose();
+	mShadowPassCB.EyePosW = mLightPosW;
+	mShadowPassCB.RenderTargetSize = Vector2((float)w, (float)h);
+	mShadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
+	mShadowPassCB.NearZ = mLightNearZ;
+	mShadowPassCB.FarZ = mLightFarZ;
+
+	auto currPassCB = currentFrameResource->PassConstantBuffer.get();
+	currPassCB->CopyData(1, mShadowPassCB);
+}
+
 void ShapesApp::Update(const GameTimer& gt)
 {		
 		
@@ -239,11 +314,25 @@ void ShapesApp::Update(const GameTimer& gt)
 		CloseHandle(eventHandle);
 	}
 
-	AnimatedMaterial(gt);
-	UpdateMaterial(gt);
-	UpdateGameObjects(gt);
-	UpdateGlobalCB(gt);
+	mLightRotationAngle += 0.1f * gt.DeltaTime();
+
+	Matrix R = Matrix::CreateRotationY(mLightRotationAngle);
+	for (int i = 0; i < 3; ++i)
+	{
+		auto lightDir = mBaseLightDirections[i];
+		lightDir = Vector3::TransformNormal(lightDir, R);
+		mRotatedLightDirections[i] = lightDir;
+	}
+
 	
+	
+
+	AnimatedMaterial(gt);
+	UpdateGameObjects(gt);
+	UpdateMaterial(gt);
+	UpdateShadowTransform(gt);
+	UpdateGlobalCB(gt);
+	UpdateShadowPassCB(gt);
 }
 
 void ShapesApp::UpdateMaterial(const GameTimer& gt)
@@ -256,8 +345,6 @@ void ShapesApp::UpdateMaterial(const GameTimer& gt)
 		auto constantData = material.second->GetMaterialConstantData();
 		currentMaterialBuffer->CopyData(material.second->GetIndex(), constantData);
 	}
-	
-	//currentPassCB->CopyData(0, mainPassCB);
 }
 
 void ShapesApp::RenderUI()
@@ -283,9 +370,41 @@ void ShapesApp::RenderUI()
 	d3d11DeviceContext->Flush();
 }
 
+void ShapesApp::DrawSceneToShadowMap()
+{
+	commandListDirect->RSSetViewports(1, &mShadowMap->Viewport());
+	commandListDirect->RSSetScissorRects(1, &mShadowMap->ScissorRect());
+
+	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
+	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
+
+	commandListDirect->ClearDepthStencilView(mShadowMap->Dsv(),
+		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	commandListDirect->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
+
+	// Bind the pass constant buffer for the shadow map pass.
+	auto passCB = currentFrameResource->PassConstantBuffer->Resource();
+	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
+	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
+
+	commandListDirect->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
+
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[PsoType::Opaque]);
+
+	commandListDirect->SetPipelineState(psos[PsoType::AlphaDrop]->GetPSO().Get());
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[PsoType::AlphaDrop]);
+
+	
+	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ));
+}
+
 void ShapesApp::Draw(const GameTimer& gt)
 {
-
+		
 	if(isResizing) return;
 	
 	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render 3D");
@@ -297,6 +416,28 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 
 	ThrowIfFailed(commandListDirect->Reset(frameAlloc.Get(), psos[PsoType::SkyBox]->GetPSO().Get()));
+	
+	ID3D12DescriptorHeap* descriptorHeaps[] = { textureSRVHeap.Get() };
+	commandListDirect->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	
+	commandListDirect->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
+
+	
+	auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
+	commandListDirect->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
+
+
+	
+	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::ShadowMap, CD3DX12_GPU_DESCRIPTOR_HANDLE(textureSRVHeap->GetGPUDescriptorHandleForHeapStart(), mShadowMapHeapIndex, cbvSrvUavDescriptorSize));
+
+	
+	/*Подключаем все текстуры*/
+	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::DiffuseTexture, textureSRVHeap->GetGPUDescriptorHandleForHeapStart());
+
+
+
+	DrawSceneToShadowMap();
+	
 	
 	commandListDirect->RSSetViewports(1, &screenViewport);
 	commandListDirect->RSSetScissorRects(1, &scissorRect);
@@ -311,75 +452,45 @@ void ShapesApp::Draw(const GameTimer& gt)
 	commandListDirect->OMSetRenderTargets(1, &GetCurrentBackBufferView(), true, &GetDepthStencilView());
 
 	
-
-	commandListDirect->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
-	ID3D12DescriptorHeap* descriptorHeaps[] = { textureSRVHeap.Get() };	
-	commandListDirect->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-
-	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
-	// set as a root descriptor.
-	auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
-	commandListDirect->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
-
 	
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();	
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
 	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
 
+	CD3DX12_GPU_DESCRIPTOR_HANDLE shadowMapTexDesriptor(textureSRVHeap->GetGPUDescriptorHandleForHeapStart());
+	shadowMapTexDesriptor.Offset(mShadowMapHeapIndex, cbvSrvUavDescriptorSize);
+	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMapTexDesriptor);
+	
+
 	/*Даем отрисовать скайсферу с ее текстурными ресурсами*/
 	commandListDirect->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::SkyBox]);
-
-
-	/*Подключаем все текстуры*/
-	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::DiffuseTexture, textureSRVHeap->GetGPUDescriptorHandleForHeapStart());
-	
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::SkyBox]);	
 	
 	commandListDirect->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Opaque]);
 
 	commandListDirect->SetPipelineState(psos[PsoType::AlphaDrop]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::AlphaDrop]);
-
-	commandListDirect->SetPipelineState(psos[PsoType::AlphaSprites]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::AlphaSprites]);
-		
-	commandListDirect->OMSetStencilRef(1);
-	commandListDirect->SetPipelineState(psos[PsoType::Mirror]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Mirror]);
-
-
-	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
-	commandListDirect->SetPipelineState(psos[PsoType::Reflection]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Reflection]);
-
-
-	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
-	commandListDirect->OMSetStencilRef(0);
-
-
+	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::AlphaDrop]);		
+	
 	commandListDirect->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
 	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Transparent]);
 
-
-	commandListDirect->SetPipelineState(psos[PsoType::Shadow]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[(int)PsoType::Shadow]);
 	
 	
 	/*Если рисуем UI то не нужно для текущего backBuffer переводить состояние
 	 * потому что после вызова d3d11DeviceContext->Flush() он сам его переведет
 	 */
-	/*commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));*/
+	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
 
 	ExecuteCommandList();
 
 	PIXEndEvent(commandQueueDirect.Get());
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render UI");
+	/*PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render UI");
 	RenderUI();
-	PIXEndEvent(commandQueueDirect.Get());
+	PIXEndEvent(commandQueueDirect.Get());*/
 	
 	ThrowIfFailed(swapChain->Present(0, 0));
 	currBackBufferIndex = (currBackBufferIndex + 1) % swapChainBufferCount;
@@ -400,20 +511,22 @@ void ShapesApp::UpdateGameObjects(const GameTimer& gt)
 
 void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
 {
-	const XMMATRIX view = XMLoadFloat4x4(&camera->GetViewMatrix());
-	const XMMATRIX proj = XMLoadFloat4x4(&camera->GetProjectionMatrix());
+	auto view = camera->GetViewMatrix();
+	auto proj = camera->GetProjectionMatrix();
 
-	const XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	const XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
-	const XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
-	const XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+	auto viewProj = (view * proj);
+	auto invView = view.Invert();
+	auto invProj = proj.Invert();
+	auto invViewProj = viewProj.Invert();
+	 auto shadowTransform = (&mShadowTransform);
 
-	XMStoreFloat4x4(&mainPassCB.View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mainPassCB.InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&mainPassCB.Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&mainPassCB.InvProj, XMMatrixTranspose(invProj));
-	XMStoreFloat4x4(&mainPassCB.ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&mainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+	 mainPassCB.View = view.Transpose();
+	 mainPassCB.InvView = invView.Transpose();
+	 mainPassCB.Proj = proj.Transpose();
+	 mainPassCB.InvProj = invProj.Transpose();
+	 mainPassCB.ViewProj = viewProj.Transpose();
+	 mainPassCB.InvViewProj = invViewProj.Transpose();
+	mainPassCB.ShadowTransform = shadowTransform->Transpose();
 	mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetPosition();
 	mainPassCB.RenderTargetSize = XMFLOAT2((float)clientWidth, (float)clientHeight);
 	mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / clientWidth, 1.0f / clientHeight);
@@ -427,42 +540,80 @@ void ShapesApp::UpdateGlobalCB(const GameTimer& gt)
 	{
 		if (i < lights.size())
 		{
-			mainPassCB.Lights[i] = lights[i]->GetData();
+			mainPassCB.Lights[i] = lights[i]->GetData();			
+			
 		}
 		else
 		{
 			break;
 		}		
 	}
+
+	mainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
+	mainPassCB.Lights[0].Strength = { 0.9f, 0.8f, 0.7f };
+	mainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
+	mainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
+	mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
+	mainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
+
+
+	
+
+	
 	auto currentPassCB = currentFrameResource->PassConstantBuffer.get();
 	currentPassCB->CopyData(0, mainPassCB);
 
-	reflectedPassCB = mainPassCB;
+	//reflectedPassCB = mainPassCB;
 
-	XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
-	XMMATRIX R = XMMatrixReflect(mirrorPlane);
-
-
-	for (int i = 0; i < MaxLights; ++i)
-	{
-		if (i < lights.size())
-		{
-			XMVECTOR lightDir = XMLoadFloat3(&mainPassCB.Lights[i].Direction);
-			XMVECTOR reflectedLightDir = XMVector3TransformNormal(lightDir, R);
-			XMStoreFloat3(&reflectedPassCB.Lights[i].Direction, reflectedLightDir);
-		}
-		else { break; }
-	}
+	//XMVECTOR mirrorPlane = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f); // xy plane
+	//XMMATRIX R = XMMatrixReflect(mirrorPlane);
 
 
-	currentPassCB->CopyData(1, reflectedPassCB);
+	//for (int i = 0; i < MaxLights; ++i)
+	//{
+	//	if (i < lights.size())
+	//	{
+	//		XMVECTOR lightDir = XMLoadFloat3(&mainPassCB.Lights[i].Direction);
+	//		XMVECTOR reflectedLightDir = XMVector3TransformNormal(lightDir, R);
+	//		XMStoreFloat3(&reflectedPassCB.Lights[i].Direction, reflectedLightDir);
+	//	}
+	//	else { break; }
+	//}
+
+
+	//currentPassCB->CopyData(1, reflectedPassCB);
+
+
+
+	
+}
+
+void ShapesApp::CreateRtvAndDsvDescriptorHeaps()
+{
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+	rtvHeapDesc.NumDescriptors = swapChainBufferCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	rtvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(dxDevice->CreateDescriptorHeap(
+		&rtvHeapDesc, IID_PPV_ARGS(renderTargetViewHeap.GetAddressOf())));
+
+
+	//+1 для карты теней
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+	dsvHeapDesc.NumDescriptors = 2;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(dxDevice->CreateDescriptorHeap(
+		&dsvHeapDesc, IID_PPV_ARGS(depthStencilViewHeap.GetAddressOf())));
 }
 
 void ShapesApp::LoadTextures()
 {
 	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
 	
-	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks.dds");
+	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks2.dds");
 	bricksTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[bricksTex->GetName()] = std::move(bricksTex);
 	
@@ -498,11 +649,47 @@ void ShapesApp::LoadTextures()
 	seamless->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[seamless->GetName()] = std::move(seamless);
 
+
+	std::vector<std::string> texNormalNames =
+	{
+		"bricksNormalMap",
+		"tileNormalMap",
+		"defaultNormalMap"
+	};
+
+	std::vector<std::wstring> texNormalFilenames =
+	{
+		L"Data\\Textures\\bricks2_nmap.dds",
+		L"Data\\Textures\\tile_nmap.dds",
+		L"Data\\Textures\\default_nmap.dds"
+	};
+
+	for (int i = 0; i < texNormalNames.size(); ++i)
+	{
+		auto texture = std::make_unique<Texture>(texNormalNames[i], texNormalFilenames[i], TextureUsage::Normalmap);
+		texture->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
+		textures[texture->GetName()] = std::move(texture);
+	}
+	
+		
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = textures.size();
+	srvHeapDesc.NumDescriptors = textures.size() + 1;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(dxDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&textureSRVHeap)));
+	
+	mShadowMapHeapIndex = textures.size();
+		
+	
+	auto srvCpuStart = textureSRVHeap->GetCPUDescriptorHandleForHeapStart();
+	auto srvGpuStart = textureSRVHeap->GetGPUDescriptorHandleForHeapStart();
+	auto dsvCpuStart = depthStencilViewHeap->GetCPUDescriptorHandleForHeapStart();
+	
+
+	mShadowMap->BuildDescriptors(
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(srvCpuStart, mShadowMapHeapIndex, cbvSrvUavDescriptorSize),
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(srvGpuStart, mShadowMapHeapIndex, cbvSrvUavDescriptorSize),
+		CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvCpuStart, 1, dsvDescriptorSize));
 
 	
 	
@@ -527,6 +714,8 @@ void ShapesApp::BuildShadersAndInputLayout()
 	
 	shaders["StandardVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::VertexShader , nullptr, "VS", "vs_5_1"));
 	shaders["AlphaDrop"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+	shaders["shadowVS"] = std::move(std::make_unique<Shader>(L"Shaders\\Shadows.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+	shaders["shadowOpaquePS"] = std::move(std::make_unique<Shader>(L"Shaders\\Shadows.hlsl", PixelShader,nullptr, "PS", "ps_5_1"));
 	shaders["OpaquePixel"] = std::move(std::make_unique<Shader>(L"Shaders\\Default.hlsl", ShaderType::PixelShader, defines, "PS", "ps_5_1"));
 	shaders["SkyBoxVertex"] = std::move(std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", ShaderType::VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
 	shaders["SkyBoxPixel"] = std::move(std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", ShaderType::PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
@@ -547,6 +736,7 @@ void ShapesApp::BuildShadersAndInputLayout()
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 	};
 
 	treeSpriteInputLayout =
@@ -558,13 +748,18 @@ void ShapesApp::BuildShadersAndInputLayout()
 	
 	rootSignature = std::make_unique<RootSignature>();
 
-	CD3DX12_DESCRIPTOR_RANGE texParam[2];
-	texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE texParam[3];
+	texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+	texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+	texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, textures.size(), 2, 0);
 	
-	rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);	
+	
 	rootSignature->AddConstantBufferParameter(0);
 	rootSignature->AddConstantBufferParameter(1);
 	rootSignature->AddShaderResourceView(0, 1);
+	rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_ALL);
+	rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_ALL);
+	rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_ALL);
 
 	rootSignature->Initialize(dxDevice.Get());
 }
@@ -844,7 +1039,6 @@ XMFLOAT3 GetHillsNormal(float x, float z)
 	return n;
 }
 
-
 void ShapesApp::BuildLandGeometry()
 {
 	GeometryGenerator geoGen;
@@ -963,28 +1157,34 @@ void ShapesApp::BuildTreesGeometry()
 void ShapesApp::BuildMaterials()
 {
 	auto bricks0 = std::make_unique<Material>("bricks", psos[PsoType::Opaque].get());
-	bricks0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
-	bricks0->Roughness = 0.1f;
+	bricks0->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	bricks0->Roughness = 0.3f;
 	bricks0->SetDiffuseTexture(textures["bricksTex"].get());
+	bricks0->SetNormalMap(textures["bricksNormalMap"].get());	
 	materials[bricks0->GetName()] = std::move(bricks0);
 
 	auto seamless = std::make_unique<Material>("seamless", psos[PsoType::Opaque].get());
 	seamless->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 	seamless->Roughness = 0.1f;
 	seamless->SetDiffuseTexture(textures["seamless"].get());
+	seamless->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[seamless->GetName()] = std::move(seamless);
 
 	
 	auto stone0 = std::make_unique<Material>("stone0", psos[PsoType::Opaque].get());
-	stone0->FresnelR0 = XMFLOAT3(0.05f, 0.05f, 0.05f);
-	stone0->Roughness = 0.3f;
+	stone0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
+	stone0->Roughness = 0.1f;
+	stone0->DiffuseAlbedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
 	stone0->SetDiffuseTexture(textures["stoneTex"].get());
+	stone0->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[stone0->GetName()] = std::move(stone0);
 	
 	auto tile0 = std::make_unique<Material>("tile0", psos[PsoType::Opaque].get());
-	tile0->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
-	tile0->Roughness = 0.3f;
+	tile0->DiffuseAlbedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
+	tile0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
+	tile0->Roughness = 0.1f;
 	tile0->SetDiffuseTexture(textures["tileTex"].get());
+	tile0->SetNormalMap(textures["tileNormalMap"].get());
 	materials[tile0->GetName()] = std::move(tile0);
 
 	auto wirefence = std::make_unique<Material>( "wirefence", psos[ PsoType::AlphaDrop].get());
@@ -992,6 +1192,7 @@ void ShapesApp::BuildMaterials()
 	wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	wirefence->Roughness = 0.25f;
 	wirefence->SetDiffuseTexture(textures["fenceTex"].get());
+	wirefence->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[wirefence->GetName()] = std::move(wirefence);
 	
 	auto water = std::make_unique<Material>("water", psos[PsoType::Transparent].get());
@@ -999,6 +1200,7 @@ void ShapesApp::BuildMaterials()
 	water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	water->Roughness = 0.0f;
 	water->SetDiffuseTexture(textures["waterTex"].get());
+	water->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[water->GetName()] = std::move(water);
 
 	auto icemirror = std::make_unique<Material>("mirror", psos[PsoType::Mirror].get());
@@ -1006,6 +1208,7 @@ void ShapesApp::BuildMaterials()
 	icemirror->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.3f);
 	icemirror->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 	icemirror->Roughness = 0.5f;
+	icemirror->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[icemirror->GetName()] = std::move(icemirror);
 	
 
@@ -1014,12 +1217,16 @@ void ShapesApp::BuildMaterials()
 	shadowMat->SetDiffuseTexture(textures["bricksTex"].get());
 	shadowMat->FresnelR0 = XMFLOAT3(0.001f, 0.001f, 0.001f);
 	shadowMat->Roughness = 0.0f;
+	shadowMat->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[shadowMat->GetName()] = std::move(shadowMat);
 
 	
 	auto skyBox = std::make_unique<Material>("sky", psos[PsoType::SkyBox].get());
 	skyBox->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	skyBox->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	skyBox->Roughness = 1.0f;
 	skyBox->SetDiffuseTexture(textures["skyTex"].get());
+	skyBox->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[skyBox->GetName()] = std::move(skyBox);
 
 
@@ -1028,6 +1235,7 @@ void ShapesApp::BuildMaterials()
 	treeSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 	treeSprites->Roughness = 0.125f;
 	treeSprites->SetDiffuseTexture(textures["treeArrayTex"].get());
+	treeSprites->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[treeSprites->GetName()] = std::move(treeSprites);
 	
 	for (auto && pair : materials)
@@ -1058,7 +1266,7 @@ void ShapesApp::BuildGameObjects()
 	typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 	gameObjects.push_back(std::move(skySphere));
 
-	auto treeSpritesRitem = std::make_unique<GameObject>(dxDevice.Get(), "Trees");
+	/*auto treeSpritesRitem = std::make_unique<GameObject>(dxDevice.Get(), "Trees");
 	renderer = new Renderer();
 	renderer->Material = materials["treeSprites"].get();
 	renderer->Mesh = meshes["treeSpritesGeo"].get();
@@ -1068,12 +1276,12 @@ void ShapesApp::BuildGameObjects()
 	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["points"].BaseVertexLocation;
 	treeSpritesRitem->AddComponent(renderer);
 	typedGameObjects[(int)PsoType::AlphaSprites].push_back(treeSpritesRitem.get());
-	gameObjects.push_back(std::move(treeSpritesRitem));
+	gameObjects.push_back(std::move(treeSpritesRitem));*/
 	
 	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
-	auto light = new Light();	
+	auto light = new Light(Directional);	
 	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
-	light->Strength({ 0.6f, 0.6f, 0.6f });
+	light->Strength({ 0.8f, 0.8f, 0.8f });
 	sun1->AddComponent(light);
 	gameObjects.push_back(std::move(sun1));
 	
@@ -1098,14 +1306,14 @@ void ShapesApp::BuildGameObjects()
 	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({ -0.57735f, -0.57735f, 0.57735f });
-	light->Strength({ 0.3f, 0.3f, 0.3f });
+	light->Strength({ 0.4f, 0.4f, 0.4f });
 	sun2->AddComponent(light);
 	gameObjects.push_back(std::move(sun2));
 
 	auto sun3 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({ 0.0f, -0.707f, -0.707f });
-	light->Strength({ 0.15f, 0.15f, 0.15f });
+	light->Strength({ 0.2f, 0.2f, 0.2f });
 	sun3->AddComponent(light);
 	gameObjects.push_back(std::move(sun3));
 	
@@ -1227,7 +1435,7 @@ void ShapesApp::BuildFrameResources()
 {
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
-		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 2, gameObjects.size(), materials.size()));
+		frameResources.push_back(std::make_unique<FrameResource>(dxDevice.Get(), 3, gameObjects.size(), materials.size()));
 	}
 }
 
@@ -1256,7 +1464,10 @@ void ShapesApp::BuildPSOs()
 	D3D12_DEPTH_STENCIL_DESC skyBoxDSS = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	skyBoxDSS.DepthEnable = true;
 	skyBoxDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	skyBoxDSS.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	// Make sure the depth function is LESS_EQUAL and not just LESS.  
+	// Otherwise, the normalized depth values at z = 1 (NDC) will 
+	// fail the depth test if the depth buffer was cleared to 1.
+	skyBoxDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	skyBoxPSO->SetDepthStencilState(skyBoxDSS);
 	D3D12_RASTERIZER_DESC skyBoxRaster = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	skyBoxRaster.CullMode = D3D12_CULL_MODE_NONE;
@@ -1369,6 +1580,19 @@ void ShapesApp::BuildPSOs()
 	reflectionRasterState.CullMode = D3D12_CULL_MODE_NONE;
 	treeSprite->SetRasterizationState(treeSpriteRasterState);
 
+	auto shadowMapPSO = std::make_unique<PSO>(PsoType::Shadow);
+	shadowMapPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+	auto shadowMapRasterState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	shadowMapRasterState.DepthBias = 100000;
+	shadowMapRasterState.DepthBiasClamp = 0.0f;
+	shadowMapRasterState.SlopeScaledDepthBias = 1.0f;
+	shadowMapPSO->SetRasterizationState(shadowMapRasterState);
+	shadowMapPSO->SetShader(shaders["shadowVS"].get());
+	shadowMapPSO->SetShader(shaders["shadowOpaquePS"].get());
+	shadowMapPSO->SetRTVFormat(0,DXGI_FORMAT_UNKNOWN);
+	shadowMapPSO->SetRenderTargetsCount(0);
+	
+	
 	psos[opaquePSO->GetType()] = std::move(opaquePSO);
 	psos[transperentPSO->GetType()] = std::move(transperentPSO);
 	psos[shadowPSO->GetType()] = std::move(shadowPSO);
@@ -1377,6 +1601,7 @@ void ShapesApp::BuildPSOs()
 	psos[alphaDropPso->GetType()] = std::move(alphaDropPso);
 	psos[skyBoxPSO->GetType()] = std::move(skyBoxPSO);
 	psos[treeSprite->GetType()] = std::move(treeSprite);
+	psos[shadowMapPSO->GetType()] = std::move(shadowMapPSO);
 
 	for (auto & pso : psos)
 	{
