@@ -144,6 +144,9 @@
     <ClInclude Include="ShadowMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Ssao.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
@@ -242,6 +245,9 @@
     <ClCompile Include="ShadowMap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Ssao.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Default.hlsl">
@@ -257,6 +263,18 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\Shadows.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SsaoBlur.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\DrawNormals.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Ssao.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\SsaoDebug.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

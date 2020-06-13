@@ -12,9 +12,10 @@ struct VertexOut
 {
     float4 PosView : SV_POSITION;
     float4 ShadowPosH : POSITION0;
-    float3 PosWorld : POSITION1;
-    float3 NormalWorld : NORMAL;
-    float3 TangentWorld : TANGENT;
+    float4 SsaoPosH : POSITION1;
+    float3 PosW : POSITION2;
+    float3 NormalW : NORMAL;
+    float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD;
 };
 
@@ -26,17 +27,21 @@ VertexOut VS(VertexIn vin)
     MaterialData matData = materialData[objectBuffer.materialIndex];
 	
     float4 posW = mul(float4(vin.PosL, 1.0f), objectBuffer.World);
-    vout.PosWorld = posW.xyz;
+    vout.PosW = posW.xyz;
      
-    vout.NormalWorld = mul(vin.NormalL, (float3x3) objectBuffer.World);
+    vout.NormalW = mul(vin.NormalL, (float3x3) objectBuffer.World);
 
     vout.PosView = mul(posW, worldBuffer.ViewProj);
 
-    vout.TangentWorld = mul(vin.TangentU, (float3x3) objectBuffer.World);
+    vout.TangentW = mul(vin.TangentU, (float3x3) objectBuffer.World);
     
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), objectBuffer.TexTransform);
     vout.TexC = mul(texC, matData.MatTransform).xy;
 
+    // Generate projective tex-coords to project SSAO map onto scene.
+    vout.SsaoPosH = mul(posW, worldBuffer.ViewProjTex);
+
+	
     // Generate projective tex-coords to project shadow map onto scene.
     vout.ShadowPosH = mul(posW, worldBuffer.ShadowTransform);
 	
@@ -53,26 +58,28 @@ float4 PS(VertexOut pin) : SV_Target
     uint normalMapIndex = matData.NormalMapIndex;
 	
     diffuseAlbedo *= texturesMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
-    
+
 #ifdef ALPHA_TEST	
 	clip(diffuseAlbedo.a - 0.1f);
 #endif
         
-    pin.NormalWorld = normalize(pin.NormalWorld);
+    pin.NormalW = normalize(pin.NormalW);
 
     float4 normalMapSample = texturesMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
-    float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalWorld, pin.TangentWorld);
+    float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
 
 	
-    //bumpedNormalW = pin.NormalWorld;
 	
-    // Vector from point being lit to eye. 
-    float3 toEyeW = normalize(worldBuffer.EyePosW - pin.PosWorld);
-    float distToEye = length(toEyeW);
-    toEyeW /= distToEye;
+    //bumpedNormalW = pin.NormalW;
+	
+    
+    float3 toEyeW = normalize(worldBuffer.EyePosW - pin.PosW);
+    
+    pin.SsaoPosH /= pin.SsaoPosH.w;
+    float ambientAccess = ssaoMap.Sample(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
 
-    // Light terms.
-    float4 ambient = worldBuffer.AmbientLight * diffuseAlbedo;
+	
+    float4 ambient = ambientAccess * worldBuffer.AmbientLight * diffuseAlbedo;
 
 
     // Only the first light casts a shadow.
@@ -82,17 +89,18 @@ float4 PS(VertexOut pin) : SV_Target
 	
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
-    float4 directLight = ComputeLighting(worldBuffer.Lights, mat, pin.PosWorld,
+    float4 directLight = ComputeLighting(worldBuffer.Lights, mat, pin.PosW,
         bumpedNormalW, toEyeW, shadowFactor);
 
     float4 litColor = ambient + directLight;
 
 #ifdef FOG
+	float distToEye = length(toEyeW);
 	float fogAmount = saturate((distToEye - worldBuffer.gFogStart) / worldBuffer.gFogRange);
     litColor = lerp(litColor, worldBuffer.gFogColor, fogAmount);
 #endif    
 
-	// Add in specular reflections.
+	
     float3 r = reflect(-toEyeW, bumpedNormalW);
     float4 reflectionColor = SkyMap.Sample(gsamLinearWrap, r);
     float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);

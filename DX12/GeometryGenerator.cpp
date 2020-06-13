@@ -1,7 +1,7 @@
 
 #include "GeometryGenerator.h"
 #include <algorithm>
-
+#include "ShaderBuffersData.h"
 using namespace DirectX;
 
 GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float height, float depth, uint32 numSubdivisions)
@@ -271,7 +271,7 @@ void GeometryGenerator::Subdivide(MeshData& meshData)
 	}
 }
 
-GeometryGenerator::Vertex GeometryGenerator::MidPoint(const Vertex& v0, const Vertex& v1)
+Vertex GeometryGenerator::MidPoint(const Vertex& v0, const Vertex& v1)
 {
 	XMVECTOR p0 = XMLoadFloat3(&v0.Position);
 	XMVECTOR p1 = XMLoadFloat3(&v1.Position);

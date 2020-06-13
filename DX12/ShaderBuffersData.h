@@ -5,6 +5,34 @@
 
 using namespace DirectX::SimpleMath;
 
+struct Vertex
+{
+	Vertex() {}
+	Vertex(
+		Vector3& p,
+		Vector3& n,
+		Vector3& t,
+		Vector2& uv) :
+		Position(p),
+		Normal(n),
+		TexCord(uv),
+		TangentU(t) {}
+	Vertex(
+		float px, float py, float pz,
+		float nx, float ny, float nz,
+		float tx, float ty, float tz,
+		float u, float v) :
+		Position(px, py, pz),
+		Normal(nx, ny, nz),
+		TangentU(tx, ty, tz),
+		TexCord(u, v) {}
+
+	Vector3 Position;
+	Vector3 Normal;
+	Vector2 TexCord;
+	Vector3 TangentU;
+};
+
 enum LightType
 {
 	Directional,
@@ -30,6 +58,7 @@ struct PassConstants
 	Matrix InvProj = DirectX::SimpleMath::Matrix::Identity;
 	Matrix ViewProj = DirectX::SimpleMath::Matrix::Identity;
 	Matrix InvViewProj = DirectX::SimpleMath::Matrix::Identity;
+	Matrix ViewProjTex = DirectX::SimpleMath::Matrix::Identity;
 	Matrix ShadowTransform = DirectX::SimpleMath::Matrix::Identity;
 	Vector3 EyePosW = Vector3{0.0f, 0.0f, 0.0f};
 	float tempFloat = 0.0f;
@@ -61,6 +90,25 @@ struct ObjectConstants
 	UINT gObjPad2;
 };
 
+struct SsaoConstants
+{
+	Matrix Proj;
+	Matrix InvProj;
+	Matrix ProjTex;
+	Vector4   OffsetVectors[14];
+
+	// For SsaoBlur.hlsl
+	Vector4 BlurWeights[3];
+
+	Vector2 InvRenderTargetSize = { 0.0f, 0.0f };
+
+	// Coordinates given in view space.
+	float OcclusionRadius = 0.5f;
+	float OcclusionFadeStart = 0.2f;
+	float OcclusionFadeEnd = 2.0f;
+	float SurfaceEpsilon = 0.05f;
+};
+
 struct MaterialConstants
 {
 	Vector4 DiffuseAlbedo = Vector4{1.0f, 1.0f, 1.0f, 1.0f};
@@ -86,7 +134,8 @@ public:
 		MaterialData,
 		SkyMap,
 		ShadowMap,
-		DiffuseTexture,
+		SsaoMap,
+		TexturesMap,
 		Count
 	};
 };

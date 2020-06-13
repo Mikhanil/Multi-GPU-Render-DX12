@@ -5,18 +5,7 @@
 #include "DirectXBuffers.h"
 #include "GameObject.h"
 
-struct Vertex
-{
-    Vertex(){}
-    Vertex(float x, float y, float z, float nx, float ny, float nz, float u, float v) :
-        position(x, y, z),
-        normal(nx, ny, nz),
-        texCord(u, v) {}
-	
-    DirectX::XMFLOAT3 position;
-    DirectX::XMFLOAT3 normal;
-    DirectX::XMFLOAT2 texCord;
-};
+
 
  
 struct FrameResource
@@ -35,6 +24,7 @@ public:
     // We cannot update a cbuffer until the GPU is done processing the commands
     // that reference it.  So each frame needs their own cbuffers.
     std::unique_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
+    std::unique_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer = nullptr;
 
     std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;
 

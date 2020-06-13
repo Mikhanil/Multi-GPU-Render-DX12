@@ -13,6 +13,7 @@
 #include "PSO.h"
 #include "RootSignature.h"
 #include "ShadowMap.h"
+#include "Ssao.h"
 
 
 using Microsoft::WRL::ComPtr;
@@ -36,25 +37,34 @@ public:
     Camera* GetMainCamera() const;
 
     void GeneratedMipMap();
+    void BuildSsaoRootSignature();
     virtual bool Initialize()override;
+
+
+    bool ShowAmbiantMap = false;
+    bool computeSsao = false;
 
 private:
     virtual void OnResize()override;
     void AnimatedMaterial(const GameTimer& gt);
     void UpdateShadowTransform(const GameTimer& gt);
     void UpdateShadowPassCB(const GameTimer& gt);
+    void UpdateSsaoCB(const GameTimer& gt);
+    void BuildTexturesHeap();
     virtual void Update(const GameTimer& gt)override;
     void UpdateMaterial(const GameTimer& gt);
-    void RenderUI();
+    void DrawUI();
     void DrawSceneToShadowMap();
+    void DrawNormalsAndDepth();
     virtual void Draw(const GameTimer& gt)override;
 
     void UpdateGameObjects(const GameTimer& gt);
-    void UpdateGlobalCB(const GameTimer& gt);
+    void UpdateMainPassCB(const GameTimer& gt);
 
     void CreateRtvAndDsvDescriptorHeaps() override;
 	
     void LoadTextures();
+    void BuildRootSignature();
     void BuildShadersAndInputLayout();
     void BuildShapeGeometry();
     void BuildRoomGeometry();
@@ -65,25 +75,35 @@ private:
     void BuildMaterials();
     void BuildGameObjects();
     static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems);
-
+    static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
     void SortGO();
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const;
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const;
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const;
+
 
 private:
 
-    static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 	
-    std::unique_ptr<RootSignature> rootSignature = nullptr;
 	
     std::vector<std::unique_ptr<FrameResource>> frameResources;
     FrameResource* currentFrameResource = nullptr;
     int currentFrameResourceIndex = 0;
 
+
+    std::unique_ptr<RootSignature> rootSignature = nullptr;
+    ComPtr<ID3D12RootSignature> ssaoRootSignature = nullptr;
+    std::unique_ptr<Ssao> mSsao;
     
     D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
 
 
-    ComPtr<ID3D12DescriptorHeap> textureSRVHeap = nullptr;
-    ComPtr<ID3D12DescriptorHeap> normalSRVHeap = nullptr;
+    ComPtr<ID3D12DescriptorHeap> srvTextureHeap = nullptr;
 	
     std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
     std::unordered_map<std::string, std::unique_ptr<Material>> materials;
@@ -93,21 +113,16 @@ private:
     std::unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos;
     std::vector<Light*> lights;
     std::unique_ptr<Camera> camera = nullptr;
-	
-    ComPtr<ID3D12PipelineState> opaquePSO = nullptr;
-	
+		
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
-
     std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout;
 	
     std::vector<std::unique_ptr<GameObject>> gameObjects;
-
     std::vector<GameObject*> typedGameObjects[ PsoType::Count ];
 	
     GameObject* player;
 	
     PassConstants mainPassCB;
-    //PassConstants reflectedPassCB;
     PassConstants mShadowPassCB;
 
     float mLightNearZ = 0.0f;
@@ -135,5 +150,9 @@ private:
 
     UINT passCbvOffset = 0;
 
-    bool isWireframe = false;   
+    bool isWireframe = false;
+    UINT mSsaoHeapIndexStart;
+    UINT mSsaoAmbientMapIndex;
 };
+
+

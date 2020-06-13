@@ -28,20 +28,69 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 	{
 		Vertex vertex{};
 
-		vertex.position.x = mesh->mVertices[i].x;
-		vertex.position.y = mesh->mVertices[i].y;
-		vertex.position.z = mesh->mVertices[i].z;
+		vertex.Position.x = mesh->mVertices[i].x;
+		vertex.Position.y = mesh->mVertices[i].y;
+		vertex.Position.z = mesh->mVertices[i].z;
 
-		vertex.normal.x = mesh->mNormals[i].x;
-		vertex.normal.y = mesh->mNormals[i].y;
-		vertex.normal.z = mesh->mNormals[i].z;
+		vertex.Normal.x = mesh->mNormals[i].x;
+		vertex.Normal.y = mesh->mNormals[i].y;
+		vertex.Normal.z = mesh->mNormals[i].z;
 
-		if (mesh->mTextureCoords[0])
+		if (mesh->HasTextureCoords(0))
 		{
-			vertex.texCord.x = mesh->mTextureCoords[0][i].x;
-			vertex.texCord.y = mesh->mTextureCoords[0][i].y;
-		}
+			vertex.TexCord.x = mesh->mTextureCoords[0][i].x;
+			vertex.TexCord.y = mesh->mTextureCoords[0][i].y;
+		}		
 
+		if(mesh->HasTangentsAndBitangents())
+		{
+			vertex.TangentU.x = mesh->mTangents[i].x;
+			vertex.TangentU.y = mesh->mTangents[i].y;
+			vertex.TangentU.z = mesh->mTangents[i].z;
+		}
+		else
+		{
+			auto t1 = vertex.Normal.Cross(Vector3(0, 0, 1));
+			auto t2 = vertex.Normal.Cross(Vector3(0, 1, 0));
+			if (t1.Length() - t2.Length() < sqrt(3))
+			{
+				vertex.TangentU = t1;
+			}
+			else
+			{
+				vertex.TangentU = t2;
+				//binormal = cross(tangent, normal);
+			}
+				
+			
+			//if (mesh->HasTextureCoords(0) && (i + 1) % 3 == 0)
+			//{
+			//	Vector3 v0 = Vector3{ mesh->mVertices[i - 2].x, mesh->mVertices[i - 2].y, mesh->mVertices[i - 2].z };
+			//	Vector3 v1 = Vector3{ mesh->mVertices[i - 1].x, mesh->mVertices[i - 1].y, mesh->mVertices[i - 1].z };
+			//	Vector3 v2 = Vector3{ mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+
+			//	Vector2 v0UV = Vector2{ mesh->mTextureCoords[0][i - 2].x ,mesh->mTextureCoords[0][i - 2].y };
+			//	Vector2 v1UV = Vector2{ mesh->mTextureCoords[0][i - 1].x ,mesh->mTextureCoords[0][i - 1].y };
+			//	Vector2 v2UV = Vector2{ mesh->mTextureCoords[0][i].x ,mesh->mTextureCoords[0][i].y };
+
+			//	Vector3 e0 = v1 - v0;
+			//	Vector3 e1 = v2 - v0;
+			//	Vector2 e0uv = v1UV - v0UV;
+			//	Vector2 e1uv = v2UV - v0UV;
+
+			//	float cp = e0uv.y * e1uv.x - e0uv.x * e1uv.y;
+
+			//	if (cp != 0.0f) {
+			//		float k = 1.0f / cp;
+			//		vertex.TangentU = (e0 * -e1uv.y + e1 * e0uv.y) * k;
+			//		//bitangent = (e0 * -e1uv.x + e1 * e0uv.x) * k;
+
+			//		vertex.TangentU.Normalize();
+			//		//bitangent.Normalize();
+			//	}
+			//}
+		}		
+		
 		vertices.push_back(vertex);
 	}
 

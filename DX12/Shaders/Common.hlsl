@@ -34,6 +34,7 @@ struct WorldData
     float4x4 InvProj;
     float4x4 ViewProj;
     float4x4 InvViewProj;
+    float4x4 ViewProjTex;
     float4x4 ShadowTransform;
     float3 EyePosW;
     float cbPerObjectPad1;
@@ -75,7 +76,8 @@ StructuredBuffer<MaterialData> materialData : register(t0, space1);
 
 TextureCube SkyMap : register(t0);
 Texture2D shadowMap : register(t1);
-Texture2D texturesMaps[] : register(t2);
+Texture2D ssaoMap : register(t2);
+Texture2D texturesMaps[] : register(t3);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);

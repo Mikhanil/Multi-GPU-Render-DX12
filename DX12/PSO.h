@@ -13,12 +13,18 @@ public:
 		SkyBox,
 		Opaque,
 		Wireframe,
-		AlphaDrop,
+		OpaqueAlphaDrop,
 		AlphaSprites,
 		Mirror,
 		Reflection,
-		Shadow,
+		ShadowMapOpaque,
+		ShadowMapOpaqueDrop,
 		Transparent,
+		DrawNormalsOpaque,
+		DrawNormalsOpaqueDrop,
+		Ssao,
+		SsaoBlur,
+		Debug,
 		Count
 	};
 };

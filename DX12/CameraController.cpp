@@ -20,6 +20,18 @@ void CameraController::Update()
 	{
 		KeyboardEvent kbe = keyboard->ReadKey();
 		unsigned char keycode = kbe.GetKeyCode();
+
+		if (keycode == (VK_F1) && keyboard->KeyIsPressed(VK_F1))
+		{
+			auto app = static_cast<ShapesApp*>(ShapesApp::GetApp());
+			app->ShowAmbiantMap = !app->ShowAmbiantMap;
+		}
+
+		if (keycode == (VK_F2) && keyboard->KeyIsPressed(VK_F2))
+		{
+			auto app = static_cast<ShapesApp*>(ShapesApp::GetApp());
+			app->computeSsao = !app->computeSsao;
+		}
 	}
 
 	float cameraSpeed = 6.0f;
@@ -43,6 +55,8 @@ void CameraController::Update()
 			}
 		}
 	}
+
+	
 
 	if (keyboard->KeyIsPressed('W'))
 	{

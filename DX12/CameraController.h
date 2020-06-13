@@ -18,7 +18,7 @@ class CameraController :
 
 	double xMouseSpeed = 5;
 	double yMouseSpeed = 5;
-	
+
 public:
 
 	CameraController();
