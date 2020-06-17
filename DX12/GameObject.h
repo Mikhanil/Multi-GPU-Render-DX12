@@ -30,8 +30,7 @@ public:
 
 protected:
 
-	ObjectConstants bufferConstant{};
-	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectWorldPositionBuffer = nullptr;
+	
 	
 	std::vector<Component*> components;
 	std::unique_ptr<Transform> transform = nullptr;

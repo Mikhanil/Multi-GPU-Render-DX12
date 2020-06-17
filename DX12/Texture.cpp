@@ -116,10 +116,10 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	}
 
 	/*Пока выключил гамма корекцию.*/
-	/*if (usage == TextureUsage::Albedo && filePath.extension() != ".dds")
+	if (usage == TextureUsage::Albedo && filePath.extension() != ".dds")
 	{	
-		metadata.format = MakeSRGB(metadata.format); 
-	}*/
+		metadata.format = MakeSRGB(metadata.format);
+	}
 
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Width = static_cast<UINT>(metadata.width);

@@ -54,6 +54,11 @@ public:
 		normalMap = texture;
 		NormalMapIndex = texture->GetTextureIndex();
 	}
+
+	void SetPSO(PSO* pso)
+	{
+		this->pso = pso;
+	}
 	
 	void SetDiffuseTexture(Texture* texture);
 

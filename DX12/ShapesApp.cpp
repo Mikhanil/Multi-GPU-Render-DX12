@@ -1,4 +1,7 @@
 #include "ShapesApp.h"
+
+#include <DirectXTex.h>
+
 #include "Renderer.h"
 #include "GameObject.h"
 #include "ModelRenderer.h"
@@ -9,6 +12,7 @@
 #include "ObjectMover.h"
 #include "Shadow.h"
 #include "pix3.h"
+#include "filesystem"
 
 ShapesApp::ShapesApp(HINSTANCE hInstance)
 	: D3DApp(hInstance)
@@ -119,14 +123,14 @@ void ShapesApp::GeneratedMipMap()
 			uint32_t dstHeight = max(textureDesc.Height >> (TopMip + 1), 1);
 
 
-			srcTextureSRVDesc.Format = textureDesc.Format;
+			srcTextureSRVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
 			srcTextureSRVDesc.Texture2D.MipLevels = 1;
 			srcTextureSRVDesc.Texture2D.MostDetailedMip = TopMip;
 			dxDevice->CreateShaderResourceView(texture, &srcTextureSRVDesc, currentCPUHandle);
 			currentCPUHandle.Offset(1, descriptorSize);
 
 
-			destTextureUAVDesc.Format = textureDesc.Format;
+			destTextureUAVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
 			destTextureUAVDesc.Texture2D.MipSlice = TopMip + 1;
 			dxDevice->CreateUnorderedAccessView(texture, nullptr, &destTextureUAVDesc, currentCPUHandle);
 			currentCPUHandle.Offset(1, descriptorSize);
@@ -631,42 +635,76 @@ void ShapesApp::UpdateSsaoCB(const GameTimer& gt)
 	currSsaoCB->CopyData(0, ssaoCB);
 }
 
-void ShapesApp::LoadTextures()
+void ShapesApp::LoadDoomSlayerTexture()
+{
+	std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");	
+
+	std::vector<std::string> doomNames =
+	{
+		"Doomarms",
+		"Doomcowl",
+		"Doomhelmet",
+		"Doomlegs",
+		"Doomtorso",
+		"Doomvisor"
+	};
+	
+	std::vector<std::wstring> doomTextures =
+	{
+		L"models_characters_doommarine_doommarine_arms_c.png",
+		L"models_characters_doommarine_doommarine_cowl_c.png",
+		L"models_characters_doommarine_doommarine_helmet_c.png",
+		L"models_characters_doommarine_doommarine_legs_c.png",
+		L"models_characters_doommarine_doommarine_torso_c.png",
+		L"models_characters_doommarine_doommarine_visor_c.png"
+	};
+
+	std::vector<std::wstring> doomNormals = 
+	{
+		L"models_characters_doommarine_doommarine_arms_n.png",
+		L"models_characters_doommarine_doommarine_cowl_n.png",
+		L"models_characters_doommarine_doommarine_helmet_n.png",
+		L"models_characters_doommarine_doommarine_legs_n.png",
+		L"models_characters_doommarine_doommarine_torso_n.png",
+		L"models_characters_doommarine_doommarine_visor_n.png"
+	};
+	
+	for (UINT i = 0; i < doomNames.size(); ++i)
+	{
+		auto texture = std::make_unique<Texture>(doomNames[i], doomFolder + doomTextures[i], TextureUsage::Diffuse);
+		auto normal = std::make_unique<Texture>(doomNames[i].append("Normal"), doomFolder + doomNormals[i], TextureUsage::Normalmap);
+		textures[texture->GetName()] = std::move(texture);
+		textures[normal->GetName()] = std::move(normal);
+	}
+}
+
+void ShapesApp::LoadStudyTexture()
 {
 	auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks2.dds");
-	bricksTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[bricksTex->GetName()] = std::move(bricksTex);
 
 	auto stoneTex = std::make_unique<Texture>("stoneTex", L"Data\\Textures\\stone.dds");
-	stoneTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[stoneTex->GetName()] = std::move(stoneTex);
 
 	auto tileTex = std::make_unique<Texture>("tileTex", L"Data\\Textures\\tile.dds");
-	tileTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[tileTex->GetName()] = std::move(tileTex);
 
 	auto fenceTex = std::make_unique<Texture>("fenceTex", L"Data\\Textures\\WireFence.dds");
-	fenceTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[fenceTex->GetName()] = std::move(fenceTex);
 
 	auto waterTex = std::make_unique<Texture>("waterTex", L"Data\\Textures\\water1.dds");
-	waterTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[waterTex->GetName()] = std::move(waterTex);
 
 	auto skyTex = std::make_unique<Texture>("skyTex", L"Data\\Textures\\skymap.dds");
-	skyTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[skyTex->GetName()] = std::move(skyTex);
 
 	auto grassTex = std::make_unique<Texture>("grassTex", L"Data\\Textures\\grass.dds");
-	grassTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[grassTex->GetName()] = std::move(grassTex);
 
 	auto treeArrayTex = std::make_unique<Texture>("treeArrayTex", L"Data\\Textures\\treeArray2.dds");
-	treeArrayTex->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
 
 	auto seamless = std::make_unique<Texture>("seamless", L"Data\\Textures\\seamless_grass.jpg");
-	seamless->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	textures[seamless->GetName()] = std::move(seamless);
 
 
@@ -687,8 +725,66 @@ void ShapesApp::LoadTextures()
 	for (int i = 0; i < texNormalNames.size(); ++i)
 	{
 		auto texture = std::make_unique<Texture>(texNormalNames[i], texNormalFilenames[i], TextureUsage::Normalmap);
-		texture->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 		textures[texture->GetName()] = std::move(texture);
+	}
+}
+
+void ShapesApp::LoadNanosuitTexture()
+{
+	std::wstring nanoFolder(L"Data\\Objects\\Nanosuit\\");
+
+	std::vector<std::string> nanoNames =
+	{
+		"Nanoarm",
+		"Nanobody",
+		"Nanoglass",
+		"Nanohand",
+		"Nanohelm",
+		"Nanoleg"
+	};
+
+	std::vector<std::wstring> nanoTextures =
+	{
+		L"arm_dif.png",
+		L"body_dif.png",
+		L"glass_dif.png",
+		L"hand_dif.png",
+		L"helmet_dif.png",
+		L"leg_dif.png",
+	};
+
+	std::vector<std::wstring> nanoNormals =
+	{
+		L"arm_ddn.png",
+		L"body_ddn.png",
+		L"glass_ddn.png",
+		L"hand_ddn.png",
+		L"helmet_ddn.png",
+		L"leg_ddn.png",
+	};
+
+	for (UINT i = 0; i < nanoNames.size(); ++i)
+	{
+		auto texture = std::make_unique<Texture>(nanoNames[i], nanoFolder + nanoTextures[i], TextureUsage::Diffuse);
+		auto normal = std::make_unique<Texture>(nanoNames[i].append("Normal"), nanoFolder + nanoNormals[i], TextureUsage::Normalmap);
+		textures[texture->GetName()] = std::move(texture);
+		textures[normal->GetName()] = std::move(normal);
+	}
+}
+
+void ShapesApp::LoadTextures()
+{
+	LoadStudyTexture();
+
+	LoadDoomSlayerTexture();
+
+	LoadNanosuitTexture();
+
+	
+	
+	for (auto && pair : textures)
+	{
+		pair.second->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
 	}
 }
 
@@ -1407,6 +1503,67 @@ void ShapesApp::BuildMaterials()
 	seamless->SetNormalMap(textures["defaultNormalMap"].get());
 	materials[seamless->GetName()] = std::move(seamless);
 
+	std::vector<std::string> doomNames =
+	{
+		"Doomarms",
+		"Doomcowl",
+		"Doomhelmet",
+		"Doomlegs",
+		"Doomtorso",
+		"Doomvisor"
+	};
+
+	for (auto&& name : doomNames)
+	{
+		auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
+		material->FresnelR0 = Vector3::One * 0.05;
+		material->Roughness = 0.95;
+		
+		material->SetDiffuseTexture(textures[name].get());
+		material->SetNormalMap(textures[name+"Normal"].get());
+
+		if (material->GetName() == "Doomvisor")
+		{
+			material->DiffuseAlbedo = XMFLOAT4(0, 0.8f, 0, 0.5f);
+			material->FresnelR0 = Vector3::One * 0.1;
+			material->Roughness = 0.99f;
+			//material->SetNormalMap(textures["defaultNormalMap"].get());
+		}
+		
+		materials[material->GetName()] = std::move(material);
+	}
+	
+	std::vector<std::string> nanoNames =
+	{
+		"Nanoarm",
+		"Nanobody",
+		"Nanoglass",
+		"Nanohand",
+		"Nanohelm",
+		"Nanoleg"
+	};
+
+	for (auto&& name : nanoNames)
+	{
+		auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
+		material->FresnelR0 = Vector3::One * 0.05;
+		material->Roughness = 0.95;
+
+		material->SetDiffuseTexture(textures[name].get());
+		material->SetNormalMap(textures[name + "Normal"].get());
+
+		if (material->GetName() == "Nanoglass")
+		{
+			material->DiffuseAlbedo = XMFLOAT4(0, 0.8f, 0, 0.5f);
+			material->FresnelR0 = Vector3::One * 0.1;
+			material->Roughness = 0.99f;
+			//material->SetNormalMap(textures["defaultNormalMap"].get());
+		}
+
+		materials[material->GetName()] = std::move(material);
+	}
+
+	
 
 	auto stone0 = std::make_unique<Material>("stone0", psos[PsoType::Opaque].get());
 	stone0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
@@ -1475,24 +1632,24 @@ void ShapesApp::BuildGameObjects()
 	auto skySphere = std::make_unique<GameObject>(dxDevice.Get(), "Sky");
 	skySphere->GetTransform()->SetScale({500, 500, 500});
 	auto renderer = new Renderer();
-	renderer->Material = materials["sky"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->material = materials["sky"].get();
+	renderer->mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
 	skySphere->AddComponent(renderer);
 	typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 	gameObjects.push_back(std::move(skySphere));
 
 	auto quadRitem = std::make_unique<GameObject>(dxDevice.Get(), "Quad");
 	renderer = new Renderer();	
-	renderer->Material = materials["bricks"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->material = materials["bricks"].get();
+	renderer->mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["quad"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["quad"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["quad"].BaseVertexLocation;
+	renderer->IndexCount = renderer->mesh->Submeshs["quad"].IndexCount;
+	renderer->StartIndexLocation = renderer->mesh->Submeshs["quad"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->mesh->Submeshs["quad"].BaseVertexLocation;
 	quadRitem->AddComponent(renderer);
 	typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 	gameObjects.push_back(std::move(quadRitem));
@@ -1522,12 +1679,12 @@ void ShapesApp::BuildGameObjects()
 	sphere->GetTransform()->SetPosition(Vector3{0, 1, -3} + Vector3::Backward);
 	sphere->GetTransform()->SetScale({2, 2, 2});
 	renderer = new Renderer();
-	renderer->Material = materials["bricks"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->material = materials["bricks"].get();
+	renderer->mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+	renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
+	renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
 	sphere->AddComponent(renderer);
 	sphere->AddComponent(new ObjectMover());
 	player = sphere.get();
@@ -1552,26 +1709,82 @@ void ShapesApp::BuildGameObjects()
 
 	auto man = std::make_unique<GameObject>(dxDevice.Get());
 	man->GetTransform()->SetPosition(Vector3::Forward * 12);
-	XMStoreFloat4x4(&man->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	auto modelRenderer = new ModelRenderer();
-	modelRenderer->Material = materials["seamless"].get();
-	modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj");
-	man->AddComponent(modelRenderer);
+	if(modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
+	{
+		for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
+		{
+			modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
+		}
+		
+		if (modelRenderer->GetMeshesCount() > 0)
+		{			
+			std::vector<std::string> names =
+			{
+
+				"Nanoglass",
+				"Nanoleg",
+				"Nanohand",
+				"Nanoleg",
+				"Nanoarm",
+				"Nanohelm",
+				"Nanobody",
+			};
+			for (UINT i = 0; i < names.size(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials[names[i]].get());
+			}
+		}
+		man->AddComponent(modelRenderer);
+	}
 	typedGameObjects[PsoType::Opaque].push_back(man.get());
 	gameObjects.push_back(std::move(man));
 
+	auto doomMan = std::make_unique<GameObject>(dxDevice.Get());
+	doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
+	modelRenderer = new ModelRenderer();
+	if(modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
+	{
+		if(modelRenderer->GetMeshesCount() > 0)
+		{
+			std::vector<std::string> doomNames =
+			{				
+				"Doomlegs",
+				"Doomtorso",
+				"Doomcowl",
+				"Doomarms",
+				"Doomvisor",
+				"Doomhelmet",
+			};
+			for (UINT i = 0; i < doomNames.size(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials[doomNames[i]].get());
+			}
+		}
+
+		
+		doomMan->AddComponent(modelRenderer);
+	}
+	
+	
+	typedGameObjects[PsoType::Opaque].push_back(doomMan.get());
+	gameObjects.push_back(std::move(doomMan));
+
+
+
+	
 
 	auto box = std::make_unique<GameObject>(dxDevice.Get());
 	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));
 	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f) + (Vector3::Forward * 2.4));
 	XMStoreFloat4x4(&box->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
 	renderer = new Renderer();
-	renderer->Material = materials["water"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->material = materials["water"].get();
+	renderer->mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["box"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["box"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["box"].BaseVertexLocation;
+	renderer->IndexCount = renderer->mesh->Submeshs["box"].IndexCount;
+	renderer->StartIndexLocation = renderer->mesh->Submeshs["box"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->mesh->Submeshs["box"].BaseVertexLocation;
 	box->AddComponent(renderer);
 	typedGameObjects[PsoType::Transparent].push_back(box.get());
 	gameObjects.push_back(std::move(box));
@@ -1579,13 +1792,13 @@ void ShapesApp::BuildGameObjects()
 
 	auto grid = std::make_unique<GameObject>(dxDevice.Get());
 	renderer = new Renderer();
-	renderer->Material = materials["tile0"].get();
-	renderer->Mesh = meshes["shapeMesh"].get();
+	renderer->material = materials["tile0"].get();
+	renderer->mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	renderer->IndexCount = renderer->Mesh->Submeshs["grid"].IndexCount;
-	renderer->StartIndexLocation = renderer->Mesh->Submeshs["grid"].StartIndexLocation;
-	renderer->BaseVertexLocation = renderer->Mesh->Submeshs["grid"].BaseVertexLocation;
-	XMStoreFloat4x4(&renderer->Material->MatTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
+	renderer->IndexCount = renderer->mesh->Submeshs["grid"].IndexCount;
+	renderer->StartIndexLocation = renderer->mesh->Submeshs["grid"].StartIndexLocation;
+	renderer->BaseVertexLocation = renderer->mesh->Submeshs["grid"].BaseVertexLocation;
+	XMStoreFloat4x4(&renderer->material->MatTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	grid->AddComponent(renderer);
 	typedGameObjects[PsoType::Opaque].push_back(grid.get());
 	gameObjects.push_back(std::move(grid));
@@ -1601,47 +1814,47 @@ void ShapesApp::BuildGameObjects()
 		leftCylRitem->GetTransform()->SetPosition(Vector3(+5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&leftCylRitem->GetTransform()->TextureTransform, brickTexTransform);
 		renderer = new Renderer();
-		renderer->Material = materials["bricks"].get();
-		renderer->Mesh = meshes["shapeMesh"].get();
+		renderer->material = materials["bricks"].get();
+		renderer->mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->Mesh->Submeshs["cylinder"].IndexCount;
-		renderer->StartIndexLocation = renderer->Mesh->Submeshs["cylinder"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["cylinder"].BaseVertexLocation;
+		renderer->IndexCount = renderer->mesh->Submeshs["cylinder"].IndexCount;
+		renderer->StartIndexLocation = renderer->mesh->Submeshs["cylinder"].StartIndexLocation;
+		renderer->BaseVertexLocation = renderer->mesh->Submeshs["cylinder"].BaseVertexLocation;
 		leftCylRitem->AddComponent(renderer);
 
 		rightCylRitem->GetTransform()->SetPosition(Vector3(-5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&rightCylRitem->GetTransform()->TextureTransform, brickTexTransform);
 		renderer = new Renderer();
-		renderer->Material = materials["bricks"].get();
-		renderer->Mesh = meshes["shapeMesh"].get();
+		renderer->material = materials["bricks"].get();
+		renderer->mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->Mesh->Submeshs["cylinder"].IndexCount;
-		renderer->StartIndexLocation = renderer->Mesh->Submeshs["cylinder"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["cylinder"].BaseVertexLocation;
+		renderer->IndexCount = renderer->mesh->Submeshs["cylinder"].IndexCount;
+		renderer->StartIndexLocation = renderer->mesh->Submeshs["cylinder"].StartIndexLocation;
+		renderer->BaseVertexLocation = renderer->mesh->Submeshs["cylinder"].BaseVertexLocation;
 		rightCylRitem->AddComponent(renderer);
 
 
 		leftSphereRitem->GetTransform()->SetPosition(Vector3(-5.0f, 3.5f, -10.0f + i * 5.0f));
 		leftSphereRitem->GetTransform()->TextureTransform = MathHelper::Identity4x4();
 		renderer = new Renderer();
-		renderer->Material = materials["wirefence"].get();
-		renderer->Mesh = meshes["shapeMesh"].get();
+		renderer->material = materials["wirefence"].get();
+		renderer->mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-		renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+		renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
+		renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
+		renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
 		leftSphereRitem->AddComponent(renderer);
 
 
 		rightSphereRitem->GetTransform()->SetPosition(Vector3(+5.0f, 3.5f, -10.0f + i * 5.0f));
 		rightSphereRitem->GetTransform()->TextureTransform = MathHelper::Identity4x4();
 		renderer = new Renderer();
-		renderer->Material = materials["wirefence"].get();
-		renderer->Mesh = meshes["shapeMesh"].get();
+		renderer->material = materials["wirefence"].get();
+		renderer->mesh = meshes["shapeMesh"].get();
 		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->Mesh->Submeshs["sphere"].IndexCount;
-		renderer->StartIndexLocation = renderer->Mesh->Submeshs["sphere"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["sphere"].BaseVertexLocation;
+		renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
+		renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
+		renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
 		rightSphereRitem->AddComponent(renderer);
 
 		typedGameObjects[PsoType::Opaque].push_back(leftCylRitem.get());

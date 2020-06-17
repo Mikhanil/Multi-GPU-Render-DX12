@@ -50,6 +50,9 @@ private:
     void UpdateShadowTransform(const GameTimer& gt);
     void UpdateShadowPassCB(const GameTimer& gt);
     void UpdateSsaoCB(const GameTimer& gt);
+    void LoadDoomSlayerTexture();
+    void LoadStudyTexture();
+    void LoadNanosuitTexture();
     void BuildTexturesHeap();
     virtual void Update(const GameTimer& gt)override;
     void UpdateMaterial(const GameTimer& gt);

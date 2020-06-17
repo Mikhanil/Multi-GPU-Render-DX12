@@ -45,6 +45,11 @@ public:
     {
         return &timer;
     }
+
+    ID3D12Device& GetDevice()
+    {
+        return *dxDevice.Get();
+    }
 	
     static D3DApp* GetApp();
 

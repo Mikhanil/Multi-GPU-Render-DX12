@@ -5,13 +5,18 @@
 
 class Renderer :public Component
 {
+protected:
+	ObjectConstants bufferConstant{};
+	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectConstantBuffer = nullptr;
+	void SendDataToConstantBuffer();
 	
 public:
 
 	Renderer();
+	
 
-	Material* Material = nullptr;
-	MeshGeometry* Mesh = nullptr;
+	Material* material = nullptr;
+	MeshGeometry* mesh = nullptr;
 
 	// Primitive topology.
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;

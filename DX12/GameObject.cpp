@@ -9,7 +9,7 @@ GameObject::GameObject(ID3D12Device* device, std::string name)
 : GameObject(device, std::move(name), Vector3::Zero, 
 	Vector3::One, Quaternion::Identity)
 {
-	objectWorldPositionBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(device, 1);
+	
 }
 
 GameObject::
@@ -23,16 +23,7 @@ GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 sca
 
 void GameObject::Update()
 {
-	if(transform->IsDirty())
-	{
-		bufferConstant.TextureTransform = transform->TextureTransform.Transpose();
-		bufferConstant.World = transform->GetWorldMatrix().Transpose();
-		if (GetRenderer() != nullptr && renderer->Material != nullptr)
-		{
-			bufferConstant.materialIndex = renderer->Material->GetIndex();			
-		}
-		objectWorldPositionBuffer->CopyData(0, bufferConstant);
-	}
+	
 
 	
 	
@@ -43,10 +34,7 @@ void GameObject::Update()
 }
 
 void GameObject::Draw(ID3D12GraphicsCommandList* cmdList)
-{
-	cmdList->SetGraphicsRootConstantBufferView(StandardShaderSlot::ObjectData, objectWorldPositionBuffer->Resource()->GetGPUVirtualAddress());
-
-	
+{	
 	for (auto&& component : components)
 	{
 		component->Draw(cmdList);
