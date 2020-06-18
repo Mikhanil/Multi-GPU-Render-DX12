@@ -18,6 +18,7 @@ public:
 	void SetScale(const Vector3& s);
 
 	void SetEulerRotate(const Vector3& eulerAngl);
+	void SetRadianRotate(const Vector3& radianAngl);
 
 	void AdjustPosition(const Vector3& pos);
 

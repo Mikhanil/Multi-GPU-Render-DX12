@@ -53,6 +53,9 @@ private:
     void LoadDoomSlayerTexture();
     void LoadStudyTexture();
     void LoadNanosuitTexture();
+    void LoadAtlasTexture();
+    void LoadPBodyTexture();
+    void LoadGolemTexture();
     void BuildTexturesHeap();
     virtual void Update(const GameTimer& gt)override;
     void UpdateMaterial(const GameTimer& gt);

@@ -76,7 +76,7 @@ Matrix Transform::GetWorldMatrix() const
 
 Matrix Transform::CalculateWorldMatrix() const
 {
-	Matrix mat = Matrix::CreateTranslation(position) * Matrix::CreateFromQuaternion(rotate)	* Matrix::CreateScale(scale);
+	Matrix mat = Matrix::CreateScale(scale) * Matrix::CreateFromQuaternion(rotate)	* Matrix::CreateTranslation(position);
 
 	if (Parent != nullptr)
 	{
@@ -109,7 +109,15 @@ void Transform::SetScale(const Vector3& s)
 void Transform::SetEulerRotate(const Vector3& eulerAngl)
 {
 	eulerAngles = eulerAngl;	
-	rotate = DirectX::XMQuaternionRotationRollPitchYaw((eulerAngles.x), (eulerAngles.y), (eulerAngles.z));
+	rotate = DirectX::XMQuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians (eulerAngl.x), DirectX::XMConvertToRadians(eulerAngl.y), DirectX::XMConvertToRadians(eulerAngl.z));
+	world = CalculateWorldMatrix();
+	NumFramesDirty = globalCountFrameResources;
+}
+
+void Transform::SetRadianRotate(const Vector3& radianAngl)
+{
+	eulerAngles = Vector3(DirectX::XMConvertToDegrees(radianAngl.x), DirectX::XMConvertToDegrees(radianAngl.y), DirectX::XMConvertToDegrees(radianAngl.z));
+	rotate = DirectX::XMQuaternionRotationRollPitchYaw((radianAngl.x), (radianAngl.y), (radianAngl.z));
 	world = CalculateWorldMatrix();
 	NumFramesDirty = globalCountFrameResources;
 }

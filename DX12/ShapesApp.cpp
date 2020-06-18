@@ -9,7 +9,6 @@
 #include <ppl.h>
 #include "CameraController.h"
 #include "Reflected.h"
-#include "ObjectMover.h"
 #include "Shadow.h"
 #include "pix3.h"
 #include "filesystem"
@@ -161,9 +160,12 @@ void ShapesApp::GeneratedMipMap()
 
 	ExecuteCommandList();
 	FlushCommandQueue();
+
+	for (auto && pair : textures)
+	{
+		pair.second->ClearTrack();
+	}
 }
-
-
 
 bool ShapesApp::Initialize()
 {
@@ -254,7 +256,6 @@ void ShapesApp::OnResize()
 	}
 }
 
-
 void ShapesApp::Update(const GameTimer& gt)
 {
 	// Cycle through the circular frame resource array.
@@ -290,7 +291,6 @@ void ShapesApp::Update(const GameTimer& gt)
 	UpdateShadowPassCB(gt);
 	UpdateSsaoCB(gt);
 }
-
 
 void ShapesApp::Draw(const GameTimer& gt)
 {
@@ -772,6 +772,88 @@ void ShapesApp::LoadNanosuitTexture()
 	}
 }
 
+void ShapesApp::LoadAtlasTexture()
+{
+	std::wstring atlasFolder(L"Data\\Objects\\Atlas\\");
+
+	std::vector<std::string> AtlasNames =
+	{
+		"Atlasframe",
+		"Atlasshell",
+		"Atlaseye",
+	};
+
+	std::vector<std::wstring> AtlasTextures =
+	{
+		L"ballbot_frame.png",
+		L"ballbot_shell.png",
+		L"bot_eye_ring_lights.png"
+	};
+
+
+	for (UINT i = 0; i < AtlasNames.size(); ++i)
+	{
+		auto texture = std::make_unique<Texture>(AtlasNames[i], atlasFolder + AtlasTextures[i], TextureUsage::Diffuse);
+		textures[texture->GetName()] = std::move(texture);
+	}
+}
+
+void ShapesApp::LoadPBodyTexture()
+{
+	std::wstring PBodyFolder(L"Data\\Objects\\P-Body\\");
+
+	std::vector<std::string> PBodyNames =
+	{
+		"PBodyframe",
+		"PBodyshell",
+		"PBodyorange",
+		"PBodyeye",
+	};
+
+	std::vector<std::wstring> PBodyTextures =
+	{
+		L"eggbot_frame.png",		
+		L"eggbot_shell.png",
+		L"eggbot_orange.png",
+		L"bot_eye_ring_lights.png"
+	};
+
+
+	for (UINT i = 0; i < PBodyNames.size(); ++i)
+	{
+		auto texture = std::make_unique<Texture>(PBodyNames[i], PBodyFolder + PBodyTextures[i], TextureUsage::Diffuse);
+		textures[texture->GetName()] = std::move(texture);
+	}
+}
+
+void ShapesApp::LoadGolemTexture()
+{
+	std::wstring mechFolder(L"Data\\Objects\\StoneGolem\\");
+
+	std::vector<std::string> mechNames =
+	{
+		"golemColor",
+	};
+
+	std::vector<std::wstring> mechTextures =
+	{
+		L"diffuso.tif",
+	};
+
+	std::vector<std::wstring> mechNormals =
+	{
+		L"normal.png",
+	};
+
+	for (UINT i = 0; i < mechNames.size(); ++i)
+	{
+		auto texture = std::make_unique<Texture>(mechNames[i], mechFolder + mechTextures[i], TextureUsage::Diffuse);
+		auto normal = std::make_unique<Texture>(mechNames[i].append("Normal"), mechFolder + mechNormals[i], TextureUsage::Normalmap);
+		textures[texture->GetName()] = std::move(texture);
+		textures[normal->GetName()] = std::move(normal);
+	}
+}
+
 void ShapesApp::LoadTextures()
 {
 	LoadStudyTexture();
@@ -780,7 +862,12 @@ void ShapesApp::LoadTextures()
 
 	LoadNanosuitTexture();
 
+	LoadAtlasTexture();
 	
+	LoadPBodyTexture();
+
+	LoadGolemTexture();
+
 	
 	for (auto && pair : textures)
 	{
@@ -888,7 +975,6 @@ void ShapesApp::BuildSsaoRootSignature()
 		IID_PPV_ARGS(ssaoRootSignature.GetAddressOf())));
 }
 
-
 void ShapesApp::BuildTexturesHeap()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -915,7 +1001,6 @@ void ShapesApp::BuildTexturesHeap()
 		cbvSrvUavDescriptorSize,
 		rtvDescriptorSize);
 }
-
 
 void ShapesApp::BuildShadersAndInputLayout()
 {
@@ -1022,7 +1107,6 @@ void ShapesApp::BuildShadersAndInputLayout()
 
 	
 }
-
 
 void ShapesApp::BuildShapeGeometry()
 {
@@ -1171,7 +1255,6 @@ void ShapesApp::BuildShapeGeometry()
 
 	meshes[geo->Name] = std::move(geo);
 }
-
 
 void ShapesApp::BuildRoomGeometry()
 {
@@ -1527,7 +1610,6 @@ void ShapesApp::BuildMaterials()
 			material->DiffuseAlbedo = XMFLOAT4(0, 0.8f, 0, 0.5f);
 			material->FresnelR0 = Vector3::One * 0.1;
 			material->Roughness = 0.99f;
-			//material->SetNormalMap(textures["defaultNormalMap"].get());
 		}
 		
 		materials[material->GetName()] = std::move(material);
@@ -1557,14 +1639,62 @@ void ShapesApp::BuildMaterials()
 			material->DiffuseAlbedo = XMFLOAT4(0, 0.8f, 0, 0.5f);
 			material->FresnelR0 = Vector3::One * 0.1;
 			material->Roughness = 0.99f;
-			//material->SetNormalMap(textures["defaultNormalMap"].get());
 		}
 
 		materials[material->GetName()] = std::move(material);
 	}
 
-	
+	std::vector<std::string> AtlasNames =
+	{
+		"Atlasframe",
+		"Atlasshell",
+		"Atlaseye",
+	};
 
+	for (auto&& name : AtlasNames)
+	{
+		auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
+		material->FresnelR0 = Vector3::One * 0.05;
+		material->Roughness = 0.6;
+		material->SetDiffuseTexture(textures[name].get());
+		material->SetNormalMap(textures["defaultNormalMap"].get());		
+		materials[material->GetName()] = std::move(material);
+	}
+	
+	std::vector<std::string> PBodyNames =
+	{
+		"PBodyframe",
+		"PBodyshell",
+		"PBodyorange",
+		"PBodyeye",
+	};
+
+	for (auto&& name : PBodyNames)
+	{
+		auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
+		material->FresnelR0 = Vector3::One * 0.05;
+		material->Roughness = 0.6;
+		material->SetDiffuseTexture(textures[name].get());
+		material->SetNormalMap(textures["defaultNormalMap"].get());
+		materials[material->GetName()] = std::move(material);
+	}
+
+	std::vector<std::string> mechNames =
+	{
+		"golemColor",
+	};
+
+	for (auto&& name : mechNames)
+	{
+		auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
+		material->FresnelR0 = Vector3::One * 0.05;
+		material->Roughness = 0.95;
+
+		material->SetDiffuseTexture(textures[name].get());
+		material->SetNormalMap(textures[name + "Normal"].get());
+		materials[material->GetName()] = std::move(material);
+	}
+	
 	auto stone0 = std::make_unique<Material>("stone0", psos[PsoType::Opaque].get());
 	stone0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
 	stone0->Roughness = 0.1f;
@@ -1624,7 +1754,7 @@ void ShapesApp::BuildGameObjects()
 {
 	auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
 	camera->GetTransform()->SetPosition({-3.667396, 3.027442, -12.024042});
-	camera->GetTransform()->SetEulerRotate({-0.100110, -2.716100, 0.000000});
+	camera->GetTransform()->SetRadianRotate({-0.100110, -2.716100, 0.000000});
 	camera->AddComponent(new Camera(AspectRatio()));
 	camera->AddComponent(new CameraController());
 	gameObjects.push_back(std::move(camera));
@@ -1666,16 +1796,9 @@ void ShapesApp::BuildGameObjects()
 	treeSpritesRitem->AddComponent(renderer);
 	typedGameObjects[(int)PsoType::AlphaSprites].push_back(treeSpritesRitem.get());
 	gameObjects.push_back(std::move(treeSpritesRitem));*/
+	
 
-	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
-	auto light = new Light(Directional);
-	light->Direction({0.57735f, -0.57735f, 0.57735f});
-	light->Strength({0.8f, 0.8f, 0.8f});
-	sun1->AddComponent(light);
-	gameObjects.push_back(std::move(sun1));
-
-
-	auto sphere = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
+	/*auto sphere = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
 	sphere->GetTransform()->SetPosition(Vector3{0, 1, -3} + Vector3::Backward);
 	sphere->GetTransform()->SetScale({2, 2, 2});
 	renderer = new Renderer();
@@ -1689,9 +1812,15 @@ void ShapesApp::BuildGameObjects()
 	sphere->AddComponent(new ObjectMover());
 	player = sphere.get();
 	typedGameObjects[static_cast<int>(PsoType::Opaque)].push_back(sphere.get());
-	gameObjects.push_back(std::move(sphere));
+	gameObjects.push_back(std::move(sphere));*/
 
-
+	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
+	auto light = new Light(Directional);
+	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
+	light->Strength({ 0.8f, 0.8f, 0.8f });
+	sun1->AddComponent(light);
+	gameObjects.push_back(std::move(sun1));
+	
 	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({-0.57735f, -0.57735f, 0.57735f});
@@ -1708,7 +1837,9 @@ void ShapesApp::BuildGameObjects()
 
 
 	auto man = std::make_unique<GameObject>(dxDevice.Get());
-	man->GetTransform()->SetPosition(Vector3::Forward * 12);
+	man->GetTransform()->SetPosition(Vector3::Forward * 10 + (Vector3::Right * 5));
+	man->GetTransform()->SetScale(Vector3::One * 0.25);
+	man->GetTransform()->SetEulerRotate(Vector3(0,90,0));
 	auto modelRenderer = new ModelRenderer();
 	if(modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
 	{
@@ -1741,12 +1872,19 @@ void ShapesApp::BuildGameObjects()
 	gameObjects.push_back(std::move(man));
 
 	auto doomMan = std::make_unique<GameObject>(dxDevice.Get());
+	doomMan->GetTransform()->SetPosition(Vector3::Forward * -10 + (Vector3::Right * 5));
 	doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
+	doomMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
 	if(modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
 	{
 		if(modelRenderer->GetMeshesCount() > 0)
 		{
+			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
+			}
+			
 			std::vector<std::string> doomNames =
 			{				
 				"Doomlegs",
@@ -1771,13 +1909,106 @@ void ShapesApp::BuildGameObjects()
 	gameObjects.push_back(std::move(doomMan));
 
 
+	auto AtlasMan = std::make_unique<GameObject>(dxDevice.Get());
+	AtlasMan->GetTransform()->SetPosition( (Vector3::Right * 5) + (Vector3::Up * 2.4) + (Vector3::Forward * 5));
+	AtlasMan->GetTransform()->SetScale(Vector3::One * 0.2);
+	AtlasMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
+	modelRenderer = new ModelRenderer();
+	if (modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Atlas\\Atlas.obj"))
+	{
+		if (modelRenderer->GetMeshesCount() > 0)
+		{
+			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
+			}
+			
+			std::vector<std::string> AtlasNames =
+			{
+				
+				"Atlasshell",
+				"Atlasframe",
+				"Atlaseye",
+			};
+			
+			for (UINT i = 0; i < AtlasNames.size(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials[AtlasNames[i]].get());
+			}
+		}
 
+
+		AtlasMan->AddComponent(modelRenderer);
+	}
+
+
+	typedGameObjects[PsoType::Opaque].push_back(AtlasMan.get());
+	gameObjects.push_back(std::move(AtlasMan));
+	
+
+	auto PBodyMan = std::make_unique<GameObject>(dxDevice.Get());
+	PBodyMan->GetTransform()->SetPosition((Vector3::Right * 5) + (Vector3::Up * 2.4) );
+	PBodyMan->GetTransform()->SetScale(Vector3::One * 0.2);
+	PBodyMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
+	modelRenderer = new ModelRenderer();
+	if (modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\P-Body\\P-Body.obj"))
+	{
+		if (modelRenderer->GetMeshesCount() > 0)
+		{
+			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
+			}
+
+			std::vector<std::string> PBodyNames =
+			{
+				
+				"PBodyshell",
+				"PBodyframe",
+				"PBodyorange",
+				"PBodyeye",
+				"PBodyframe",
+			};
+
+			for (UINT i = 0; i < PBodyNames.size(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials[PBodyNames[i]].get());
+			}
+		}
+
+
+		PBodyMan->AddComponent(modelRenderer);
+	}
+
+
+	typedGameObjects[PsoType::Opaque].push_back(PBodyMan.get());
+	gameObjects.push_back(std::move(PBodyMan));
+
+	auto golem = std::make_unique<GameObject>(dxDevice.Get());
+	golem->GetTransform()->SetPosition(Vector3::Forward * -5 +(Vector3::Right * 5)  );
+	golem->GetTransform()->SetScale(Vector3::One * 0.5);
+	golem->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
+	modelRenderer = new ModelRenderer();
+	if (modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\StoneGolem\\Stone.obj"))
+	{
+		if (modelRenderer->GetMeshesCount() > 0)
+		{
+			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
+			{
+				modelRenderer->SetMeshMaterial(i, materials["golemColor"].get());
+			}			
+		}
+		golem->AddComponent(modelRenderer);
+	}
+	typedGameObjects[PsoType::Opaque].push_back(golem.get());
+	gameObjects.push_back(std::move(golem));
+
+	
 	
 
 	auto box = std::make_unique<GameObject>(dxDevice.Get());
 	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));
-	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f) + (Vector3::Forward * 2.4));
-	XMStoreFloat4x4(&box->GetTransform()->TextureTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
+	box->GetTransform()->SetPosition(Vector3(0.0f, 0.25f, 0.0f) + (Vector3::Forward * -0.25));
 	renderer = new Renderer();
 	renderer->material = materials["water"].get();
 	renderer->mesh = meshes["shapeMesh"].get();
@@ -1791,6 +2022,7 @@ void ShapesApp::BuildGameObjects()
 
 
 	auto grid = std::make_unique<GameObject>(dxDevice.Get());
+	grid->GetTransform()->SetScale(Vector3::One * 1.3);
 	renderer = new Renderer();
 	renderer->material = materials["tile0"].get();
 	renderer->mesh = meshes["shapeMesh"].get();
@@ -1798,7 +2030,7 @@ void ShapesApp::BuildGameObjects()
 	renderer->IndexCount = renderer->mesh->Submeshs["grid"].IndexCount;
 	renderer->StartIndexLocation = renderer->mesh->Submeshs["grid"].StartIndexLocation;
 	renderer->BaseVertexLocation = renderer->mesh->Submeshs["grid"].BaseVertexLocation;
-	XMStoreFloat4x4(&renderer->material->MatTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
+	XMStoreFloat4x4(&renderer->material->MatTransform, XMMatrixScaling(8.0f * 1.3, 8.0f * 1.3, 1.0f));
 	grid->AddComponent(renderer);
 	typedGameObjects[PsoType::Opaque].push_back(grid.get());
 	gameObjects.push_back(std::move(grid));
@@ -1808,8 +2040,8 @@ void ShapesApp::BuildGameObjects()
 	{
 		auto leftCylRitem = std::make_unique<GameObject>(dxDevice.Get());
 		auto rightCylRitem = std::make_unique<GameObject>(dxDevice.Get());
-		auto leftSphereRitem = std::make_unique<GameObject>(dxDevice.Get());
-		auto rightSphereRitem = std::make_unique<GameObject>(dxDevice.Get());
+		auto rightSphere = std::make_unique<GameObject>(dxDevice.Get());
+		auto leftSphere = std::make_unique<GameObject>(dxDevice.Get());
 
 		leftCylRitem->GetTransform()->SetPosition(Vector3(+5.0f, 1.5f, -10.0f + i * 5.0f));
 		XMStoreFloat4x4(&leftCylRitem->GetTransform()->TextureTransform, brickTexTransform);
@@ -1834,8 +2066,8 @@ void ShapesApp::BuildGameObjects()
 		rightCylRitem->AddComponent(renderer);
 
 
-		leftSphereRitem->GetTransform()->SetPosition(Vector3(-5.0f, 3.5f, -10.0f + i * 5.0f));
-		leftSphereRitem->GetTransform()->TextureTransform = MathHelper::Identity4x4();
+		rightSphere->GetTransform()->SetPosition(Vector3(-5.0f, 3.5f, -10.0f + i * 5.0f));
+		rightSphere->GetTransform()->TextureTransform = brickTexTransform;
 		renderer = new Renderer();
 		renderer->material = materials["wirefence"].get();
 		renderer->mesh = meshes["shapeMesh"].get();
@@ -1843,11 +2075,11 @@ void ShapesApp::BuildGameObjects()
 		renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
 		renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
 		renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
-		leftSphereRitem->AddComponent(renderer);
+		rightSphere->AddComponent(renderer);
 
 
-		rightSphereRitem->GetTransform()->SetPosition(Vector3(+5.0f, 3.5f, -10.0f + i * 5.0f));
-		rightSphereRitem->GetTransform()->TextureTransform = MathHelper::Identity4x4();
+		leftSphere->GetTransform()->SetPosition(Vector3(+5.0f, 3.5f, -10.0f + i * 5.0f));
+		leftSphere->GetTransform()->TextureTransform = brickTexTransform;
 		renderer = new Renderer();
 		renderer->material = materials["wirefence"].get();
 		renderer->mesh = meshes["shapeMesh"].get();
@@ -1855,17 +2087,17 @@ void ShapesApp::BuildGameObjects()
 		renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
 		renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
 		renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
-		rightSphereRitem->AddComponent(renderer);
+		leftSphere->AddComponent(renderer);
 
-		typedGameObjects[PsoType::Opaque].push_back(leftCylRitem.get());
+		//typedGameObjects[PsoType::Opaque].push_back(leftCylRitem.get());
 		typedGameObjects[PsoType::Opaque].push_back(rightCylRitem.get());
-		typedGameObjects[PsoType::OpaqueAlphaDrop].push_back(leftSphereRitem.get());
-		typedGameObjects[PsoType::OpaqueAlphaDrop].push_back(rightSphereRitem.get());
+		typedGameObjects[PsoType::OpaqueAlphaDrop].push_back(rightSphere.get());
+		//typedGameObjects[PsoType::OpaqueAlphaDrop].push_back(leftSphere.get());
 
-		gameObjects.push_back(std::move(leftCylRitem));
+		//gameObjects.push_back(std::move(leftCylRitem));
 		gameObjects.push_back(std::move(rightCylRitem));
-		gameObjects.push_back(std::move(leftSphereRitem));
-		gameObjects.push_back(std::move(rightSphereRitem));
+		gameObjects.push_back(std::move(rightSphere));
+		//gameObjects.push_back(std::move(leftSphere));
 	}
 }
 
