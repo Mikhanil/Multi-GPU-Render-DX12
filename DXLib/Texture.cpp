@@ -6,9 +6,6 @@
 #include "ResourceUploadBatch.h"
 #include <winrt/base.h>
 
-using namespace std::filesystem;
-using namespace DirectX;
-
 UINT Texture::textureIndexGlobal = 0;
 
 TextureUsage Texture::GetTextureType() const
@@ -59,7 +56,7 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 	
 
-	path filePath(Filename);
+	std::filesystem::path filePath(Filename);
 	if (!exists(filePath))
 	{
 		assert("File not found.");
@@ -89,27 +86,28 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	//isLoaded = true;
 	//return;
 
-	TexMetadata metadata;
-	ScratchImage scratchImage;
+	DirectX::TexMetadata metadata;
+	DirectX::ScratchImage scratchImage;
 
 	
 	UINT resFlags = D3D12_RESOURCE_FLAG_NONE;
 	
 	if (filePath.extension() == ".dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(Filename.c_str(), DDS_FLAGS_NONE , &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromDDSFile(Filename.c_str(), DirectX::DDS_FLAGS_NONE , &metadata, scratchImage));
 	}
 	else if (filePath.extension() == ".hdr")
 	{
-		ThrowIfFailed(LoadFromHDRFile(Filename.c_str(), &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromHDRFile(Filename.c_str(), &metadata, scratchImage));
 	}
 	else if (filePath.extension() == ".tga")
 	{
-		ThrowIfFailed(LoadFromTGAFile(Filename.c_str(), &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromTGAFile(Filename.c_str(), &metadata, scratchImage));
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(Filename.c_str(), WIC_FLAGS_FORCE_RGB, &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromWICFile(Filename.c_str(), DirectX::WIC_FLAGS_FORCE_RGB, &metadata, scratchImage));
+		
 		//Если это не DDS или "специфичная" текстура, то для нее нужно будет генерировать мипмапы
 		//по этому даем возможность сделать ее UAV
 		resFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -118,7 +116,7 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	/*Пока выключил гамма корекцию.*/
 	if (usage == TextureUsage::Albedo && filePath.extension() != ".dds")
 	{	
-		metadata.format = MakeSRGB(metadata.format);
+		//metadata.format = MakeSRGB(metadata.format);
 	}
 
 	D3D12_RESOURCE_DESC desc = {};
@@ -128,7 +126,7 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	 * DDS текстуры нельзя использовать как UAV для генерации мипмап карт.
 	 */	
 	desc.MipLevels = resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS ? 0 : static_cast<UINT16>(metadata.mipLevels);
-	desc.DepthOrArraySize = (metadata.dimension == TEX_DIMENSION_TEXTURE3D)
+	desc.DepthOrArraySize = (metadata.dimension == DirectX::TEX_DIMENSION_TEXTURE3D)
 		? static_cast<UINT16>(metadata.depth)
 		: static_cast<UINT16>(metadata.arraySize);
 	desc.Format = metadata.format;

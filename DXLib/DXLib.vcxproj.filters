@@ -19,9 +19,6 @@
     <Filter Include="Source Files\App">
       <UniqueIdentifier>{3e4dd105-6aa8-4fb2-bdda-4787ba0bf2fe}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shader">
-      <UniqueIdentifier>{d1dcd455-57fa-4afc-a25e-8f9782845ac8}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Engine">
       <UniqueIdentifier>{9bab763f-1bed-4a4f-ac74-21ff77480d17}</UniqueIdentifier>
     </Filter>
@@ -250,41 +247,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Shaders\Default.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\SkyBoxShader.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\TreeSprite.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\MipMapCS.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\Shadows.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\SsaoBlur.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\DrawNormals.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\Ssao.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\SsaoDebug.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Shaders\LightingUtil.hlsl">
-      <Filter>Shader</Filter>
-    </None>
     <None Include="packages.config" />
-    <None Include="Shaders\Common.hlsl">
-      <Filter>Shader</Filter>
-    </None>
   </ItemGroup>
 </Project>

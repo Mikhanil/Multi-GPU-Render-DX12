@@ -118,8 +118,8 @@ void ShapesApp::GeneratedMipMap()
 
 		for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
 		{
-			uint32_t dstWidth = max(textureDesc.Width >> (TopMip + 1), 1);
-			uint32_t dstHeight = max(textureDesc.Height >> (TopMip + 1), 1);
+			uint32_t dstWidth = std::max(uint32_t(textureDesc.Width >> (TopMip + 1)), uint32_t(1));
+			uint32_t dstHeight = std::max(uint32_t(textureDesc.Height >> (TopMip + 1)), uint32_t(1));
 
 
 			srcTextureSRVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
@@ -148,7 +148,7 @@ void ShapesApp::GeneratedMipMap()
 			commandListDirect->SetComputeRootDescriptorTable(2, currentGPUHandle);
 			currentGPUHandle.Offset(1, descriptorSize);
 
-			commandListDirect->Dispatch(max(dstWidth / 8, 1u), max(dstHeight / 8, 1u), 1);
+			commandListDirect->Dispatch(std::max(dstWidth / 8, 1u), std::max(dstHeight / 8, 1u), 1);
 
 			commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
 		}
