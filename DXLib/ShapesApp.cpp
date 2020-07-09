@@ -406,8 +406,6 @@ void ShapesApp::Draw(const GameTimer& gt)
 	currBackBufferIndex = (currBackBufferIndex + 1) % swapChainBufferCount;
 }
 
-
-
 void ShapesApp::AnimatedMaterial(const GameTimer& gt)
 {
 	// Scroll the water material texture coordinates.
@@ -1230,7 +1228,7 @@ void ShapesApp::BuildShapeGeometry()
 		cmdList.Get(), indices.data(), ibByteSize,
 		geo->IndexBufferUploader);
 
-	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	commandQueue->ExecuteCommandList(cmdList);
 	
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -1313,8 +1311,8 @@ void ShapesApp::BuildLandGeometry()
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
 		cmdList.Get(), indices.data(), ibByteSize,
 		geo->IndexBufferUploader);
-	
-	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+
+	commandQueue->ExecuteCommandList(cmdList);
 	
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -1380,7 +1378,7 @@ void ShapesApp::BuildTreesGeometry()
 		cmdList.Get(), indices.data(), ibByteSize,
 		geo->IndexBufferUploader);
 
-	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	commandQueue->ExecuteCommandList(cmdList);
 	
 	geo->VertexByteStride = sizeof(TreeSpriteVertex);
 	geo->VertexBufferByteSize = vbByteSize;
@@ -2101,7 +2099,7 @@ void ShapesApp::BuildGameObjects()
 		//gameObjects.push_back(std::move(leftSphere));
 	}
 
-	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	commandQueue->ExecuteCommandList(cmdList);
 }
 
 void ShapesApp::DrawUI()

@@ -45,7 +45,7 @@ namespace DXLib
 	        return;
             	
         d3d12Fence->SetEventOnCompletion(fenceValue, FenceEvent);
-        ::WaitForSingleObject(FenceEvent, DWORD_MAX);
+        WaitForSingleObject(FenceEvent, DWORD_MAX);
     }
 
     void CommandQueue::Flush()
@@ -68,10 +68,10 @@ namespace DXLib
         return commandList;
     }
 
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
+    ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
     {
-	    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandAllocator;
-	    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList;
+	    ComPtr<ID3D12CommandAllocator> commandAllocator;
+	    ComPtr<ID3D12GraphicsCommandList2> commandList;
 
 	    /*ѕровер€ем можем ли мы переиспользовать уже созданный алокатор команд*/
 	    if (CommandAllocatorQueue.empty() || !IsFenceComplete(CommandAllocatorQueue.front().fenceValue))
@@ -107,7 +107,7 @@ namespace DXLib
 	    return commandList;
     }
 
-    uint64_t CommandQueue::ExecuteCommandList(Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> commandList)
+    uint64_t CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
     {
         commandList->Close();
 
@@ -132,7 +132,7 @@ namespace DXLib
         return fenceValue;
     }
 
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue> CommandQueue::GetD3D12CommandQueue() const
+    ComPtr<ID3D12CommandQueue> CommandQueue::GetD3D12CommandQueue() const
     {
         return d3d12CommandQueue;
     }
