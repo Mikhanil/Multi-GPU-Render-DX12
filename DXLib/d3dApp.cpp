@@ -28,8 +28,8 @@ D3DApp::D3DApp(HINSTANCE hInstance)
 
 D3DApp::~D3DApp()
 {
-	if (dxDevice != nullptr)
-		FlushCommandQueue();
+	if (dxDevice != nullptr && commandQueue != nullptr)
+		commandQueue->Flush();
 }
 
 HINSTANCE D3DApp::AppInst()const
@@ -58,7 +58,6 @@ void D3DApp::Set4xMsaaState(bool value)
 	{
 		isM4xMsaa = value;
 
-		// Recreate the swapchain and buffers with new multisample settings.
 		CreateSwapChain();
 		OnResize();
 	}
@@ -138,13 +137,13 @@ void D3DApp::OnResize()
 {
 	assert(dxDevice);
 	assert(swapChain);
-	assert(directCommandListAlloc);
 
 	d2dContext->SetTarget(nullptr);
 	d3d11DeviceContext->Flush();
-	FlushCommandQueue();
-	
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
+	commandQueue->Flush();
+
+	auto cmdList = commandQueue->GetCommandList();
+
 
 	
 	for (int i = 0; i < swapChainBufferCount; ++i)
@@ -246,16 +245,12 @@ void D3DApp::OnResize()
 	dsvDesc.Texture2D.MipSlice = 0;
 	dxDevice->CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc, GetDepthStencilView());
 
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.Get(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.Get(),
 		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
-	ThrowIfFailed(commandListDirect->Close());
-	ID3D12CommandList* cmdsLists[] = { commandListDirect.Get() };
-	commandQueueDirect->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-	// Wait until resize is complete.
-	FlushCommandQueue();
-
+	commandQueue->ExecuteCommandList(cmdList);
+	commandQueue->Flush();
+	
 	screenViewport.TopLeftX = 0;
 	screenViewport.TopLeftY = 0;
 	screenViewport.Width = static_cast<float>(clientWidth);
@@ -646,8 +641,6 @@ bool D3DApp::InitDirect3D()
 
 
 	
-	ThrowIfFailed(dxDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE,
-		IID_PPV_ARGS(&fence)));
 
 	rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	dsvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -679,38 +672,7 @@ bool D3DApp::InitDirect3D()
 
 void D3DApp::CreateCommandObjects()
 {
-	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ThrowIfFailed(dxDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueueDirect)));
-
-	ThrowIfFailed(dxDevice->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(directCommandListAlloc.GetAddressOf())));
-
-	ThrowIfFailed(dxDevice->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		directCommandListAlloc.Get(),nullptr,IID_PPV_ARGS(commandListDirect.GetAddressOf())));
-
-	commandListDirect->Close();
-
-
-	
-	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
-	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	ThrowIfFailed(dxDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueueCompute)));
-
-	ThrowIfFailed(dxDevice->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_COMPUTE,
-		IID_PPV_ARGS(computeCommandListAlloc.GetAddressOf())));
-
-	ThrowIfFailed(dxDevice->CreateCommandList(
-		0,
-		D3D12_COMMAND_LIST_TYPE_COMPUTE,
-		computeCommandListAlloc.Get(), nullptr, IID_PPV_ARGS(commandListCompute.GetAddressOf())));
-
-	commandListCompute->Close();
+	commandQueue = std::make_unique<DXLib::CommandQueue>(dxDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);	
 }
 
 void D3DApp::InitializeD2D()
@@ -723,7 +685,7 @@ void D3DApp::InitializeD2D()
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
 		nullptr,
 		0,
-		reinterpret_cast<IUnknown**>(commandQueueDirect.GetAddressOf()),
+		reinterpret_cast<IUnknown**>(commandQueue->GetD3D12CommandQueue().GetAddressOf()),
 		1,
 		0,
 		&d3d11Device,
@@ -792,29 +754,11 @@ void D3DApp::CreateSwapChain()
 	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	ThrowIfFailed(dxgiFactory->CreateSwapChain(
-		commandQueueDirect.Get(),
+		commandQueue->GetD3D12CommandQueue().Get(),
 		&sd,
 		swapChain.GetAddressOf()));
 }
 
-void D3DApp::FlushCommandQueue()
-{	
-	currentFence++;
-
-	
-	ThrowIfFailed(commandQueueDirect->Signal(fence.Get(), currentFence));
-
-	if (fence->GetCompletedValue() < currentFence)
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-
-		
-		ThrowIfFailed(fence->SetEventOnCompletion(currentFence, eventHandle));
-
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
-}
 
 ID3D12Resource* D3DApp::GetCurrentBackBuffer()const
 {
@@ -936,41 +880,4 @@ void D3DApp::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
 	}
 }
 
-void D3DApp::ExecuteCommandList() const
-{
-	ThrowIfFailed(commandListDirect->Close());
-	ID3D12CommandList* cmdsLists[] = {commandListDirect.Get()};
-	commandQueueDirect->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-}
 
-void D3DApp::ExecuteComputeCommandList() const
-{
-	ThrowIfFailed(commandListCompute->Close());
-	ID3D12CommandList* cmdsLists[] = { commandListCompute.Get() };
-	commandQueueCompute->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-}
-
-void D3DApp::FlushComputeCommandQueue()
-{
-	currentFence++;
-
-
-	ThrowIfFailed(commandQueueCompute->Signal(fence.Get(), currentFence));
-
-	if (fence->GetCompletedValue() < currentFence)
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-
-
-		ThrowIfFailed(fence->SetEventOnCompletion(currentFence, eventHandle));
-
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
-}
-
-
-void D3DApp::ResetCommandList(ID3D12PipelineState* pipelinestate) const
-{
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), pipelinestate));
-}

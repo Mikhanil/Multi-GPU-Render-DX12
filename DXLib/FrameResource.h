@@ -17,9 +17,6 @@ public:
     FrameResource& operator=(const FrameResource& rhs) = delete;
     ~FrameResource();
 
-    
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> commandListAllocator;
-
     std::unique_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
     std::unique_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer = nullptr;
     std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;

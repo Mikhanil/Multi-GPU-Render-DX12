@@ -23,7 +23,7 @@ ShapesApp::ShapesApp(HINSTANCE hInstance)
 ShapesApp::~ShapesApp()
 {
 	if (dxDevice != nullptr)
-		FlushCommandQueue();
+		commandQueue->Flush();
 }
 
 Keyboard* ShapesApp::GetKeyboard()
@@ -43,7 +43,7 @@ Camera* ShapesApp::GetMainCamera() const
 
 void ShapesApp::GeneratedMipMap()
 {
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
+	auto cmdList = this->commandQueue->GetCommandList();
 
 	UINT requiredHeapSize = 0;
 
@@ -90,9 +90,9 @@ void ShapesApp::GeneratedMipMap()
 	destTextureUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 
 
-	commandListDirect->SetComputeRootSignature(genMipMapPSO->GetRootSignature().Get());
-	commandListDirect->SetPipelineState(genMipMapPSO->GetPipelineState().Get());
-	commandListDirect->SetDescriptorHeaps(1, &descriptorHeap);
+	cmdList->SetComputeRootSignature(genMipMapPSO->GetRootSignature().Get());
+	cmdList->SetPipelineState(genMipMapPSO->GetPipelineState().Get());
+	cmdList->SetDescriptorHeaps(1, &descriptorHeap);
 
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE currentCPUHandle(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0,
@@ -112,7 +112,7 @@ void ShapesApp::GeneratedMipMap()
 		auto textureDesc = texture->GetDesc();
 
 
-		commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
 		                                                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		                                                                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
@@ -140,27 +140,26 @@ void ShapesApp::GeneratedMipMap()
 			//commandListDirect->SetComputeRootConstantBufferView(0, mipBuffer->Resource()->GetGPUVirtualAddress());
 
 			Vector2 texelSize = Vector2{(1.0f / dstWidth), (1.0f / dstHeight)};
-			commandListDirect->SetComputeRoot32BitConstants(0, 2, &texelSize, 0);
+			cmdList->SetComputeRoot32BitConstants(0, 2, &texelSize, 0);
 
 
-			commandListDirect->SetComputeRootDescriptorTable(1, currentGPUHandle);
+			cmdList->SetComputeRootDescriptorTable(1, currentGPUHandle);
 			currentGPUHandle.Offset(1, descriptorSize);
-			commandListDirect->SetComputeRootDescriptorTable(2, currentGPUHandle);
+			cmdList->SetComputeRootDescriptorTable(2, currentGPUHandle);
 			currentGPUHandle.Offset(1, descriptorSize);
 
-			commandListDirect->Dispatch(std::max(dstWidth / 8, 1u), std::max(dstHeight / 8, 1u), 1);
+			cmdList->Dispatch(std::max(dstWidth / 8, 1u), std::max(dstHeight / 8, 1u), 1);
 
-			commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
 		}
 
-		commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 			                                   texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	}
 
-	ExecuteCommandList();
-	FlushCommandQueue();
-
+	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	
 	for (auto && pair : textures)
 	{
 		pair.second->ClearTrack();
@@ -172,26 +171,27 @@ bool ShapesApp::Initialize()
 	if (!D3DApp::Initialize())
 		return false;
 
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
 	
+
+	auto cmdList = this->commandQueue->GetCommandList();
 	
 	mShadowMap = std::make_unique<ShadowMap>(
-		dxDevice.Get(), 2048, 2048);
+		dxDevice.Get(), 4096, 4096);
 
 	mSsao = std::make_unique<Ssao>(
 		dxDevice.Get(),
-		commandListDirect.Get(),
+		cmdList.Get(),
 		clientWidth, clientHeight);
+		
+	LoadTextures(commandQueue->GetD3D12CommandQueue().Get(), cmdList.Get());
 
-	LoadTextures();
 	
-	ExecuteCommandList();
-	FlushCommandQueue();
+	commandQueue->WaitForFenceValue(this->commandQueue->ExecuteCommandList(cmdList));
+	
 	
 	GeneratedMipMap();
 
 
-	ThrowIfFailed(commandListDirect->Reset(directCommandListAlloc.Get(), nullptr));
 	BuildTexturesHeap();
 	BuildShadersAndInputLayout();
 	BuildRootSignature();
@@ -206,13 +206,12 @@ bool ShapesApp::Initialize()
 	BuildFrameResources();
 	SortGO();
 
-
 	mSsao->SetPSOs(psos[PsoType::Ssao]->GetPSO().Get(), psos[PsoType::SsaoBlur]->GetPSO().Get());
 	
-	ExecuteCommandList();
 
 	// Wait until initialization is complete.
-	FlushCommandQueue();
+	commandQueue->Flush();
+	
 	return true;
 }
 
@@ -264,12 +263,9 @@ void ShapesApp::Update(const GameTimer& gt)
 
 	// Has the GPU finished processing the commands of the current frame resource?
 	// If not, wait until the GPU has completed commands up to this fence point.
-	if (currentFrameResource->FenceValue != 0 && currentFrameResource->FenceValue > fence->GetCompletedValue())
+	if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFenceComplete(currentFrameResource->FenceValue))
 	{
-		const HANDLE eventHandle = CreateEventEx(nullptr, nullptr, false, EVENT_ALL_ACCESS);
-		ThrowIfFailed(fence->SetEventOnCompletion(currentFrameResource->FenceValue, eventHandle));
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
+		commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);		
 	}
 
 	mLightRotationAngle += 0.1f * gt.DeltaTime();
@@ -296,102 +292,95 @@ void ShapesApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
+	auto cmdList = commandQueue->GetCommandList();
+
 	
-
-	auto frameAlloc = currentFrameResource->commandListAllocator;
-
-
-	ThrowIfFailed(frameAlloc->Reset());
-
-
-	ThrowIfFailed(commandListDirect->Reset(frameAlloc.Get(), psos[PsoType::Opaque]->GetPSO().Get()));
-
 	ID3D12DescriptorHeap* descriptorHeaps[] = { srvTextureHeap.Get() };
-	commandListDirect->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	commandListDirect->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
+	cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Prepare Render 3D");
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Prepare Render 3D");
 	/*Bind all materials*/
 	auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
-	commandListDirect->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
+	cmdList->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
 
 	/*Bind all Diffuse Textures*/
-	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap, srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
-	PIXEndEvent(commandQueueDirect.Get());
+	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap, srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 	
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render 3D");
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Render 3D");
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Shadow Map Pass");				
-	DrawSceneToShadowMap();
-	PIXEndEvent(commandQueueDirect.Get());
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Shadow Map Pass");				
+	DrawSceneToShadowMap(cmdList.Get());
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Normal and Depth Pass");		
-	DrawNormalsAndDepth();
-	PIXEndEvent(commandQueueDirect.Get());
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Normal and Depth Pass");		
+	DrawNormalsAndDepth(cmdList.Get());
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Compute SSAO");
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Compute SSAO");
 	if (computeSsao)
 	{		
-		commandListDirect->SetGraphicsRootSignature(ssaoRootSignature.Get());
-		mSsao->ComputeSsao(commandListDirect.Get(), currentFrameResource, 3);		
+		cmdList->SetGraphicsRootSignature(ssaoRootSignature.Get());
+		mSsao->ComputeSsao(cmdList.Get(), currentFrameResource, 3);		
 	}
 	else
 	{
-		mSsao->ClearAmbiantMap(commandListDirect.Get());
+		mSsao->ClearAmbiantMap(cmdList.Get());
 	}
-	PIXEndEvent(commandQueueDirect.Get());
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
-	PIXBeginEvent(commandQueueDirect.Get(), 0, L"Main Pass");
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Main Pass");
 		
-	commandListDirect->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());	
+	cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());	
 	
-	commandListDirect->RSSetViewports(1, &screenViewport);
-	commandListDirect->RSSetScissorRects(1, &scissorRect);
+	cmdList->RSSetViewports(1, &screenViewport);
+	cmdList->RSSetScissorRects(1, &scissorRect);
 
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_PRESENT,
 		D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	commandListDirect->ClearRenderTargetView(GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
+	cmdList->ClearRenderTargetView(GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
 
-	/*commandListDirect->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
+	/*cmdList->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		1.0f, 0, 0, nullptr);*/
 
 
-	commandListDirect->OMSetRenderTargets(1, &GetCurrentBackBufferView(), true, &GetDepthStencilView());
+	cmdList->OMSetRenderTargets(1, &GetCurrentBackBufferView(), true, &GetDepthStencilView());
 
 
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();
 
-	commandListDirect->
+	cmdList->
 		SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
 
-	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::ShadowMap, mShadowMap->Srv());
-	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::SsaoMap, mSsao->AmbientMapSrv());
+	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::ShadowMap, mShadowMap->Srv());
+	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::SsaoMap, mSsao->AmbientMapSrv());
 
 	/*Bind all Diffuse Textures*/
-	commandListDirect->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap, srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap, srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
 	
 
-	commandListDirect->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[static_cast<int>(PsoType::SkyBox)]);
+	cmdList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
+	DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::SkyBox)]);
 
-	commandListDirect->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[static_cast<int>(PsoType::Opaque)]);
+	cmdList->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
+	DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Opaque)]);
 
-	commandListDirect->SetPipelineState(psos[PsoType::OpaqueAlphaDrop]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[static_cast<int>(PsoType::OpaqueAlphaDrop)]);
+	cmdList->SetPipelineState(psos[PsoType::OpaqueAlphaDrop]->GetPSO().Get());
+	DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::OpaqueAlphaDrop)]);
 
-	commandListDirect->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[static_cast<int>(PsoType::Transparent)]);
+	cmdList->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
+	DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Transparent)]);
 
 	if(ShowAmbiantMap)
 	{
-		commandListDirect->SetPipelineState(psos[PsoType::Debug]->GetPSO().Get());
-		DrawGameObjects(commandListDirect.Get(), typedGameObjects[static_cast<int>(PsoType::Debug)]);
+		cmdList->SetPipelineState(psos[PsoType::Debug]->GetPSO().Get());
+		DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Debug)]);
 	}
 	
 
@@ -399,24 +388,22 @@ void ShapesApp::Draw(const GameTimer& gt)
 	/*Если рисуем UI то не нужно для текущего backBuffer переводить состояние
 	 * потому что после вызова d3d11DeviceContext->Flush() он сам его переведет
 	 */
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PRESENT));
 
-	ExecuteCommandList();
+	currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
+	
 
-	PIXEndEvent(commandQueueDirect.Get());
-	PIXEndEvent(commandQueueDirect.Get());
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
-	/*PIXBeginEvent(commandQueueDirect.Get(), 0, L"Render UI");
+	/*PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Render UI");
 	RenderUI();
-	PIXEndEvent(commandQueueDirect.Get());*/
+	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());*/
 
 	ThrowIfFailed(swapChain->Present(0, 0));
 	currBackBufferIndex = (currBackBufferIndex + 1) % swapChainBufferCount;
-
-	currentFrameResource->FenceValue = ++currentFence;
-	commandQueueDirect->Signal(fence.Get(), currentFence);
 }
 
 
@@ -854,7 +841,7 @@ void ShapesApp::LoadGolemTexture()
 	}
 }
 
-void ShapesApp::LoadTextures()
+void ShapesApp::LoadTextures(ID3D12CommandQueue* queue, ID3D12GraphicsCommandList2* cmdList)
 {
 	LoadStudyTexture();
 
@@ -871,7 +858,7 @@ void ShapesApp::LoadTextures()
 	
 	for (auto && pair : textures)
 	{
-		pair.second->LoadTexture(dxDevice.Get(), commandQueueDirect.Get(), commandListDirect.Get());
+		pair.second->LoadTexture(dxDevice.Get(), queue, cmdList);
 	}
 }
 
@@ -1233,14 +1220,18 @@ void ShapesApp::BuildShapeGeometry()
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
+	auto cmdList = commandQueue->GetCommandList();
+	
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandListDirect.Get(), vertices.data(), vbByteSize,
+		cmdList.Get(), vertices.data(), vbByteSize,
 		geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandListDirect.Get(), indices.data(), ibByteSize,
+		cmdList.Get(), indices.data(), ibByteSize,
 		geo->IndexBufferUploader);
 
+	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -1313,14 +1304,18 @@ void ShapesApp::BuildLandGeometry()
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
+	auto cmdList = commandQueue->GetCommandList();
+	
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandListDirect.Get(), vertices.data(), vbByteSize,
+		cmdList.Get(), vertices.data(), vbByteSize,
 		geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandListDirect.Get(), indices.data(), ibByteSize,
+		cmdList.Get(), indices.data(), ibByteSize,
 		geo->IndexBufferUploader);
-
+	
+	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -1374,14 +1369,19 @@ void ShapesApp::BuildTreesGeometry()
 	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
+	auto cmdList = commandQueue->GetCommandList();
+	
+	
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandListDirect.Get(), vertices.data(), vbByteSize,
+		cmdList.Get(), vertices.data(), vbByteSize,
 		geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		commandListDirect.Get(), indices.data(), ibByteSize,
+		cmdList.Get(), indices.data(), ibByteSize,
 		geo->IndexBufferUploader);
 
+	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+	
 	geo->VertexByteStride = sizeof(TreeSpriteVertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -1835,13 +1835,14 @@ void ShapesApp::BuildGameObjects()
 	sun3->AddComponent(light);
 	gameObjects.push_back(std::move(sun3));
 
+	auto cmdList = commandQueue->GetCommandList();
 
 	auto man = std::make_unique<GameObject>(dxDevice.Get());
 	man->GetTransform()->SetPosition(Vector3::Forward * 10 + (Vector3::Right * 5));
 	man->GetTransform()->SetScale(Vector3::One * 0.25);
 	man->GetTransform()->SetEulerRotate(Vector3(0,90,0));
 	auto modelRenderer = new ModelRenderer();
-	if(modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
+	if(modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
 	{
 		for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
 		{
@@ -1876,7 +1877,7 @@ void ShapesApp::BuildGameObjects()
 	doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
 	doomMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
-	if(modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
+	if(modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
 	{
 		if(modelRenderer->GetMeshesCount() > 0)
 		{
@@ -1914,7 +1915,7 @@ void ShapesApp::BuildGameObjects()
 	AtlasMan->GetTransform()->SetScale(Vector3::One * 0.2);
 	AtlasMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
-	if (modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\Atlas\\Atlas.obj"))
+	if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\Atlas\\Atlas.obj"))
 	{
 		if (modelRenderer->GetMeshesCount() > 0)
 		{
@@ -1951,7 +1952,7 @@ void ShapesApp::BuildGameObjects()
 	PBodyMan->GetTransform()->SetScale(Vector3::One * 0.2);
 	PBodyMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
-	if (modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\P-Body\\P-Body.obj"))
+	if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\P-Body\\P-Body.obj"))
 	{
 		if (modelRenderer->GetMeshesCount() > 0)
 		{
@@ -1989,7 +1990,7 @@ void ShapesApp::BuildGameObjects()
 	golem->GetTransform()->SetScale(Vector3::One * 0.5);
 	golem->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
-	if (modelRenderer->AddModel(dxDevice.Get(), commandListDirect.Get(), "Data\\Objects\\StoneGolem\\Stone.obj"))
+	if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\StoneGolem\\Stone.obj"))
 	{
 		if (modelRenderer->GetMeshesCount() > 0)
 		{
@@ -2099,6 +2100,8 @@ void ShapesApp::BuildGameObjects()
 		gameObjects.push_back(std::move(rightSphere));
 		//gameObjects.push_back(std::move(leftSphere));
 	}
+
+	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 }
 
 void ShapesApp::DrawUI()
@@ -2133,75 +2136,75 @@ void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::v
 	}
 }
 
-void ShapesApp::DrawSceneToShadowMap()
+void ShapesApp::DrawSceneToShadowMap(ID3D12GraphicsCommandList* cmdList)
 {
-	commandListDirect->RSSetViewports(1, &mShadowMap->Viewport());
-	commandListDirect->RSSetScissorRects(1, &mShadowMap->ScissorRect());
+	cmdList->RSSetViewports(1, &mShadowMap->Viewport());
+	cmdList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
 
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE));
 		
 
-	commandListDirect->ClearDepthStencilView(mShadowMap->Dsv(),
+	cmdList->ClearDepthStencilView(mShadowMap->Dsv(),
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
-	commandListDirect->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
+	cmdList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
 
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 	// Bind the pass constant buffer for the shadow map pass.
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();
 	D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-	commandListDirect->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
+	cmdList->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
 
-	commandListDirect->SetPipelineState(psos[PsoType::ShadowMapOpaque]->GetPSO().Get());
+	cmdList->SetPipelineState(psos[PsoType::ShadowMapOpaque]->GetPSO().Get());
 
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[PsoType::Opaque]);
+	DrawGameObjects(cmdList, typedGameObjects[PsoType::Opaque]);
 
-	commandListDirect->SetPipelineState(psos[PsoType::ShadowMapOpaqueDrop]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[PsoType::OpaqueAlphaDrop]);
+	cmdList->SetPipelineState(psos[PsoType::ShadowMapOpaqueDrop]->GetPSO().Get());
+	DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
 
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
-void ShapesApp::DrawNormalsAndDepth()
+void ShapesApp::DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList)
 {
-	commandListDirect->RSSetViewports(1, &screenViewport);
-	commandListDirect->RSSetScissorRects(1, &scissorRect);
+	cmdList->RSSetViewports(1, &screenViewport);
+	cmdList->RSSetScissorRects(1, &scissorRect);
 
 	auto normalMap = mSsao->NormalMap();
 	auto normalMapRtv = mSsao->NormalMapRtv();
 
 	// Change to RENDER_TARGET.
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// Clear the screen normal map and depth buffer.
 	float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
-	commandListDirect->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
-	commandListDirect->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0,
+	cmdList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
+	cmdList->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0,
 		0, nullptr);
 
 	// Specify the buffers we are going to render to.
-	commandListDirect->OMSetRenderTargets(1, &normalMapRtv, true, &GetDepthStencilView());
+	cmdList->OMSetRenderTargets(1, &normalMapRtv, true, &GetDepthStencilView());
 
 	// Bind the constant buffer for this pass.
 	auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-	commandListDirect->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+	cmdList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
 
-	commandListDirect->SetPipelineState(psos[PsoType::DrawNormalsOpaque]->GetPSO().Get());
+	cmdList->SetPipelineState(psos[PsoType::DrawNormalsOpaque]->GetPSO().Get());
 
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[PsoType::Opaque]);
+	DrawGameObjects(cmdList, typedGameObjects[PsoType::Opaque]);
 
-	commandListDirect->SetPipelineState(psos[PsoType::DrawNormalsOpaqueDrop]->GetPSO().Get());
-	DrawGameObjects(commandListDirect.Get(), typedGameObjects[PsoType::OpaqueAlphaDrop]);
+	cmdList->SetPipelineState(psos[PsoType::DrawNormalsOpaqueDrop]->GetPSO().Get());
+	DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
-	commandListDirect->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
+	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_GENERIC_READ));
 }

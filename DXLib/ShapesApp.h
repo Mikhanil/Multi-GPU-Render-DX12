@@ -60,8 +60,8 @@ private:
     virtual void Update(const GameTimer& gt)override;
     void UpdateMaterial(const GameTimer& gt);
     void DrawUI();
-    void DrawSceneToShadowMap();
-    void DrawNormalsAndDepth();
+    void DrawSceneToShadowMap(ID3D12GraphicsCommandList* cmdList);
+    void DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList);
     virtual void Draw(const GameTimer& gt)override;
 
     void UpdateGameObjects(const GameTimer& gt);
@@ -69,7 +69,7 @@ private:
 
     void CreateRtvAndDsvDescriptorHeaps() override;
 	
-    void LoadTextures();
+    void LoadTextures(ID3D12CommandQueue* queue, ID3D12GraphicsCommandList2* cmdList);
     void BuildRootSignature();
     void BuildShadersAndInputLayout();
     void BuildShapeGeometry();

@@ -23,6 +23,7 @@
 #pragma comment(lib, "RuntimeObject.lib")
 
 
+#include "CommandQueue.h"
 #include "d2d1_3.h"
 #include "dwrite.h"
 
@@ -107,17 +108,10 @@ protected:
 
     Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
     Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain;
-    Microsoft::WRL::ComPtr<ID3D12Device> dxDevice;
-    Microsoft::WRL::ComPtr<ID3D12Fence> fence;
-    UINT64 currentFence = 0;
+    Microsoft::WRL::ComPtr<ID3D12Device2> dxDevice;
     bool InitDirect3D();
-
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueueDirect;
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueueCompute;
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> directCommandListAlloc;
-    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> computeCommandListAlloc;
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandListDirect;   
-    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commandListCompute;   
+    
+    std::unique_ptr<DXLib::CommandQueue> commandQueue;	
     void CreateCommandObjects();
 
     static const int swapChainBufferCount = 2;
@@ -152,7 +146,6 @@ protected:
 
     void CreateSwapChain();
 
-    void FlushCommandQueue();
 
     ID3D12Resource* GetCurrentBackBuffer()const;
     D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView()const;
@@ -163,9 +156,5 @@ protected:
     void LogAdapters();
     void LogAdapterOutputs(IDXGIAdapter* adapter);
     void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
-    void ExecuteCommandList() const;
-    void ExecuteComputeCommandList() const;
-    void FlushComputeCommandQueue();
-    void ResetCommandList(ID3D12PipelineState* pipelinestate = nullptr) const;   
 };
 
