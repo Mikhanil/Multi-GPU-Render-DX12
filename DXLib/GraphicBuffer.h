@@ -2,13 +2,13 @@
 #include "d3dUtil.h"
 #include "FrameResource.h"
 
-template<class T>
+template <class T>
 class GraphicBuffer
 {
 protected:
-	Microsoft::WRL::ComPtr<ID3DBlob> bufferCPU;
-	Microsoft::WRL::ComPtr<ID3D12Resource> bufferGPU;
-	Microsoft::WRL::ComPtr<ID3D12Resource> bufferUploader;
+	ComPtr<ID3DBlob> bufferCPU;
+	ComPtr<ID3D12Resource> bufferGPU;
+	ComPtr<ID3D12Resource> bufferUploader;
 	UINT stride;
 	UINT count;
 	DWORD bufferSize = 0;
@@ -48,7 +48,7 @@ public:
 	{
 		return count;
 	}
-	
+
 	DWORD GetBufferSize() const
 	{
 		return bufferSize;
@@ -61,7 +61,7 @@ public:
 
 	ID3DBlob* GetCPUResource() const
 	{
-		return  bufferCPU.Get();
+		return bufferCPU.Get();
 	}
 
 	ID3D12Resource* GetGPUResource() const
@@ -81,8 +81,9 @@ public:
 		: GraphicBuffer<DWORD>(device, cmdList, data, count)
 	{
 	}
-	
-	IndexBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, DXGI_FORMAT indexFormat, DWORD* data, DWORD count)
+
+	IndexBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, DXGI_FORMAT indexFormat, DWORD* data,
+	            DWORD count)
 		: GraphicBuffer<DWORD>(device, cmdList, data, count), IndexFormat(indexFormat)
 	{
 	}
@@ -93,8 +94,7 @@ public:
 	}
 
 
-
-	D3D12_INDEX_BUFFER_VIEW IndexBufferView()const
+	D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
 	{
 		D3D12_INDEX_BUFFER_VIEW ibv;
 		ibv.BufferLocation = bufferGPU->GetGPUVirtualAddress();
@@ -118,7 +118,7 @@ public:
 	{
 	}
 
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView()const
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
 	{
 		D3D12_VERTEX_BUFFER_VIEW vbv;
 		vbv.BufferLocation = bufferGPU->GetGPUVirtualAddress();

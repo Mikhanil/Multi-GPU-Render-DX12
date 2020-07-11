@@ -2,8 +2,6 @@
 #include "Component.h"
 #include "Renderer.h"
 
-class SkyBox :	public Renderer
+class SkyBox : public Renderer
 {
-	
 };
-

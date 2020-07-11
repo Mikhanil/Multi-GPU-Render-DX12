@@ -3,12 +3,13 @@
 
 UINT Transform::gConstantBufferIndex = 0;
 
-Transform::Transform( ID3D12Device* device, Vector3 pos, Quaternion rot, Vector3 scale): Component(), position(pos), rotate(rot), scale(scale)
-{	
+Transform::Transform(ID3D12Device* device, Vector3 pos, Quaternion rot, Vector3 scale): Component(), position(pos),
+                                                                                        rotate(rot), scale(scale)
+{
 	bufferIndex = gConstantBufferIndex++;
 }
 
-Transform::Transform( ID3D12Device* device) : Transform( device, Vector3::Zero, Quaternion::Identity, Vector3::One)
+Transform::Transform(ID3D12Device* device) : Transform(device, Vector3::Zero, Quaternion::Identity, Vector3::One)
 {
 }
 
@@ -17,14 +18,13 @@ void Transform::Update()
 {
 	if (NumFramesDirty > 0)
 	{
-		 worldTranspose = world.Transpose();
+		worldTranspose = world.Transpose();
 		NumFramesDirty--;
 	}
 }
 
 void Transform::Draw(ID3D12GraphicsCommandList* cmdList)
 {
-	
 }
 
 void Transform::SetParent(Transform* transform)
@@ -34,8 +34,7 @@ void Transform::SetParent(Transform* transform)
 
 Vector3 Transform::GetBackwardVector() const
 {
-	
-	auto v = Vector3{ worldTranspose._13, worldTranspose._23, worldTranspose._33};
+	auto v = Vector3{worldTranspose._13, worldTranspose._23, worldTranspose._33};
 	v.Normalize();
 	return v;
 }
@@ -47,7 +46,7 @@ Vector3 Transform::GetForwardVector() const
 
 Vector3 Transform::GetLeftVector() const
 {
-	auto v = Vector3{ worldTranspose._11, worldTranspose._21, worldTranspose._31};
+	auto v = Vector3{worldTranspose._11, worldTranspose._21, worldTranspose._31};
 	v.Normalize();
 	return v;
 }
@@ -59,7 +58,7 @@ Vector3 Transform::GetRightVector() const
 
 Vector3 Transform::GetUpVector() const
 {
-	auto v = Vector3{ worldTranspose._12, worldTranspose._22, worldTranspose._32};
+	auto v = Vector3{worldTranspose._12, worldTranspose._22, worldTranspose._32};
 	v.Normalize();
 	return v;
 }
@@ -76,7 +75,8 @@ Matrix Transform::GetWorldMatrix() const
 
 Matrix Transform::CalculateWorldMatrix() const
 {
-	Matrix mat = Matrix::CreateScale(scale) * Matrix::CreateFromQuaternion(rotate)	* Matrix::CreateTranslation(position);
+	Matrix mat = Matrix::CreateScale(scale) * Matrix::CreateFromQuaternion(rotate) *
+		Matrix::CreateTranslation(position);
 
 	if (Parent != nullptr)
 	{
@@ -108,15 +108,18 @@ void Transform::SetScale(const Vector3& s)
 
 void Transform::SetEulerRotate(const Vector3& eulerAngl)
 {
-	eulerAngles = eulerAngl;	
-	rotate = DirectX::XMQuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians (eulerAngl.x), DirectX::XMConvertToRadians(eulerAngl.y), DirectX::XMConvertToRadians(eulerAngl.z));
+	eulerAngles = eulerAngl;
+	rotate = DirectX::XMQuaternionRotationRollPitchYaw(DirectX::XMConvertToRadians(eulerAngl.x),
+	                                                   DirectX::XMConvertToRadians(eulerAngl.y),
+	                                                   DirectX::XMConvertToRadians(eulerAngl.z));
 	world = CalculateWorldMatrix();
 	NumFramesDirty = globalCountFrameResources;
 }
 
 void Transform::SetRadianRotate(const Vector3& radianAngl)
 {
-	eulerAngles = Vector3(DirectX::XMConvertToDegrees(radianAngl.x), DirectX::XMConvertToDegrees(radianAngl.y), DirectX::XMConvertToDegrees(radianAngl.z));
+	eulerAngles = Vector3(DirectX::XMConvertToDegrees(radianAngl.x), DirectX::XMConvertToDegrees(radianAngl.y),
+	                      DirectX::XMConvertToDegrees(radianAngl.z));
 	rotate = DirectX::XMQuaternionRotationRollPitchYaw((radianAngl.x), (radianAngl.y), (radianAngl.z));
 	world = CalculateWorldMatrix();
 	NumFramesDirty = globalCountFrameResources;
@@ -138,7 +141,7 @@ void Transform::AdjustEulerRotation(const Vector3& rot)
 }
 
 void Transform::AdjustEulerRotation(float roll, float pitch, float yaw)
-{	
+{
 	SetEulerRotate(eulerAngles + Vector3(roll, pitch, yaw));
 }
 

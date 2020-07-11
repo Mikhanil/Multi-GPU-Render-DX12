@@ -26,18 +26,18 @@ GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 
-	
-	m_RootSignature.AddConstantParameter(2,0);
+	m_RootSignature.AddConstantParameter(2, 0);
 	m_RootSignature.AddDescriptorParameter(&srvCbvRanges[0], 1);
 	m_RootSignature.AddDescriptorParameter(&srvCbvRanges[1], 1);
 	m_RootSignature.AddStaticSampler(samplerDesc);
 	m_RootSignature.Initialize(device);
-	
+
 	D3D12_COMPUTE_PIPELINE_STATE_DESC computePSOdesc{};
 
-	auto shader = std::make_unique<Shader>(L"Shaders\\MipMapCS.hlsl", ShaderType::ComputeShader, nullptr, "GenerateMipMaps", "cs_5_1");
+	auto shader = std::make_unique<Shader>(L"Shaders\\MipMapCS.hlsl", ComputeShader, nullptr, "GenerateMipMaps",
+	                                       "cs_5_1");
 	shader->LoadAndCompile();
-	
+
 	computePSOdesc.pRootSignature = m_RootSignature.GetRootSignature().Get();
 	computePSOdesc.CS = shader->GetShaderResource();
 	ThrowIfFailed(device->CreateComputePipelineState(&computePSOdesc, IID_PPV_ARGS(&m_PipelineState)));
@@ -50,8 +50,8 @@ GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 	device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&UAVdescriptorHeap));
-	
-	mipsBuffer = std::make_unique<ConstantBuffer<GenerateMipsCB>>(device,1);
+
+	mipsBuffer = std::make_unique<ConstantBuffer<GenerateMipsCB>>(device, 1);
 }
 
 const ComPtr<ID3D12RootSignature> GeneratedMipsPSO::GetRootSignature() const
@@ -59,12 +59,12 @@ const ComPtr<ID3D12RootSignature> GeneratedMipsPSO::GetRootSignature() const
 	return m_RootSignature.GetRootSignature();
 }
 
-Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> GeneratedMipsPSO::GetUAVHeap() const
+ComPtr<ID3D12DescriptorHeap> GeneratedMipsPSO::GetUAVHeap() const
 {
 	return UAVdescriptorHeap;
 }
 
-Microsoft::WRL::ComPtr<ID3D12PipelineState> GeneratedMipsPSO::GetPipelineState() const
+ComPtr<ID3D12PipelineState> GeneratedMipsPSO::GetPipelineState() const
 {
 	return m_PipelineState;
 }

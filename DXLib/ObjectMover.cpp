@@ -7,7 +7,7 @@ void ObjectMover::Draw(ID3D12GraphicsCommandList* cmdList)
 
 void ObjectMover::Update()
 {
-	const float dt = ((ShapesApp*)ShapesApp::GetApp())->GetTimer()->DeltaTime();
+	const float dt = static_cast<ShapesApp*>(ShapesApp::GetApp())->GetTimer()->DeltaTime();
 
 	Vector3 offset = Vector3::Zero;
 	if (keyboard->KeyIsPressed(VK_UP))
@@ -33,5 +33,5 @@ void ObjectMover::Update()
 
 ObjectMover::ObjectMover()
 {
-	keyboard = ((ShapesApp*)ShapesApp::GetApp())->GetKeyboard();
+	keyboard = static_cast<ShapesApp*>(ShapesApp::GetApp())->GetKeyboard();
 }

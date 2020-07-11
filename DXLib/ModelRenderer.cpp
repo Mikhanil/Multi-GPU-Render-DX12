@@ -4,7 +4,8 @@
 #include "assimp/mesh.h"
 #include "DirectXMesh.h"
 
-ModelMesh::ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name, std::vector<Vertex>& vertices,
+ModelMesh::ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name,
+                     std::vector<Vertex>& vertices,
                      std::vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology): name(std::move(name))
 {
 	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(device, 1);
@@ -50,7 +51,7 @@ void ModelRenderer::ProcessNode(aiNode* node, const aiScene* scene, ID3D12Device
 	}
 }
 
-void  ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>& vertex) 
+void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>& vertex)
 {
 	UINT idx[3];
 	idx[0] = i1;
@@ -76,9 +77,9 @@ void  ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>
 
 	ComputeTangentFrame(idx, 1, pos, normals, t, 3, tangent);
 
-	vertex[i1].TangentU = Vector3( tangent[0].x, tangent[0].y, tangent[0].z);
-	vertex[i2].TangentU = Vector3( tangent[1].x, tangent[1].y, tangent[1].z);
-	vertex[i3].TangentU = Vector3( tangent[2].x, tangent[2].y, tangent[2].z);
+	vertex[i1].TangentU = Vector3(tangent[0].x, tangent[0].y, tangent[0].z);
+	vertex[i2].TangentU = Vector3(tangent[1].x, tangent[1].y, tangent[1].z);
+	vertex[i3].TangentU = Vector3(tangent[2].x, tangent[2].y, tangent[2].z);
 }
 
 ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12Device* device,
@@ -87,7 +88,7 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 	// Data to fill
 	std::vector<Vertex> vertices;
 	std::vector<DWORD> indices;
-		
+
 	//Get vertices
 	for (UINT i = 0; i < mesh->mNumVertices; i++)
 	{
@@ -105,9 +106,9 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 		{
 			vertex.TexCord.x = mesh->mTextureCoords[0][i].x;
 			vertex.TexCord.y = mesh->mTextureCoords[0][i].y;
-		}		
+		}
 
-		if(mesh->HasTangentsAndBitangents())
+		if (mesh->HasTangentsAndBitangents())
 		{
 			vertex.TangentU.x = mesh->mTangents[i].x;
 			vertex.TangentU.y = mesh->mTangents[i].y;
@@ -126,7 +127,7 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 				vertex.TangentU = t2;
 				//binormal = cross(tangent, normal);
 			}
-				
+
 			//
 			//if ( (i + 1) % 3 == 0)
 			//{
@@ -154,8 +155,8 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 			//		//bitangent.Normalize();
 			//	}
 			//}
-		}		
-		
+		}
+
 		vertices.push_back(vertex);
 	}
 
@@ -166,24 +167,22 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 
 		for (UINT j = 0; j < face.mNumIndices; j++)
 		{
-			indices.push_back(face.mIndices[j]);			
+			indices.push_back(face.mIndices[j]);
 		}
-
-	
 	}
 
-	for (UINT i = 0; i < indices.size() - 3; i +=3)
+	for (UINT i = 0; i < indices.size() - 3; i += 3)
 	{
-		ModelMesh::CalculateTangent(indices[i], indices[i+1], indices[i+2], vertices);
+		ModelMesh::CalculateTangent(indices[i], indices[i + 1], indices[i + 2], vertices);
 	}
-	
-	
-	return ModelMesh(device, cmdList, mesh->mName.C_Str(),vertices, indices);
+
+
+	return ModelMesh(device, cmdList, mesh->mName.C_Str(), vertices, indices);
 }
 
 void ModelRenderer::Draw(ID3D12GraphicsCommandList* cmdList)
 {
-	if(material != nullptr)
+	if (material != nullptr)
 		material->Draw(cmdList);
 
 	for (auto&& mesh : meshes)
@@ -194,8 +193,8 @@ void ModelRenderer::Draw(ID3D12GraphicsCommandList* cmdList)
 
 void ModelRenderer::Update()
 {
-	for (auto && mesh : meshes)
-	{		
+	for (auto&& mesh : meshes)
+	{
 		mesh.Update(gameObject->GetTransform());
 	}
 }

@@ -20,13 +20,14 @@ public:
 
 	ShaderBuffer(const ShaderBuffer& rhs) = delete;
 	ShaderBuffer& operator=(const ShaderBuffer& rhs) = delete;
+
 	~ShaderBuffer()
 	{
-		if(isDispose)
+		if (isDispose)
 		{
 			return;
 		}
-		
+
 		if (buffer != nullptr)
 			buffer->Unmap(0, nullptr);
 
@@ -34,7 +35,7 @@ public:
 		isDispose = true;
 	}
 
-	ID3D12Resource* Resource()const
+	ID3D12Resource* Resource() const
 	{
 		return buffer.Get();
 	}
@@ -48,15 +49,15 @@ public:
 	{
 		return elementByteSize;
 	}
-	
+
 protected:
 	bool isDispose = false;
-	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
+	ComPtr<ID3D12Resource> buffer;
 	BYTE* mappedData = nullptr;
 	UINT elementByteSize = 0;
 };
 
-template<typename T>
+template <typename T>
 class ConstantBuffer : public virtual ShaderBuffer
 {
 public:
@@ -67,7 +68,8 @@ public:
 	//  UINT64 OffsetInBytes; // multiple of 256
 	//  UINT  SizeInBytes;  // multiple of 256
 	// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
-	ConstantBuffer(ID3D12Device* device, UINT elementCount) : ShaderBuffer(device, elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)))
+	ConstantBuffer(ID3D12Device* device, UINT elementCount) : ShaderBuffer(
+		device, elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)))
 	{
 	}
 
@@ -77,7 +79,7 @@ public:
 	}
 };
 
-template<typename T>
+template <typename T>
 class UploadBuffer : public virtual ShaderBuffer
 {
 public:
@@ -90,4 +92,3 @@ public:
 		ShaderBuffer::CopyData(elementIndex, &data, sizeof(T));
 	}
 };
-

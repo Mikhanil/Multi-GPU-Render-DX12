@@ -1,4 +1,3 @@
-
 #include "GeometryGenerator.h"
 #include <algorithm>
 #include "ShaderBuffersData.h"
@@ -63,28 +62,52 @@ GeometryGenerator::MeshData GeometryGenerator::CreateBox(float width, float heig
 	uint32 i[36];
 
 	// Fill in the front face index data
-	i[0] = 0; i[1] = 1; i[2] = 2;
-	i[3] = 0; i[4] = 2; i[5] = 3;
+	i[0] = 0;
+	i[1] = 1;
+	i[2] = 2;
+	i[3] = 0;
+	i[4] = 2;
+	i[5] = 3;
 
 	// Fill in the back face index data
-	i[6] = 4; i[7] = 5; i[8] = 6;
-	i[9] = 4; i[10] = 6; i[11] = 7;
+	i[6] = 4;
+	i[7] = 5;
+	i[8] = 6;
+	i[9] = 4;
+	i[10] = 6;
+	i[11] = 7;
 
 	// Fill in the top face index data
-	i[12] = 8; i[13] = 9; i[14] = 10;
-	i[15] = 8; i[16] = 10; i[17] = 11;
+	i[12] = 8;
+	i[13] = 9;
+	i[14] = 10;
+	i[15] = 8;
+	i[16] = 10;
+	i[17] = 11;
 
 	// Fill in the bottom face index data
-	i[18] = 12; i[19] = 13; i[20] = 14;
-	i[21] = 12; i[22] = 14; i[23] = 15;
+	i[18] = 12;
+	i[19] = 13;
+	i[20] = 14;
+	i[21] = 12;
+	i[22] = 14;
+	i[23] = 15;
 
 	// Fill in the left face index data
-	i[24] = 16; i[25] = 17; i[26] = 18;
-	i[27] = 16; i[28] = 18; i[29] = 19;
+	i[24] = 16;
+	i[25] = 17;
+	i[26] = 18;
+	i[27] = 16;
+	i[28] = 18;
+	i[29] = 19;
 
 	// Fill in the right face index data
-	i[30] = 20; i[31] = 21; i[32] = 22;
-	i[33] = 20; i[34] = 22; i[35] = 23;
+	i[30] = 20;
+	i[31] = 21;
+	i[32] = 22;
+	i[33] = 20;
+	i[34] = 22;
+	i[35] = 23;
 
 	meshData.Indices32.assign(&i[0], &i[36]);
 
@@ -193,7 +216,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32
 	//
 
 	// South pole vertex was added last.
-	uint32 southPoleIndex = (uint32)meshData.Vertices.size() - 1;
+	uint32 southPoleIndex = static_cast<uint32>(meshData.Vertices.size()) - 1;
 
 	// Offset the indices to the index of the first vertex in the last ring.
 	baseIndex = southPoleIndex - ringVertexCount;
@@ -227,7 +250,7 @@ void GeometryGenerator::Subdivide(MeshData& meshData)
 	// *-----*-----*
 	// v0    m2     v2
 
-	uint32 numTris = (uint32)inputCopy.Indices32.size() / 3;
+	uint32 numTris = static_cast<uint32>(inputCopy.Indices32.size()) / 3;
 	for (uint32 i = 0; i < numTris; ++i)
 	{
 		Vertex v0 = inputCopy.Vertices[inputCopy.Indices32[i * 3 + 0]];
@@ -315,20 +338,20 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 
 	XMFLOAT3 pos[12] =
 	{
-		XMFLOAT3(-X, 0.0f, Z),  XMFLOAT3(X, 0.0f, Z),
+		XMFLOAT3(-X, 0.0f, Z), XMFLOAT3(X, 0.0f, Z),
 		XMFLOAT3(-X, 0.0f, -Z), XMFLOAT3(X, 0.0f, -Z),
-		XMFLOAT3(0.0f, Z, X),   XMFLOAT3(0.0f, Z, -X),
-		XMFLOAT3(0.0f, -Z, X),  XMFLOAT3(0.0f, -Z, -X),
-		XMFLOAT3(Z, X, 0.0f),   XMFLOAT3(-Z, X, 0.0f),
-		XMFLOAT3(Z, -X, 0.0f),  XMFLOAT3(-Z, -X, 0.0f)
+		XMFLOAT3(0.0f, Z, X), XMFLOAT3(0.0f, Z, -X),
+		XMFLOAT3(0.0f, -Z, X), XMFLOAT3(0.0f, -Z, -X),
+		XMFLOAT3(Z, X, 0.0f), XMFLOAT3(-Z, X, 0.0f),
+		XMFLOAT3(Z, -X, 0.0f), XMFLOAT3(-Z, -X, 0.0f)
 	};
 
 	uint32 k[60] =
 	{
-		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
-		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
-		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,
-		10,1,6, 11,0,9, 2,11,9, 5,2,9,  11,2,7
+		1, 4, 0, 4, 9, 0, 4, 5, 9, 8, 5, 4, 1, 8, 4,
+		1, 10, 8, 10, 3, 8, 8, 3, 5, 3, 2, 5, 3, 7, 2,
+		3, 10, 7, 10, 6, 7, 6, 11, 7, 6, 0, 11, 6, 1, 0,
+		10, 1, 6, 11, 0, 9, 2, 11, 9, 5, 2, 9, 11, 2, 7
 	};
 
 	meshData.Vertices.resize(12);
@@ -376,7 +399,8 @@ GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uin
 	return meshData;
 }
 
-GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount)
+GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height,
+                                                              uint32 sliceCount, uint32 stackCount)
 {
 	MeshData meshData;
 
@@ -408,8 +432,8 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 
 			vertex.Position = XMFLOAT3(r * c, y, r * s);
 
-			vertex.TexCord.x = (float)j / sliceCount;
-			vertex.TexCord.y = 1.0f - (float)i / stackCount;
+			vertex.TexCord.x = static_cast<float>(j) / sliceCount;
+			vertex.TexCord.y = 1.0f - static_cast<float>(i) / stackCount;
 
 			// Cylinder can be parameterized as follows, where we introduce v
 			// parameter that goes in the same direction as the v tex-coord
@@ -471,9 +495,9 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
 }
 
 void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius, float height,
-	uint32 sliceCount, uint32 stackCount, MeshData& meshData)
+                                            uint32 sliceCount, uint32 stackCount, MeshData& meshData)
 {
-	uint32 baseIndex = (uint32)meshData.Vertices.size();
+	uint32 baseIndex = static_cast<uint32>(meshData.Vertices.size());
 
 	float y = 0.5f * height;
 	float dTheta = 2.0f * XM_PI / sliceCount;
@@ -496,7 +520,7 @@ void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius,
 	meshData.Vertices.push_back(Vertex(0.0f, y, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.5f));
 
 	// Index of center vertex.
-	uint32 centerIndex = (uint32)meshData.Vertices.size() - 1;
+	uint32 centerIndex = static_cast<uint32>(meshData.Vertices.size()) - 1;
 
 	for (uint32 i = 0; i < sliceCount; ++i)
 	{
@@ -507,13 +531,13 @@ void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius,
 }
 
 void GeometryGenerator::BuildCylinderBottomCap(float bottomRadius, float topRadius, float height,
-	uint32 sliceCount, uint32 stackCount, MeshData& meshData)
+                                               uint32 sliceCount, uint32 stackCount, MeshData& meshData)
 {
 	// 
 	// Build bottom cap.
 	//
 
-	uint32 baseIndex = (uint32)meshData.Vertices.size();
+	uint32 baseIndex = static_cast<uint32>(meshData.Vertices.size());
 	float y = -0.5f * height;
 
 	// vertices of ring
@@ -535,7 +559,7 @@ void GeometryGenerator::BuildCylinderBottomCap(float bottomRadius, float topRadi
 	meshData.Vertices.push_back(Vertex(0.0f, y, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.5f));
 
 	// Cache the index of center vertex.
-	uint32 centerIndex = (uint32)meshData.Vertices.size() - 1;
+	uint32 centerIndex = static_cast<uint32>(meshData.Vertices.size()) - 1;
 
 	for (uint32 i = 0; i < sliceCount; ++i)
 	{

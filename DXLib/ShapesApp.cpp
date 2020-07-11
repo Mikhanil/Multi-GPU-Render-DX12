@@ -113,8 +113,8 @@ void ShapesApp::GeneratedMipMap()
 
 
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
-		                                                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		                                                                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		                                                                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		                                                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 
 		for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
 		{
@@ -154,13 +154,13 @@ void ShapesApp::GeneratedMipMap()
 		}
 
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-			                                   texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			                         texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			                         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	}
 
 	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
-	
-	for (auto && pair : textures)
+
+	for (auto&& pair : textures)
 	{
 		pair.second->ClearTrack();
 	}
@@ -171,10 +171,9 @@ bool ShapesApp::Initialize()
 	if (!D3DApp::Initialize())
 		return false;
 
-	
 
 	auto cmdList = this->commandQueue->GetCommandList();
-	
+
 	mShadowMap = std::make_unique<ShadowMap>(
 		dxDevice.Get(), 4096, 4096);
 
@@ -182,13 +181,13 @@ bool ShapesApp::Initialize()
 		dxDevice.Get(),
 		cmdList.Get(),
 		clientWidth, clientHeight);
-		
+
 	LoadTextures(commandQueue->GetD3D12CommandQueue().Get(), cmdList.Get());
 
-	
+
 	commandQueue->WaitForFenceValue(this->commandQueue->ExecuteCommandList(cmdList));
-	
-	
+
+
 	GeneratedMipMap();
 
 
@@ -207,11 +206,11 @@ bool ShapesApp::Initialize()
 	SortGO();
 
 	mSsao->SetPSOs(psos[PsoType::Ssao]->GetPSO().Get(), psos[PsoType::SsaoBlur]->GetPSO().Get());
-	
+
 
 	// Wait until initialization is complete.
 	commandQueue->Flush();
-	
+
 	return true;
 }
 
@@ -265,7 +264,7 @@ void ShapesApp::Update(const GameTimer& gt)
 	// If not, wait until the GPU has completed commands up to this fence point.
 	if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFenceComplete(currentFrameResource->FenceValue))
 	{
-		commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);		
+		commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);
 	}
 
 	mLightRotationAngle += 0.1f * gt.DeltaTime();
@@ -294,8 +293,8 @@ void ShapesApp::Draw(const GameTimer& gt)
 
 	auto cmdList = commandQueue->GetCommandList();
 
-	
-	ID3D12DescriptorHeap* descriptorHeaps[] = { srvTextureHeap.Get() };
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = {srvTextureHeap.Get()};
 	cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
@@ -306,26 +305,26 @@ void ShapesApp::Draw(const GameTimer& gt)
 	cmdList->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
 
 	/*Bind all Diffuse Textures*/
-	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap, srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
+	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,
+	                                        srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
 	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
-	
 
 	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Render 3D");
 
-	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Shadow Map Pass");				
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Shadow Map Pass");
 	DrawSceneToShadowMap(cmdList.Get());
 	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
-	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Normal and Depth Pass");		
+	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Normal and Depth Pass");
 	DrawNormalsAndDepth(cmdList.Get());
 	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Compute SSAO");
 	if (computeSsao)
-	{		
+	{
 		cmdList->SetGraphicsRootSignature(ssaoRootSignature.Get());
-		mSsao->ComputeSsao(cmdList.Get(), currentFrameResource, 3);		
+		mSsao->ComputeSsao(cmdList.Get(), currentFrameResource, 3);
 	}
 	else
 	{
@@ -334,15 +333,15 @@ void ShapesApp::Draw(const GameTimer& gt)
 	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 	PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Main Pass");
-		
-	cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());	
-	
+
+	cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
+
 	cmdList->RSSetViewports(1, &screenViewport);
 	cmdList->RSSetScissorRects(1, &scissorRect);
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT,
-		D3D12_RESOURCE_STATE_RENDER_TARGET));
+	                                                                  D3D12_RESOURCE_STATE_PRESENT,
+	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	cmdList->ClearRenderTargetView(GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
 
@@ -362,8 +361,9 @@ void ShapesApp::Draw(const GameTimer& gt)
 	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::SsaoMap, mSsao->AmbientMapSrv());
 
 	/*Bind all Diffuse Textures*/
-	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap, srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
-	
+	cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,
+	                                        srvTextureHeap->GetGPUDescriptorHandleForHeapStart());
+
 
 	cmdList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
 	DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::SkyBox)]);
@@ -377,23 +377,22 @@ void ShapesApp::Draw(const GameTimer& gt)
 	cmdList->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
 	DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Transparent)]);
 
-	if(ShowAmbiantMap)
+	if (ShowAmbiantMap)
 	{
 		cmdList->SetPipelineState(psos[PsoType::Debug]->GetPSO().Get());
 		DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Debug)]);
 	}
-	
 
 
 	/*Если рисуем UI то не нужно для текущего backBuffer переводить состояние
 	 * потому что после вызова d3d11DeviceContext->Flush() он сам его переведет
 	 */
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(GetCurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PRESENT));
+	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
+	                                                                  D3D12_RESOURCE_STATE_PRESENT));
 
 	currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
-	
+
 
 	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 	PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
@@ -557,7 +556,7 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.FarZ = 1000.0f;
 	mainPassCB.TotalTime = gt.TotalTime();
 	mainPassCB.DeltaTime = gt.DeltaTime();
-	mainPassCB.AmbientLight = { 0.25f, 0.25f, 0.35f, 1.0f };
+	mainPassCB.AmbientLight = {0.25f, 0.25f, 0.35f, 1.0f};
 
 	for (int i = 0; i < MaxLights; ++i)
 	{
@@ -572,16 +571,15 @@ void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
 	}
 
 	mainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
-	mainPassCB.Lights[0].Strength = { 0.9f, 0.8f, 0.7f };
+	mainPassCB.Lights[0].Strength = {0.9f, 0.8f, 0.7f};
 	mainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-	mainPassCB.Lights[1].Strength = { 0.4f, 0.4f, 0.4f };
+	mainPassCB.Lights[1].Strength = {0.4f, 0.4f, 0.4f};
 	mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
-	mainPassCB.Lights[2].Strength = { 0.2f, 0.2f, 0.2f };
+	mainPassCB.Lights[2].Strength = {0.2f, 0.2f, 0.2f};
 
 
 	auto currentPassCB = currentFrameResource->PassConstantBuffer.get();
 	currentPassCB->CopyData(0, mainPassCB);
-
 }
 
 void ShapesApp::UpdateSsaoCB(const GameTimer& gt)
@@ -622,7 +620,7 @@ void ShapesApp::UpdateSsaoCB(const GameTimer& gt)
 
 void ShapesApp::LoadDoomSlayerTexture()
 {
-	std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");	
+	std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");
 
 	std::vector<std::string> doomNames =
 	{
@@ -633,7 +631,7 @@ void ShapesApp::LoadDoomSlayerTexture()
 		"Doomtorso",
 		"Doomvisor"
 	};
-	
+
 	std::vector<std::wstring> doomTextures =
 	{
 		L"models_characters_doommarine_doommarine_arms_c.png",
@@ -644,7 +642,7 @@ void ShapesApp::LoadDoomSlayerTexture()
 		L"models_characters_doommarine_doommarine_visor_c.png"
 	};
 
-	std::vector<std::wstring> doomNormals = 
+	std::vector<std::wstring> doomNormals =
 	{
 		L"models_characters_doommarine_doommarine_arms_n.png",
 		L"models_characters_doommarine_doommarine_cowl_n.png",
@@ -653,11 +651,12 @@ void ShapesApp::LoadDoomSlayerTexture()
 		L"models_characters_doommarine_doommarine_torso_n.png",
 		L"models_characters_doommarine_doommarine_visor_n.png"
 	};
-	
+
 	for (UINT i = 0; i < doomNames.size(); ++i)
 	{
 		auto texture = std::make_unique<Texture>(doomNames[i], doomFolder + doomTextures[i], TextureUsage::Diffuse);
-		auto normal = std::make_unique<Texture>(doomNames[i].append("Normal"), doomFolder + doomNormals[i], TextureUsage::Normalmap);
+		auto normal = std::make_unique<Texture>(doomNames[i].append("Normal"), doomFolder + doomNormals[i],
+		                                        TextureUsage::Normalmap);
 		textures[texture->GetName()] = std::move(texture);
 		textures[normal->GetName()] = std::move(normal);
 	}
@@ -751,7 +750,8 @@ void ShapesApp::LoadNanosuitTexture()
 	for (UINT i = 0; i < nanoNames.size(); ++i)
 	{
 		auto texture = std::make_unique<Texture>(nanoNames[i], nanoFolder + nanoTextures[i], TextureUsage::Diffuse);
-		auto normal = std::make_unique<Texture>(nanoNames[i].append("Normal"), nanoFolder + nanoNormals[i], TextureUsage::Normalmap);
+		auto normal = std::make_unique<Texture>(nanoNames[i].append("Normal"), nanoFolder + nanoNormals[i],
+		                                        TextureUsage::Normalmap);
 		textures[texture->GetName()] = std::move(texture);
 		textures[normal->GetName()] = std::move(normal);
 	}
@@ -797,7 +797,7 @@ void ShapesApp::LoadPBodyTexture()
 
 	std::vector<std::wstring> PBodyTextures =
 	{
-		L"eggbot_frame.png",		
+		L"eggbot_frame.png",
 		L"eggbot_shell.png",
 		L"eggbot_orange.png",
 		L"bot_eye_ring_lights.png"
@@ -833,7 +833,8 @@ void ShapesApp::LoadGolemTexture()
 	for (UINT i = 0; i < mechNames.size(); ++i)
 	{
 		auto texture = std::make_unique<Texture>(mechNames[i], mechFolder + mechTextures[i], TextureUsage::Diffuse);
-		auto normal = std::make_unique<Texture>(mechNames[i].append("Normal"), mechFolder + mechNormals[i], TextureUsage::Normalmap);
+		auto normal = std::make_unique<Texture>(mechNames[i].append("Normal"), mechFolder + mechNormals[i],
+		                                        TextureUsage::Normalmap);
 		textures[texture->GetName()] = std::move(texture);
 		textures[normal->GetName()] = std::move(normal);
 	}
@@ -848,13 +849,13 @@ void ShapesApp::LoadTextures(ID3D12CommandQueue* queue, ID3D12GraphicsCommandLis
 	LoadNanosuitTexture();
 
 	LoadAtlasTexture();
-	
+
 	LoadPBodyTexture();
 
 	LoadGolemTexture();
 
-	
-	for (auto && pair : textures)
+
+	for (auto&& pair : textures)
 	{
 		pair.second->LoadTexture(dxDevice.Get(), queue, cmdList);
 	}
@@ -938,14 +939,14 @@ void ShapesApp::BuildSsaoRootSignature()
 
 	// A root signature is an array of root parameters.
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
-		static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
-		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	                                        static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
+	                                        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+	                                         serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
 
 	if (errorBlob != nullptr)
 	{
@@ -963,7 +964,7 @@ void ShapesApp::BuildSsaoRootSignature()
 void ShapesApp::BuildTexturesHeap()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-	srvHeapDesc.NumDescriptors = textures.size() + 1 + 5; 
+	srvHeapDesc.NumDescriptors = textures.size() + 1 + 5;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(dxDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&srvTextureHeap)));
@@ -992,14 +993,14 @@ void ShapesApp::BuildShadersAndInputLayout()
 	const D3D_SHADER_MACRO defines[] =
 	{
 		"FOG", "1",
-		nullptr, NULL
+		nullptr, nullptr
 	};
 
 	const D3D_SHADER_MACRO alphaTestDefines[] =
 	{
 		"FOG", "1",
 		"ALPHA_TEST", "1",
-		nullptr, NULL
+		nullptr, nullptr
 	};
 
 	shaders["StandardVertex"] = std::move(
@@ -1031,11 +1032,10 @@ void ShapesApp::BuildShadersAndInputLayout()
 		std::make_unique<Shader>(L"Shaders\\DrawNormals.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 	shaders["drawNormalsPS"] = std::move(
 		std::make_unique<Shader>(L"Shaders\\DrawNormals.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
-;
 	shaders["drawNormalsAlphaDropPS"] = std::move(
 		std::make_unique<Shader>(L"Shaders\\DrawNormals.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
 
-	
+
 	shaders["ssaoVS"] = std::move(
 		std::make_unique<Shader>(L"Shaders\\Ssao.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 	shaders["ssaoPS"] = std::move(
@@ -1088,9 +1088,6 @@ void ShapesApp::BuildShadersAndInputLayout()
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
 	};
-
-
-	
 }
 
 void ShapesApp::BuildShapeGeometry()
@@ -1153,7 +1150,7 @@ void ShapesApp::BuildShapeGeometry()
 	quadSubmesh.IndexCount = static_cast<UINT>(quad.Indices32.size());
 	quadSubmesh.StartIndexLocation = quadIndexOffset;
 	quadSubmesh.BaseVertexLocation = quadVertexOffset;
-	
+
 	//
 	// Extract the vertex elements we are interested in and pack the
 	// vertices of all the meshes into one vertex buffer.
@@ -1219,17 +1216,17 @@ void ShapesApp::BuildShapeGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	auto cmdList = commandQueue->GetCommandList();
-	
+
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		cmdList.Get(), vertices.data(), vbByteSize,
-		geo->VertexBufferUploader);
+	                                                    cmdList.Get(), vertices.data(), vbByteSize,
+	                                                    geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		cmdList.Get(), indices.data(), ibByteSize,
-		geo->IndexBufferUploader);
+	                                                   cmdList.Get(), indices.data(), ibByteSize,
+	                                                   geo->IndexBufferUploader);
 
 	commandQueue->ExecuteCommandList(cmdList);
-	
+
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -1247,7 +1244,6 @@ void ShapesApp::BuildShapeGeometry()
 
 void ShapesApp::BuildRoomGeometry()
 {
-
 }
 
 float GetHillsHeight(float x, float z)
@@ -1303,17 +1299,17 @@ void ShapesApp::BuildLandGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	auto cmdList = commandQueue->GetCommandList();
-	
+
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		cmdList.Get(), vertices.data(), vbByteSize,
-		geo->VertexBufferUploader);
+	                                                    cmdList.Get(), vertices.data(), vbByteSize,
+	                                                    geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		cmdList.Get(), indices.data(), ibByteSize,
-		geo->IndexBufferUploader);
+	                                                   cmdList.Get(), indices.data(), ibByteSize,
+	                                                   geo->IndexBufferUploader);
 
 	commandQueue->ExecuteCommandList(cmdList);
-	
+
 	geo->VertexByteStride = sizeof(Vertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -1347,7 +1343,7 @@ void ShapesApp::BuildTreesGeometry()
 		float z = MathHelper::RandF(-45.0f, 45.0f);
 		float y = 0;
 
-		TreeSpriteVertex vertex{ XMFLOAT3(x, y, z), XMFLOAT2(20.0f, 20.0f) };
+		TreeSpriteVertex vertex{XMFLOAT3(x, y, z), XMFLOAT2(20.0f, 20.0f)};
 
 		vertices.push_back(vertex);
 
@@ -1368,18 +1364,18 @@ void ShapesApp::BuildTreesGeometry()
 	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
 
 	auto cmdList = commandQueue->GetCommandList();
-	
-	
+
+
 	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		cmdList.Get(), vertices.data(), vbByteSize,
-		geo->VertexBufferUploader);
+	                                                    cmdList.Get(), vertices.data(), vbByteSize,
+	                                                    geo->VertexBufferUploader);
 
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		cmdList.Get(), indices.data(), ibByteSize,
-		geo->IndexBufferUploader);
+	                                                   cmdList.Get(), indices.data(), ibByteSize,
+	                                                   geo->IndexBufferUploader);
 
 	commandQueue->ExecuteCommandList(cmdList);
-	
+
 	geo->VertexByteStride = sizeof(TreeSpriteVertex);
 	geo->VertexBufferByteSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
@@ -1400,7 +1396,7 @@ void ShapesApp::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC basePsoDesc;
 
 	ZeroMemory(&basePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-	basePsoDesc.InputLayout = { defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size()) };
+	basePsoDesc.InputLayout = {defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size())};
 	basePsoDesc.pRootSignature = rootSignature->GetRootSignature().Get();
 	basePsoDesc.VS = shaders["StandardVertex"]->GetShaderResource();
 	basePsoDesc.PS = shaders["OpaquePixel"]->GetShaderResource();
@@ -1418,9 +1414,7 @@ void ShapesApp::BuildPSOs()
 	auto depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	auto rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 
-	
-	
-	
+
 	auto opaquePSO = std::make_unique<PSO>();
 	opaquePSO->SetPsoDesc(basePsoDesc);
 	depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -1432,28 +1426,28 @@ void ShapesApp::BuildPSOs()
 	alphaDropPso->SetPsoDesc(opaquePSO->GetPsoDescription());
 	alphaDropPso->SetShader(shaders["AlphaDrop"].get());
 	rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;	
+	rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;
 	alphaDropPso->SetRasterizationState(rasterizedDesc);
 
-	
+
 	auto shadowMapPSO = std::make_unique<PSO>(PsoType::ShadowMapOpaque);
 	shadowMapPSO->SetPsoDesc(basePsoDesc);
 	shadowMapPSO->SetShader(shaders["shadowVS"].get());
 	shadowMapPSO->SetShader(shaders["shadowOpaquePS"].get());
 	shadowMapPSO->SetRTVFormat(0, DXGI_FORMAT_UNKNOWN);
 	shadowMapPSO->SetRenderTargetsCount(0);
-	
+
 	rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	rasterizedDesc.DepthBias = 100000;
 	rasterizedDesc.DepthBiasClamp = 0.0f;
 	rasterizedDesc.SlopeScaledDepthBias = 1.0f;
 	shadowMapPSO->SetRasterizationState(rasterizedDesc);
 
-	
+
 	auto shadowMapDropPSO = std::make_unique<PSO>(PsoType::ShadowMapOpaqueDrop);
 	shadowMapDropPSO->SetPsoDesc(shadowMapPSO->GetPsoDescription());
 	shadowMapDropPSO->SetShader(shaders["shadowOpaqueDropPS"].get());
-	
+
 
 	auto drawNormalsPso = std::make_unique<PSO>(PsoType::DrawNormalsOpaque);
 	drawNormalsPso->SetPsoDesc(basePsoDesc);
@@ -1472,8 +1466,8 @@ void ShapesApp::BuildPSOs()
 	drawNormalsDropPso->SetRasterizationState(rasterizedDesc);
 
 	auto ssaoPSO = std::make_unique<PSO>(PsoType::Ssao);
-	ssaoPSO->SetPsoDesc(basePsoDesc);	
-	ssaoPSO->SetInputLayout({ nullptr,0 });
+	ssaoPSO->SetPsoDesc(basePsoDesc);
+	ssaoPSO->SetInputLayout({nullptr, 0});
 	ssaoPSO->SetRootSignature(ssaoRootSignature.Get());
 	ssaoPSO->SetShader(shaders["ssaoVS"].get());
 	ssaoPSO->SetShader(shaders["ssaoPS"].get());
@@ -1495,10 +1489,10 @@ void ShapesApp::BuildPSOs()
 	skyBoxPSO->SetPsoDesc(basePsoDesc);
 	skyBoxPSO->SetShader(shaders["SkyBoxVertex"].get());
 	skyBoxPSO->SetShader(shaders["SkyBoxPixel"].get());
-	
+
 	depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	skyBoxPSO->SetDepthStencilState(depthStencilDesc);	
+	skyBoxPSO->SetDepthStencilState(depthStencilDesc);
 	rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;
 	skyBoxPSO->SetRasterizationState(rasterizedDesc);
@@ -1518,8 +1512,6 @@ void ShapesApp::BuildPSOs()
 	transparencyBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	transperentPSO->SetRenderTargetBlendState(0, transparencyBlendDesc);
-	
-	
 
 
 	auto treeSprite = std::make_unique<PSO>(PsoType::AlphaSprites);
@@ -1527,7 +1519,7 @@ void ShapesApp::BuildPSOs()
 	treeSprite->SetShader(shaders["treeSpriteVS"].get());
 	treeSprite->SetShader(shaders["treeSpriteGS"].get());
 	treeSprite->SetShader(shaders["treeSpritePS"].get());
-	treeSprite->SetInputLayout({ treeSpriteInputLayout.data(), static_cast<UINT>(treeSpriteInputLayout.size()) });
+	treeSprite->SetInputLayout({treeSpriteInputLayout.data(), static_cast<UINT>(treeSpriteInputLayout.size())});
 	treeSprite->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
 	rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;
@@ -1599,9 +1591,9 @@ void ShapesApp::BuildMaterials()
 		auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
 		material->FresnelR0 = Vector3::One * 0.05;
 		material->Roughness = 0.95;
-		
+
 		material->SetDiffuseTexture(textures[name].get());
-		material->SetNormalMap(textures[name+"Normal"].get());
+		material->SetNormalMap(textures[name + "Normal"].get());
 
 		if (material->GetName() == "Doomvisor")
 		{
@@ -1609,10 +1601,10 @@ void ShapesApp::BuildMaterials()
 			material->FresnelR0 = Vector3::One * 0.1;
 			material->Roughness = 0.99f;
 		}
-		
+
 		materials[material->GetName()] = std::move(material);
 	}
-	
+
 	std::vector<std::string> nanoNames =
 	{
 		"Nanoarm",
@@ -1655,10 +1647,10 @@ void ShapesApp::BuildMaterials()
 		material->FresnelR0 = Vector3::One * 0.05;
 		material->Roughness = 0.6;
 		material->SetDiffuseTexture(textures[name].get());
-		material->SetNormalMap(textures["defaultNormalMap"].get());		
+		material->SetNormalMap(textures["defaultNormalMap"].get());
 		materials[material->GetName()] = std::move(material);
 	}
-	
+
 	std::vector<std::string> PBodyNames =
 	{
 		"PBodyframe",
@@ -1692,7 +1684,7 @@ void ShapesApp::BuildMaterials()
 		material->SetNormalMap(textures[name + "Normal"].get());
 		materials[material->GetName()] = std::move(material);
 	}
-	
+
 	auto stone0 = std::make_unique<Material>("stone0", psos[PsoType::Opaque].get());
 	stone0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
 	stone0->Roughness = 0.1f;
@@ -1771,7 +1763,7 @@ void ShapesApp::BuildGameObjects()
 	gameObjects.push_back(std::move(skySphere));
 
 	auto quadRitem = std::make_unique<GameObject>(dxDevice.Get(), "Quad");
-	renderer = new Renderer();	
+	renderer = new Renderer();
 	renderer->material = materials["bricks"].get();
 	renderer->mesh = meshes["shapeMesh"].get();
 	renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -1782,7 +1774,7 @@ void ShapesApp::BuildGameObjects()
 	typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 	gameObjects.push_back(std::move(quadRitem));
 
-	
+
 	/*auto treeSpritesRitem = std::make_unique<GameObject>(dxDevice.Get(), "Trees");
 	renderer = new Renderer();
 	renderer->Material = materials["treeSprites"].get();
@@ -1794,7 +1786,7 @@ void ShapesApp::BuildGameObjects()
 	treeSpritesRitem->AddComponent(renderer);
 	typedGameObjects[(int)PsoType::AlphaSprites].push_back(treeSpritesRitem.get());
 	gameObjects.push_back(std::move(treeSpritesRitem));*/
-	
+
 
 	/*auto sphere = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
 	sphere->GetTransform()->SetPosition(Vector3{0, 1, -3} + Vector3::Backward);
@@ -1814,11 +1806,11 @@ void ShapesApp::BuildGameObjects()
 
 	auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
 	auto light = new Light(Directional);
-	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
-	light->Strength({ 0.8f, 0.8f, 0.8f });
+	light->Direction({0.57735f, -0.57735f, 0.57735f});
+	light->Strength({0.8f, 0.8f, 0.8f});
 	sun1->AddComponent(light);
 	gameObjects.push_back(std::move(sun1));
-	
+
 	auto sun2 = std::make_unique<GameObject>(dxDevice.Get());
 	light = new Light();
 	light->Direction({-0.57735f, -0.57735f, 0.57735f});
@@ -1838,17 +1830,17 @@ void ShapesApp::BuildGameObjects()
 	auto man = std::make_unique<GameObject>(dxDevice.Get());
 	man->GetTransform()->SetPosition(Vector3::Forward * 10 + (Vector3::Right * 5));
 	man->GetTransform()->SetScale(Vector3::One * 0.25);
-	man->GetTransform()->SetEulerRotate(Vector3(0,90,0));
+	man->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	auto modelRenderer = new ModelRenderer();
-	if(modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
+	if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
 	{
 		for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
 		{
 			modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
 		}
-		
+
 		if (modelRenderer->GetMeshesCount() > 0)
-		{			
+		{
 			std::vector<std::string> names =
 			{
 
@@ -1875,17 +1867,17 @@ void ShapesApp::BuildGameObjects()
 	doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
 	doomMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
-	if(modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
+	if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
 	{
-		if(modelRenderer->GetMeshesCount() > 0)
+		if (modelRenderer->GetMeshesCount() > 0)
 		{
 			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
 			{
 				modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
 			}
-			
+
 			std::vector<std::string> doomNames =
-			{				
+			{
 				"Doomlegs",
 				"Doomtorso",
 				"Doomcowl",
@@ -1899,17 +1891,17 @@ void ShapesApp::BuildGameObjects()
 			}
 		}
 
-		
+
 		doomMan->AddComponent(modelRenderer);
 	}
-	
-	
+
+
 	typedGameObjects[PsoType::Opaque].push_back(doomMan.get());
 	gameObjects.push_back(std::move(doomMan));
 
 
 	auto AtlasMan = std::make_unique<GameObject>(dxDevice.Get());
-	AtlasMan->GetTransform()->SetPosition( (Vector3::Right * 5) + (Vector3::Up * 2.4) + (Vector3::Forward * 5));
+	AtlasMan->GetTransform()->SetPosition((Vector3::Right * 5) + (Vector3::Up * 2.4) + (Vector3::Forward * 5));
 	AtlasMan->GetTransform()->SetScale(Vector3::One * 0.2);
 	AtlasMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
@@ -1921,15 +1913,15 @@ void ShapesApp::BuildGameObjects()
 			{
 				modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
 			}
-			
+
 			std::vector<std::string> AtlasNames =
 			{
-				
+
 				"Atlasshell",
 				"Atlasframe",
 				"Atlaseye",
 			};
-			
+
 			for (UINT i = 0; i < AtlasNames.size(); ++i)
 			{
 				modelRenderer->SetMeshMaterial(i, materials[AtlasNames[i]].get());
@@ -1943,10 +1935,10 @@ void ShapesApp::BuildGameObjects()
 
 	typedGameObjects[PsoType::Opaque].push_back(AtlasMan.get());
 	gameObjects.push_back(std::move(AtlasMan));
-	
+
 
 	auto PBodyMan = std::make_unique<GameObject>(dxDevice.Get());
-	PBodyMan->GetTransform()->SetPosition((Vector3::Right * 5) + (Vector3::Up * 2.4) );
+	PBodyMan->GetTransform()->SetPosition((Vector3::Right * 5) + (Vector3::Up * 2.4));
 	PBodyMan->GetTransform()->SetScale(Vector3::One * 0.2);
 	PBodyMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
@@ -1961,7 +1953,7 @@ void ShapesApp::BuildGameObjects()
 
 			std::vector<std::string> PBodyNames =
 			{
-				
+
 				"PBodyshell",
 				"PBodyframe",
 				"PBodyorange",
@@ -1984,7 +1976,7 @@ void ShapesApp::BuildGameObjects()
 	gameObjects.push_back(std::move(PBodyMan));
 
 	auto golem = std::make_unique<GameObject>(dxDevice.Get());
-	golem->GetTransform()->SetPosition(Vector3::Forward * -5 +(Vector3::Right * 5)  );
+	golem->GetTransform()->SetPosition(Vector3::Forward * -5 + (Vector3::Right * 5));
 	golem->GetTransform()->SetScale(Vector3::One * 0.5);
 	golem->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 	modelRenderer = new ModelRenderer();
@@ -1995,15 +1987,13 @@ void ShapesApp::BuildGameObjects()
 			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
 			{
 				modelRenderer->SetMeshMaterial(i, materials["golemColor"].get());
-			}			
+			}
 		}
 		golem->AddComponent(modelRenderer);
 	}
 	typedGameObjects[PsoType::Opaque].push_back(golem.get());
 	gameObjects.push_back(std::move(golem));
 
-	
-	
 
 	auto box = std::make_unique<GameObject>(dxDevice.Get());
 	box->GetTransform()->SetScale(Vector3(5.0f, 5.0f, 5.0f));
@@ -2140,12 +2130,12 @@ void ShapesApp::DrawSceneToShadowMap(ID3D12GraphicsCommandList* cmdList)
 	cmdList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE));
-		
+	                                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+	                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
+
 
 	cmdList->ClearDepthStencilView(mShadowMap->Dsv(),
-		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	cmdList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
 
@@ -2164,8 +2154,8 @@ void ShapesApp::DrawSceneToShadowMap(ID3D12GraphicsCommandList* cmdList)
 
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		D3D12_RESOURCE_STATE_GENERIC_READ));
+	                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE,
+	                                                                  D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
 void ShapesApp::DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList)
@@ -2178,14 +2168,14 @@ void ShapesApp::DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList)
 
 	// Change to RENDER_TARGET.
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		D3D12_RESOURCE_STATE_RENDER_TARGET));
+	                                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// Clear the screen normal map and depth buffer.
-	float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+	float clearValue[] = {0.0f, 0.0f, 1.0f, 0.0f};
 	cmdList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
 	cmdList->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0,
-		0, nullptr);
+	                               0, nullptr);
 
 	// Specify the buffers we are going to render to.
 	cmdList->OMSetRenderTargets(1, &normalMapRtv, true, &GetDepthStencilView());
@@ -2203,8 +2193,8 @@ void ShapesApp::DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList)
 
 	// Change back to GENERIC_READ so we can read the texture in a shader.
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_GENERIC_READ));
+	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
+	                                                                  D3D12_RESOURCE_STATE_GENERIC_READ));
 }
 
 void ShapesApp::SortGO()

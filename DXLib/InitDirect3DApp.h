@@ -11,11 +11,10 @@ public:
 	InitDirect3DApp(HINSTANCE hInstance);
 	~InitDirect3DApp();
 
-	virtual bool Initialize()override;
+	bool Initialize() override;
 
 private:
-	virtual void OnResize()override;
-	virtual void Update(const GameTimer& gt)override;
-	virtual void Draw(const GameTimer& gt)override;
-
+	void OnResize() override;
+	void Update(const GameTimer& gt) override;
+	void Draw(const GameTimer& gt) override;
 };

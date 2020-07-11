@@ -5,11 +5,10 @@
 
 class GameObject
 {
-	
 public:
 
 	GameObject(ID3D12Device* device);
-	
+
 	GameObject(ID3D12Device* device, std::string name);
 
 	GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 scale, Quaternion rotate);
@@ -25,13 +24,12 @@ public:
 	template <class T = Component>
 	void AddComponent(T* component);
 
-	template<class T = Component>
+	template <class T = Component>
 	T* GetComponent();
 
 protected:
 
-	
-	
+
 	std::vector<Component*> components;
 	std::unique_ptr<Transform> transform = nullptr;
 	Renderer* renderer = nullptr;
@@ -53,9 +51,8 @@ T* GameObject::GetComponent()
 		auto ptr = component;
 		if (dynamic_cast<T*>(ptr) != nullptr)
 		{
-			return (T*)ptr;
+			return static_cast<T*>(ptr);
 		}
 	}
 	return nullptr;
 }
-

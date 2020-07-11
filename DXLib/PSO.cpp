@@ -108,8 +108,8 @@ void PSO::SetShader(Shader* shader)
 		}
 	default:
 		{
-		assert("Bad Shader!!");
-		};
+			assert("Bad Shader!!");
+		}
 	}
 }
 
@@ -120,8 +120,8 @@ PsoType::Type PSO::GetType() const
 
 void PSO::Initialize(ID3D12Device* device)
 {
-	if(isInitial) return;
-	
+	if (isInitial) return;
+
 	ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineStateObject)));
 
 	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;

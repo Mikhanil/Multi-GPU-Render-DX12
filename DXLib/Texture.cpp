@@ -54,7 +54,6 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 {
 	if (isLoaded) return;
 
-	
 
 	std::filesystem::path filePath(Filename);
 	if (!exists(filePath))
@@ -89,9 +88,9 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	DirectX::TexMetadata metadata;
 	DirectX::ScratchImage scratchImage;
 
-	
+
 	UINT resFlags = D3D12_RESOURCE_FLAG_NONE;
-	
+
 	if (filePath.extension() == ".dds")
 	{
 		ThrowIfFailed(DirectX::LoadFromDDSFile(Filename.c_str(), DirectX::DDS_FLAGS_NONE , &metadata, scratchImage));
@@ -106,8 +105,9 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	}
 	else
 	{
-		ThrowIfFailed(DirectX::LoadFromWICFile(Filename.c_str(), DirectX::WIC_FLAGS_FORCE_RGB, &metadata, scratchImage));
-		
+		ThrowIfFailed(
+			DirectX::LoadFromWICFile(Filename.c_str(), DirectX::WIC_FLAGS_FORCE_RGB, &metadata, scratchImage));
+
 		//Если это не DDS или "специфичная" текстура, то для нее нужно будет генерировать мипмапы
 		//по этому даем возможность сделать ее UAV
 		resFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -115,7 +115,7 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 	/*Пока выключил гамма корекцию.*/
 	if (usage == TextureUsage::Albedo && filePath.extension() != ".dds")
-	{	
+	{
 		//metadata.format = MakeSRGB(metadata.format);
 	}
 
@@ -124,16 +124,18 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	desc.Height = static_cast<UINT>(metadata.height);
 	/*
 	 * DDS текстуры нельзя использовать как UAV для генерации мипмап карт.
-	 */	
-	desc.MipLevels = resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS ? 0 : static_cast<UINT16>(metadata.mipLevels);
+	 */
+	desc.MipLevels = resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+		                 ? 0
+		                 : static_cast<UINT16>(metadata.mipLevels);
 	desc.DepthOrArraySize = (metadata.dimension == DirectX::TEX_DIMENSION_TEXTURE3D)
-		? static_cast<UINT16>(metadata.depth)
-		: static_cast<UINT16>(metadata.arraySize);
+		                        ? static_cast<UINT16>(metadata.depth)
+		                        : static_cast<UINT16>(metadata.arraySize);
 	desc.Format = metadata.format;
-	desc.Flags = (D3D12_RESOURCE_FLAGS)resFlags;
+	desc.Flags = static_cast<D3D12_RESOURCE_FLAGS>(resFlags);
 	desc.SampleDesc.Count = 1;
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-	
+
 	ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
@@ -143,16 +145,18 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
-	ThrowIfFailed(PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
-		subresources));
+	ThrowIfFailed(
+		PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
+			subresources));
 
 	if (directxResource)
-	{		
+	{
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(directxResource.Get(),
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST));
-		
+		                                                                      D3D12_RESOURCE_STATE_COMMON,
+		                                                                      D3D12_RESOURCE_STATE_COPY_DEST));
+
 		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(directxResource.Get(),
-			0, static_cast<unsigned int>(subresources.size()));
+		                                                            0, static_cast<unsigned int>(subresources.size()));
 
 		ComPtr<ID3D12Resource> textureUploadHeap;
 		ThrowIfFailed(device->CreateCommittedResource(
@@ -165,16 +169,17 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 
 		UpdateSubresources(commandList,
-			directxResource.Get(), textureUploadHeap.Get(),
-			0, 0, static_cast<unsigned int>(subresources.size()),
-			subresources.data());
-		
+		                   directxResource.Get(), textureUploadHeap.Get(),
+		                   0, 0, static_cast<unsigned int>(subresources.size()),
+		                   subresources.data());
+
 		track.push_back(textureUploadHeap);
 		track.push_back(directxResource);
-		
-		
+
+
 		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(directxResource.Get(),
-			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		                                                                      D3D12_RESOURCE_STATE_COPY_DEST,
+		                                                                      D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 	}
 
 	isLoaded = true;

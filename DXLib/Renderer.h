@@ -3,17 +3,17 @@
 #include "Material.h"
 
 
-class Renderer :public Component
+class Renderer : public Component
 {
 protected:
 	ObjectConstants bufferConstant{};
 	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectConstantBuffer = nullptr;
 	void SendDataToConstantBuffer();
-	
+
 public:
 
 	Renderer();
-	
+
 
 	Material* material = nullptr;
 	MeshGeometry* mesh = nullptr;
@@ -30,4 +30,3 @@ public:
 	void Update() override;
 	void Draw(ID3D12GraphicsCommandList* cmdList) override;
 };
-

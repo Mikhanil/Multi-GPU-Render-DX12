@@ -37,21 +37,21 @@ class PSO
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
 
 	bool isInitial = false;
-	
+
 public:
 
 	PSO(PsoType::Type type = PsoType::Opaque);
 
 	ComPtr<ID3D12PipelineState> GetPSO() const
 	{
-		return  pipelineStateObject;
+		return pipelineStateObject;
 	}
 
 	void SetPsoDesc(D3D12_GRAPHICS_PIPELINE_STATE_DESC desc)
 	{
 		psoDesc = desc;
 	}
-	
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC GetPsoDescription() const;
 
 	void SetRootSignature(ID3D12RootSignature* rootSign);
@@ -64,7 +64,7 @@ public:
 	{
 		psoDesc.BlendState.RenderTarget[index] = desc;
 	}
-	
+
 	void SetBlendState(D3D12_BLEND_DESC blendDesc);
 
 	void SetDepthStencilState(D3D12_DEPTH_STENCIL_DESC ddsDesc);
@@ -89,4 +89,3 @@ public:
 
 	void Initialize(ID3D12Device* device);
 };
-

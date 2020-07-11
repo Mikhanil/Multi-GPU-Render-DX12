@@ -5,11 +5,10 @@
 using namespace DirectX::SimpleMath;
 
 
-class Transform :	public Component
+class Transform : public Component
 {
-
 public:
-	Transform(ID3D12Device* device, Vector3 pos, Quaternion rot , Vector3 scale);
+	Transform(ID3D12Device* device, Vector3 pos, Quaternion rot, Vector3 scale);
 
 	Transform(ID3D12Device* device);
 
@@ -28,9 +27,9 @@ public:
 
 	void AdjustEulerRotation(float roll, float pitch, float yaw);
 
-	[[nodiscard]]  Vector3 GetPosition() const;
+	[[nodiscard]] Vector3 GetPosition() const;
 
-	[[nodiscard]]  Vector3 GetScale() const;
+	[[nodiscard]] Vector3 GetScale() const;
 
 	[[nodiscard]] Quaternion GetQuaternionRotate() const;
 	[[nodiscard]] Vector3 GetEulerAngels() const;;
@@ -75,18 +74,13 @@ private:
 
 	std::unique_ptr<Transform> Parent = nullptr;
 
-	UINT bufferIndex = -1;	
+	UINT bufferIndex = -1;
 	int NumFramesDirty = globalCountFrameResources;
 
 	Vector3 position = Vector3::Zero;
 
 	Vector3 eulerAngles = Vector3::Zero;
-	
+
 	Quaternion rotate = Quaternion::Identity;
 	Vector3 scale = Vector3::One;
-
-	
-	
 };
-
-

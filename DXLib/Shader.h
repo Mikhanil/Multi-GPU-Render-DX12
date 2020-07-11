@@ -21,7 +21,8 @@ class Shader
 	std::string target;
 public:
 
-	Shader(const std::wstring fileName, const ShaderType type, const D3D_SHADER_MACRO* defines = nullptr, const std::string entryPoint = "Main", const std::string target = "ps_5_1")
+	Shader(const std::wstring fileName, const ShaderType type, const D3D_SHADER_MACRO* defines = nullptr,
+	       const std::string entryPoint = "Main", const std::string target = "ps_5_1")
 		: FileName(fileName), type(type), defines(defines), entryPoint(entryPoint), target(target)
 	{
 	}
@@ -39,7 +40,7 @@ public:
 
 	D3D12_SHADER_BYTECODE GetShaderResource() const
 	{
-		D3D12_SHADER_BYTECODE info{ shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize() };
+		D3D12_SHADER_BYTECODE info{shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize()};
 		return info;
 	}
 
@@ -48,4 +49,3 @@ public:
 		return type;
 	}
 };
-

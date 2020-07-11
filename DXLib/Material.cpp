@@ -19,22 +19,23 @@ void Material::SetDiffuseTexture(Texture* texture)
 	DiffuseMapIndex = texture->GetTextureIndex();
 }
 
-Material::Material( std::string name, PSO* pso): Name(std::move(name)), pso(pso)
+Material::Material(std::string name, PSO* pso): Name(std::move(name)), pso(pso)
 {
 	materialIndex = materialIndexGlobal++;
 }
 
 
 void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureHeap)
-{		
+{
+	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);	
+	gpuTextureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(textureHeap->GetGPUDescriptorHandleForHeapStart(),
+	                                                 this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
+	cpuTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap->GetCPUDescriptorHandleForHeapStart(),
+	                                                 this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
 
-	gpuTextureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(textureHeap->GetGPUDescriptorHandleForHeapStart(), this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
-	cpuTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap->GetCPUDescriptorHandleForHeapStart(), this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
-	
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;	
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 
 	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
@@ -42,7 +43,7 @@ void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureH
 	{
 		auto desc = textures[0]->GetResource()->GetDesc();
 
-		if(textures[0])
+		if (textures[0])
 		{
 			srvDesc.Format = GetSRGBFormat(desc.Format);
 		}
@@ -50,8 +51,8 @@ void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureH
 		{
 			srvDesc.Format = (desc.Format);
 		}
-		
-		
+
+
 		switch (pso->GetType())
 		{
 		case PsoType::SkyBox:
@@ -72,33 +73,32 @@ void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureH
 				srvDesc.Texture2D.MostDetailedMip = 0;
 				srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
-			};
+			}
 		}
 		device->CreateShaderResourceView(textures[0]->GetResource(), &srvDesc, cpuTextureHandle);
 	}
 
-	if(normalMap)
+	if (normalMap)
 	{
 		srvDesc.Format = normalMap->GetResource()->GetDesc().Format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		srvDesc.Texture2D.MipLevels = normalMap->GetResource()->GetDesc().MipLevels;
-		auto cpuNormalMapTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap->GetCPUDescriptorHandleForHeapStart(), NormalMapIndex, cbvSrvUavDescriptorSize);
+		auto cpuNormalMapTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+			textureHeap->GetCPUDescriptorHandleForHeapStart(), NormalMapIndex, cbvSrvUavDescriptorSize);
 		device->CreateShaderResourceView(normalMap->GetResource(), &srvDesc, cpuNormalMapTextureHandle);
 	}
-	
 }
 
 void Material::Draw(ID3D12GraphicsCommandList* cmdList) const
 {
-	
 	//TODO: Спросить у Павла, можно ли как-то это обойти, как получилось с билбордами деревьев, через привязку одного большого массива текстур, а дальше в зависимости от индекса и шейдера работать с текстурой как с текстурой нужного мне типа (Texture2DArray, TextureCube)
 	const auto psoType = pso->GetType();
-	if(psoType == PsoType::SkyBox )
+	if (psoType == PsoType::SkyBox)
 	{
 		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
-	}	
+	}
 }
 
 void Material::Update()
@@ -111,7 +111,7 @@ void Material::Update()
 		XMStoreFloat4x4(&matConstants.MaterialTransform, XMMatrixTranspose(XMLoadFloat4x4(&MatTransform)));
 		matConstants.DiffuseMapIndex = DiffuseMapIndex;
 		matConstants.NormalMapIndex = NormalMapIndex;
-		
+
 		NumFramesDirty--;
 	}
 }

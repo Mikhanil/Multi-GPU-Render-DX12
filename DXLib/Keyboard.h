@@ -13,7 +13,7 @@ public:
 
 	KeyboardEvent();;
 
-	KeyboardEvent(const EventType type, const unsigned char key);;
+	KeyboardEvent(EventType type, unsigned char key);;
 
 	bool IsPress() const;;
 
@@ -33,14 +33,14 @@ class Keyboard
 {
 public:
 	Keyboard();;
-	bool KeyIsPressed(const unsigned char keycode);;
+	bool KeyIsPressed(unsigned char keycode);;
 	bool KeyBufferIsEmpty();;
 	bool CharBufferIsEmpty();;
 	KeyboardEvent ReadKey();;
 	unsigned char ReadChar();;
-	void OnKeyPressed(const unsigned char key);;
-	void OnKeyReleased(const unsigned char key);;
-	void OnChar(const unsigned char key);;
+	void OnKeyPressed(unsigned char key);;
+	void OnKeyReleased(unsigned char key);;
+	void OnChar(unsigned char key);;
 	void EnableAutoRepeatKeys();;
 	void DisableAutoRepeatKeys();;
 	void EnableAutoRepeatChars();;
@@ -54,4 +54,3 @@ private:
 	std::queue<KeyboardEvent> keyBuffer;
 	std::queue<unsigned char> charBuffer;
 };
-

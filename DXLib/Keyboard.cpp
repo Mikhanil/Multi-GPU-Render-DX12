@@ -1,7 +1,7 @@
 #include "Keyboard.h"
 
 KeyboardEvent::KeyboardEvent():
-	type(EventType::Invalid),
+	type(Invalid),
 	key(0u)
 {
 }
@@ -14,17 +14,17 @@ KeyboardEvent::KeyboardEvent(const EventType type, const unsigned char key):
 
 bool KeyboardEvent::IsPress() const
 {
-	return this->type == EventType::Press;
+	return this->type == Press;
 }
 
 bool KeyboardEvent::IsRelease() const
 {
-	return this->type == EventType::Release;
+	return this->type == Release;
 }
 
 bool KeyboardEvent::IsValid() const
 {
-	return this->type != EventType::Invalid;
+	return this->type != Invalid;
 }
 
 unsigned char KeyboardEvent::GetKeyCode() const
@@ -59,12 +59,9 @@ KeyboardEvent Keyboard::ReadKey()
 	{
 		return KeyboardEvent(); //return empty keyboard event
 	}
-	else
-	{
-		KeyboardEvent e = this->keyBuffer.front(); //Get first Keyboard Event from queue
-		this->keyBuffer.pop(); //Remove first item from queue
-		return e; //Returns keyboard event
-	}
+	KeyboardEvent e = this->keyBuffer.front(); //Get first Keyboard Event from queue
+	this->keyBuffer.pop(); //Remove first item from queue
+	return e; //Returns keyboard event
 }
 
 unsigned char Keyboard::ReadChar()
@@ -73,12 +70,9 @@ unsigned char Keyboard::ReadChar()
 	{
 		return 0u; //return 0 (NULL char)
 	}
-	else
-	{
-		unsigned char e = this->charBuffer.front(); //Get first char from queue
-		this->charBuffer.pop(); //Remove first char from queue
-		return e; //Returns char
-	}
+	unsigned char e = this->charBuffer.front(); //Get first char from queue
+	this->charBuffer.pop(); //Remove first char from queue
+	return e; //Returns char
 }
 
 void Keyboard::OnKeyPressed(const unsigned char key)

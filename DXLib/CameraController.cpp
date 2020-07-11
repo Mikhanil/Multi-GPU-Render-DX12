@@ -51,12 +51,13 @@ void CameraController::Update()
 		{
 			if (me.GetType() == MouseEvent::EventType::RAW_MOVE)
 			{
-				gameObject->GetTransform()->AdjustEulerRotation(-1 * (float)me.GetPosY() * dt * yMouseSpeed, (float)me.GetPosX() * dt * xMouseSpeed,0);
+				gameObject->GetTransform()->AdjustEulerRotation(
+					-1 * static_cast<float>(me.GetPosY()) * dt * yMouseSpeed,
+					static_cast<float>(me.GetPosX()) * dt * xMouseSpeed, 0);
 			}
 		}
 	}
 
-	
 
 	if (keyboard->KeyIsPressed('W'))
 	{
@@ -80,7 +81,7 @@ void CameraController::Update()
 	}
 	if (keyboard->KeyIsPressed('Z'))
 	{
-		tr->AdjustPosition( tr->GetDownVector() * cameraSpeed * dt);
+		tr->AdjustPosition(tr->GetDownVector() * cameraSpeed * dt);
 	}
 }
 

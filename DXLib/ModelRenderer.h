@@ -4,12 +4,11 @@
 #include "assimp/scene.h"
 
 
-
 class ModelMesh
 {
 public:
 	ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name, std::vector<Vertex>& vertices,
-	          std::vector<DWORD>& indices,  D3D12_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	          std::vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	void Update(Transform* transform);
 
@@ -17,17 +16,17 @@ public:
 	void static CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>& vertex);
 
 	Material* material;
-	
+
 private:
 	ObjectConstants bufferConstant{};
 	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectConstantBuffer = nullptr;
 
 	std::string name;
-	
-	
+
+
 	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType;
 	std::unique_ptr<VertexBuffer> vertexBuffer = nullptr;
-	std::unique_ptr <IndexBuffer> indexBuffer = nullptr;
+	std::unique_ptr<IndexBuffer> indexBuffer = nullptr;
 };
 
 class ModelRenderer : public Renderer
@@ -42,7 +41,7 @@ class ModelRenderer : public Renderer
 	void Draw(ID3D12GraphicsCommandList* cmdList) override;
 
 	void Update() override;
-	
+
 public:
 
 	bool AddModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const std::string& filePath);
@@ -57,4 +56,3 @@ public:
 		meshes[index].material = material;
 	}
 };
-

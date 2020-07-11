@@ -3,13 +3,14 @@
 #include "Component.h"
 #include "Transform.h"
 
-GameObject::GameObject(ID3D12Device* device) : GameObject(device, "Game Object"){};
+GameObject::GameObject(ID3D12Device* device) : GameObject(device, "Game Object")
+{
+};
 
 GameObject::GameObject(ID3D12Device* device, std::string name)
-: GameObject(device, std::move(name), Vector3::Zero, 
-	Vector3::One, Quaternion::Identity)
+	: GameObject(device, std::move(name), Vector3::Zero,
+	             Vector3::One, Quaternion::Identity)
 {
-	
 }
 
 GameObject::
@@ -23,10 +24,6 @@ GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 sca
 
 void GameObject::Update()
 {
-	
-
-	
-	
 	for (auto& component : components)
 	{
 		component->Update();
@@ -34,7 +31,7 @@ void GameObject::Update()
 }
 
 void GameObject::Draw(ID3D12GraphicsCommandList* cmdList)
-{	
+{
 	for (auto&& component : components)
 	{
 		component->Draw(cmdList);

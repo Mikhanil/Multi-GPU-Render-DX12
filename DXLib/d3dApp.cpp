@@ -1,4 +1,3 @@
-
 #include "d3dApp.h"
 #include <WindowsX.h>
 
@@ -13,6 +12,7 @@ MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 D3DApp* D3DApp::instance = nullptr;
+
 D3DApp* D3DApp::GetApp()
 {
 	return instance;
@@ -32,22 +32,22 @@ D3DApp::~D3DApp()
 		commandQueue->Flush();
 }
 
-HINSTANCE D3DApp::AppInst()const
+HINSTANCE D3DApp::AppInst() const
 {
 	return appInstance;
 }
 
-HWND D3DApp::MainWnd()const
+HWND D3DApp::MainWnd() const
 {
 	return mainWindow;
 }
 
-float D3DApp::AspectRatio()const
+float D3DApp::AspectRatio() const
 {
 	return static_cast<float>(clientWidth) / clientHeight;
 }
 
-bool D3DApp::Get4xMsaaState()const
+bool D3DApp::Get4xMsaaState() const
 {
 	return isM4xMsaa;
 }
@@ -65,19 +65,19 @@ void D3DApp::Set4xMsaaState(bool value)
 
 int D3DApp::Run()
 {
-	MSG msg = { 0 };
+	MSG msg = {nullptr};
 
 	timer.Reset();
 
 	while (msg.message != WM_QUIT)
 	{
 		// If there are Window messages then process them.
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		// Otherwise, do animation/game stuff.
+			// Otherwise, do animation/game stuff.
 		else
 		{
 			timer.Tick();
@@ -95,19 +95,19 @@ int D3DApp::Run()
 		}
 	}
 
-	return (int)msg.wParam;
+	return static_cast<int>(msg.wParam);
 }
 
 bool D3DApp::Initialize()
 {
 	if (!InitMainWindow())
 		return false;
-		
+
 	if (!InitDirect3D())
 		return false;
 
 	InitializeD2D();
-	
+
 	OnResize();
 
 	return true;
@@ -145,7 +145,6 @@ void D3DApp::OnResize()
 	auto cmdList = commandQueue->GetCommandList();
 
 
-	
 	for (int i = 0; i < swapChainBufferCount; ++i)
 	{
 		swapChainBuffers[i].Reset();
@@ -155,7 +154,7 @@ void D3DApp::OnResize()
 	}
 
 	d3d11DeviceContext->Flush();
-	
+
 	ThrowIfFailed(swapChain->ResizeBuffers(
 		swapChainBufferCount,
 		clientWidth, clientHeight,
@@ -180,23 +179,22 @@ void D3DApp::OnResize()
 			dpi,
 			dpi
 		);
-	
+
 	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart());
 	for (UINT i = 0; i < swapChainBufferCount; i++)
 	{
 		ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainBuffers[i])));
 		dxDevice->CreateRenderTargetView(swapChainBuffers[i].Get(), &rtvDesc, rtvHeapHandle);
-		
+
 		// Create a wrapped 11On12 resource of this back buffer. Since we are 
 		// rendering all D3D12 content first and then all D2D content, we specify 
 		// the In resource state as RENDER_TARGET - because D3D12 will have last 
 		// used it in this state - and the Out resource state as PRESENT. When 
 		// ReleaseWrappedResources() is called on the 11On12 device, the resource 
 		// will be transitioned to the PRESENT state.
-		D3D11_RESOURCE_FLAGS d3d11Flags = { D3D11_BIND_RENDER_TARGET };
+		D3D11_RESOURCE_FLAGS d3d11Flags = {D3D11_BIND_RENDER_TARGET};
 
-		
-		
+
 		ThrowIfFailed(d3d11On12Device->CreateWrappedResource(
 			swapChainBuffers[i].Get(),
 			&d3d11Flags,
@@ -246,11 +244,12 @@ void D3DApp::OnResize()
 	dxDevice->CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc, GetDepthStencilView());
 
 	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.Get(),
-		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+	                                                                  D3D12_RESOURCE_STATE_COMMON,
+	                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 	commandQueue->ExecuteCommandList(cmdList);
 	commandQueue->Flush();
-	
+
 	screenViewport.TopLeftX = 0;
 	screenViewport.TopLeftY = 0;
 	screenViewport.Width = static_cast<float>(clientWidth);
@@ -258,35 +257,36 @@ void D3DApp::OnResize()
 	screenViewport.MinDepth = 0.0f;
 	screenViewport.MaxDepth = 1.0f;
 
-	scissorRect = { 0, 0, clientWidth, clientHeight };
+	scissorRect = {0, 0, clientWidth, clientHeight};
 }
 
 LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
 	{
-
 	case WM_INPUT:
-	{
-		UINT dataSize;
-		GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dataSize, sizeof(RAWINPUTHEADER)); //Need to populate data size first
-
-		if (dataSize > 0)
 		{
-			std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
-			if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize, sizeof(RAWINPUTHEADER)) == dataSize)
+			UINT dataSize;
+			GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize, sizeof(RAWINPUTHEADER));
+			//Need to populate data size first
+
+			if (dataSize > 0)
 			{
-				RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
-				if (raw->header.dwType == RIM_TYPEMOUSE)
+				std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
+				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
+				                    sizeof(RAWINPUTHEADER)) == dataSize)
 				{
-					mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+					RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
+					if (raw->header.dwType == RIM_TYPEMOUSE)
+					{
+						mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+					}
 				}
 			}
+
+			return DefWindowProc(hwnd, msg, wParam, lParam);
 		}
 
-		return DefWindowProc(hwnd, msg, wParam, lParam); 
-	}
-		
 		// WM_ACTIVATE is sent when the window is activated or deactivated.  
 		// We pause the game when the window is deactivated and unpause it 
 		// when it becomes active.  
@@ -325,7 +325,6 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			}
 			else if (wParam == SIZE_RESTORED)
 			{
-
 				// Restoring from minimized state?
 				if (isMinimized)
 				{
@@ -334,7 +333,7 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					OnResize();
 				}
 
-				// Restoring from maximized state?
+					// Restoring from maximized state?
 				else if (isMaximized)
 				{
 					isAppPaused = false;
@@ -395,74 +394,74 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		//Mouse Messages
 	case WM_MOUSEMOVE:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnMouseMove(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMouseMove(x, y);
+			return 0;
+		}
 	case WM_LBUTTONDOWN:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnLeftPressed(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnLeftPressed(x, y);
+			return 0;
+		}
 	case WM_RBUTTONDOWN:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnRightPressed(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnRightPressed(x, y);
+			return 0;
+		}
 	case WM_MBUTTONDOWN:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnMiddlePressed(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMiddlePressed(x, y);
+			return 0;
+		}
 	case WM_LBUTTONUP:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnLeftReleased(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnLeftReleased(x, y);
+			return 0;
+		}
 	case WM_RBUTTONUP:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnRightReleased(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnRightReleased(x, y);
+			return 0;
+		}
 	case WM_MBUTTONUP:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		mouse.OnMiddleReleased(x, y);
-		return 0;
-	}
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMiddleReleased(x, y);
+			return 0;
+		}
 	case WM_MOUSEWHEEL:
-	{
-		int x = LOWORD(lParam);
-		int y = HIWORD(lParam);
-		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
 		{
-			mouse.OnWheelUp(x, y);
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			{
+				mouse.OnWheelUp(x, y);
+			}
+			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+			{
+				mouse.OnWheelDown(x, y);
+			}
+			return 0;
 		}
-		else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
-		{
-			mouse.OnWheelDown(x, y);
-		}
-		return 0;
-	}
 	case WM_KEYUP:
 		if (wParam == VK_ESCAPE)
 		{
 			PostQuitMessage(0);
 		}
-		else 
+		else
 		{
 			/*if ((int)wParam == VK_F2)
 				Set4xMsaaState(!isM4xMsaa);*/
@@ -473,45 +472,45 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 	case WM_KEYDOWN:
 		{
-		if (wParam == VK_ESCAPE)
-		{
-			PostQuitMessage(0);
-		}
-		else
-		{
-			unsigned char keycode = static_cast<unsigned char>(wParam);
-			if (keyboard.IsKeysAutoRepeat())
+			if (wParam == VK_ESCAPE)
 			{
-				keyboard.OnKeyPressed(keycode);
+				PostQuitMessage(0);
+			}
+			else
+			{
+				unsigned char keycode = static_cast<unsigned char>(wParam);
+				if (keyboard.IsKeysAutoRepeat())
+				{
+					keyboard.OnKeyPressed(keycode);
+				}
+				else
+				{
+					const bool wasPressed = lParam & 0x40000000;
+					if (!wasPressed)
+					{
+						keyboard.OnKeyPressed(keycode);
+					}
+				}
+			}
+		}
+
+	case WM_CHAR:
+		{
+			unsigned char ch = static_cast<unsigned char>(wParam);
+			if (keyboard.IsCharsAutoRepeat())
+			{
+				keyboard.OnChar(ch);
 			}
 			else
 			{
 				const bool wasPressed = lParam & 0x40000000;
 				if (!wasPressed)
 				{
-					keyboard.OnKeyPressed(keycode);
+					keyboard.OnChar(ch);
 				}
 			}
+			return 0;
 		}
-		}
-
-	case WM_CHAR:
-	{
-		unsigned char ch = static_cast<unsigned char>(wParam);
-		if (keyboard.IsCharsAutoRepeat())
-		{
-			keyboard.OnChar(ch);
-		}
-		else
-		{
-			const bool wasPressed = lParam & 0x40000000;
-			if (!wasPressed)
-			{
-				keyboard.OnChar(ch);
-			}
-		}
-		return 0;
-	}
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -525,28 +524,29 @@ bool D3DApp::InitMainWindow()
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
 	wc.hInstance = appInstance;
-	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
-	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
-	wc.lpszMenuName = 0;
+	wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
+	wc.lpszMenuName = nullptr;
 	wc.lpszClassName = L"MainWnd";
 
 	if (!RegisterClass(&wc))
 	{
-		MessageBox(0, L"RegisterClass Failed.", 0, 0);
+		MessageBox(nullptr, L"RegisterClass Failed.", nullptr, 0);
 		return false;
 	}
-	
-	RECT R = { 0, 0, clientWidth, clientHeight };
+
+	RECT R = {0, 0, clientWidth, clientHeight};
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
 
 	mainWindow = CreateWindow(L"MainWnd", mainWindowCaption.c_str(),
-		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, appInstance, 0);
+	                          WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr,
+	                          appInstance, nullptr);
 	if (!mainWindow)
 	{
-		MessageBox(0, L"CreateWindow Failed.", 0, 0);
+		MessageBox(nullptr, L"CreateWindow Failed.", nullptr, 0);
 		return false;
 	}
 
@@ -558,22 +558,22 @@ bool D3DApp::InitMainWindow()
 	rid.usUsagePage = 0x01; //Mouse
 	rid.usUsage = 0x02;
 	rid.dwFlags = 0;
-	rid.hwndTarget = NULL;
+	rid.hwndTarget = nullptr;
 
 	if (RegisterRawInputDevices(&rid, 1, sizeof(rid)) == FALSE)
 	{
-		OutputDebugString( L"Failed to register raw input devices.");
+		OutputDebugString(L"Failed to register raw input devices.");
 		OutputDebugString(std::to_wstring(GetLastError()).c_str());
 		exit(-1);
 	}
-	
+
 	return true;
 }
 
 bool D3DApp::InitDirect3D()
 {
-#if defined(DEBUG) || defined(_DEBUG) 
-	{		
+#if defined(DEBUG) || defined(_DEBUG)
+	{
 		ComPtr<ID3D12Debug> debugController;
 		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 		debugController->EnableDebugLayer();
@@ -586,11 +586,11 @@ bool D3DApp::InitDirect3D()
 	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-	
+
 	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags,IID_PPV_ARGS(&dxgiFactory)));
 
 	HRESULT hardwareResult = D3D12CreateDevice(
-		nullptr,             // default adapter
+		nullptr, // default adapter
 		D3D_FEATURE_LEVEL_11_0,
 		IID_PPV_ARGS(&dxDevice));
 
@@ -604,17 +604,16 @@ bool D3DApp::InitDirect3D()
 			D3D_FEATURE_LEVEL_11_0,
 			IID_PPV_ARGS(&dxDevice)));
 	}
-	
+
 #if defined(DEBUG) || defined(_DEBUG)
 
-	Microsoft::WRL::ComPtr<ID3D12InfoQueue> pInfoQueue;
+	ComPtr<ID3D12InfoQueue> pInfoQueue;
 	if (SUCCEEDED(dxDevice.As(&pInfoQueue)))
 	{
 		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
 		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
 		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
 
-		
 
 		// Suppress messages based on their severity level
 		D3D12_MESSAGE_SEVERITY Severities[] =
@@ -624,9 +623,12 @@ bool D3DApp::InitDirect3D()
 
 		// Suppress individual messages by their ID
 		D3D12_MESSAGE_ID DenyIds[] = {
-			D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,   // I'm really not sure how to avoid this message.
-			D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,                         // This warning occurs when using capture frame while graphics debugging.
-			D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,                       // This warning occurs when using capture frame while graphics debugging.
+			D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+			// I'm really not sure how to avoid this message.
+			D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
+			// This warning occurs when using capture frame while graphics debugging.
+			D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
+			// This warning occurs when using capture frame while graphics debugging.
 		};
 
 		D3D12_INFO_QUEUE_FILTER NewFilter = {};
@@ -639,8 +641,6 @@ bool D3DApp::InitDirect3D()
 	}
 #endif
 
-
-	
 
 	rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	dsvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -672,7 +672,7 @@ bool D3DApp::InitDirect3D()
 
 void D3DApp::CreateCommandObjects()
 {
-	commandQueue = std::make_unique<DXLib::CommandQueue>(dxDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);	
+	commandQueue = std::make_unique<DXLib::CommandQueue>(dxDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
 }
 
 void D3DApp::InitializeD2D()
@@ -713,7 +713,6 @@ void D3DApp::InitializeD2D()
 
 	d2dContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow), &d2dBrush);
 
-	
 
 	ThrowIfFailed(d2dWriteFactory->CreateTextFormat(L"Gabriola", nullptr,
 		DWRITE_FONT_WEIGHT_REGULAR,
@@ -733,7 +732,7 @@ void D3DApp::InitializeD2D()
 }
 
 void D3DApp::CreateSwapChain()
-{	
+{
 	swapChain.Reset();
 
 	DXGI_SWAP_CHAIN_DESC sd;
@@ -760,12 +759,12 @@ void D3DApp::CreateSwapChain()
 }
 
 
-ID3D12Resource* D3DApp::GetCurrentBackBuffer()const
+ID3D12Resource* D3DApp::GetCurrentBackBuffer() const
 {
 	return swapChainBuffers[currBackBufferIndex].Get();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetCurrentBackBufferView()const
+D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetCurrentBackBufferView() const
 {
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
 		renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(),
@@ -773,14 +772,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetCurrentBackBufferView()const
 		rtvDescriptorSize);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetDepthStencilView()const
+D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetDepthStencilView() const
 {
 	return depthStencilViewHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
 void D3DApp::CalculateFrameStats()
 {
-	
 	static int frameCnt = 0;
 	static float timeElapsed = 0.0f;
 
@@ -788,7 +786,7 @@ void D3DApp::CalculateFrameStats()
 
 	if ((timer.TotalTime() - timeElapsed) >= 1.0f)
 	{
-		float fps = (float)frameCnt; // fps = frameCnt / 1
+		float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
 		fpsStr = to_wstring(fps);
@@ -879,5 +877,3 @@ void D3DApp::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
 		::OutputDebugString(text.c_str());
 	}
 }
-
-

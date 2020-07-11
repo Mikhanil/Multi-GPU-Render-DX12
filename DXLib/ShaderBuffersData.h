@@ -7,7 +7,10 @@ using namespace DirectX::SimpleMath;
 
 struct Vertex
 {
-	Vertex() {}
+	Vertex()
+	{
+	}
+
 	Vertex(
 		Vector3& p,
 		Vector3& n,
@@ -16,7 +19,10 @@ struct Vertex
 		Position(p),
 		Normal(n),
 		TexCord(uv),
-		TangentU(t) {}
+		TangentU(t)
+	{
+	}
+
 	Vertex(
 		float px, float py, float pz,
 		float nx, float ny, float nz,
@@ -24,8 +30,10 @@ struct Vertex
 		float u, float v) :
 		Position(px, py, pz),
 		Normal(nx, ny, nz),
-		TangentU(tx, ty, tz),
-		TexCord(u, v) {}
+		TexCord(u, v),
+		TangentU(tx, ty, tz)
+	{
+	}
 
 	Vector3 Position;
 	Vector3 Normal;
@@ -52,14 +60,14 @@ struct LightData
 
 struct PassConstants
 {
-	Matrix View = DirectX::SimpleMath::Matrix::Identity;
-	Matrix InvView = DirectX::SimpleMath::Matrix::Identity;
-	Matrix Proj = DirectX::SimpleMath::Matrix::Identity;
-	Matrix InvProj = DirectX::SimpleMath::Matrix::Identity;
-	Matrix ViewProj = DirectX::SimpleMath::Matrix::Identity;
-	Matrix InvViewProj = DirectX::SimpleMath::Matrix::Identity;
-	Matrix ViewProjTex = DirectX::SimpleMath::Matrix::Identity;
-	Matrix ShadowTransform = DirectX::SimpleMath::Matrix::Identity;
+	Matrix View = Matrix::Identity;
+	Matrix InvView = Matrix::Identity;
+	Matrix Proj = Matrix::Identity;
+	Matrix InvProj = Matrix::Identity;
+	Matrix ViewProj = Matrix::Identity;
+	Matrix InvViewProj = Matrix::Identity;
+	Matrix ViewProjTex = Matrix::Identity;
+	Matrix ShadowTransform = Matrix::Identity;
 	Vector3 EyePosW = Vector3{0.0f, 0.0f, 0.0f};
 	float tempFloat = 0.0f;
 	Vector2 RenderTargetSize = Vector2{0.0f, 0.0f};
@@ -82,8 +90,8 @@ struct PassConstants
 
 struct ObjectConstants
 {
-	Matrix World = DirectX::SimpleMath::Matrix::Identity;
-	Matrix TextureTransform = DirectX::SimpleMath::Matrix::CreateScale(DirectX::SimpleMath::Vector3::One);
+	Matrix World = Matrix::Identity;
+	Matrix TextureTransform = Matrix::CreateScale(Vector3::One);
 	UINT materialIndex;
 	UINT gObjPad0;
 	UINT gObjPad1;
@@ -95,12 +103,12 @@ struct SsaoConstants
 	Matrix Proj;
 	Matrix InvProj;
 	Matrix ProjTex;
-	Vector4   OffsetVectors[14];
+	Vector4 OffsetVectors[14];
 
 	// For SsaoBlur.hlsl
 	Vector4 BlurWeights[3];
 
-	Vector2 InvRenderTargetSize = { 0.0f, 0.0f };
+	Vector2 InvRenderTargetSize = {0.0f, 0.0f};
 
 	// Coordinates given in view space.
 	float OcclusionRadius = 0.5f;
@@ -116,7 +124,7 @@ struct MaterialConstants
 	float Roughness = 0.25f;
 
 	// Used in texture mapping.
-	Matrix MaterialTransform = DirectX::SimpleMath::Matrix::Identity;
+	Matrix MaterialTransform = Matrix::Identity;
 	UINT DiffuseMapIndex;
 	UINT NormalMapIndex;
 	UINT MatPad1;
@@ -128,7 +136,7 @@ class StandardShaderSlot
 {
 public:
 	enum Register
-	{		
+	{
 		ObjectData,
 		CameraData,
 		MaterialData,

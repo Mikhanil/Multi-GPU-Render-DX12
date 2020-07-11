@@ -5,17 +5,18 @@
 
 using namespace DirectX::SimpleMath;
 
-class Camera :	public Component
+class Camera : public Component
 {
-
-	void Draw(ID3D12GraphicsCommandList* cmdList) override {};
+	void Draw(ID3D12GraphicsCommandList* cmdList) override
+	{
+	};
 	void Update() override;
 
 	void CreateProjection();
 
 	Matrix view = Matrix::Identity;
 	Matrix projection = Matrix::Identity;
-	
+
 	float fov = 60;
 	float aspectRatio = 0;
 	float nearZ = 0.1;
@@ -23,8 +24,7 @@ class Camera :	public Component
 
 	Vector3 focusPosition = Vector3::Zero;
 
-	
-	
+
 	int NumFramesDirty = globalCountFrameResources;
 public:
 
@@ -32,7 +32,7 @@ public:
 	{
 		return focusPosition;
 	}
-	
+
 	Camera(float aspect);;
 
 	void SetAspectRatio(float aspect);
@@ -45,4 +45,3 @@ public:
 
 	const Matrix& GetProjectionMatrix() const;
 };
-

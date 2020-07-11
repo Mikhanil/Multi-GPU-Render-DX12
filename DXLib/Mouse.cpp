@@ -2,21 +2,23 @@
 
 MouseEvent::MouseEvent()
 	:
-	type(EventType::Invalid),
+	type(Invalid),
 	x(0),
 	y(0)
-{}
+{
+}
 
 MouseEvent::MouseEvent(EventType type, int x, int y)
 	:
 	type(type),
 	x(x),
 	y(y)
-{}
+{
+}
 
 bool MouseEvent::IsValid() const
 {
-	return this->type != EventType::Invalid;
+	return this->type != Invalid;
 }
 
 MouseEvent::EventType MouseEvent::GetType() const
@@ -26,7 +28,7 @@ MouseEvent::EventType MouseEvent::GetType() const
 
 MousePoint MouseEvent::GetPos() const
 {
-	return{ this->x,this->y };
+	return {this->x, this->y};
 }
 
 int MouseEvent::GetPosX() const
@@ -125,7 +127,7 @@ int Mouse::GetPosY()
 
 MousePoint Mouse::GetPos()
 {
-	return{ this->x, this->y };
+	return {this->x, this->y};
 }
 
 bool Mouse::EventBufferIsEmpty()
@@ -139,10 +141,7 @@ MouseEvent Mouse::ReadEvent()
 	{
 		return MouseEvent();
 	}
-	else
-	{
-		MouseEvent e = this->eventBuffer.front(); //Get first event from buffer
-		this->eventBuffer.pop(); //Remove first event from buffer
-		return e;
-	}
+	MouseEvent e = this->eventBuffer.front(); //Get first event from buffer
+	this->eventBuffer.pop(); //Remove first event from buffer
+	return e;
 }

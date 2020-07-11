@@ -10,7 +10,6 @@ using namespace DirectX::SimpleMath;
 class CameraController :
 	public Component
 {
-
 	Keyboard* keyboard;
 	Mouse* mouse;
 	GameTimer* timer;
@@ -26,4 +25,3 @@ public:
 	void Update() override;;
 	void Draw(ID3D12GraphicsCommandList* cmdList) override;;
 };
-
