@@ -1,6 +1,6 @@
 #pragma once
 #include "d3dUtil.h"
-
+using namespace Microsoft::WRL;
 enum ShaderType
 {
 	VertexShader,
@@ -14,7 +14,7 @@ enum ShaderType
 class Shader
 {
 	std::wstring FileName;
-	Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob = nullptr;
+	ComPtr<ID3DBlob> shaderBlob = nullptr;
 	ShaderType type;
 	const D3D_SHADER_MACRO* defines;
 	std::string entryPoint;

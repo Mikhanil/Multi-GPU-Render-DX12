@@ -3,10 +3,10 @@
 
 CameraController::CameraController()
 {
-	auto app = static_cast<ShapesApp*>(ShapesApp::GetApp());
-	keyboard = app->GetKeyboard();
-	mouse = app->GetMouse();
-	timer = app->GetTimer();
+	DXLib::ShapesApp& app = static_cast<DXLib::ShapesApp&>(DXLib::ShapesApp::GetApp());
+	keyboard = app.GetKeyboard();
+	mouse = app.GetMouse();
+	timer = app.GetTimer();
 }
 
 void CameraController::Update()
@@ -23,14 +23,14 @@ void CameraController::Update()
 
 		if (keycode == (VK_F1) && keyboard->KeyIsPressed(VK_F1))
 		{
-			auto app = static_cast<ShapesApp*>(ShapesApp::GetApp());
-			app->ShowAmbiantMap = !app->ShowAmbiantMap;
+			DXLib::ShapesApp& app = static_cast<DXLib::ShapesApp&>(DXLib::ShapesApp::GetApp());
+			app.ShowAmbiantMap = !app.ShowAmbiantMap;
 		}
 
 		if (keycode == (VK_F2) && keyboard->KeyIsPressed(VK_F2))
 		{
-			auto app = static_cast<ShapesApp*>(ShapesApp::GetApp());
-			app->computeSsao = !app->computeSsao;
+			DXLib::ShapesApp& app = static_cast<DXLib::ShapesApp&>(DXLib::ShapesApp::GetApp());
+			app.computeSsao = !app.computeSsao;
 		}
 	}
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "d3dUtil.h"
-
+using namespace Microsoft::WRL;
 class ShaderBuffer
 {
 public:

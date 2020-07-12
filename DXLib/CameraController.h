@@ -6,7 +6,6 @@
 
 
 using namespace DirectX::SimpleMath;
-
 class CameraController :
 	public Component
 {

@@ -17,7 +17,7 @@ namespace DXLib
 		ThrowIfFailed(d3d12Device->CreateCommandQueue(&desc, IID_PPV_ARGS(&d3d12CommandQueue)));
 		ThrowIfFailed(d3d12Device->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence)));
 
-		FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, NULL);
+		FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		assert(FenceEvent && "Failed to create fence event handle.");
 	}
 

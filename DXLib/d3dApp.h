@@ -23,136 +23,140 @@
 #pragma comment(lib, "RuntimeObject.lib")
 
 
-#include "CommandQueue.h"
 #include "d2d1_3.h"
 #include "dwrite.h"
+#include <dxgi1_6.h>
 
 #include "d3d11on12.h"
 #include "d3d11.h"
 
 using Microsoft::WRL::ComPtr;
 
-class D3DApp
+namespace DXLib
 {
-protected:
+	class Window;
+	class CommandQueue;
 
-	D3DApp(HINSTANCE hInstance);
-	D3DApp(const D3DApp& rhs) = delete;
-	D3DApp& operator=(const D3DApp& rhs) = delete;
-	virtual ~D3DApp();
-
-public:
-
-	GameTimer* GetTimer()
+	class D3DApp
 	{
-		return &timer;
-	}
+	protected:
 
-	ID3D12Device& GetDevice()
-	{
-		return *dxDevice.Get();
-	}
+		D3DApp(HINSTANCE hInstance);
+		D3DApp(const D3DApp& rhs) = delete;
+		D3DApp& operator=(const D3DApp& rhs) = delete;
+		virtual ~D3DApp();
 
-	static D3DApp* GetApp();
+	public:
 
-	HINSTANCE AppInst() const;
-	HWND MainWnd() const;
-	float AspectRatio() const;
+		void Destroy() const;
 
-	bool Get4xMsaaState() const;
-	void Set4xMsaaState(bool value);
+		bool IsTearingSupported() const;
 
-	int Run();
+		std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight,
+		                                           bool vSync = true);
 
-	virtual bool Initialize();
-	virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+		void DestroyWindow(const std::wstring& windowName);
+		
+		void DestroyWindow(std::shared_ptr<Window> window);
 
-protected:
-	virtual void CreateRtvAndDsvDescriptorHeaps();
-	virtual void OnResize();
-	virtual void Update(const GameTimer& gt) = 0;
-	virtual void Draw(const GameTimer& gt) = 0;
+		std::shared_ptr<Window> GetWindowByName(const std::wstring& windowName);
+		
 
-protected:
-
-	std::wstring fpsStr;
-	std::wstring mainWindowCaption = L"d3d App";
-	D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	int clientWidth = 800;
-	int clientHeight = 600;
-
-	static D3DApp* instance;
-	HINSTANCE appInstance = nullptr;
-	HWND mainWindow = nullptr;
-	bool isAppPaused = false;
-	bool isMinimized = false;
-	bool isMaximized = false;
-	bool isResizing = false;
-	bool isFullscreen = false;
-
-	// Set true to use 4X MSAA (§4.1.8).  The default is false.
-	bool isM4xMsaa = false; // 4X MSAA enabled
-	UINT m4xMsaaQuality = 0; // quality level of 4X MSAA
-
-	GameTimer timer;
-
-	Keyboard keyboard;
-
-	Mouse mouse;
+		static void Quit(int exitCode = 0);
 
 
-	bool InitMainWindow();
+		std::shared_ptr<CommandQueue> GetCommandQueue(
+			D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 
-	ComPtr<IDXGIFactory4> dxgiFactory;
-	ComPtr<IDXGISwapChain> swapChain;
-	ComPtr<ID3D12Device2> dxDevice;
-	bool InitDirect3D();
+		void Flush();
 
-	std::unique_ptr<DXLib::CommandQueue> commandQueue;
-	void CreateCommandObjects();
+		ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type);
 
-	static const int swapChainBufferCount = 2;
-	int currBackBufferIndex = 0;
-	ComPtr<ID3D12Resource> swapChainBuffers[swapChainBufferCount];
-	ComPtr<ID3D12Resource> depthStencilBuffer;
-	ComPtr<ID3D12DescriptorHeap> renderTargetViewHeap;
-	ComPtr<ID3D12DescriptorHeap> depthStencilViewHeap;
-	D3D12_VIEWPORT screenViewport;
-	D3D12_RECT scissorRect;
-	UINT rtvDescriptorSize = 0;
-	UINT dsvDescriptorSize = 0;
-	UINT cbvSrvUavDescriptorSize = 0;
+		UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 
-	ComPtr<ID3D11Device> d3d11Device;
-	ComPtr<ID3D11On12Device> d3d11On12Device;
-	ComPtr<ID3D11DeviceContext> d3d11DeviceContext;
-	ComPtr<IDXGIDevice3> dxgiDevice;
-	ComPtr<IDWriteFactory> d2dWriteFactory;
-	ComPtr<IDWriteTextFormat> d2dTextFormat;
-	ComPtr<IDWriteTextFormat> d2dTextFormatSans;
-	ComPtr<ID2D1Factory3> d2dFactory;
-	ComPtr<ID2D1Device> d2dDevice;
-	ComPtr<ID2D1DeviceContext> d2dContext;
-	ComPtr<ID2D1SolidColorBrush> d2dBrush;
-	ComPtr<IDWriteTextLayout> d2dTextLayout;
-	ComPtr<ID3D11Resource> wrappedBackBuffers[swapChainBufferCount];
-	ComPtr<IDXGISurface> d2dSurfaces[swapChainBufferCount];
-	ComPtr<ID2D1Bitmap1> d2dRenderTargets[swapChainBufferCount];
+		GameTimer* GetTimer();
 
-	void InitializeD2D();
+		ID3D12Device& GetDevice();
 
-	void CreateSwapChain();
+		static D3DApp& GetApp();
+
+		HINSTANCE AppInst() const;
+		std::shared_ptr<Window> MainWnd() const;
+		float AspectRatio() const;
+
+		bool Get4xMsaaState() const;
+		void Set4xMsaaState(bool value);
+
+		int Run();
+
+		virtual bool Initialize();
+		virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+	protected:
+
+		ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
+		ComPtr<ID3D12Device2> GetOrCreateDevice();
+		bool CheckTearingSupport();
+
+		virtual void OnResize();
+		virtual void Update(const GameTimer& gt) = 0;
+		virtual void Draw(const GameTimer& gt) = 0;
+
+	protected:
 
 
-	ID3D12Resource* GetCurrentBackBuffer() const;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
+		std::shared_ptr<Window> MainWindow;
 
-	void CalculateFrameStats();
 
-	void LogAdapters();
-	void LogAdapterOutputs(IDXGIAdapter* adapter);
-	void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
-};
+		std::shared_ptr<CommandQueue> directCommandQueue;
+		std::shared_ptr<CommandQueue> computeCommandQueue;
+		std::shared_ptr<CommandQueue> copyCommandQueue;
+
+		bool m_TearingSupported;
+
+		std::wstring fpsStr;
+		std::wstring mainWindowCaption = L"d3d App";
+		D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
+		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		
+
+		static D3DApp* instance;
+		HINSTANCE appInstance = nullptr;
+
+		bool isAppPaused = false;
+		bool isMinimized = false;
+		bool isMaximized = false;
+		bool isResizing = false;
+		bool isFullscreen = false;
+
+
+		bool isM4xMsaa = false;
+		UINT m4xMsaaQuality = 0;
+
+		GameTimer timer;
+
+		Keyboard keyboard;
+
+		Mouse mouse;
+
+
+		bool InitMainWindow();
+
+		ComPtr<IDXGIFactory4> dxgiFactory;
+		ComPtr<ID3D12Device2> dxDevice;
+		bool InitDirect3D();
+
+		int currBackBufferIndex = 0;
+		UINT rtvDescriptorSize = 0;
+		UINT dsvDescriptorSize = 0;
+		UINT cbvSrvUavDescriptorSize = 0;
+
+
+		void CalculateFrameStats();
+
+		void LogAdapters();
+		void LogAdapterOutputs(IDXGIAdapter* adapter);
+		void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
+	};
+}

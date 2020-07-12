@@ -1,879 +1,862 @@
 #include "d3dApp.h"
 #include <WindowsX.h>
 
+
+#include "CommandQueue.h"
+#include "Window.h"
+
 using Microsoft::WRL::ComPtr;
 using namespace std;
 using namespace DirectX;
 
-LRESULT CALLBACK
-MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+namespace DXLib
 {
-	return D3DApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
-}
+	constexpr wchar_t WINDOW_CLASS_NAME[] = L"DXLibRenderWindowClass";
+	
+	using WindowPtr = std::shared_ptr<Window>;
+	using WindowMap = std::unordered_map< HWND, std::shared_ptr<Window> >;
+	using WindowNameMap = std::unordered_map< std::wstring, std::shared_ptr<Window> >;
 
-D3DApp* D3DApp::instance = nullptr;
-
-D3DApp* D3DApp::GetApp()
-{
-	return instance;
-}
-
-D3DApp::D3DApp(HINSTANCE hInstance)
-	: appInstance(hInstance)
-{
-	// Only one D3DApp can be constructed.
-	assert(instance == nullptr);
-	instance = this;
-}
-
-D3DApp::~D3DApp()
-{
-	if (dxDevice != nullptr && commandQueue != nullptr)
-		commandQueue->Flush();
-}
-
-HINSTANCE D3DApp::AppInst() const
-{
-	return appInstance;
-}
-
-HWND D3DApp::MainWnd() const
-{
-	return mainWindow;
-}
-
-float D3DApp::AspectRatio() const
-{
-	return static_cast<float>(clientWidth) / clientHeight;
-}
-
-bool D3DApp::Get4xMsaaState() const
-{
-	return isM4xMsaa;
-}
-
-void D3DApp::Set4xMsaaState(bool value)
-{
-	if (isM4xMsaa != value)
+	static WindowMap gs_Windows;
+	static WindowNameMap gs_WindowByName;
+	
+	LRESULT CALLBACK
+	MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
-		isM4xMsaa = value;
-
-		CreateSwapChain();
-		OnResize();
+		return D3DApp::GetApp().MsgProc(hwnd, msg, wParam, lParam);
 	}
-}
 
-int D3DApp::Run()
-{
-	MSG msg = {nullptr};
+	D3DApp* D3DApp::instance = nullptr;
 
-	timer.Reset();
-
-	while (msg.message != WM_QUIT)
+	D3DApp& D3DApp::GetApp()
 	{
-		// If there are Window messages then process them.
-		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		return *instance;
+	}
+
+	D3DApp::D3DApp(HINSTANCE hInstance)
+		: appInstance(hInstance)
+	{
+		// Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
+		// Using this awareness context allows the client area of the window 
+		// to achieve 100% scaling while still allowing non-client window content to 
+		// be rendered in a DPI sensitive fashion.
+		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+		WNDCLASS wc;
+		wc.style = CS_HREDRAW | CS_VREDRAW;
+		wc.lpfnWndProc = &MainWndProc;
+		wc.cbClsExtra = 0;
+		wc.cbWndExtra = 0;
+		wc.hInstance = appInstance;
+		wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
+		wc.lpszMenuName = nullptr;
+		wc.lpszClassName = WINDOW_CLASS_NAME;
+
+		if (!RegisterClass(&wc))
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			MessageBox(nullptr, L"RegisterClass Failed.", nullptr, 0);
+			assert(&wc);
 		}
-			// Otherwise, do animation/game stuff.
+		
+
+		{
+			directCommandQueue = std::make_shared<CommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_DIRECT);
+			computeCommandQueue = std::make_shared<CommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COMPUTE);
+			copyCommandQueue = std::make_shared<CommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COPY);
+
+			m_TearingSupported = CheckTearingSupport();
+		}
+
+
+		// Only one D3DApp can be constructed.
+		assert(instance == nullptr);
+		instance = this;
+	}
+
+	D3DApp::~D3DApp()
+	{		
+		Flush();		
+	}
+
+	void D3DApp::Destroy() const
+	{
+		for (auto&& gs_window : gs_Windows)
+		{
+			gs_window.second->Destroy();
+		}
+		
+		if (instance)
+		{
+			delete instance;
+			instance = nullptr;
+		}
+	}
+
+	bool D3DApp::IsTearingSupported() const
+	{
+		return m_TearingSupported;
+	}
+
+	// A wrapper struct to allow shared pointers for the window class.
+	struct MakeWindow : public Window
+	{
+		MakeWindow() = default;
+
+		MakeWindow(HWND hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
+			: Window(hwnd, windowName, clientWidth, clientHeight, vSync)
+		{
+		}
+	};
+
+
+	std::shared_ptr<Window> D3DApp::CreateRenderWindow(const std::wstring& windowName, int clientWidth,
+	                                                   int clientHeight, bool vSync)
+	{
+		RECT R = { 0, 0, clientWidth, clientHeight };
+		AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, FALSE);
+		int width = R.right - R.left;
+		int height = R.bottom - R.top;
+
+		auto* hWnd = CreateWindowW(WINDOW_CLASS_NAME, windowName.c_str(),
+			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+			width,
+			height,
+			nullptr, nullptr, appInstance, nullptr);
+
+		if (!hWnd)
+		{
+			MessageBoxA(NULL, "Could not create the render window.", "Error", MB_OK | MB_ICONERROR);
+			return nullptr;
+		}
+		
+		auto pWindow = std::make_shared<MakeWindow>(hWnd, windowName, clientWidth, clientHeight, vSync);
+		gs_Windows.insert(WindowMap::value_type(hWnd, pWindow));
+		gs_WindowByName.insert(WindowNameMap::value_type(windowName, pWindow));
+
+		return pWindow;
+	}
+
+	void D3DApp::DestroyWindow(const std::wstring& windowName)
+	{
+		WindowPtr pWindow = GetWindowByName(windowName);
+		if (pWindow)
+		{
+			DestroyWindow(pWindow);
+		}
+	}
+
+	void D3DApp::DestroyWindow(std::shared_ptr<Window> window)
+	{
+		if (window) window->Destroy();
+	}
+
+	std::shared_ptr<Window> D3DApp::GetWindowByName(const std::wstring& windowName)
+	{
+		std::shared_ptr<Window> window;
+		const auto iter = gs_WindowByName.find(windowName);
+		if (iter != gs_WindowByName.end())
+		{
+			window = iter->second;
+		}
+
+		return window;
+	}
+
+
+	void D3DApp::Quit(int exitCode)
+	{
+		PostQuitMessage(exitCode);
+	}
+
+	std::shared_ptr<CommandQueue> D3DApp::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
+	{
+		std::shared_ptr<CommandQueue> commandQueue;
+		switch (type)
+		{
+		case D3D12_COMMAND_LIST_TYPE_DIRECT:
+			commandQueue = directCommandQueue;
+			break;
+		case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+			commandQueue = computeCommandQueue;
+			break;
+		case D3D12_COMMAND_LIST_TYPE_COPY:
+			commandQueue = copyCommandQueue;
+			break;
+		default:
+			assert(false && "Invalid command queue type.");
+		}
+
+		return commandQueue;
+	}
+
+	void D3DApp::Flush()
+	{
+		directCommandQueue->Flush();
+		computeCommandQueue->Flush();
+		copyCommandQueue->Flush();
+	}
+
+	ComPtr<ID3D12DescriptorHeap> D3DApp::CreateDescriptorHeap(UINT numDescriptors,
+	                                                          D3D12_DESCRIPTOR_HEAP_TYPE type)
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+		desc.Type = type;
+		desc.NumDescriptors = numDescriptors;
+		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		desc.NodeMask = 0;
+
+		ComPtr<ID3D12DescriptorHeap> descriptorHeap;
+		ThrowIfFailed(dxDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
+
+		return descriptorHeap;
+	}
+
+	UINT D3DApp::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
+	{
+		return dxDevice->GetDescriptorHandleIncrementSize(type);
+	}
+
+	ComPtr<IDXGIAdapter4> D3DApp::GetAdapter(bool bUseWarp)
+	{
+		ComPtr<IDXGIFactory4> dxgiFactory;
+		UINT createFactoryFlags = 0;
+#if defined(_DEBUG)
+		createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+		ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+
+		ComPtr<IDXGIAdapter1> dxgiAdapter1;
+		ComPtr<IDXGIAdapter4> dxgiAdapter4;
+
+		if (bUseWarp)
+		{
+			ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&dxgiAdapter1)));
+			ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
+		}
 		else
 		{
-			timer.Tick();
+			SIZE_T maxDedicatedVideoMemory = 0;
+			for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &dxgiAdapter1) != DXGI_ERROR_NOT_FOUND; ++i)
+			{
+				DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
+				dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
 
-			if (!isAppPaused)
-			{
-				CalculateFrameStats();
-				Update(timer);
-				Draw(timer);
+				// Check to see if the adapter can create a D3D12 device without actually 
+				// creating it. The adapter with the largest dedicated video memory
+				// is favored.
+				if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
+					SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(),
+						D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr)) &&
+					dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
+				{
+					maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
+					ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
+				}
 			}
-			else
+		}
+
+		return dxgiAdapter4;
+	}
+
+	ComPtr<ID3D12Device2> D3DApp::GetOrCreateDevice()
+	{
+		if (dxDevice == nullptr)
+		{
+#if defined(DEBUG) || defined(_DEBUG)
 			{
-				Sleep(100);
+				ComPtr<ID3D12Debug> debugController;
+				ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+				debugController->EnableDebugLayer();
 			}
+#endif
+
+			dxgiFactory.Reset();
+			UINT createFactoryFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#endif
+
+
+			ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
+
+			HRESULT hardwareResult = D3D12CreateDevice(
+				nullptr, // default adapter
+				D3D_FEATURE_LEVEL_11_0,
+				IID_PPV_ARGS(&dxDevice));
+
+			if (FAILED(hardwareResult))
+			{
+				ComPtr<IDXGIAdapter> pWarpAdapter;
+				ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
+
+				ThrowIfFailed(D3D12CreateDevice(
+					pWarpAdapter.Get(),
+					D3D_FEATURE_LEVEL_11_0,
+					IID_PPV_ARGS(&dxDevice)));
+			}
+
+#if defined(DEBUG) || defined(_DEBUG)
+
+			ComPtr<ID3D12InfoQueue> pInfoQueue;
+			if (SUCCEEDED(dxDevice.As(&pInfoQueue)))
+			{
+				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+
+
+				// Suppress messages based on their severity level
+				D3D12_MESSAGE_SEVERITY Severities[] =
+				{
+					D3D12_MESSAGE_SEVERITY_INFO
+				};
+
+				// Suppress individual messages by their ID
+				D3D12_MESSAGE_ID DenyIds[] = {
+					D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+					// I'm really not sure how to avoid this message.
+					D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
+					// This warning occurs when using capture frame while graphics debugging.
+					D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
+					// This warning occurs when using capture frame while graphics debugging.
+				};
+
+				D3D12_INFO_QUEUE_FILTER NewFilter = {};
+				NewFilter.DenyList.NumSeverities = _countof(Severities);
+				NewFilter.DenyList.pSeverityList = Severities;
+				NewFilter.DenyList.NumIDs = _countof(DenyIds);
+				NewFilter.DenyList.pIDList = DenyIds;
+
+				ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
+			}
+#endif
+		}
+
+		return dxDevice;
+	}
+
+	bool D3DApp::CheckTearingSupport()
+	{
+		BOOL allowTearing = FALSE;
+
+		// Rather than create the DXGI 1.5 factory interface directly, we create the
+		// DXGI 1.4 interface and query for the 1.5 interface. This is to enable the 
+		// graphics debugging tools which will not support the 1.5 factory interface 
+		// until a future update.
+		ComPtr<IDXGIFactory4> factory4;
+		if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory4))))
+		{
+			ComPtr<IDXGIFactory5> factory5;
+			if (SUCCEEDED(factory4.As(&factory5)))
+			{
+				factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+				                              &allowTearing, sizeof(allowTearing));
+			}
+		}
+
+		return allowTearing == TRUE;
+	}
+
+	GameTimer* D3DApp::GetTimer()
+	{
+		return &timer;
+	}
+
+	ID3D12Device& D3DApp::GetDevice()
+	{
+		return *dxDevice.Get();
+	}
+
+	HINSTANCE D3DApp::AppInst() const
+	{
+		return appInstance;
+	}
+
+	std::shared_ptr<Window> D3DApp::MainWnd() const
+	{
+		return MainWindow;
+	}
+
+	float D3DApp::AspectRatio() const
+	{
+		return MainWindow->AspectRatio();
+	}
+
+	bool D3DApp::Get4xMsaaState() const
+	{
+		return isM4xMsaa;
+	}
+
+	void D3DApp::Set4xMsaaState(bool value)
+	{
+		if (isM4xMsaa != value)
+		{
+			isM4xMsaa = value;
+			OnResize();
 		}
 	}
 
-	return static_cast<int>(msg.wParam);
-}
-
-bool D3DApp::Initialize()
-{
-	if (!InitMainWindow())
-		return false;
-
-	if (!InitDirect3D())
-		return false;
-
-	InitializeD2D();
-
-	OnResize();
-
-	return true;
-}
-
-void D3DApp::CreateRtvAndDsvDescriptorHeaps()
-{
-	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-	rtvHeapDesc.NumDescriptors = swapChainBufferCount;
-	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	rtvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(dxDevice->CreateDescriptorHeap(
-		&rtvHeapDesc, IID_PPV_ARGS(renderTargetViewHeap.GetAddressOf())));
-
-
-	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-	dsvHeapDesc.NumDescriptors = 1;
-	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	dsvHeapDesc.NodeMask = 0;
-	ThrowIfFailed(dxDevice->CreateDescriptorHeap(
-		&dsvHeapDesc, IID_PPV_ARGS(depthStencilViewHeap.GetAddressOf())));
-}
-
-void D3DApp::OnResize()
-{
-	assert(dxDevice);
-	assert(swapChain);
-
-	d2dContext->SetTarget(nullptr);
-	d3d11DeviceContext->Flush();
-	commandQueue->Flush();
-
-	auto cmdList = commandQueue->GetCommandList();
-
-
-	for (int i = 0; i < swapChainBufferCount; ++i)
+	int D3DApp::Run()
 	{
-		swapChainBuffers[i].Reset();
-		wrappedBackBuffers[i].Reset();
-		d2dRenderTargets[i].Reset();
-		d2dSurfaces[i].Reset();
-	}
+		MSG msg = {nullptr};
 
-	d3d11DeviceContext->Flush();
+		timer.Reset();
 
-	ThrowIfFailed(swapChain->ResizeBuffers(
-		swapChainBufferCount,
-		clientWidth, clientHeight,
-		backBufferFormat,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH ));
-
-	currBackBufferIndex = 0;
-
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.Format = GetSRGBFormat(backBufferFormat);
-	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-	// Query the desktop's dpi settings, which will be used to create
-	// D2D's render targets.
-	auto dpi = GetDpiForWindow(MainWnd());
-
-
-	D2D1_BITMAP_PROPERTIES1 bitmapProperties =
-		D2D1::BitmapProperties1(
-			D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-			D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),
-			dpi,
-			dpi
-		);
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart());
-	for (UINT i = 0; i < swapChainBufferCount; i++)
-	{
-		ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&swapChainBuffers[i])));
-		dxDevice->CreateRenderTargetView(swapChainBuffers[i].Get(), &rtvDesc, rtvHeapHandle);
-
-		// Create a wrapped 11On12 resource of this back buffer. Since we are 
-		// rendering all D3D12 content first and then all D2D content, we specify 
-		// the In resource state as RENDER_TARGET - because D3D12 will have last 
-		// used it in this state - and the Out resource state as PRESENT. When 
-		// ReleaseWrappedResources() is called on the 11On12 device, the resource 
-		// will be transitioned to the PRESENT state.
-		D3D11_RESOURCE_FLAGS d3d11Flags = {D3D11_BIND_RENDER_TARGET};
-
-
-		ThrowIfFailed(d3d11On12Device->CreateWrappedResource(
-			swapChainBuffers[i].Get(),
-			&d3d11Flags,
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT,
-			IID_PPV_ARGS(&wrappedBackBuffers[i])));
-
-		// Create a render target for D2D to draw directly to this back buffer.		
-		ThrowIfFailed(wrappedBackBuffers[i].As(&d2dSurfaces[i]));
-
-		ThrowIfFailed(d2dContext->CreateBitmapFromDxgiSurface(d2dSurfaces[i].Get(),
-			&bitmapProperties, &d2dRenderTargets[i]));
-
-		rtvHeapHandle.Offset(1, rtvDescriptorSize);
-	}
-
-	D3D12_RESOURCE_DESC depthStencilDesc;
-	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	depthStencilDesc.Alignment = 0;
-	depthStencilDesc.Width = clientWidth;
-	depthStencilDesc.Height = clientHeight;
-	depthStencilDesc.DepthOrArraySize = 1;
-	depthStencilDesc.MipLevels = 1;
-	depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-	depthStencilDesc.SampleDesc.Count = isM4xMsaa ? 4 : 1;
-	depthStencilDesc.SampleDesc.Quality = isM4xMsaa ? (m4xMsaaQuality - 1) : 0;
-	depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-	D3D12_CLEAR_VALUE optClear;
-	optClear.Format = depthStencilFormat;
-	optClear.DepthStencil.Depth = 1.0f;
-	optClear.DepthStencil.Stencil = 0;
-	ThrowIfFailed(dxDevice->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&depthStencilDesc,
-		D3D12_RESOURCE_STATE_COMMON,
-		&optClear,
-		IID_PPV_ARGS(depthStencilBuffer.GetAddressOf())));
-
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-	dsvDesc.Format = depthStencilFormat;
-	dsvDesc.Texture2D.MipSlice = 0;
-	dxDevice->CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc, GetDepthStencilView());
-
-	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.Get(),
-	                                                                  D3D12_RESOURCE_STATE_COMMON,
-	                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-	commandQueue->ExecuteCommandList(cmdList);
-	commandQueue->Flush();
-
-	screenViewport.TopLeftX = 0;
-	screenViewport.TopLeftY = 0;
-	screenViewport.Width = static_cast<float>(clientWidth);
-	screenViewport.Height = static_cast<float>(clientHeight);
-	screenViewport.MinDepth = 0.0f;
-	screenViewport.MaxDepth = 1.0f;
-
-	scissorRect = {0, 0, clientWidth, clientHeight};
-}
-
-LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch (msg)
-	{
-	case WM_INPUT:
+		while (msg.message != WM_QUIT)
 		{
-			UINT dataSize;
-			GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize, sizeof(RAWINPUTHEADER));
-			//Need to populate data size first
-
-			if (dataSize > 0)
+			// If there are Window messages then process them.
+			if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 			{
-				std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
-				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
-				                    sizeof(RAWINPUTHEADER)) == dataSize)
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+				// Otherwise, do animation/game stuff.
+			else
+			{
+				timer.Tick();
+
+				if (!isAppPaused)
 				{
-					RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
-					if (raw->header.dwType == RIM_TYPEMOUSE)
+					CalculateFrameStats();
+					Update(timer);
+					Draw(timer);
+				}
+				else
+				{
+					Sleep(100);
+				}
+			}
+		}
+
+		return static_cast<int>(msg.wParam);
+	}
+
+	bool D3DApp::Initialize()
+	{
+		if (!InitMainWindow())
+			return false;
+
+		if (!InitDirect3D())
+			return false;
+
+		OnResize();
+
+		return true;
+	}
+
+
+	void D3DApp::OnResize()
+	{
+		assert(dxDevice);
+
+		MainWindow->OnResize();
+	}
+
+
+	// Remove a window from our window lists.
+	static void RemoveWindow(HWND hWnd)
+	{
+		auto windowIter = gs_Windows.find(hWnd);
+		if (windowIter != gs_Windows.end())
+		{
+			WindowPtr pWindow = windowIter->second;
+			gs_WindowByName.erase(pWindow->GetWindowName());
+			gs_Windows.erase(windowIter);
+		}
+	}
+
+	
+	LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	{
+		WindowPtr pWindow;
+		{
+			WindowMap::iterator iter = gs_Windows.find(hwnd);
+			if (iter != gs_Windows.end())
+			{
+				pWindow = iter->second;
+			}
+		}
+
+		if (pWindow)
+		{
+			switch (msg)
+			{
+			case WM_INPUT:
+			{
+				UINT dataSize;
+				GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize,
+					sizeof(RAWINPUTHEADER));
+				//Need to populate data size first
+
+				if (dataSize > 0)
+				{
+					std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
+					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
+						sizeof(RAWINPUTHEADER)) == dataSize)
 					{
-						mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+						RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
+						if (raw->header.dwType == RIM_TYPEMOUSE)
+						{
+							mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+						}
+					}
+				}
+
+				return DefWindowProc(hwnd, msg, wParam, lParam);
+			}
+
+			// WM_ACTIVATE is sent when the window is activated or deactivated.  
+			// We pause the game when the window is deactivated and unpause it 
+			// when it becomes active.  
+			case WM_ACTIVATE:
+				if (LOWORD(wParam) == WA_INACTIVE)
+				{
+					isAppPaused = true;
+					timer.Stop();
+				}
+				else
+				{
+					isAppPaused = false;
+					timer.Start();
+				}
+				return 0;
+
+				// WM_SIZE is sent when the user resizes the window.  
+			case WM_SIZE: {
+				// Save the new client area dimensions.
+
+				int width = ((int)(short)LOWORD(lParam));
+				int height = ((int)(short)HIWORD(lParam));
+
+				pWindow->SetWidth(width);
+				pWindow->SetHeight(height);
+
+				if (dxDevice)
+				{
+					if (wParam == SIZE_MINIMIZED)
+					{
+						isAppPaused = true;
+						isMinimized = true;
+						isMaximized = false;
+					}
+					else if (wParam == SIZE_MAXIMIZED)
+					{
+						isAppPaused = false;
+						isMinimized = false;
+						isMaximized = true;
+						OnResize();
+					}
+					else if (wParam == SIZE_RESTORED)
+					{
+						// Restoring from minimized state?
+						if (isMinimized)
+						{
+							isAppPaused = false;
+							isMinimized = false;
+							OnResize();
+						}
+
+						// Restoring from maximized state?
+						else if (isMaximized)
+						{
+							isAppPaused = false;
+							isMaximized = false;
+							OnResize();
+						}
+						else if (isResizing)
+						{
+							// If user is dragging the resize bars, we do not resize 
+							// the buffers here because as the user continuously 
+							// drags the resize bars, a stream of WM_SIZE messages are
+							// sent to the window, and it would be pointless (and slow)
+							// to resize for each WM_SIZE message received from dragging
+							// the resize bars.  So instead, we reset after the user is 
+							// done resizing the window and releases the resize bars, which 
+							// sends a WM_EXITSIZEMOVE message.
+						}
+						else // API call such as SetWindowPos or swapChain->SetFullscreenState.
+						{
+							OnResize();
+						}
+					}
+				}
+				return 0;
+			}
+
+				// WM_EXITSIZEMOVE is sent when the user grabs the resize bars.
+			case WM_ENTERSIZEMOVE:
+				isAppPaused = true;
+				isResizing = true;
+				timer.Stop();
+				return 0;
+
+				// WM_EXITSIZEMOVE is sent when the user releases the resize bars.
+				// Here we reset everything based on the new window dimensions.
+			case WM_EXITSIZEMOVE:
+				isAppPaused = false;
+				isResizing = false;
+				timer.Start();
+				OnResize();
+				return 0;
+
+				// WM_DESTROY is sent when the window is being destroyed.
+			case WM_DESTROY:
+				// If a window is being destroyed, remove it from the 
+				// window maps.
+				RemoveWindow(hwnd);
+
+				if (gs_Windows.empty())
+				{
+					// If there are no more windows, quit the application.
+					PostQuitMessage(0);
+				}
+				return 0;
+
+				// The WM_MENUCHAR message is sent when a menu is active and the user presses 
+				// a key that does not correspond to any mnemonic or accelerator key. 
+			case WM_MENUCHAR:
+				// Don't beep when we alt-enter.
+				return MAKELRESULT(0, MNC_CLOSE);
+
+				// Catch this message so to prevent the window from becoming too small.
+			case WM_GETMINMAXINFO:
+				((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
+				((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
+				return 0;
+
+				//Mouse Messages
+			case WM_MOUSEMOVE:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnMouseMove(x, y);
+				return 0;
+			}
+			case WM_LBUTTONDOWN:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnLeftPressed(x, y);
+				return 0;
+			}
+			case WM_RBUTTONDOWN:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnRightPressed(x, y);
+				return 0;
+			}
+			case WM_MBUTTONDOWN:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnMiddlePressed(x, y);
+				return 0;
+			}
+			case WM_LBUTTONUP:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnLeftReleased(x, y);
+				return 0;
+			}
+			case WM_RBUTTONUP:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnRightReleased(x, y);
+				return 0;
+			}
+			case WM_MBUTTONUP:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				mouse.OnMiddleReleased(x, y);
+				return 0;
+			}
+			case WM_MOUSEWHEEL:
+			{
+				int x = LOWORD(lParam);
+				int y = HIWORD(lParam);
+				if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+				{
+					mouse.OnWheelUp(x, y);
+				}
+				else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+				{
+					mouse.OnWheelDown(x, y);
+				}
+				return 0;
+			}
+			case WM_KEYUP:
+				
+				{
+					/*if ((int)wParam == VK_F2)
+						Set4xMsaaState(!isM4xMsaa);*/
+					unsigned char keycode = static_cast<unsigned char>(wParam);
+					keyboard.OnKeyReleased(keycode);
+
+					return 0;
+				}
+			case WM_KEYDOWN:
+			{				
+				{
+					unsigned char keycode = static_cast<unsigned char>(wParam);
+					if (keyboard.IsKeysAutoRepeat())
+					{
+						keyboard.OnKeyPressed(keycode);
+					}
+					else
+					{
+						const bool wasPressed = lParam & 0x40000000;
+						if (!wasPressed)
+						{
+							keyboard.OnKeyPressed(keycode);
+						}
 					}
 				}
 			}
 
-			return DefWindowProc(hwnd, msg, wParam, lParam);
-		}
-
-		// WM_ACTIVATE is sent when the window is activated or deactivated.  
-		// We pause the game when the window is deactivated and unpause it 
-		// when it becomes active.  
-	case WM_ACTIVATE:
-		if (LOWORD(wParam) == WA_INACTIVE)
-		{
-			isAppPaused = true;
-			timer.Stop();
-		}
-		else
-		{
-			isAppPaused = false;
-			timer.Start();
-		}
-		return 0;
-
-		// WM_SIZE is sent when the user resizes the window.  
-	case WM_SIZE:
-		// Save the new client area dimensions.
-		clientWidth = LOWORD(lParam);
-		clientHeight = HIWORD(lParam);
-		if (dxDevice)
-		{
-			if (wParam == SIZE_MINIMIZED)
+			case WM_CHAR:
 			{
-				isAppPaused = true;
-				isMinimized = true;
-				isMaximized = false;
-			}
-			else if (wParam == SIZE_MAXIMIZED)
-			{
-				isAppPaused = false;
-				isMinimized = false;
-				isMaximized = true;
-				OnResize();
-			}
-			else if (wParam == SIZE_RESTORED)
-			{
-				// Restoring from minimized state?
-				if (isMinimized)
+				unsigned char ch = static_cast<unsigned char>(wParam);
+				if (keyboard.IsCharsAutoRepeat())
 				{
-					isAppPaused = false;
-					isMinimized = false;
-					OnResize();
-				}
-
-					// Restoring from maximized state?
-				else if (isMaximized)
-				{
-					isAppPaused = false;
-					isMaximized = false;
-					OnResize();
-				}
-				else if (isResizing)
-				{
-					// If user is dragging the resize bars, we do not resize 
-					// the buffers here because as the user continuously 
-					// drags the resize bars, a stream of WM_SIZE messages are
-					// sent to the window, and it would be pointless (and slow)
-					// to resize for each WM_SIZE message received from dragging
-					// the resize bars.  So instead, we reset after the user is 
-					// done resizing the window and releases the resize bars, which 
-					// sends a WM_EXITSIZEMOVE message.
-				}
-				else // API call such as SetWindowPos or swapChain->SetFullscreenState.
-				{
-					OnResize();
-				}
-			}
-		}
-		return 0;
-
-		// WM_EXITSIZEMOVE is sent when the user grabs the resize bars.
-	case WM_ENTERSIZEMOVE:
-		isAppPaused = true;
-		isResizing = true;
-		timer.Stop();
-		return 0;
-
-		// WM_EXITSIZEMOVE is sent when the user releases the resize bars.
-		// Here we reset everything based on the new window dimensions.
-	case WM_EXITSIZEMOVE:
-		isAppPaused = false;
-		isResizing = false;
-		timer.Start();
-		OnResize();
-		return 0;
-
-		// WM_DESTROY is sent when the window is being destroyed.
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		return 0;
-
-		// The WM_MENUCHAR message is sent when a menu is active and the user presses 
-		// a key that does not correspond to any mnemonic or accelerator key. 
-	case WM_MENUCHAR:
-		// Don't beep when we alt-enter.
-		return MAKELRESULT(0, MNC_CLOSE);
-
-		// Catch this message so to prevent the window from becoming too small.
-	case WM_GETMINMAXINFO:
-		((MINMAXINFO*)lParam)->ptMinTrackSize.x = 200;
-		((MINMAXINFO*)lParam)->ptMinTrackSize.y = 200;
-		return 0;
-
-		//Mouse Messages
-	case WM_MOUSEMOVE:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnMouseMove(x, y);
-			return 0;
-		}
-	case WM_LBUTTONDOWN:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnLeftPressed(x, y);
-			return 0;
-		}
-	case WM_RBUTTONDOWN:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnRightPressed(x, y);
-			return 0;
-		}
-	case WM_MBUTTONDOWN:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnMiddlePressed(x, y);
-			return 0;
-		}
-	case WM_LBUTTONUP:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnLeftReleased(x, y);
-			return 0;
-		}
-	case WM_RBUTTONUP:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnRightReleased(x, y);
-			return 0;
-		}
-	case WM_MBUTTONUP:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnMiddleReleased(x, y);
-			return 0;
-		}
-	case WM_MOUSEWHEEL:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
-			{
-				mouse.OnWheelUp(x, y);
-			}
-			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
-			{
-				mouse.OnWheelDown(x, y);
-			}
-			return 0;
-		}
-	case WM_KEYUP:
-		if (wParam == VK_ESCAPE)
-		{
-			PostQuitMessage(0);
-		}
-		else
-		{
-			/*if ((int)wParam == VK_F2)
-				Set4xMsaaState(!isM4xMsaa);*/
-			unsigned char keycode = static_cast<unsigned char>(wParam);
-			keyboard.OnKeyReleased(keycode);
-
-			return 0;
-		}
-	case WM_KEYDOWN:
-		{
-			if (wParam == VK_ESCAPE)
-			{
-				PostQuitMessage(0);
-			}
-			else
-			{
-				unsigned char keycode = static_cast<unsigned char>(wParam);
-				if (keyboard.IsKeysAutoRepeat())
-				{
-					keyboard.OnKeyPressed(keycode);
+					keyboard.OnChar(ch);
 				}
 				else
 				{
 					const bool wasPressed = lParam & 0x40000000;
 					if (!wasPressed)
 					{
-						keyboard.OnKeyPressed(keycode);
+						keyboard.OnChar(ch);
 					}
 				}
+				return 0;
 			}
+			}
+
 		}
-
-	case WM_CHAR:
-		{
-			unsigned char ch = static_cast<unsigned char>(wParam);
-			if (keyboard.IsCharsAutoRepeat())
-			{
-				keyboard.OnChar(ch);
-			}
-			else
-			{
-				const bool wasPressed = lParam & 0x40000000;
-				if (!wasPressed)
-				{
-					keyboard.OnChar(ch);
-				}
-			}
-			return 0;
-		}
+		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 
-	return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-bool D3DApp::InitMainWindow()
-{
-	WNDCLASS wc;
-	wc.style = CS_HREDRAW | CS_VREDRAW;
-	wc.lpfnWndProc = MainWndProc;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = appInstance;
-	wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
-	wc.lpszMenuName = nullptr;
-	wc.lpszClassName = L"MainWnd";
-
-	if (!RegisterClass(&wc))
+	bool D3DApp::InitMainWindow()
 	{
-		MessageBox(nullptr, L"RegisterClass Failed.", nullptr, 0);
-		return false;
+		MainWindow = CreateRenderWindow(mainWindowCaption, 800, 600, false);
+		
+		return true;
 	}
 
-	RECT R = {0, 0, clientWidth, clientHeight};
-	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
-	int width = R.right - R.left;
-	int height = R.bottom - R.top;
-
-	mainWindow = CreateWindow(L"MainWnd", mainWindowCaption.c_str(),
-	                          WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr,
-	                          appInstance, nullptr);
-	if (!mainWindow)
+	bool D3DApp::InitDirect3D()
 	{
-		MessageBox(nullptr, L"CreateWindow Failed.", nullptr, 0);
-		return false;
-	}
-
-	ShowWindow(mainWindow, SW_SHOW);
-	UpdateWindow(mainWindow);
-
-	RAWINPUTDEVICE rid;
-
-	rid.usUsagePage = 0x01; //Mouse
-	rid.usUsage = 0x02;
-	rid.dwFlags = 0;
-	rid.hwndTarget = nullptr;
-
-	if (RegisterRawInputDevices(&rid, 1, sizeof(rid)) == FALSE)
-	{
-		OutputDebugString(L"Failed to register raw input devices.");
-		OutputDebugString(std::to_wstring(GetLastError()).c_str());
-		exit(-1);
-	}
-
-	return true;
-}
-
-bool D3DApp::InitDirect3D()
-{
-#if defined(DEBUG) || defined(_DEBUG)
-	{
-		ComPtr<ID3D12Debug> debugController;
-		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-		debugController->EnableDebugLayer();
-	}
-#endif
-
-	dxgiFactory.Reset();
-	UINT createFactoryFlags = 0;
-#if defined(DEBUG) || defined(_DEBUG)
-	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
+		GetOrCreateDevice();
 
 
-	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags,IID_PPV_ARGS(&dxgiFactory)));
+		rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		dsvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+		cbvSrvUavDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	HRESULT hardwareResult = D3D12CreateDevice(
-		nullptr, // default adapter
-		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(&dxDevice));
+		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
+		msQualityLevels.Format = backBufferFormat;
+		msQualityLevels.SampleCount = 4;
+		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+		msQualityLevels.NumQualityLevels = 0;
+		ThrowIfFailed(dxDevice->CheckFeatureSupport(
+			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
+			&msQualityLevels,
+			sizeof(msQualityLevels)));
 
-	if (FAILED(hardwareResult))
-	{
-		ComPtr<IDXGIAdapter> pWarpAdapter;
-		ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
-
-		ThrowIfFailed(D3D12CreateDevice(
-			pWarpAdapter.Get(),
-			D3D_FEATURE_LEVEL_11_0,
-			IID_PPV_ARGS(&dxDevice)));
-	}
-
-#if defined(DEBUG) || defined(_DEBUG)
-
-	ComPtr<ID3D12InfoQueue> pInfoQueue;
-	if (SUCCEEDED(dxDevice.As(&pInfoQueue)))
-	{
-		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-		pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-
-
-		// Suppress messages based on their severity level
-		D3D12_MESSAGE_SEVERITY Severities[] =
-		{
-			D3D12_MESSAGE_SEVERITY_INFO
-		};
-
-		// Suppress individual messages by their ID
-		D3D12_MESSAGE_ID DenyIds[] = {
-			D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-			// I'm really not sure how to avoid this message.
-			D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
-			// This warning occurs when using capture frame while graphics debugging.
-			D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
-			// This warning occurs when using capture frame while graphics debugging.
-		};
-
-		D3D12_INFO_QUEUE_FILTER NewFilter = {};
-		NewFilter.DenyList.NumSeverities = _countof(Severities);
-		NewFilter.DenyList.pSeverityList = Severities;
-		NewFilter.DenyList.NumIDs = _countof(DenyIds);
-		NewFilter.DenyList.pIDList = DenyIds;
-
-		ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
-	}
-#endif
-
-
-	rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	dsvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-	cbvSrvUavDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-	msQualityLevels.Format = backBufferFormat;
-	msQualityLevels.SampleCount = 4;
-	msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
-	msQualityLevels.NumQualityLevels = 0;
-	ThrowIfFailed(dxDevice->CheckFeatureSupport(
-		D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
-		&msQualityLevels,
-		sizeof(msQualityLevels)));
-
-	m4xMsaaQuality = msQualityLevels.NumQualityLevels;
-	assert(m4xMsaaQuality > 0 && "Unexpected MSAA quality level.");
+		m4xMsaaQuality = msQualityLevels.NumQualityLevels;
+		assert(m4xMsaaQuality > 0 && "Unexpected MSAA quality level.");
 
 #ifdef _DEBUG
-	LogAdapters();
+		LogAdapters();
 #endif
 
-	CreateCommandObjects();
-	CreateSwapChain();
-	CreateRtvAndDsvDescriptorHeaps();
 
-	return true;
-}
-
-void D3DApp::CreateCommandObjects()
-{
-	commandQueue = std::make_unique<DXLib::CommandQueue>(dxDevice.Get(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-}
-
-void D3DApp::InitializeD2D()
-{
-	// Create an 11 device wrapped around the 12 device and share
-	// 12's command queue.
-
-	ThrowIfFailed(D3D11On12CreateDevice(
-		dxDevice.Get(),
-		D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
-		nullptr,
-		0,
-		reinterpret_cast<IUnknown**>(commandQueue->GetD3D12CommandQueue().GetAddressOf()),
-		1,
-		0,
-		&d3d11Device,
-		&d3d11DeviceContext,
-		nullptr
-	));
-
-	// Query the 11On12 device from the 11 device.
-	ThrowIfFailed(d3d11Device.As(&d3d11On12Device));
-
-	D2D1_FACTORY_OPTIONS d2dFactoryOptions = {};
-	d2dFactoryOptions.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
-
-	D2D1_DEVICE_CONTEXT_OPTIONS deviceOptions = D2D1_DEVICE_CONTEXT_OPTIONS_NONE;
-	ThrowIfFailed(
-		D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory3), &d2dFactoryOptions, &d2dFactory));
-
-	ThrowIfFailed(d3d11On12Device.As(&dxgiDevice));
-
-	ThrowIfFailed(d2dFactory->CreateDevice(dxgiDevice.Get(), &d2dDevice));
-
-	ThrowIfFailed(d2dDevice->CreateDeviceContext(deviceOptions, &d2dContext));
-
-	ThrowIfFailed(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), &d2dWriteFactory));
-
-	d2dContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow), &d2dBrush);
-
-
-	ThrowIfFailed(d2dWriteFactory->CreateTextFormat(L"Gabriola", nullptr,
-		DWRITE_FONT_WEIGHT_REGULAR,
-		DWRITE_FONT_STYLE_NORMAL,
-		DWRITE_FONT_STRETCH_NORMAL,
-		72.0f,
-		L"en-us",
-		&d2dTextFormat));
-
-	ThrowIfFailed(d2dWriteFactory->CreateTextFormat(L"Comic Sans MS", nullptr,
-		DWRITE_FONT_WEIGHT_REGULAR,
-		DWRITE_FONT_STYLE_NORMAL,
-		DWRITE_FONT_STRETCH_NORMAL,
-		36.0f,
-		L"en-us",
-		&d2dTextFormatSans));
-}
-
-void D3DApp::CreateSwapChain()
-{
-	swapChain.Reset();
-
-	DXGI_SWAP_CHAIN_DESC sd;
-	sd.BufferDesc.Width = clientWidth;
-	sd.BufferDesc.Height = clientHeight;
-	sd.BufferDesc.RefreshRate.Numerator = 60;
-	sd.BufferDesc.RefreshRate.Denominator = 1;
-	sd.BufferDesc.Format = backBufferFormat;
-	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	sd.SampleDesc.Count = isM4xMsaa ? 4 : 1;
-	sd.SampleDesc.Quality = isM4xMsaa ? (m4xMsaaQuality - 1) : 0;
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.BufferCount = swapChainBufferCount;
-	sd.OutputWindow = mainWindow;
-	sd.Windowed = true;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-	ThrowIfFailed(dxgiFactory->CreateSwapChain(
-		commandQueue->GetD3D12CommandQueue().Get(),
-		&sd,
-		swapChain.GetAddressOf()));
-}
-
-
-ID3D12Resource* D3DApp::GetCurrentBackBuffer() const
-{
-	return swapChainBuffers[currBackBufferIndex].Get();
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetCurrentBackBufferView() const
-{
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(
-		renderTargetViewHeap->GetCPUDescriptorHandleForHeapStart(),
-		currBackBufferIndex,
-		rtvDescriptorSize);
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::GetDepthStencilView() const
-{
-	return depthStencilViewHeap->GetCPUDescriptorHandleForHeapStart();
-}
-
-void D3DApp::CalculateFrameStats()
-{
-	static int frameCnt = 0;
-	static float timeElapsed = 0.0f;
-
-	frameCnt++;
-
-	if ((timer.TotalTime() - timeElapsed) >= 1.0f)
-	{
-		float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
-		float mspf = 1000.0f / fps;
-
-		fpsStr = to_wstring(fps);
-		wstring mspfStr = to_wstring(mspf);
-
-		wstring windowText = mainWindowCaption +
-			L"    fps: " + fpsStr +
-			L"   mspf: " + mspfStr;
-
-		SetWindowText(mainWindow, windowText.c_str());
-
-		frameCnt = 0;
-		timeElapsed += 1.0f;
-	}
-}
-
-void D3DApp::LogAdapters()
-{
-	UINT i = 0;
-	IDXGIAdapter* adapter = nullptr;
-	std::vector<IDXGIAdapter*> adapterList;
-	while (dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
-	{
-		DXGI_ADAPTER_DESC desc;
-		adapter->GetDesc(&desc);
-
-		std::wstring text = L"***Adapter: ";
-		text += desc.Description;
-		text += L"\n";
-
-		OutputDebugString(text.c_str());
-
-		adapterList.push_back(adapter);
-
-		++i;
+		return true;
 	}
 
-	for (size_t i = 0; i < adapterList.size(); ++i)
+	void D3DApp::CalculateFrameStats()
 	{
-		LogAdapterOutputs(adapterList[i]);
-		ReleaseCom(adapterList[i]);
+		MainWindow->CalculateFrameStats();
 	}
-}
 
-void D3DApp::LogAdapterOutputs(IDXGIAdapter* adapter)
-{
-	UINT i = 0;
-	IDXGIOutput* output = nullptr;
-	while (adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND)
+	void D3DApp::LogAdapters()
 	{
-		DXGI_OUTPUT_DESC desc;
-		output->GetDesc(&desc);
+		UINT i = 0;
+		IDXGIAdapter* adapter = nullptr;
+		std::vector<IDXGIAdapter*> adapterList;
+		while (dxgiFactory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
+		{
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
 
-		std::wstring text = L"***Output: ";
-		text += desc.DeviceName;
-		text += L"\n";
-		OutputDebugString(text.c_str());
+			std::wstring text = L"***Adapter: ";
+			text += desc.Description;
+			text += L"\n";
 
-		LogOutputDisplayModes(output, backBufferFormat);
+			OutputDebugString(text.c_str());
 
-		ReleaseCom(output);
+			adapterList.push_back(adapter);
 
-		++i;
+			++i;
+		}
+
+		for (size_t i = 0; i < adapterList.size(); ++i)
+		{
+			LogAdapterOutputs(adapterList[i]);
+			ReleaseCom(adapterList[i]);
+		}
 	}
-}
 
-void D3DApp::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
-{
-	UINT count = 0;
-	UINT flags = 0;
-
-	// Call with nullptr to get list count.
-	output->GetDisplayModeList(format, flags, &count, nullptr);
-
-	std::vector<DXGI_MODE_DESC> modeList(count);
-	output->GetDisplayModeList(format, flags, &count, &modeList[0]);
-
-	for (auto& x : modeList)
+	void D3DApp::LogAdapterOutputs(IDXGIAdapter* adapter)
 	{
-		UINT n = x.RefreshRate.Numerator;
-		UINT d = x.RefreshRate.Denominator;
-		std::wstring text =
-			L"Width = " + std::to_wstring(x.Width) + L" " +
-			L"Height = " + std::to_wstring(x.Height) + L" " +
-			L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
-			L"\n";
+		UINT i = 0;
+		IDXGIOutput* output = nullptr;
+		while (adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND)
+		{
+			DXGI_OUTPUT_DESC desc;
+			output->GetDesc(&desc);
 
-		::OutputDebugString(text.c_str());
+			std::wstring text = L"***Output: ";
+			text += desc.DeviceName;
+			text += L"\n";
+			OutputDebugString(text.c_str());
+
+			LogOutputDisplayModes(output, backBufferFormat);
+
+			ReleaseCom(output);
+
+			++i;
+		}
+	}
+
+	void D3DApp::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
+	{
+		UINT count = 0;
+		UINT flags = 0;
+
+		// Call with nullptr to get list count.
+		output->GetDisplayModeList(format, flags, &count, nullptr);
+
+		std::vector<DXGI_MODE_DESC> modeList(count);
+		output->GetDisplayModeList(format, flags, &count, &modeList[0]);
+
+		for (auto& x : modeList)
+		{
+			UINT n = x.RefreshRate.Numerator;
+			UINT d = x.RefreshRate.Denominator;
+			std::wstring text =
+				L"Width = " + std::to_wstring(x.Width) + L" " +
+				L"Height = " + std::to_wstring(x.Height) + L" " +
+				L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
+				L"\n";
+
+			::OutputDebugString(text.c_str());
+		}
 	}
 }

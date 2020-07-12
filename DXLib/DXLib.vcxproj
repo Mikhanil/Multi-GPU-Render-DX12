@@ -175,6 +175,7 @@
     <ClInclude Include="GraphicBuffer.h" />
     <ClInclude Include="InitDirect3DApp.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="Lazy.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="MathHelper.h" />
@@ -195,6 +196,7 @@
     <ClInclude Include="Ssao.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Transform.h" />
+    <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
@@ -211,6 +213,7 @@
     <ClCompile Include="GraphicBuffer.cpp" />
     <ClCompile Include="InitDirect3DApp.cpp" />
     <ClCompile Include="Keyboard.cpp" />
+    <ClCompile Include="Lazy.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="MathHelper.cpp" />
@@ -227,10 +230,10 @@
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="ShapesApp.cpp" />
     <ClCompile Include="SkyBox.cpp" />
-    <ClCompile Include="Source.cpp" />
     <ClCompile Include="Ssao.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Transform.cpp" />
+    <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

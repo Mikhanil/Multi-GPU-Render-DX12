@@ -2,6 +2,8 @@
 #include "d3dApp.h"
 #include "ShapesApp.h"
 
+using namespace DXLib;
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
                    PSTR cmdLine, int showCmd)
 {

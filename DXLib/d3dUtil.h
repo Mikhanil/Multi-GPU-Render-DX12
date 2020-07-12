@@ -21,7 +21,7 @@
 #include <cassert>
 #include "d3dx12.h"
 #include "MathHelper.h"
-
+using namespace Microsoft::WRL;
 const int globalCountFrameResources = 3;
 
 struct GlobalVariable
