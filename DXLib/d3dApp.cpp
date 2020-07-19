@@ -42,22 +42,21 @@ namespace DXLib
 		// be rendered in a DPI sensitive fashion.
 		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-		WNDCLASS wc;
-		wc.style = CS_HREDRAW | CS_VREDRAW;
-		wc.lpfnWndProc = &MainWndProc;
-		wc.cbClsExtra = 0;
-		wc.cbWndExtra = 0;
-		wc.hInstance = appInstance;
-		wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-		wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
-		wc.lpszMenuName = nullptr;
-		wc.lpszClassName = WINDOW_CLASS_NAME;
+		windowClass.style = CS_HREDRAW | CS_VREDRAW;
+		windowClass.lpfnWndProc = &MainWndProc;
+		windowClass.cbClsExtra = 0;
+		windowClass.cbWndExtra = 0;
+		windowClass.hInstance = appInstance;
+		windowClass.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+		windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		windowClass.hbrBackground = static_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
+		windowClass.lpszMenuName = nullptr;
+		windowClass.lpszClassName = WINDOW_CLASS_NAME;
 
-		if (!RegisterClass(&wc))
+		if (!RegisterClass(&windowClass))
 		{
 			MessageBox(nullptr, L"RegisterClass Failed.", nullptr, 0);
-			assert(&wc);
+			assert(&windowClass);
 		}
 		
 
@@ -104,8 +103,8 @@ namespace DXLib
 	{
 		MakeWindow() = default;
 
-		MakeWindow(HWND hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
-			: Window(hwnd, windowName, clientWidth, clientHeight, vSync)
+		MakeWindow(WNDCLASS classWindow, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
+			: Window(classWindow, windowName, clientWidth, clientHeight, vSync)
 		{
 		}
 	};
@@ -114,25 +113,9 @@ namespace DXLib
 	std::shared_ptr<Window> D3DApp::CreateRenderWindow(const std::wstring& windowName, int clientWidth,
 	                                                   int clientHeight, bool vSync)
 	{
-		RECT R = { 0, 0, clientWidth, clientHeight };
-		AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, FALSE);
-		int width = R.right - R.left;
-		int height = R.bottom - R.top;
-
-		auto* hWnd = CreateWindowW(WINDOW_CLASS_NAME, windowName.c_str(),
-			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-			width,
-			height,
-			nullptr, nullptr, appInstance, nullptr);
-
-		if (!hWnd)
-		{
-			MessageBoxA(NULL, "Could not create the render window.", "Error", MB_OK | MB_ICONERROR);
-			return nullptr;
-		}
-		
-		auto pWindow = std::make_shared<MakeWindow>(hWnd, windowName, clientWidth, clientHeight, vSync);
-		gs_Windows.insert(WindowMap::value_type(hWnd, pWindow));
+				
+		auto pWindow = std::make_shared<MakeWindow>(windowClass, windowName, clientWidth, clientHeight, vSync);
+		gs_Windows.insert(WindowMap::value_type(pWindow->GetWindowHandle(), pWindow));
 		gs_WindowByName.insert(WindowNameMap::value_type(windowName, pWindow));
 
 		return pWindow;

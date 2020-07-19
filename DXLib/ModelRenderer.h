@@ -1,19 +1,20 @@
 #pragma once
 #include "Renderer.h"
 #include "GraphicBuffer.h"
+#include "STLCustomAllocator.h"
 #include "assimp/scene.h"
 
 
 class ModelMesh
 {
 public:
-	ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name, std::vector<Vertex>& vertices,
-	          std::vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name, custom_vector<Vertex>& vertices,
+	          custom_vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	void Update(Transform* transform);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList) const;
-	void static CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>& vertex);
+	void static CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex>& vertex);
 
 	Material* material;
 

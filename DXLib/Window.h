@@ -73,7 +73,7 @@ namespace DXLib
 		friend class D3DApp;
 
 		Window() = delete;
-		Window(HWND hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync);
+		Window(WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync);
 		virtual ~Window();
 
 
@@ -93,6 +93,7 @@ namespace DXLib
 		Window(const Window& copy) = delete;
 		Window& operator=(const Window& other) = delete;
 
+		WNDCLASS windowClass;
 		HWND hWnd;
 		std::wstring windowName;
 		int width;

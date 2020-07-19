@@ -1,12 +1,15 @@
 #include "ModelRenderer.h"
+
+#include "d3dApp.h"
 #include "assimp/postprocess.h"
 #include "assimp/Importer.hpp"
 #include "assimp/mesh.h"
 #include "DirectXMesh.h"
+#include "STLCustomAllocator.h"
 
 ModelMesh::ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name,
-                     std::vector<Vertex>& vertices,
-                     std::vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology): name(std::move(name))
+	custom_vector<Vertex>& vertices,
+	custom_vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology): name(std::move(name))
 {
 	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(device, 1);
 
@@ -51,7 +54,7 @@ void ModelRenderer::ProcessNode(aiNode* node, const aiScene* scene, ID3D12Device
 	}
 }
 
-void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>& vertex)
+void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex>& vertex)
 {
 	UINT idx[3];
 	idx[0] = i1;
@@ -85,9 +88,15 @@ void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, std::vector<Vertex>&
 ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12Device* device,
                                      ID3D12GraphicsCommandList* cmdList)
 {
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& strategy = app.GetAllocationStrategy();
+
+	CustomAllocator <Vertex> vertexAllocator {strategy};
+	CustomAllocator <DWORD> indexAllocator{strategy};
+	
 	// Data to fill
-	std::vector<Vertex> vertices;
-	std::vector<DWORD> indices;
+	custom_vector<Vertex> vertices {vertexAllocator};
+	custom_vector<DWORD> indices {indexAllocator};
 
 	//Get vertices
 	for (UINT i = 0; i < mesh->mNumVertices; i++)

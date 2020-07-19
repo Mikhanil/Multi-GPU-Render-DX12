@@ -201,8 +201,8 @@ namespace DXLib
 		queue->Flush();
 	}
 
-	Window::Window(HWND hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
-		: hWnd(hwnd)
+	Window::Window(WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
+		: windowClass(hwnd)
 		  , windowName(windowName)
 		  , width(clientWidth)
 		  , height(clientHeight)
@@ -211,9 +211,19 @@ namespace DXLib
 		  , frameCounter(0)
 	{
 
-		
+		RECT R = { 0, 0, clientWidth, clientHeight };
+		AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, FALSE);
+		int width = R.right - R.left;
+		int height = R.bottom - R.top;
 
-		assert(hWnd, "Could not create the render window.");
+		hWnd = CreateWindowW(windowClass.lpszClassName, windowName.c_str(),
+			WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+			width,
+			height,
+			nullptr, nullptr, windowClass.hInstance, nullptr);
+
+
+		assert(hWnd, "Could not create the render window.");	
 
 		ShowWindow(hWnd, SW_SHOW);
 		UpdateWindow(hWnd);

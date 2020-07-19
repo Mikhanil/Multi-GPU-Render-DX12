@@ -29,6 +29,7 @@
 
 #include "d3d11on12.h"
 #include "d3d11.h"
+#include "STLCustomAllocator.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -92,8 +93,15 @@ namespace DXLib
 		virtual bool Initialize();
 		virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+		LinearAllocationStrategy<>& GetAllocationStrategy()
+		{
+			return  allocatorStrategy;
+		}
+
 	protected:
 
+		LinearAllocationStrategy<> allocatorStrategy;
+		
 		ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
 		ComPtr<ID3D12Device2> GetOrCreateDevice();
 		bool CheckTearingSupport();
@@ -103,8 +111,7 @@ namespace DXLib
 		virtual void Draw(const GameTimer& gt) = 0;
 
 	protected:
-
-
+		WNDCLASS windowClass;
 		std::shared_ptr<Window> MainWindow;
 
 
@@ -120,6 +127,7 @@ namespace DXLib
 		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		
+
 
 		static D3DApp* instance;
 		HINSTANCE appInstance = nullptr;
