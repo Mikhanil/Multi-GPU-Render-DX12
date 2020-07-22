@@ -32,7 +32,7 @@ private:
 
 class ModelRenderer : public Renderer
 {
-	std::vector<ModelMesh> meshes;
+	custom_vector<ModelMesh> meshes = DXAllocator::CreateVector<ModelMesh>();
 
 	void ProcessNode(aiNode* node, const aiScene* scene, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
 

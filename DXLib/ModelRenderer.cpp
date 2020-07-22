@@ -88,15 +88,10 @@ void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex
 ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12Device* device,
                                      ID3D12GraphicsCommandList* cmdList)
 {
-	auto& app = DXLib::D3DApp::GetApp();
-	auto& strategy = app.GetAllocationStrategy();
-
-	CustomAllocator <Vertex> vertexAllocator {strategy};
-	CustomAllocator <DWORD> indexAllocator{strategy};
 	
 	// Data to fill
-	custom_vector<Vertex> vertices {vertexAllocator};
-	custom_vector<DWORD> indices {indexAllocator};
+	custom_vector<Vertex> vertices  = DXAllocator::CreateVector<Vertex>();
+	custom_vector<DWORD> indices = DXAllocator::CreateVector<DWORD>();
 
 	//Get vertices
 	for (UINT i = 0; i < mesh->mNumVertices; i++)

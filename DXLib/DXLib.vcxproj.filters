@@ -156,6 +156,9 @@
     <ClInclude Include="Lazy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DXAllocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
@@ -261,6 +264,9 @@
       <Filter>Header Files\Refactor</Filter>
     </ClCompile>
     <ClCompile Include="Lazy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DXAllocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

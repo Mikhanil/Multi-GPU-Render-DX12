@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "ShaderBuffersData.h"
+#include "DXAllocator.h"
 
 class GeometryGenerator
 {
@@ -16,10 +17,10 @@ public:
 
 	struct MeshData
 	{
-		std::vector<Vertex> Vertices;
-		std::vector<uint32> Indices32;
+		custom_vector<Vertex> Vertices = DXAllocator::CreateVector<Vertex>();
+		custom_vector<uint32> Indices32 = DXAllocator::CreateVector<uint32>();
 
-		std::vector<uint16>& GetIndices16()
+		custom_vector<uint16>& GetIndices16()
 		{
 			if (mIndices16.empty())
 			{
@@ -32,7 +33,7 @@ public:
 		}
 
 	private:
-		std::vector<uint16> mIndices16;
+		custom_vector<uint16> mIndices16 = DXAllocator::CreateVector<uint16>();
 	};
 
 	///<summary>

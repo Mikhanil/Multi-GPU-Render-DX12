@@ -15,7 +15,7 @@ PSO* Material::GetPSO() const
 
 void Material::SetDiffuseTexture(Texture* texture)
 {
-	textures[0] = texture;
+	textures.push_back(texture);
 	DiffuseMapIndex = texture->GetTextureIndex();
 }
 

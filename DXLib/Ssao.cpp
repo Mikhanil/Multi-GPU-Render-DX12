@@ -409,7 +409,8 @@ void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList)
 		nullptr,
 		IID_PPV_ARGS(mRandomVectorMapUploadBuffer.GetAddressOf())));
 
-	std::vector<Vector4> data(256 * 256);
+	custom_vector<Vector4> data = DXAllocator::CreateVector<Vector4>();
+	data.resize(256 * 256);
 
 	for (int i = 0; i < 256; ++i)
 	{

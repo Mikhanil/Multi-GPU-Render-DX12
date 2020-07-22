@@ -29,7 +29,6 @@
 
 #include "d3d11on12.h"
 #include "d3d11.h"
-#include "STLCustomAllocator.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -49,6 +48,8 @@ namespace DXLib
 
 	public:
 
+		
+		
 		void Destroy() const;
 
 		bool IsTearingSupported() const;
@@ -93,14 +94,11 @@ namespace DXLib
 		virtual bool Initialize();
 		virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-		LinearAllocationStrategy<>& GetAllocationStrategy()
-		{
-			return  allocatorStrategy;
-		}
+		
 
 	protected:
 
-		LinearAllocationStrategy<> allocatorStrategy;
+	
 		
 		ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
 		ComPtr<ID3D12Device2> GetOrCreateDevice();

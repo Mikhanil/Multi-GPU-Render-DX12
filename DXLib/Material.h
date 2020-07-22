@@ -23,7 +23,7 @@ class Material
 	UINT NumFramesDirty = globalCountFrameResources;
 	UINT cbvSrvUavDescriptorSize = 0;
 
-	std::vector<Texture*> textures{1};
+	custom_vector<Texture*> textures = DXAllocator::CreateVector<Texture*>();
 
 	Texture* normalMap = nullptr;
 

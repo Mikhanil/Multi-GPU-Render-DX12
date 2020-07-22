@@ -4,6 +4,7 @@
 
 #include "CommandQueue.h"
 #include "Window.h"
+#include "DXAllocator.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std;
@@ -14,11 +15,11 @@ namespace DXLib
 	constexpr wchar_t WINDOW_CLASS_NAME[] = L"DXLibRenderWindowClass";
 	
 	using WindowPtr = std::shared_ptr<Window>;
-	using WindowMap = std::unordered_map< HWND, std::shared_ptr<Window> >;
-	using WindowNameMap = std::unordered_map< std::wstring, std::shared_ptr<Window> >;
+	using WindowMap = custom_unordered_map< HWND, std::shared_ptr<Window> >;
+	using WindowNameMap = custom_unordered_map< std::wstring, std::shared_ptr<Window> >;
 
-	static WindowMap gs_Windows;
-	static WindowNameMap gs_WindowByName;
+	static WindowMap gs_Windows = DXAllocator::CreateUnorderedMap<HWND, std::shared_ptr<Window>>();
+	static WindowNameMap gs_WindowByName = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Window>>();
 	
 	LRESULT CALLBACK
 	MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

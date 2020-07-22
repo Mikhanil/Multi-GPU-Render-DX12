@@ -22,6 +22,11 @@ namespace DXLib
 	{
 		mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 		mSceneBounds.Radius = sqrtf(15 * 15.0f + 15.0f * 15.0f);
+
+		for (int i = 0; i < PsoType::Count; ++i)
+		{
+			typedGameObjects.push_back(DXAllocator::CreateVector<GameObject*>());
+		}
 	}
 
 	ShapesApp::~ShapesApp()
@@ -50,7 +55,7 @@ namespace DXLib
 
 		UINT requiredHeapSize = 0;
 
-		std::vector<Texture*> generatedMipTextures;
+		custom_vector<Texture*> generatedMipTextures = DXAllocator::CreateVector<Texture*>();
 
 		for (auto&& texture : textures)
 		{
@@ -1161,7 +1166,8 @@ namespace DXLib
 			sphere.Vertices.size() +
 			cylinder.Vertices.size() + skySphere.Vertices.size() + quad.Vertices.size();
 
-		std::vector<Vertex> vertices(totalVertexCount);
+		custom_vector<Vertex> vertices = DXAllocator::CreateVector<Vertex>();
+		vertices.resize (totalVertexCount);
 
 		UINT k = 0;
 		for (size_t i = 0; i < box.Vertices.size(); ++i, ++k)
@@ -1194,7 +1200,7 @@ namespace DXLib
 			vertices[k] = quad.Vertices[i];
 		}
 
-		std::vector<std::uint16_t> indices;
+		custom_vector<std::uint16_t> indices = DXAllocator::CreateVector<std::uint16_t>();
 		indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 		indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
 		indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
@@ -1239,7 +1245,7 @@ namespace DXLib
 		geo->Submeshs["cylinder"] = cylinderSubmeshs;
 		geo->Submeshs["sky"] = skySphererSubmeshs;
 		geo->Submeshs["quad"] = quadSubmesh;
-
+				
 		meshes[geo->Name] = std::move(geo);
 	}
 
@@ -1277,7 +1283,8 @@ namespace DXLib
 		// sandy looking beaches, grassy low hills, and snow mountain peaks.
 		//
 
-		std::vector<Vertex> vertices(grid.Vertices.size());
+		custom_vector<Vertex> vertices = DXAllocator::CreateVector<Vertex>();
+		vertices.resize (grid.Vertices.size());
 		for (size_t i = 0; i < grid.Vertices.size(); ++i)
 		{
 			vertices[i] = grid.Vertices[i];
@@ -1287,7 +1294,7 @@ namespace DXLib
 
 		const UINT vbByteSize = static_cast<UINT>(vertices.size()) * sizeof(Vertex);
 
-		std::vector<std::uint16_t> indices = grid.GetIndices16();
+		custom_vector<std::uint16_t> indices = grid.GetIndices16();
 		const UINT ibByteSize = static_cast<UINT>(indices.size()) * sizeof(std::uint16_t);
 
 		auto geo = std::make_unique<MeshGeometry>();
@@ -1336,8 +1343,8 @@ namespace DXLib
 		};
 
 		static const int treeCount = 16;
-		std::vector<TreeSpriteVertex> vertices;
-		std::vector<uint16_t> indices;
+		custom_vector<TreeSpriteVertex> vertices = DXAllocator::CreateVector<TreeSpriteVertex>();
+		custom_vector<uint16_t> indices = DXAllocator::CreateVector<uint16_t>();
 
 		for (UINT i = 0; i < treeCount; ++i)
 		{
@@ -2096,7 +2103,7 @@ namespace DXLib
 		commandQueue->ExecuteCommandList(cmdList);
 	}
 
-	void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems)
+	void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const custom_vector<GameObject*>& ritems)
 	{
 		// For each render item...
 		for (auto& ri : ritems)

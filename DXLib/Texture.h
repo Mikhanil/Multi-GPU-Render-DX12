@@ -29,7 +29,7 @@ class Texture
 
 	TextureUsage usage;
 
-	std::vector<ComPtr<ID3D12Resource>> track;
+	custom_vector<ComPtr<ID3D12Resource>> track = DXAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
 public:
 

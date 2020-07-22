@@ -1,6 +1,8 @@
 #pragma once
 
 #include "d3dUtil.h"
+#include "DXAllocator.h"
+#include <array>
 
 using namespace Microsoft::WRL;
 
@@ -10,11 +12,11 @@ class RootSignature
 
 	static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();;
 
-	std::vector<CD3DX12_ROOT_PARAMETER> slotRootParameters;
+	custom_vector<CD3DX12_ROOT_PARAMETER> slotRootParameters = DXAllocator::CreateVector<CD3DX12_ROOT_PARAMETER>();
 
 	void AddParameter(CD3DX12_ROOT_PARAMETER parameter);
 
-	std::vector<D3D12_STATIC_SAMPLER_DESC> staticSampler;
+	custom_vector<D3D12_STATIC_SAMPLER_DESC> staticSampler = DXAllocator::CreateVector<D3D12_STATIC_SAMPLER_DESC>();
 
 public:
 

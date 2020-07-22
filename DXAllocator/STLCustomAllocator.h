@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <queue>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -11,6 +12,7 @@
 #include <utility>
 
 #include "LinearAllocationStrategy.h"
+
 
 template<typename T, class AllocationStrategy>
 class STLCustomAllocator
@@ -46,9 +48,25 @@ public:
 
     template<typename U>
     void destroy(U* ptr);
-private:
+
+    AllocationStrategy* GetStrategy() const;
+
+protected:
     AllocationStrategy* strategy = nullptr;
 };
+
+template<typename T, typename U, class AllocationStrategy>
+bool operator==(const STLCustomAllocator<T, AllocationStrategy>& lhs, const STLCustomAllocator<U, AllocationStrategy>& rhs)
+{
+    return lhs.GetStrategy() == rhs.GetStrategy();
+}
+
+template<typename T, typename U, class AllocationStrategy>
+bool operator!=(const STLCustomAllocator<T, AllocationStrategy>& lhs, const STLCustomAllocator<U, AllocationStrategy>& rhs)
+{
+    return !(lhs == rhs);
+}
+
 
 template <typename T, class AllocationStrategy>
 STLCustomAllocator<T, AllocationStrategy>::STLCustomAllocator() = default;
@@ -99,16 +117,10 @@ void STLCustomAllocator<T, AllocationStrategy>::destroy(U* ptr)
 	ptr->~U();
 }
 
-template<typename T, typename U, class AllocationStrategy>
-bool operator==(const STLCustomAllocator<T, AllocationStrategy>& lhs, const STLCustomAllocator<U, AllocationStrategy>& rhs)
+template <typename T, class AllocationStrategy>
+AllocationStrategy* STLCustomAllocator<T, AllocationStrategy>::GetStrategy() const
 {
-    return lhs.m_allocation_strategy == rhs.m_allocation_strategy;
-}
-
-template<typename T, typename U, class AllocationStrategy>
-bool operator!=(const STLCustomAllocator<T, AllocationStrategy>& lhs, const STLCustomAllocator<U, AllocationStrategy>& rhs)
-{
-    return !(lhs == rhs);
+	return strategy;
 }
 
 
@@ -131,9 +143,11 @@ template<typename K, typename V>
 using custom_map = std::map<K, V, std::less<K>, CustomAllocator<std::pair<const K, V>>>;
 
 template<typename K, typename V>
-using custom_unordered_map = std::unordered_map<K, std::hash<K>, std::equal_to<K>, CustomAllocator<std::pair<const K, V>>>;
+using custom_unordered_map = std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, CustomAllocator<std::pair<const K, V>>>;
 
 using custom_string = std::basic_string<char, std::char_traits<char>, CustomAllocator<char>>;
+
+using custom_wstring = std::basic_string<wchar_t, std::char_traits<wchar_t>, CustomAllocator<wchar_t>>;
 
 template<typename T>
 using custom_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;

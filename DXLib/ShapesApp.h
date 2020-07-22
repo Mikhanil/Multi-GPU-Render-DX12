@@ -5,7 +5,6 @@
 #include "DirectXBuffers.h"
 #include "GeometryGenerator.h"
 #include "FrameResource.h"
-#include <map>
 #include "ModelRenderer.h"
 #include "Camera.h"
 #include "Light.h"
@@ -79,7 +78,7 @@ namespace DXLib
 		void BuildTreesGeometry();
 		void BuildMaterials();
 		void BuildGameObjects();
-		static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const std::vector<GameObject*>& ritems);
+		static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const custom_vector<GameObject*>& ritems);
 		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();
 
@@ -95,7 +94,8 @@ namespace DXLib
 	private:
 
 
-		std::vector<std::unique_ptr<FrameResource>> frameResources;
+		custom_vector<std::unique_ptr<FrameResource>> frameResources = DXAllocator::CreateVector<std::unique_ptr<FrameResource>>();
+		
 		FrameResource* currentFrameResource = nullptr;
 		int currentFrameResourceIndex = 0;
 
@@ -110,20 +110,22 @@ namespace DXLib
 		ComPtr<ID3D12DescriptorHeap> dsvHeap;
 		ComPtr<ID3D12DescriptorHeap> srvHeap;
 
-		std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes;
-		std::unordered_map<std::string, std::unique_ptr<Material>> materials;
-		std::unordered_map<std::string, std::unique_ptr<Shader>> shaders;
-		std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
-		std::unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes;
-		std::unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos;
-		std::vector<Light*> lights;
+		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();
+		custom_unordered_map<std::string, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Material>>();
+		custom_unordered_map<std::string, std::unique_ptr<Shader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Shader>>();
+		custom_unordered_map<std::string, std::unique_ptr<Texture>> textures = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Texture>>();
+		custom_unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<ModelMesh>>();
+		custom_unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<PSO>>();
+		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
 		std::unique_ptr<Camera> camera = nullptr;
 
-		std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
-		std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout;
+		custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
+		custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 
-		std::vector<std::unique_ptr<GameObject>> gameObjects;
-		std::vector<GameObject*> typedGameObjects[PsoType::Count];
+		custom_vector<std::unique_ptr<GameObject>> gameObjects = DXAllocator::CreateVector<std::unique_ptr<GameObject>>();
+
+		
+		custom_vector<custom_vector<GameObject*>> typedGameObjects = DXAllocator::CreateVector<custom_vector<GameObject*>>();
 
 		GameObject* player;
 
