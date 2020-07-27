@@ -45,38 +45,37 @@ void GraphicDescriptorAllocatorPage::AddNewBlock(uint32_t offset, uint32_t numDe
 GraphicDescriptorAllocation GraphicDescriptorAllocatorPage::Allocate(uint32_t numDescriptors)
 {
     std::lock_guard<std::mutex> lock(allocationMutex);
-
-    // There are less than the requested number of descriptors left in the heap.
-    // Return a NULL descriptor and try another heap.
+       
     if (numDescriptors > freeHandlesCount)
     {
         return GraphicDescriptorAllocation();
     }
 
     // Get the first block that is large enough to satisfy the request.
-    auto smallestBlockIt = freeListBySize.lower_bound(numDescriptors);
-    if (smallestBlockIt == freeListBySize.end())
+    const auto freeBlockIt = freeListBySize.lower_bound(numDescriptors);
+	
+    if (freeBlockIt == freeListBySize.end())
     {
         // There was no free block that could satisfy the request.
         return GraphicDescriptorAllocation();
     }
 
     // The size of the smallest block that satisfies the request.
-    auto blockSize = smallestBlockIt->first;
+    const auto blockSize = freeBlockIt->first;
 
     // The pointer to the same entry in the FreeListByOffset map.
-    auto offsetIt = smallestBlockIt->second;
+    const auto offsetIt = freeBlockIt->second;
 
     // The offset in the descriptor heap.
-    auto offset = offsetIt->first;
+    const auto offset = offsetIt->first;
 
     // Remove the existing free block from the free list.
-    freeListBySize.erase(smallestBlockIt);
+    freeListBySize.erase(freeBlockIt);
     freeListByOffset.erase(offsetIt);
 
     // Compute the new free block that results from splitting this block.
-    auto newOffset = offset + numDescriptors;
-    auto newSize = blockSize - numDescriptors;
+    const auto newOffset = offset + numDescriptors;
+    const auto newSize = blockSize - numDescriptors;
 
     if (newSize > 0)
     {
@@ -93,19 +92,17 @@ GraphicDescriptorAllocation GraphicDescriptorAllocatorPage::Allocate(uint32_t nu
         numDescriptors, descriptorHandleIncrementSize, shared_from_this());
 }
 
-uint32_t GraphicDescriptorAllocatorPage::ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle)
+uint32_t GraphicDescriptorAllocatorPage::ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
     return static_cast<uint32_t>(handle.ptr - baseDescriptor.ptr) / descriptorHandleIncrementSize;
 }
 
 void GraphicDescriptorAllocatorPage::Free(GraphicDescriptorAllocation&& descriptor, uint64_t frameNumber)
 {
-    // Compute the offset of the descriptor within the descriptor heap.
     auto offset = ComputeOffset(descriptor.GetDescriptorHandle());
 
     std::lock_guard<std::mutex> lock(allocationMutex);
 
-    // Don't add the block directly to the free list until the frame has completed.
     descriptors.emplace(offset, descriptor.GetNumHandles(), frameNumber);
 }
 
@@ -113,10 +110,11 @@ void GraphicDescriptorAllocatorPage::FreeBlock(uint32_t offset, uint32_t numDesc
 {
     // Find the first element whose offset is greater than the specified offset.
     // This is the block that should appear after the block that is being freed.
-    auto nextBlockIt = freeListByOffset.upper_bound(offset);
+    const auto nextBlockIt = freeListByOffset.upper_bound(offset);
 
     // Find the block that appears before the block being freed.
     auto prevBlockIt = nextBlockIt;
+	
     // If it's not the first block in the list.
     if (prevBlockIt != freeListByOffset.begin())
     {
@@ -124,7 +122,7 @@ void GraphicDescriptorAllocatorPage::FreeBlock(uint32_t offset, uint32_t numDesc
         --prevBlockIt;
     }
     else
-    {
+    { 
         // Otherwise, just set it to the end of the list to indicate that no
         // block comes before the one being freed.
         prevBlockIt = freeListByOffset.end();
@@ -184,9 +182,9 @@ void GraphicDescriptorAllocatorPage::ReleaseStaleDescriptors(uint64_t frameNumbe
         auto& staleDescriptor = descriptors.front();
 
         // The offset of the descriptor in the heap.
-        auto offset = staleDescriptor.Offset;
+        const auto offset = staleDescriptor.Offset;
         // The number of descriptors that were allocated.
-        auto numDescriptors = staleDescriptor.Size;
+        const auto numDescriptors = staleDescriptor.Size;
 
         FreeBlock(offset, numDescriptors);
 

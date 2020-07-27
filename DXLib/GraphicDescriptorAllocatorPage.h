@@ -26,7 +26,7 @@ public:
 
 protected:
         
-    uint32_t ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle);
+    uint32_t ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
 
     void AddNewBlock(uint32_t offset, uint32_t numDescriptors);
 
