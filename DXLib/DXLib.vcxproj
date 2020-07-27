@@ -175,6 +175,10 @@
     <ClInclude Include="GeneratedMipsPSO.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="GraphicBuffer.h" />
+    <ClInclude Include="GraphicDescriptorAllocation.h" />
+    <ClInclude Include="GraphicDescriptorAllocator.h" />
+    <ClInclude Include="GraphicDescriptorAllocatorPage.h" />
+    <ClInclude Include="GraphicUploadBuffer.h" />
     <ClInclude Include="InitDirect3DApp.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="Lazy.h" />
@@ -214,6 +218,10 @@
     <ClCompile Include="GeneratedMipsPSO.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="GraphicBuffer.cpp" />
+    <ClCompile Include="GraphicDescriptorAllocation.cpp" />
+    <ClCompile Include="GraphicDescriptorAllocator.cpp" />
+    <ClCompile Include="GraphicDescriptorAllocatorPage.cpp" />
+    <ClCompile Include="GraphicUploadBuffer.cpp" />
     <ClCompile Include="InitDirect3DApp.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="Lazy.cpp" />

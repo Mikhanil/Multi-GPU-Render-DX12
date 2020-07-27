@@ -159,6 +159,18 @@
     <ClInclude Include="DXAllocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GraphicUploadBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicDescriptorAllocator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicDescriptorAllocation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicDescriptorAllocatorPage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
@@ -267,6 +279,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DXAllocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicUploadBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicDescriptorAllocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicDescriptorAllocation.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicDescriptorAllocatorPage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

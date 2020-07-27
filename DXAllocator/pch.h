@@ -10,4 +10,9 @@
 // add headers that you want to pre-compile here
 #include "framework.h"
 
+#pragma comment(lib, "D3D12.lib")
+#pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "RuntimeObject.lib")
+
 #endif //PCH_H

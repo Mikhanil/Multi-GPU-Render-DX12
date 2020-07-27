@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <functional>
 #include <list>
+#include <deque>
 #include <map>
 #include <memory>
 #include <queue>
@@ -134,6 +135,12 @@ template<typename T>
 using custom_list = std::list<T, CustomAllocator<T>>;
 
 template<typename T>
+using custom_deque = std::deque<T, CustomAllocator<T>>;
+
+template<typename T, class _Container = custom_deque<T>>
+using custom_queue = std::queue<T, _Container>;
+
+template<typename T>
 using custom_set = std::set<T, std::less<T>, CustomAllocator<T>>;
 
 template<typename T>
@@ -141,6 +148,9 @@ using custom_unordered_set = std::unordered_set<T, std::hash<T>, std::equal_to<T
 
 template<typename K, typename V>
 using custom_map = std::map<K, V, std::less<K>, CustomAllocator<std::pair<const K, V>>>;
+
+template<typename K, typename V>
+using custom_multimap = std::multimap<K, V, std::less<K>, CustomAllocator<std::pair<const K, V>>>;
 
 template<typename K, typename V>
 using custom_unordered_map = std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, CustomAllocator<std::pair<const K, V>>>;

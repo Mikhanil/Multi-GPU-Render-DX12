@@ -27,7 +27,7 @@ public:
 			return nullptr;
 		}
 
-		for (auto& allocator : allocators)
+		for (auto& allocator : pages)
 		{
 			const auto memory = allocator.Allocate(size);
 			if (memory)
@@ -36,9 +36,9 @@ public:
 			}
 		}
 
-		allocators.push_back(LinearAllocator(INIT_LINEAR_SIZE));
+		pages.push_back(LinearAllocator(INIT_LINEAR_SIZE));
 
-		auto& allocator = allocators.back();
+		auto& allocator = pages.back();
 		allocator.Init();
 		return allocator.Allocate(size);
 	}
@@ -57,13 +57,14 @@ public:
 	
 	~LinearAllocationStrategy()
 	{
-		for (auto& allocator : allocators)
+		for (auto& allocator : pages)
 		{
 			allocator.Reset();
 		}
+		pages.clear();
 	}
 private:
-    std::vector<LinearAllocator> allocators;
+    std::vector<LinearAllocator> pages;
 };
 
 

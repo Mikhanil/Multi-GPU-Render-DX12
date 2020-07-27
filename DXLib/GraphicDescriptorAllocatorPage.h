@@ -1,0 +1,82 @@
+#pragma once
+#include "DXAllocator.h"
+#include <memory>
+#include <d3d12.h>
+#include "GraphicDescriptorAllocation.h"
+#include <wrl/client.h>
+#include "d3dx12.h"
+#include <mutex>
+
+class GraphicDescriptorAllocatorPage : public std::enable_shared_from_this<GraphicDescriptorAllocatorPage>
+{
+public:
+    GraphicDescriptorAllocatorPage(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
+
+    D3D12_DESCRIPTOR_HEAP_TYPE GetType() const;
+   
+    bool HasSpace(uint32_t numDescriptors) const;
+       
+    uint32_t FreeHandlerCount() const;
+
+    GraphicDescriptorAllocation Allocate(uint32_t numDescriptors);
+        
+    void Free(GraphicDescriptorAllocation&& descriptorHandle, uint64_t frameNumber);
+       
+    void ReleaseStaleDescriptors(uint64_t frameNumber);
+
+protected:
+        
+    uint32_t ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle);
+
+    void AddNewBlock(uint32_t offset, uint32_t numDescriptors);
+
+    void FreeBlock(uint32_t offset, uint32_t numDescriptors);
+
+private:
+    using OffsetType = uint32_t;
+   
+    using SizeType = uint32_t;
+
+    struct FreeBlockInfo;
+	    
+        
+
+    struct FreeBlockInfo
+    {
+        FreeBlockInfo(SizeType size)
+            : Size(size)
+        {}
+
+        SizeType Size;
+        custom_multimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator>::iterator FreeListBySizeIt;
+    };
+
+    struct DescriptorInfo
+    {
+        DescriptorInfo(OffsetType offset, SizeType size, uint64_t frame)
+            : Offset(offset)
+            , Size(size)
+            , FrameNumber(frame)
+        {}
+
+        OffsetType Offset;
+        SizeType Size;
+        uint64_t FrameNumber;
+    };
+    
+    custom_map<OffsetType, FreeBlockInfo> freeListByOffset = DXAllocator::CreateMap<OffsetType, FreeBlockInfo>();
+    custom_multimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator> freeListBySize = DXAllocator::CreateMultimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator>();
+	
+    custom_queue<DescriptorInfo> descriptors = DXAllocator::CreateQueue<DescriptorInfo>();
+
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap;
+	
+    D3D12_DESCRIPTOR_HEAP_TYPE heapType;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE baseDescriptor;
+    uint32_t descriptorHandleIncrementSize;
+    uint32_t numDescriptorsInHeap;
+    uint32_t freeHandlesCount;
+
+    std::mutex allocationMutex;
+};
+
