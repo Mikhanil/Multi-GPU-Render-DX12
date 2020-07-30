@@ -1,22 +1,22 @@
-#include "GraphicDescriptorAllocator.h"
-#include "GraphicDescriptorAllocatorPage.h"
+#include "GAllocator.h"
+#include "GHeap.h"
 
 
-GraphicDescriptorAllocator::GraphicDescriptorAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptorsPerPage)
+GAllocator::GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptorsPerPage)
     : allocatorType(type)
     , numDescriptorsPerPage(numDescriptorsPerPage)
 {
 }
 
-GraphicDescriptorAllocator::~GraphicDescriptorAllocator()
+GAllocator::~GAllocator()
 {
     availablePages.clear();	
     pages.clear();
 }
 
-std::shared_ptr<GraphicDescriptorAllocatorPage> GraphicDescriptorAllocator::CreateAllocatorPage()
+std::shared_ptr<GHeap> GAllocator::CreateAllocatorPage()
 {
-    auto newPage = std::make_shared<GraphicDescriptorAllocatorPage>(allocatorType, numDescriptorsPerPage);
+    auto newPage = std::make_shared<GHeap>(allocatorType, numDescriptorsPerPage);
 
     pages.emplace_back(newPage);
     availablePages.insert(pages.size() - 1);
@@ -24,11 +24,11 @@ std::shared_ptr<GraphicDescriptorAllocatorPage> GraphicDescriptorAllocator::Crea
     return newPage;
 }
 
-GraphicDescriptorAllocation GraphicDescriptorAllocator::Allocate(uint32_t numDescriptors)
+GMemory GAllocator::Allocate(uint32_t numDescriptors)
 {
     std::lock_guard<std::mutex> lock(allocationMutex);
 
-    GraphicDescriptorAllocation allocation;
+    GMemory allocation;
 
     auto iterator = availablePages.begin();
     while (iterator != availablePages.end())
@@ -59,7 +59,7 @@ GraphicDescriptorAllocation GraphicDescriptorAllocator::Allocate(uint32_t numDes
     return allocation;
 }
 
-void GraphicDescriptorAllocator::ReleaseStaleDescriptors(uint64_t frameNumber)
+void GAllocator::ReleaseStaleDescriptors(uint64_t frameNumber)
 {
     std::lock_guard<std::mutex> lock(allocationMutex);
 

@@ -35,7 +35,7 @@ using Microsoft::WRL::ComPtr;
 namespace DXLib
 {
 	class Window;
-	class CommandQueue;
+	class GCommandQueue;
 
 	class D3DApp
 	{
@@ -46,9 +46,9 @@ namespace DXLib
 		D3DApp& operator=(const D3DApp& rhs) = delete;
 		virtual ~D3DApp();
 
-	public:
+	public:		
 
-		
+
 		
 		void Destroy() const;
 
@@ -67,7 +67,7 @@ namespace DXLib
 		static void Quit(int exitCode = 0);
 
 
-		std::shared_ptr<CommandQueue> GetCommandQueue(
+		std::shared_ptr<GCommandQueue> GetCommandQueue(
 			D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
 
 		void Flush();
@@ -94,7 +94,10 @@ namespace DXLib
 		virtual bool Initialize();
 		virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-		
+		uint64_t GetFrameCount() const
+		{
+			return frameCount;
+		}
 
 	protected:
 
@@ -113,9 +116,9 @@ namespace DXLib
 		std::shared_ptr<Window> MainWindow;
 
 
-		std::shared_ptr<CommandQueue> directCommandQueue;
-		std::shared_ptr<CommandQueue> computeCommandQueue;
-		std::shared_ptr<CommandQueue> copyCommandQueue;
+		std::shared_ptr<GCommandQueue> directCommandQueue;
+		std::shared_ptr<GCommandQueue> computeCommandQueue;
+		std::shared_ptr<GCommandQueue> copyCommandQueue;
 
 		bool m_TearingSupported;
 
@@ -140,6 +143,8 @@ namespace DXLib
 		bool isM4xMsaa = false;
 		UINT m4xMsaaQuality = 0;
 
+
+		uint64_t frameCount = 0;
 		GameTimer timer;
 
 		Keyboard keyboard;

@@ -2,7 +2,7 @@
 #include <WindowsX.h>
 
 
-#include "CommandQueue.h"
+#include "GCommandQueue.h"
 #include "Window.h"
 #include "DXAllocator.h"
 
@@ -62,9 +62,9 @@ namespace DXLib
 		
 
 		{
-			directCommandQueue = std::make_shared<CommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-			computeCommandQueue = std::make_shared<CommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COMPUTE);
-			copyCommandQueue = std::make_shared<CommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COPY);
+			directCommandQueue = std::make_shared<GCommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_DIRECT);
+			computeCommandQueue = std::make_shared<GCommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COMPUTE);
+			copyCommandQueue = std::make_shared<GCommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COPY);
 
 			m_TearingSupported = CheckTearingSupport();
 		}
@@ -154,9 +154,9 @@ namespace DXLib
 		PostQuitMessage(exitCode);
 	}
 
-	std::shared_ptr<CommandQueue> D3DApp::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
+	std::shared_ptr<GCommandQueue> D3DApp::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
 	{
-		std::shared_ptr<CommandQueue> commandQueue;
+		std::shared_ptr<GCommandQueue> commandQueue;
 		switch (type)
 		{
 		case D3D12_COMMAND_LIST_TYPE_DIRECT:
@@ -407,6 +407,7 @@ namespace DXLib
 					CalculateFrameStats();
 					Update(timer);
 					Draw(timer);
+					frameCount++;
 				}
 				else
 				{

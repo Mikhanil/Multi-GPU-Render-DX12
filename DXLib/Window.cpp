@@ -3,7 +3,7 @@
 #include <cassert>
 
 
-#include "CommandQueue.h"
+#include "GCommandQueue.h"
 #include "d3dUtil.h"
 #include "Lazy.h"
 #include "ShapesApp.h"

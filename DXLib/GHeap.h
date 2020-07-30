@@ -2,15 +2,15 @@
 #include "DXAllocator.h"
 #include <memory>
 #include <d3d12.h>
-#include "GraphicDescriptorAllocation.h"
+#include "GMemory.h"
 #include <wrl/client.h>
 #include "d3dx12.h"
 #include <mutex>
 
-class GraphicDescriptorAllocatorPage : public std::enable_shared_from_this<GraphicDescriptorAllocatorPage>
+class GHeap : public std::enable_shared_from_this<GHeap>
 {
 public:
-    GraphicDescriptorAllocatorPage(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
+    GHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
 
     D3D12_DESCRIPTOR_HEAP_TYPE GetType() const;
    
@@ -18,9 +18,9 @@ public:
        
     uint32_t FreeHandlerCount() const;
 
-    GraphicDescriptorAllocation Allocate(uint32_t numDescriptors);
+    GMemory Allocate(uint32_t numDescriptors);
         
-    void Free(GraphicDescriptorAllocation&& descriptorHandle, uint64_t frameNumber);
+    void Free(GMemory&& descriptorHandle, uint64_t frameNumber);
        
     void ReleaseStaleDescriptors(uint64_t frameNumber);
 
@@ -72,7 +72,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap;
 	
     D3D12_DESCRIPTOR_HEAP_TYPE heapType;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE baseDescriptor;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE baseCPUDescriptor;    	
+    CD3DX12_GPU_DESCRIPTOR_HANDLE baseGPUDescriptor;
+	
     uint32_t descriptorHandleIncrementSize;
     uint32_t numDescriptorsInHeap;
     uint32_t freeHandlesCount;

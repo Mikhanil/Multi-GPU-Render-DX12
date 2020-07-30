@@ -1,12 +1,12 @@
-#include "CommandQueue.h"
+#include "GCommandQueue.h"
 
 #include "d3dUtil.h"
 
 namespace DXLib
 {
-	CommandQueue::CommandQueue(ComPtr<ID3D12Device2> device, D3D12_COMMAND_LIST_TYPE type) : CommandListType(type)
-	                                                                                         , d3d12Device(device)
-	                                                                                         , FenceValue(0)
+	GCommandQueue::GCommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type) : CommandListType(type)
+	                                                                                                , d3d12Device(device)
+	                                                                                                , FenceValue(0)
 	{
 		D3D12_COMMAND_QUEUE_DESC desc = {};
 		desc.Type = type;
@@ -17,27 +17,40 @@ namespace DXLib
 		ThrowIfFailed(d3d12Device->CreateCommandQueue(&desc, IID_PPV_ARGS(&d3d12CommandQueue)));
 		ThrowIfFailed(d3d12Device->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&d3d12Fence)));
 
+		switch (type)
+		{
+		case D3D12_COMMAND_LIST_TYPE_COPY:
+			d3d12CommandQueue->SetName(L"Copy Command Queue");
+			break;
+		case D3D12_COMMAND_LIST_TYPE_COMPUTE:
+			d3d12CommandQueue->SetName(L"Compute Command Queue");
+			break;
+		case D3D12_COMMAND_LIST_TYPE_DIRECT:
+			d3d12CommandQueue->SetName(L"Direct Command Queue");
+			break;
+		}
+		
 		FenceEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		assert(FenceEvent && "Failed to create fence event handle.");
 	}
 
-	CommandQueue::~CommandQueue()
+	GCommandQueue::~GCommandQueue()
 	{
 	}
 
-	uint64_t CommandQueue::Signal()
+	uint64_t GCommandQueue::Signal()
 	{
 		const auto fenceValue = ++FenceValue;
 		d3d12CommandQueue->Signal(d3d12Fence.Get(), fenceValue);
 		return fenceValue;
 	}
 
-	bool CommandQueue::IsFenceComplete(uint64_t fenceValue) const
+	bool GCommandQueue::IsFenceComplete(uint64_t fenceValue) const
 	{
 		return d3d12Fence->GetCompletedValue() >= fenceValue;
 	}
 
-	void CommandQueue::WaitForFenceValue(uint64_t fenceValue) const
+	void GCommandQueue::WaitForFenceValue(uint64_t fenceValue) const
 	{
 		if (IsFenceComplete(fenceValue))
 			return;
@@ -46,19 +59,19 @@ namespace DXLib
 		WaitForSingleObject(FenceEvent, DWORD_MAX);
 	}
 
-	void CommandQueue::Flush()
+	void GCommandQueue::Flush()
 	{
 		WaitForFenceValue(Signal());
 	}
 
-	ComPtr<ID3D12CommandAllocator> CommandQueue::CreateCommandAllocator() const
+	ComPtr<ID3D12CommandAllocator> GCommandQueue::CreateCommandAllocator() const
 	{
 		ComPtr<ID3D12CommandAllocator> commandAllocator;
 		ThrowIfFailed(d3d12Device->CreateCommandAllocator(CommandListType, IID_PPV_ARGS(&commandAllocator)));
 		return commandAllocator;
 	}
 
-	ComPtr<ID3D12GraphicsCommandList2> CommandQueue::CreateCommandList(
+	ComPtr<ID3D12GraphicsCommandList2> GCommandQueue::CreateCommandList(
 		const ComPtr<ID3D12CommandAllocator> allocator) const
 	{
 		ComPtr<ID3D12GraphicsCommandList2> commandList;
@@ -68,7 +81,7 @@ namespace DXLib
 		return commandList;
 	}
 
-	ComPtr<ID3D12GraphicsCommandList2> CommandQueue::GetCommandList()
+	ComPtr<ID3D12GraphicsCommandList2> GCommandQueue::GetCommandList()
 	{
 		ComPtr<ID3D12CommandAllocator> commandAllocator;
 		ComPtr<ID3D12GraphicsCommandList2> commandList;
@@ -107,7 +120,7 @@ namespace DXLib
 		return commandList;
 	}
 
-	uint64_t CommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
+	uint64_t GCommandQueue::ExecuteCommandList(ComPtr<ID3D12GraphicsCommandList2> commandList)
 	{
 		commandList->Close();
 
@@ -132,7 +145,7 @@ namespace DXLib
 		return fenceValue;
 	}
 
-	ComPtr<ID3D12CommandQueue> CommandQueue::GetD3D12CommandQueue() const
+	ComPtr<ID3D12CommandQueue> GCommandQueue::GetD3D12CommandQueue() const
 	{
 		return d3d12CommandQueue;
 	}

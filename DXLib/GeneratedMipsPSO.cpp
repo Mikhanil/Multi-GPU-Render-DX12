@@ -30,7 +30,7 @@ GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 	m_RootSignature.AddDescriptorParameter(&srvCbvRanges[0], 1);
 	m_RootSignature.AddDescriptorParameter(&srvCbvRanges[1], 1);
 	m_RootSignature.AddStaticSampler(samplerDesc);
-	m_RootSignature.Initialize(device);
+	m_RootSignature.Initialize();
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC computePSOdesc{};
 

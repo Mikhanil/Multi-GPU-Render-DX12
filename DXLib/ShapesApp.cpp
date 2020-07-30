@@ -8,7 +8,7 @@
 #include "Camera.h"
 #include <ppl.h>
 #include "CameraController.h"
-#include "CommandQueue.h"
+#include "GCommandQueue.h"
 #include "Reflected.h"
 #include "Shadow.h"
 #include "pix3.h"
@@ -864,7 +864,7 @@ namespace DXLib
 		rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_ALL);
 		rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_ALL);
 
-		rootSignature->Initialize(dxDevice.Get());
+		rootSignature->Initialize();
 	}
 
 	void ShapesApp::BuildSsaoRootSignature()

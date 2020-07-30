@@ -5,46 +5,31 @@
 #include <string>
 #include <memory>
 
-class Resource
+class GResource
 {
+	static uint64_t  resourceId;
+
+	
 public:
-	Resource(const std::wstring& name = L"");
-	Resource(ID3D12Device* device, const D3D12_RESOURCE_DESC& resourceDesc,
+	GResource(const std::wstring& name = L"");
+	GResource(const D3D12_RESOURCE_DESC& resourceDesc,
 	         const D3D12_CLEAR_VALUE* clearValue = nullptr,
 	         const std::wstring& name = L"");
-	Resource(Microsoft::WRL::ComPtr<ID3D12Resource> resource, const std::wstring& name = L"");
-	Resource(const Resource& copy);
-	Resource(Resource&& copy);
+	GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std::wstring& name = L"");
+	GResource(const GResource& copy);
+	GResource(GResource&& move);
 
-	Resource& operator=(const Resource& other);
-	Resource& operator=(Resource&& other);
+	GResource& operator=(const GResource& other);
+	GResource& operator=(GResource&& other) noexcept;
 
-	virtual ~Resource();
+	virtual ~GResource();
 
-	/**
-	 * Check to see if the underlying resource is valid.
-	 */
-	bool IsValid() const
-	{
-		return (m_d3d12Resource != nullptr);
-	}
+	bool IsValid() const;
 
-	// Get access to the underlying D3D12 resource
-	Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Resource() const
-	{
-		return m_d3d12Resource;
-	}
+	
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Resource() const;
 
-	D3D12_RESOURCE_DESC GetD3D12ResourceDesc() const
-	{
-		D3D12_RESOURCE_DESC resDesc = {};
-		if (m_d3d12Resource)
-		{
-			resDesc = m_d3d12Resource->GetDesc();
-		}
-
-		return resDesc;
-	}
+	D3D12_RESOURCE_DESC GetD3D12ResourceDesc() const;
 
 	// Replace the D3D12 resource
 	// Should only be called by the CommandList.
@@ -85,6 +70,9 @@ public:
 	virtual void Reset();
 
 protected:
+
+	uint64_t id = 0;
+	
 	// The underlying D3D12 resource.
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_d3d12Resource;
 	std::unique_ptr<D3D12_CLEAR_VALUE> m_d3d12ClearValue;

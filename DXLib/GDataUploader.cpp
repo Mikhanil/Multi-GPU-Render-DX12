@@ -1,13 +1,13 @@
 #include "pch.h"
-#include "GraphicUploadBuffer.h"
+#include "GDataUploader.h"
 #include "d3dApp.h"
 #include "d3dUtil.h"
 
-GraphicUploadBuffer::GraphicUploadBuffer(size_t pageSize)
+GDataUploader::GDataUploader(size_t pageSize)
     : PageSize(pageSize)
 {}
 
-GraphicUploadBuffer::~GraphicUploadBuffer()
+GDataUploader::~GDataUploader()
 {
 	for (auto && page : pages)
 	{
@@ -17,7 +17,7 @@ GraphicUploadBuffer::~GraphicUploadBuffer()
     pages.clear();
 }
 
-GraphicUploadBuffer::Allocation GraphicUploadBuffer::Allocate(size_t sizeInBytes, size_t alignment = 8)
+GDataUploader::Allocation GDataUploader::Allocate(size_t sizeInBytes, size_t alignment = 8)
 {
 	for (auto && page : pages)
     {
@@ -42,12 +42,12 @@ GraphicUploadBuffer::Allocation GraphicUploadBuffer::Allocate(size_t sizeInBytes
     return pages.back()->Allocate(sizeInBytes, alignment);
 }
 
-std::shared_ptr<GraphicUploadBuffer::GraphicMemoryPage> GraphicUploadBuffer::CreatePage(uint32_t pageSize) const
+std::shared_ptr<GDataUploader::GraphicMemoryPage> GDataUploader::CreatePage(uint32_t pageSize) const
 {
     return  std::make_shared<GraphicMemoryPage>(pageSize);
 }
 
-void GraphicUploadBuffer::Reset()
+void GDataUploader::Reset()
 {
     for (auto&& page : pages)
     {
@@ -55,7 +55,7 @@ void GraphicUploadBuffer::Reset()
     }
 }
 
-GraphicUploadBuffer::GraphicMemoryPage::GraphicMemoryPage(size_t sizeInBytes)
+GDataUploader::GraphicMemoryPage::GraphicMemoryPage(size_t sizeInBytes)
     : CPUPtr(nullptr)
     , GPUPtr(D3D12_GPU_VIRTUAL_ADDRESS(0))
     , PageSize(sizeInBytes)
@@ -78,7 +78,7 @@ GraphicUploadBuffer::GraphicMemoryPage::GraphicMemoryPage(size_t sizeInBytes)
     d3d12Resource->Map(0, nullptr, &CPUPtr);
 }
 
-GraphicUploadBuffer::GraphicMemoryPage::~GraphicMemoryPage()
+GDataUploader::GraphicMemoryPage::~GraphicMemoryPage()
 {
     d3d12Resource->Unmap(0, nullptr);
     CPUPtr = nullptr;
@@ -86,7 +86,7 @@ GraphicUploadBuffer::GraphicMemoryPage::~GraphicMemoryPage()
     d3d12Resource->Release();
 }
 
-bool GraphicUploadBuffer::GraphicMemoryPage::HasSpace(size_t sizeInBytes, size_t alignment) const
+bool GDataUploader::GraphicMemoryPage::HasSpace(size_t sizeInBytes, size_t alignment) const
 {
 	const size_t alignedSize = Math::AlignUp(sizeInBytes, alignment);
 	const size_t alignedOffset = Math::AlignUp(Offset, alignment);
@@ -94,7 +94,7 @@ bool GraphicUploadBuffer::GraphicMemoryPage::HasSpace(size_t sizeInBytes, size_t
     return alignedOffset + alignedSize <= PageSize;
 }
 
-GraphicUploadBuffer::Allocation GraphicUploadBuffer::GraphicMemoryPage::Allocate(size_t sizeInBytes, size_t alignment)
+GDataUploader::Allocation GDataUploader::GraphicMemoryPage::Allocate(size_t sizeInBytes, size_t alignment)
 {   
     const size_t alignedSize = Math::AlignUp(sizeInBytes, alignment);
     Offset = Math::AlignUp(Offset, alignment);
@@ -110,12 +110,12 @@ GraphicUploadBuffer::Allocation GraphicUploadBuffer::GraphicMemoryPage::Allocate
     return allocation;
 }
 
-void GraphicUploadBuffer::GraphicMemoryPage::Reset()
+void GDataUploader::GraphicMemoryPage::Reset()
 {
     Offset = 0;
 }
 
-size_t GraphicUploadBuffer::GetPageSize() const
+size_t GDataUploader::GetPageSize() const
 {
 	return PageSize;
 }

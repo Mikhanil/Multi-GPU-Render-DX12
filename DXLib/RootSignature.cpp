@@ -1,5 +1,7 @@
 #include "RootSignature.h"
 
+#include "d3dApp.h"
+
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> RootSignature::GetStaticSamplers()
 {
 	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
@@ -67,6 +69,45 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> RootSignature::GetStaticSampler
 	};
 }
 
+RootSignature::~RootSignature()
+{
+	slotRootParameters.clear();
+	staticSampler.clear();	
+}
+
+const D3D12_ROOT_SIGNATURE_DESC& RootSignature::GetRootSignatureDesc() const
+{
+	return rootSigDesc;
+}
+
+uint32_t RootSignature::GetParametersCount() const
+{
+	return slotRootParameters.size();
+}
+
+uint32_t RootSignature::GetDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType) const
+{
+	uint32_t descriptorTableBitMask = 0;
+	switch (descriptorHeapType)
+	{
+	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+		descriptorTableBitMask = descriptorTableBitMask;
+		break;
+	case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
+		descriptorTableBitMask = samplerTableBitMask;
+		break;
+	}
+
+	return descriptorTableBitMask;
+}
+
+uint32_t RootSignature::GetNumDescriptors(uint32_t rootIndex) const
+{
+	assert(rootIndex < 32);
+	return descriptorPerTableCount[rootIndex];
+}
+
+
 void RootSignature::AddParameter(CD3DX12_ROOT_PARAMETER parameter)
 {
 	slotRootParameters.push_back(parameter);
@@ -121,9 +162,10 @@ void RootSignature::AddStaticSampler(const D3D12_STATIC_SAMPLER_DESC sampler)
 }
 
 
-void RootSignature::Initialize(ID3D12Device* device)
+void RootSignature::Initialize()
 {
-	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
+	auto& device = DXLib::D3DApp::GetApp().GetDevice();
+	
 	if (!staticSampler.empty())
 	{
 		rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
@@ -139,6 +181,42 @@ void RootSignature::Initialize(ID3D12Device* device)
 		                                          D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	}
 
+	for (UINT i = 0; i < rootSigDesc.NumParameters; ++i)
+	{
+		descriptorPerTableCount.push_back(0);
+		
+		const D3D12_ROOT_PARAMETER& rootParameter = rootSigDesc.pParameters[i];
+
+		if (rootParameter.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
+		{
+			UINT numDescriptorRanges = rootParameter.DescriptorTable.NumDescriptorRanges;
+
+			// Set the bit mask depending on the type of descriptor table.
+			if (numDescriptorRanges > 0)
+			{
+				switch (rootParameter.DescriptorTable.pDescriptorRanges[0].RangeType)
+				{
+				case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
+				case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
+					descriptorTableBitMask |= (1 << i);
+					break;
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
+					samplerTableBitMask |= (1 << i);
+					break;
+				}
+			}
+
+			
+			// Count the number of descriptors in the descriptor table.
+			for (UINT j = 0; j < numDescriptorRanges; ++j)
+			{
+				descriptorPerTableCount[i] += rootParameter.DescriptorTable.pDescriptorRanges[j].NumDescriptors;
+			}
+		}
+	}
+
+	
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;
 	ComPtr<ID3DBlob> errorBlob = nullptr;
 	const HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
@@ -150,7 +228,7 @@ void RootSignature::Initialize(ID3D12Device* device)
 	}
 	ThrowIfFailed(hr);
 
-	ThrowIfFailed(device->CreateRootSignature(
+	ThrowIfFailed(device.CreateRootSignature(
 		0,
 		serializedRootSig->GetBufferPointer(),
 		serializedRootSig->GetBufferSize(),

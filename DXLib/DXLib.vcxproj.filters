@@ -132,9 +132,6 @@
     <ClInclude Include="Keyboard.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Resource.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
     <ClInclude Include="ShaderBuffersData.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
@@ -147,9 +144,6 @@
     <ClInclude Include="GeneratedMipsPSO.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
-    <ClInclude Include="CommandQueue.h">
-      <Filter>Header Files\Refactor</Filter>
-    </ClInclude>
     <ClInclude Include="Window.h">
       <Filter>Header Files\Refactor</Filter>
     </ClInclude>
@@ -159,16 +153,25 @@
     <ClInclude Include="DXAllocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GraphicUploadBuffer.h">
+    <ClInclude Include="GResource.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="GResourceStateTracker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GraphicDescriptorAllocator.h">
+    <ClInclude Include="GCommandQueue.h">
+      <Filter>Header Files\Refactor</Filter>
+    </ClInclude>
+    <ClInclude Include="GAllocator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GraphicDescriptorAllocation.h">
+    <ClInclude Include="GMemory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GraphicDescriptorAllocatorPage.h">
+    <ClInclude Include="GHeap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GDataUploader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -257,9 +260,6 @@
     <ClCompile Include="Keyboard.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
-    <ClCompile Include="Resource.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
     <ClCompile Include="ShadowMap.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
@@ -268,9 +268,6 @@
     </ClCompile>
     <ClCompile Include="GeneratedMipsPSO.cpp">
       <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="CommandQueue.cpp">
-      <Filter>Header Files\Refactor</Filter>
     </ClCompile>
     <ClCompile Include="Window.cpp">
       <Filter>Header Files\Refactor</Filter>
@@ -281,16 +278,25 @@
     <ClCompile Include="DXAllocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GraphicUploadBuffer.cpp">
+    <ClCompile Include="GResource.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="GResourceStateTracker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GraphicDescriptorAllocator.cpp">
+    <ClCompile Include="GCommandQueue.cpp">
+      <Filter>Header Files\Refactor</Filter>
+    </ClCompile>
+    <ClCompile Include="GAllocator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GraphicDescriptorAllocation.cpp">
+    <ClCompile Include="GMemory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GraphicDescriptorAllocatorPage.cpp">
+    <ClCompile Include="GHeap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GDataUploader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
