@@ -12,16 +12,16 @@ class GAllocator
 {
 public:
 	
-    GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptorsPerPage = 256);
+    GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorsPerPage = 1024);
 	
     virtual ~GAllocator();
         
-    GMemory Allocate(uint32_t numDescriptors = 1);
+    GMemory Allocate(uint32_t descriptorCount = 1);
        
     void ReleaseStaleDescriptors(uint64_t frameNumber);
 
 private:
-    using DescriptorHeap = custom_vector< std::shared_ptr<GHeap> >;
+    using GraphicMemoryPage = custom_vector< std::shared_ptr<GHeap> >;
         
     std::shared_ptr<GHeap> CreateAllocatorPage();
 
@@ -29,7 +29,7 @@ private:
 	
     uint32_t numDescriptorsPerPage;
 
-    DescriptorHeap pages = DXAllocator::CreateVector<std::shared_ptr<GHeap>>();
+    GraphicMemoryPage pages = DXAllocator::CreateVector<std::shared_ptr<GHeap>>();
 	   
     custom_set<size_t> availablePages = DXAllocator::CreateSet<size_t>();
 

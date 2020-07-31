@@ -12,33 +12,32 @@ class GDataUploader
 {
 public:
 	  
-    struct Allocation
+    struct UploadAllocation
     {
         void* CPU;
         D3D12_GPU_VIRTUAL_ADDRESS GPU;
     };
 
-    explicit GDataUploader(size_t pageSize = 1024*1024*2);
+    explicit GDataUploader(size_t pageSize = 1024);
 
     virtual ~GDataUploader();
 
     size_t GetPageSize() const;
-
     
-    Allocation Allocate(size_t sizeInBytes, size_t alignment);
+    UploadAllocation Allocate(size_t sizeInBytes, size_t alignment);
 
     void Reset();
 
 private:
    
-    struct GraphicMemoryPage
+    struct UploadMemoryPage
     {
-        GraphicMemoryPage(size_t sizeInBytes);
-        ~GraphicMemoryPage();
+        UploadMemoryPage(size_t sizeInBytes);
+        ~UploadMemoryPage();
 
         bool HasSpace(size_t sizeInBytes, size_t alignment) const;
 
-        Allocation Allocate(size_t sizeInBytes, size_t alignment);
+        UploadAllocation Allocate(size_t sizeInBytes, size_t alignment);
 
         void Reset();
 
@@ -54,10 +53,10 @@ private:
     };
 
 
-    custom_list<std::shared_ptr<GraphicMemoryPage>> pages = DXAllocator::CreateList<std::shared_ptr<GraphicMemoryPage>>();
+    custom_list<std::shared_ptr<UploadMemoryPage>> pages = DXAllocator::CreateList<std::shared_ptr<UploadMemoryPage>>();
 	
    
-    std::shared_ptr<GraphicMemoryPage> CreatePage(uint32_t pageSize) const;
+    std::shared_ptr<UploadMemoryPage> CreatePage(uint32_t pageSize) const;
 
    
     size_t PageSize;

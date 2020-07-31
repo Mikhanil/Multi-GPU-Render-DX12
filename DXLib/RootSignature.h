@@ -19,17 +19,10 @@ class RootSignature
 
 	custom_vector<D3D12_STATIC_SAMPLER_DESC> staticSampler = DXAllocator::CreateVector<D3D12_STATIC_SAMPLER_DESC>();
 
-	// Need to know the number of descriptors per descriptor table.
-   // A maximum of 32 descriptor tables are supported (since a 32-bit
-   // mask is used to represent the descriptor tables in the root signature.
 	custom_vector<uint32_t> descriptorPerTableCount = DXAllocator::CreateVector<uint32_t>();
 
-	// A bit mask that represents the root parameter indices that are 
-	// descriptor tables for Samplers.
 	uint32_t samplerTableBitMask;
 
-	// A bit mask that represents the root parameter indices that are 
-	// CBV, UAV, and SRV descriptor tables.
 	uint32_t descriptorTableBitMask;
 
 	

@@ -2,9 +2,9 @@
 #include "GHeap.h"
 
 
-GAllocator::GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptorsPerPage)
+GAllocator::GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorsPerPage)
     : allocatorType(type)
-    , numDescriptorsPerPage(numDescriptorsPerPage)
+    , numDescriptorsPerPage(descriptorsPerPage)
 {
 }
 
@@ -24,7 +24,7 @@ std::shared_ptr<GHeap> GAllocator::CreateAllocatorPage()
     return newPage;
 }
 
-GMemory GAllocator::Allocate(uint32_t numDescriptors)
+GMemory GAllocator::Allocate(uint32_t descriptorCount)
 {
     std::lock_guard<std::mutex> lock(allocationMutex);
 
@@ -35,7 +35,7 @@ GMemory GAllocator::Allocate(uint32_t numDescriptors)
     {
         auto page = pages[*iterator];
 
-        allocation = page->Allocate(numDescriptors);
+        allocation = page->Allocate(descriptorCount);
                 
         if (allocation.IsNull())
         {
@@ -51,10 +51,10 @@ GMemory GAllocator::Allocate(uint32_t numDescriptors)
         return allocation;
     }
     
-    numDescriptorsPerPage = std::max(numDescriptorsPerPage, numDescriptors);
+    numDescriptorsPerPage = std::max(numDescriptorsPerPage, descriptorCount);
 
     auto newPage = CreateAllocatorPage();
-    allocation = newPage->Allocate(numDescriptors);
+    allocation = newPage->Allocate(descriptorCount);
 
     return allocation;
 }
