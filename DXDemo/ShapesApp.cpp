@@ -106,22 +106,15 @@ namespace DXLib
 			graphicList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->GetResource(),
 				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
-		}
-		
-		
+		}		
 		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
 		
 		
 
-		for (auto& textur : generatedMipTextures)
+		for (auto&& tex : generatedMipTextures)
 		{
-			auto texture = textur->GetResource();
+			auto texture = tex->GetResource();
 			auto textureDesc = texture->GetDesc();
-
-			/*Почемуто Compute очередь не умеет работать с этими флагами*/
-			/*cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
-				D3D12_RESOURCE_STATE_COMMON,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS));*/
 
 			for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
 			{
@@ -159,19 +152,13 @@ namespace DXLib
 
 				cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
 			}
-
-			/*Почемуто Compute очередь не умеет работать с этими флагами*/
-			
-		/*	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
-				                         texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_COMMON));*/
 		}
-
 		
 		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 
+
+		
 		graphicList = graphicQueue->GetCommandList();
 		for (auto&& texture : generatedMipTextures)
 		{
