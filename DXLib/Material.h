@@ -64,7 +64,7 @@ public:
 
 	Material(std::string name, PSO* pso);
 
-	void InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureHeap);
+	void InitMaterial(ID3D12Device* device, GMemory& textureHeap);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList) const;
 
@@ -72,11 +72,6 @@ public:
 
 	std::string& GetName();
 
-
-	// Index into SRV heap for diffuse texture.
-	//int DiffuseSrvHeapIndex = -1;
-
-	// Material constant buffer data used for shading.
 	DirectX::XMFLOAT4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
 	DirectX::XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
 	float Roughness = .25f;

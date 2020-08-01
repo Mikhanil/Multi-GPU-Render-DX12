@@ -30,6 +30,8 @@ public:
         
     std::shared_ptr<GHeap> GetDescriptorAllocatorPage() const;
 
+    ID3D12DescriptorHeap* GetDescriptorHeap() const;
+
 private:   
     void Free();
         

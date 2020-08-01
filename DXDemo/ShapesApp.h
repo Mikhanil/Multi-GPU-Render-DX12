@@ -7,6 +7,7 @@
 #include "FrameResource.h"
 #include "ModelRenderer.h"
 #include "Camera.h"
+#include "GMemory.h"
 #include "Light.h"
 #include "Shader.h"
 #include "PSO.h"
@@ -29,19 +30,13 @@ namespace DXLib
 		ShapesApp& operator=(const ShapesApp& rhs) = delete;
 		~ShapesApp();
 
-		Keyboard* GetKeyboard();
-
-		Mouse* GetMouse();
-
-		Camera* GetMainCamera() const;
+	
 
 		void GeneratedMipMap();
 		void BuildSsaoRootSignature();
 		bool Initialize() override;
 
 
-		bool ShowAmbiantMap = false;
-		bool computeSsao = false;
 
 
 	private:
@@ -106,9 +101,9 @@ namespace DXLib
 
 		D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
 
-		ComPtr<ID3D12DescriptorHeap> rtvHeap;
-		ComPtr<ID3D12DescriptorHeap> dsvHeap;
-		ComPtr<ID3D12DescriptorHeap> srvHeap;
+		GMemory rtvHeap;
+		GMemory dsvHeap;
+		GMemory srvHeap;
 
 		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();
 		custom_unordered_map<std::string, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Material>>();
@@ -117,7 +112,7 @@ namespace DXLib
 		custom_unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<ModelMesh>>();
 		custom_unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<PSO>>();
 		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
-		std::unique_ptr<Camera> camera = nullptr;
+		
 
 		custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 		custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();

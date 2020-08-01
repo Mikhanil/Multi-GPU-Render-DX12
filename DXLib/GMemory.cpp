@@ -101,3 +101,8 @@ std::shared_ptr<GHeap> GMemory::GetDescriptorAllocatorPage() const
     return heap;
 }
 
+ID3D12DescriptorHeap* GMemory::GetDescriptorHeap() const
+{
+	return heap->GetDescriptorHeap();
+}
+

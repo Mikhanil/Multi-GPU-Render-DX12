@@ -60,12 +60,6 @@
     <ClInclude Include="d3dApp.h">
       <Filter>Header Files\App</Filter>
     </ClInclude>
-    <ClInclude Include="InitDirect3DApp.h">
-      <Filter>Header Files\App</Filter>
-    </ClInclude>
-    <ClInclude Include="ShapesApp.h">
-      <Filter>Header Files\App</Filter>
-    </ClInclude>
     <ClInclude Include="GameObject.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
@@ -159,9 +153,6 @@
     <ClInclude Include="GResource.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
-    <ClInclude Include="GCommandQueue.h">
-      <Filter>Header Files\Refactor</Filter>
-    </ClInclude>
     <ClInclude Include="DXAllocator.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
@@ -180,18 +171,15 @@
     <ClInclude Include="GResourceStateTracker.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
+    <ClInclude Include="GCommandQueue.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="d3dApp.cpp">
-      <Filter>Source Files\App</Filter>
-    </ClCompile>
-    <ClCompile Include="InitDirect3DApp.cpp">
-      <Filter>Source Files\App</Filter>
-    </ClCompile>
-    <ClCompile Include="ShapesApp.cpp">
       <Filter>Source Files\App</Filter>
     </ClCompile>
     <ClCompile Include="GameObject.cpp">
@@ -284,9 +272,6 @@
     <ClCompile Include="GResource.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
-    <ClCompile Include="GCommandQueue.cpp">
-      <Filter>Header Files\Refactor</Filter>
-    </ClCompile>
     <ClCompile Include="GMemory.cpp">
       <Filter>Source Files\Allocators</Filter>
     </ClCompile>
@@ -304,6 +289,9 @@
     </ClCompile>
     <ClCompile Include="GResourceStateTracker.cpp">
       <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="GCommandQueue.cpp">
+      <Filter>Header Files\Allocators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

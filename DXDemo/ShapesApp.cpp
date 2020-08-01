@@ -14,7 +14,7 @@
 #include "pix3.h"
 #include "filesystem"
 #include "Window.h"
-
+#include "GMemory.h"
 namespace DXLib
 {
 	ShapesApp::ShapesApp(HINSTANCE hInstance)
@@ -34,24 +34,11 @@ namespace DXLib
 		Flush();
 	}
 
-	Keyboard* ShapesApp::GetKeyboard()
-	{
-		return &keyboard;
-	}
-
-	Mouse* ShapesApp::GetMouse()
-	{
-		return &mouse;
-	}
-
-	Camera* ShapesApp::GetMainCamera() const
-	{
-		return camera.get();
-	}
+	
 
 	void ShapesApp::GeneratedMipMap()
 	{
-		auto cmdList = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetCommandList();
+		auto cmdList = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetCommandList();
 
 		UINT requiredHeapSize = 0;
 
@@ -79,13 +66,7 @@ namespace DXLib
 
 		auto genMipMapPSO = new GeneratedMipsPSO(dxDevice.Get());
 
-
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.NumDescriptors = 2 * requiredHeapSize;
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		ID3D12DescriptorHeap* descriptorHeap;
-		dxDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap));
+		const auto mipMapsMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 * requiredHeapSize);
 		UINT descriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
@@ -100,13 +81,16 @@ namespace DXLib
 
 		cmdList->SetComputeRootSignature(genMipMapPSO->GetRootSignature().Get());
 		cmdList->SetPipelineState(genMipMapPSO->GetPipelineState().Get());
-		cmdList->SetDescriptorHeaps(1, &descriptorHeap);
+
+		auto dHeap = mipMapsMemory.GetDescriptorHeap();
+		
+		cmdList->SetDescriptorHeaps(1, &dHeap);
 
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE currentCPUHandle(descriptorHeap->GetCPUDescriptorHandleForHeapStart(), 0,
+		CD3DX12_CPU_DESCRIPTOR_HANDLE currentCPUHandle(mipMapsMemory.GetCPUHandle(), 0,
 		                                               descriptorSize);
 
-		CD3DX12_GPU_DESCRIPTOR_HANDLE currentGPUHandle(descriptorHeap->GetGPUDescriptorHandleForHeapStart(), 0,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE currentGPUHandle(mipMapsMemory.GetGPUHandle(), 0,
 		                                               descriptorSize);
 
 
@@ -114,15 +98,30 @@ namespace DXLib
 		//auto mipBuffer = genMipMapPSO->GetBuffer();
 
 
+		auto graphicQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto graphicList = graphicQueue->GetCommandList();
+
+		for (auto && texture : generatedMipTextures)
+		{
+			graphicList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->GetResource(),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+		}
+		
+		
+		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
+		
+		
+
 		for (auto& textur : generatedMipTextures)
 		{
 			auto texture = textur->GetResource();
 			auto textureDesc = texture->GetDesc();
 
-
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
-			                                                                  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			                                                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+			/*Почемуто Compute очередь не умеет работать с этими флагами*/
+			/*cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture,
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS));*/
 
 			for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
 			{
@@ -161,14 +160,28 @@ namespace DXLib
 				cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
 			}
 
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+			/*Почемуто Compute очередь не умеет работать с этими флагами*/
+			
+		/*	cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
 				                         texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				                         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+				D3D12_RESOURCE_STATE_COMMON));*/
 		}
-		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+		
+		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 
+		graphicList = graphicQueue->GetCommandList();
+		for (auto&& texture : generatedMipTextures)
+		{
+			graphicList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->GetResource(),
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS ,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+		}
+		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
+
+		
 		for (auto&& pair : textures)
 		{
 			pair.second->ClearTrack();
@@ -285,7 +298,7 @@ namespace DXLib
 		auto cmdList = commandQueue->GetCommandList();
 
 
-		ID3D12DescriptorHeap* descriptorHeaps[] = {srvHeap.Get()};
+		ID3D12DescriptorHeap* descriptorHeaps[] = {srvHeap.GetDescriptorHeap()};
 		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 		cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
@@ -296,8 +309,7 @@ namespace DXLib
 		cmdList->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
 
 		/*Bind all Diffuse Textures*/
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,
-		                                        srvHeap->GetGPUDescriptorHandleForHeapStart());
+		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,srvHeap.GetGPUHandle());
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 
@@ -354,7 +366,7 @@ namespace DXLib
 
 		/*Bind all Diffuse Textures*/
 		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,
-		                                        srvHeap->GetGPUDescriptorHandleForHeapStart());
+		                                        srvHeap.GetGPUHandle());
 
 
 		cmdList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
@@ -947,31 +959,38 @@ namespace DXLib
 
 	void ShapesApp::BuildTexturesHeap()
 	{
-		// Add +1 for screen normal map, +2 for ambient maps.
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
-		rtvHeapDesc.NumDescriptors = 3;
-		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		rtvHeapDesc.NodeMask = 0;
-		ThrowIfFailed(dxDevice->CreateDescriptorHeap(
-			&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf())));
+		rtvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 3);
+
+		dsvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+
+		srvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size() + 1 + 5);
+
+		
+		///* Add +1 for screen normal map, +2 for ambient maps.
+		//D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+		//rtvHeapDesc.NumDescriptors = 3;
+		//rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		//rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		//rtvHeapDesc.NodeMask = 0;
+		//ThrowIfFailed(dxDevice->CreateDescriptorHeap(
+		//	&rtvHeapDesc, IID_PPV_ARGS(rtvHeap.GetAddressOf())));
 
 
 		//+1 для карты теней
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		dsvHeapDesc.NodeMask = 0;
-		ThrowIfFailed(dxDevice->CreateDescriptorHeap(
-			&dsvHeapDesc, IID_PPV_ARGS(dsvHeap.GetAddressOf())));
+		//D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+		//dsvHeapDesc.NumDescriptors = 1;
+		//dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		//dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		//dsvHeapDesc.NodeMask = 0;
+		//ThrowIfFailed(dxDevice->CreateDescriptorHeap(
+		//	&dsvHeapDesc, IID_PPV_ARGS(dsvHeap.GetAddressOf())));
 
 
-		D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-		srvHeapDesc.NumDescriptors = textures.size() + 1 + 5;
-		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		ThrowIfFailed(dxDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&srvHeap)));
+		//D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+		//srvHeapDesc.NumDescriptors = textures.size() + 1 + 5;
+		//srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		//srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		//ThrowIfFailed(dxDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&srvHeap)));*/
 
 		mShadowMapHeapIndex = textures.size();
 		mSsaoHeapIndexStart = mShadowMapHeapIndex + 1;
@@ -1746,7 +1765,7 @@ namespace DXLib
 
 		for (auto&& pair : materials)
 		{
-			pair.second->InitMaterial(dxDevice.Get(), srvHeap.Get());
+			pair.second->InitMaterial(dxDevice.Get(), srvHeap);
 		}
 	}
 
@@ -2208,28 +2227,28 @@ namespace DXLib
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE ShapesApp::GetCpuSrv(int index) const
 	{
-		auto srv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvHeap->GetCPUDescriptorHandleForHeapStart());
+		auto srv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvHeap.GetCPUHandle());
 		srv.Offset(index, cbvSrvUavDescriptorSize);
 		return srv;
 	}
 
 	CD3DX12_GPU_DESCRIPTOR_HANDLE ShapesApp::GetGpuSrv(int index) const
 	{
-		auto srv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvHeap->GetGPUDescriptorHandleForHeapStart());
+		auto srv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvHeap.GetGPUHandle());
 		srv.Offset(index, cbvSrvUavDescriptorSize);
 		return srv;
 	}
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE ShapesApp::GetDsv(int index) const
 	{
-		auto dsv = CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvHeap->GetCPUDescriptorHandleForHeapStart());
+		auto dsv = CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvHeap.GetCPUHandle());
 		dsv.Offset(index, dsvDescriptorSize);
 		return dsv;
 	}
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE ShapesApp::GetRtv(int index) const
 	{
-		auto rtv = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart());
+		auto rtv = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap.GetCPUHandle());
 		rtv.Offset(index, rtvDescriptorSize);
 		return rtv;
 	}

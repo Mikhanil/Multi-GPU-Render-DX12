@@ -10,7 +10,7 @@ GHeap::GHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
     heapDesc.Type = heapType;
     heapDesc.NumDescriptors = numDescriptorsInHeap;
-    heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    heapDesc.Flags = heapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
     ThrowIfFailed(device.CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&d3d12DescriptorHeap)));
 
@@ -152,4 +152,9 @@ void GHeap::ReleaseStaleDescriptors(uint64_t frameNumber)
 
         staleDescriptors.pop();
     }
+}
+
+ID3D12DescriptorHeap* GHeap::GetDescriptorHeap()
+{
+	return d3d12DescriptorHeap.Get();
 }

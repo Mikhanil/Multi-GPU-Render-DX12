@@ -27,6 +27,8 @@
 #include "dwrite.h"
 #include <dxgi1_6.h>
 
+
+#include "Camera.h"
 #include "d3d11on12.h"
 #include "d3d11.h"
 
@@ -48,6 +50,15 @@ namespace DXLib
 
 	public:		
 
+
+		bool ShowAmbiantMap = false;
+		bool computeSsao = false;
+		
+		Keyboard* GetKeyboard();
+
+		Mouse* GetMouse();
+
+		Camera* GetMainCamera() const;
 
 		
 		void Destroy() const;
@@ -148,9 +159,8 @@ namespace DXLib
 		GameTimer timer;
 
 		Keyboard keyboard;
-
 		Mouse mouse;
-
+		std::unique_ptr<Camera> camera = nullptr;
 
 		bool InitMainWindow();
 

@@ -80,6 +80,21 @@ namespace DXLib
 		Flush();		
 	}
 
+	Keyboard* D3DApp::GetKeyboard()
+	{
+		return &keyboard;
+	}
+
+	Mouse* D3DApp::GetMouse()
+	{
+		return &mouse;
+	}
+
+	Camera* D3DApp::GetMainCamera() const
+	{
+		return camera.get();
+	}
+
 	void D3DApp::Destroy() const
 	{
 		for (auto&& gs_window : gs_Windows)
@@ -413,6 +428,8 @@ namespace DXLib
 				{
 					Sleep(100);
 				}
+
+				DXAllocator::ResetAllocator();
 			}
 		}
 

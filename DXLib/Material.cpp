@@ -1,4 +1,6 @@
 #include "Material.h"
+
+#include "GMemory.h"
 #include "PSO.h"
 
 UINT Material::materialIndexGlobal = 0;
@@ -25,13 +27,13 @@ Material::Material(std::string name, PSO* pso): Name(std::move(name)), pso(pso)
 }
 
 
-void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureHeap)
+void Material::InitMaterial(ID3D12Device* device, GMemory& textureHeap)
 {
 	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	gpuTextureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(textureHeap->GetGPUDescriptorHandleForHeapStart(),
+	gpuTextureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(textureHeap.GetGPUHandle(),
 	                                                 this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
-	cpuTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap->GetCPUDescriptorHandleForHeapStart(),
+	cpuTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap.GetCPUHandle(),
 	                                                 this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -86,7 +88,7 @@ void Material::InitMaterial(ID3D12Device* device, ID3D12DescriptorHeap* textureH
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		srvDesc.Texture2D.MipLevels = normalMap->GetResource()->GetDesc().MipLevels;
 		auto cpuNormalMapTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-			textureHeap->GetCPUDescriptorHandleForHeapStart(), NormalMapIndex, cbvSrvUavDescriptorSize);
+			textureHeap.GetCPUHandle(), NormalMapIndex, cbvSrvUavDescriptorSize);
 		device->CreateShaderResourceView(normalMap->GetResource(), &srvDesc, cpuNormalMapTextureHandle);
 	}
 }

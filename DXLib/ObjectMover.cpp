@@ -1,5 +1,9 @@
 #include "ObjectMover.h"
-#include "ShapesApp.h"
+#include "d3dApp.h"
+#include "GameObject.h"
+#include "SimpleMath.h"
+
+using namespace DirectX::SimpleMath;
 
 void ObjectMover::Draw(ID3D12GraphicsCommandList* cmdList)
 {
@@ -7,7 +11,7 @@ void ObjectMover::Draw(ID3D12GraphicsCommandList* cmdList)
 
 void ObjectMover::Update()
 {
-	const float dt = static_cast<DXLib::ShapesApp&>(DXLib::ShapesApp::GetApp()).GetTimer()->DeltaTime();
+	const float dt = DXLib::D3DApp::GetApp().GetTimer()->DeltaTime();
 
 	Vector3 offset = Vector3::Zero;
 	if (keyboard->KeyIsPressed(VK_UP))
@@ -33,5 +37,5 @@ void ObjectMover::Update()
 
 ObjectMover::ObjectMover()
 {
-	keyboard = static_cast<DXLib::ShapesApp&>(DXLib::ShapesApp::GetApp()).GetKeyboard();
+	keyboard = DXLib::D3DApp::GetApp().GetKeyboard();
 }

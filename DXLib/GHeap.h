@@ -24,6 +24,7 @@ public:
        
     void ReleaseStaleDescriptors(uint64_t frameNumber);
 
+    ID3D12DescriptorHeap* GetDescriptorHeap();
 protected:
         
     uint32_t ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
