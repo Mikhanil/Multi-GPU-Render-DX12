@@ -8,15 +8,18 @@
 
 using namespace Microsoft::WRL;
 
+
+
 class GDataUploader
 {
 public:
-	  
+
     struct UploadAllocation
     {
         void* CPU;
         D3D12_GPU_VIRTUAL_ADDRESS GPU;
     };
+   
 
     explicit GDataUploader(size_t pageSize = 1024);
 

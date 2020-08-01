@@ -96,7 +96,7 @@ void GHeap::Free(GMemory&& descriptor, uint64_t frameNumber)
 
     std::lock_guard<std::mutex> lock(allocationMutex);
 
-    descriptors.emplace(offset, descriptor.GetHandlersCount(), frameNumber);
+    staleDescriptors.emplace(offset, descriptor.GetHandlersCount(), frameNumber);
 }
 
 void GHeap::FreeBlock(uint32_t offset, uint32_t numDescriptors)
@@ -141,15 +141,15 @@ void GHeap::ReleaseStaleDescriptors(uint64_t frameNumber)
 {
     std::lock_guard<std::mutex> lock(allocationMutex);
 
-    while (!descriptors.empty() && descriptors.front().FrameNumber <= frameNumber)
+    while (!staleDescriptors.empty() && staleDescriptors.front().FrameNumber <= frameNumber)
     {
-        auto& staleDescriptor = descriptors.front();
+        auto& staleDescriptor = staleDescriptors.front();
                 
         const auto offset = staleDescriptor.Offset;
         const auto numDescriptors = staleDescriptor.Size;
 
         FreeBlock(offset, numDescriptors);
 
-        descriptors.pop();
+        staleDescriptors.pop();
     }
 }

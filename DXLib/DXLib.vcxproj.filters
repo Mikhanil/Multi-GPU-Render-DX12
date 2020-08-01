@@ -40,6 +40,12 @@
     <Filter Include="Header Files\Refactor">
       <UniqueIdentifier>{7238850b-4d2b-43ee-a9c6-924fe5ff1325}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Allocators">
+      <UniqueIdentifier>{4fcefe77-04d1-4d30-b6b3-92b6c5536316}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Allocators">
+      <UniqueIdentifier>{4e0cef7b-4c39-42c1-a990-da61e53ba511}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dUtil.h">
@@ -150,29 +156,29 @@
     <ClInclude Include="Lazy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DXAllocator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GResource.h">
       <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="GResourceStateTracker.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GCommandQueue.h">
       <Filter>Header Files\Refactor</Filter>
     </ClInclude>
+    <ClInclude Include="DXAllocator.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
     <ClInclude Include="GAllocator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GMemory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GHeap.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Allocators</Filter>
     </ClInclude>
     <ClInclude Include="GDataUploader.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
+    <ClInclude Include="GHeap.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
+    <ClInclude Include="GMemory.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
+    <ClInclude Include="GResourceStateTracker.h">
+      <Filter>Header Files\Allocators</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -275,29 +281,29 @@
     <ClCompile Include="Lazy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DXAllocator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GResource.cpp">
       <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="GResourceStateTracker.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GCommandQueue.cpp">
       <Filter>Header Files\Refactor</Filter>
     </ClCompile>
-    <ClCompile Include="GAllocator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GMemory.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
-    <ClCompile Include="GHeap.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="DXAllocator.cpp">
+      <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="GAllocator.cpp">
+      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
     <ClCompile Include="GDataUploader.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="GHeap.cpp">
+      <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="GResourceStateTracker.cpp">
+      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

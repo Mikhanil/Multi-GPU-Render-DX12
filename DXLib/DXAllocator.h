@@ -1,16 +1,32 @@
 #pragma once
 
+#include <d3d12.h>
 #include "STLCustomAllocator.h"
+
+class GAllocator;
+class GDataUploader;
+class GMemory;
 
 class DXAllocator
 {
 	static LinearAllocationStrategy<> allocatorStrategy;
 	
+	static custom_vector<std::unique_ptr<GAllocator>> graphicAllocator;
+
+	static std::unique_ptr<GDataUploader> uploader;
+	
 public:
+
+	static void ResetAllocator();
+
+	static D3D12_GPU_VIRTUAL_ADDRESS UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment);
+
+	static GMemory AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount = 1 );
+	
 	template<typename T>
 	CustomAllocator<T> static GetAllocator()
 	{
-		CustomAllocator <T> allocator( allocatorStrategy );
+		CustomAllocator <T> allocator(allocatorStrategy );
 
 		return allocator;
 	}
@@ -38,9 +54,7 @@ public:
 	{
 		return custom_queue<T>{GetAllocator<T>()};
 	}
-
-
-	
+		
 	template<typename K, typename V>
 	custom_map<K, V> static CreateMap()
 	{
@@ -80,8 +94,7 @@ public:
 	{
 		return custom_wstring( GetAllocator<wchar_t>() );
 	}
-
-	
+		
 	template<typename T, typename... Args>
 	custom_unique_ptr<T> make_custom_unique(Args&&... args)
 	{

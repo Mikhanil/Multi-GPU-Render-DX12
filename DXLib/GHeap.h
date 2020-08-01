@@ -67,7 +67,7 @@ private:
     custom_map<OffsetType, FreeBlockInfo> freeListByOffset = DXAllocator::CreateMap<OffsetType, FreeBlockInfo>();
     custom_multimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator> freeListBySize = DXAllocator::CreateMultimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator>();
 	
-    custom_queue<DescriptorInfo> descriptors = DXAllocator::CreateQueue<DescriptorInfo>();
+    custom_queue<DescriptorInfo> staleDescriptors = DXAllocator::CreateQueue<DescriptorInfo>();
 
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap;
 	
