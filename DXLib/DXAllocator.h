@@ -6,6 +6,7 @@
 class GAllocator;
 class GDataUploader;
 class GMemory;
+struct UploadAllocation;
 
 class DXAllocator
 {
@@ -19,7 +20,9 @@ public:
 
 	static void ResetAllocator();
 
-	static D3D12_GPU_VIRTUAL_ADDRESS UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment);
+	static void UploaderClear();
+
+	static UploadAllocation UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment);
 
 	static GMemory AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount = 1 );
 	

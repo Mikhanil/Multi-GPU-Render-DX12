@@ -6,6 +6,11 @@
 #include "ResourceUploadBatch.h"
 #include <winrt/base.h>
 
+#include "d3dApp.h"
+#include "GDataUploader.h"
+#include "GMemory.h"
+#include "GResourceStateTracker.h"
+
 UINT Texture::textureIndexGlobal = 0;
 
 TextureUsage Texture::GetTextureType() const
@@ -18,10 +23,167 @@ UINT Texture::GetTextureIndex() const
 	return textureIndex;
 }
 
-Texture::Texture(std::string name, std::wstring filename, TextureUsage use):
-	Filename(std::move(filename)), Name(std::move(name)), usage(use)
+Texture::Texture(std::wstring name, std::wstring filename, TextureUsage use): GResource( name),
+                                                                             Filename(std::move(filename)), usage(use)
 {
 	textureIndex = textureIndexGlobal++;
+}
+
+Texture::Texture(const D3D12_RESOURCE_DESC& resourceDesc, const D3D12_CLEAR_VALUE* clearValue,
+                 TextureUsage textureUsage, const std::wstring& name) : GResource(resourceDesc, clearValue, name),
+                                                                        usage(textureUsage)
+{
+	textureIndex = textureIndexGlobal++;
+	CreateViews();
+}
+
+Texture::Texture(ComPtr<ID3D12Resource> resource, TextureUsage textureUsage,
+                 const std::wstring& name) : GResource(resource, name), usage(textureUsage)
+{
+	textureIndex = textureIndexGlobal++;
+	CreateViews();
+}
+
+Texture::Texture(const Texture& copy) : GResource(copy), textureIndex(copy.textureIndex)
+{
+	CreateViews();
+}
+
+Texture::Texture(Texture&& copy) : GResource(copy), textureIndex(std::move(copy.textureIndex))
+{
+	CreateViews();
+}
+
+Texture& Texture::operator=(const Texture& other)
+{
+	GResource::operator=(other);
+
+	textureIndex = other.textureIndex;
+
+	CreateViews();
+
+	return *this;
+}
+
+Texture& Texture::operator=(Texture&& other)
+{
+	GResource::operator=(other);
+
+	textureIndex = other.textureIndex;
+
+	CreateViews();
+
+	return *this;
+}
+
+void Texture::CreateViews()
+{
+	if (dxResource)
+	{
+		auto& app = DXLib::D3DApp::GetApp();
+		auto& device = app.GetDevice();
+
+		CD3DX12_RESOURCE_DESC desc(dxResource->GetDesc());
+
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0 &&
+			CheckRTVSupport())
+		{
+			m_RenderTargetView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			device.CreateRenderTargetView(dxResource.Get(), nullptr, m_RenderTargetView.GetCPUHandle());
+		}
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0 &&
+			CheckDSVSupport())
+		{
+			m_DepthStencilView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			device.CreateDepthStencilView(dxResource.Get(), nullptr, m_DepthStencilView.GetCPUHandle());
+		}
+	}
+
+	std::lock_guard<std::mutex> lock(m_ShaderResourceViewsMutex);
+	std::lock_guard<std::mutex> guard(m_UnorderedAccessViewsMutex);
+
+	// SRVs and UAVs will be created as needed.
+	m_ShaderResourceViews.clear();
+	m_UnorderedAccessViews.clear();
+}
+
+GMemory Texture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+
+	auto srv = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	device.CreateShaderResourceView(dxResource.Get(), srvDesc, srv.GetCPUHandle());
+
+	return srv;
+}
+
+GMemory Texture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+
+	auto uav = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	device.CreateUnorderedAccessView(dxResource.Get(), nullptr, uavDesc, uav.GetCPUHandle());
+
+	return uav;
+}
+
+
+Texture::~Texture()
+{
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
+{
+	std::size_t hash = 0;
+	if (srvDesc)
+	{
+		hash = std::hash<D3D12_SHADER_RESOURCE_VIEW_DESC>{}(*srvDesc);
+	}
+
+	std::lock_guard<std::mutex> lock(m_ShaderResourceViewsMutex);
+
+	auto iter = m_ShaderResourceViews.find(hash);
+	if (iter == m_ShaderResourceViews.end())
+	{
+		auto srv = CreateShaderResourceView(srvDesc);
+		iter = m_ShaderResourceViews.insert({hash, std::move(srv)}).first;
+	}
+
+	return iter->second.GetCPUHandle();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
+{
+	std::size_t hash = 0;
+	if (uavDesc)
+	{
+		hash = std::hash<D3D12_UNORDERED_ACCESS_VIEW_DESC>{}(*uavDesc);
+	}
+
+	std::lock_guard<std::mutex> guard(m_UnorderedAccessViewsMutex);
+
+	auto iter = m_UnorderedAccessViews.find(hash);
+	if (iter == m_UnorderedAccessViews.end())
+	{
+		auto uav = CreateUnorderedAccessView(uavDesc);
+		iter = m_UnorderedAccessViews.insert({hash, std::move(uav)}).first;
+	}
+
+	return iter->second.GetCPUHandle();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetRenderTargetView() const
+{
+	return m_RenderTargetView.GetCPUHandle();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetDepthStencilView() const
+{
+	return m_DepthStencilView.GetCPUHandle();
 }
 
 
@@ -141,45 +303,47 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 		&desc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
-		IID_PPV_ARGS(&directxResource)));
+		IID_PPV_ARGS(&dxResource)));
 
+	// Update the global state tracker.
+	GResourceStateTracker::AddGlobalResourceState(dxResource.Get(), D3D12_RESOURCE_STATE_COMMON);
 
+	
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
 	ThrowIfFailed(
 		PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
 			subresources));
 
-	if (directxResource)
+	if (dxResource)
 	{
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(directxResource.Get(),
+		
+		
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dxResource.Get(),
 		                                                                      D3D12_RESOURCE_STATE_COMMON,
 		                                                                      D3D12_RESOURCE_STATE_COPY_DEST));
 
-		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(directxResource.Get(),
+		GResourceStateTracker::AddGlobalResourceState(dxResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+		
+		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(dxResource.Get(),
 		                                                            0, static_cast<unsigned int>(subresources.size()));
-
-		ComPtr<ID3D12Resource> textureUploadHeap;
-		ThrowIfFailed(device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-			D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(textureUploadHeap.GetAddressOf())));
+		
+		auto upload = DXAllocator::UploadData(uploadBufferSize, nullptr, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+				
 
 
 		UpdateSubresources(commandList,
-		                   directxResource.Get(), textureUploadHeap.Get(),
-		                   0, 0, static_cast<unsigned int>(subresources.size()),
+			dxResource.Get(), &upload.d3d12Resource,
+			upload.Offset, 0, static_cast<unsigned int>(subresources.size()),
 		                   subresources.data());
 
-		track.push_back(textureUploadHeap);
-		track.push_back(directxResource);
+		track.push_back(dxResource);
 
 
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(directxResource.Get(),
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dxResource.Get(),
 		                                                                      D3D12_RESOURCE_STATE_COPY_DEST,
 		                                                                      D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+
+		GResourceStateTracker::AddGlobalResourceState(dxResource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 
 	isLoaded = true;
@@ -375,14 +539,14 @@ DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
 
 ID3D12Resource* Texture::GetResource() const
 {
-	if (isLoaded)return directxResource.Get();
+	if (isLoaded)return dxResource.Get();
 
 	return nullptr;
 }
 
-std::string& Texture::GetName()
+std::wstring& Texture::GetName()
 {
-	return Name;
+	return resourceName;
 }
 
 std::wstring& Texture::GetFileName()

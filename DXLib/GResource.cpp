@@ -8,7 +8,7 @@
 uint64_t GResource::resourceId = 0;
 
 GResource::GResource(const std::wstring& name)
-	: m_ResourceName(std::move(name))
+	: resourceName(std::move(name))
 {
 	id = ++resourceId;
 }
@@ -22,7 +22,7 @@ GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const D3D12_CLEAR_
 	
 	if (clearValue)
 	{
-		m_d3d12ClearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
+		this->clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
 	}
 
 	ThrowIfFailed(device.CreateCommittedResource(
@@ -30,15 +30,15 @@ GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const D3D12_CLEAR_
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
 		D3D12_RESOURCE_STATE_COMMON,
-		m_d3d12ClearValue.get(),
-		IID_PPV_ARGS(&m_d3d12Resource)
+		this->clearValue.get(),
+		IID_PPV_ARGS(&dxResource)
 	));
 
 	SetName(name);
 }
 
 GResource::GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std::wstring& name)
-	: m_d3d12Resource(std::move(resource))
+	: dxResource(std::move(resource))
 {
 	id = ++resourceId;
 	
@@ -47,18 +47,18 @@ GResource::GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std
 
 GResource::GResource(const GResource& copy)
 	: id(copy.id)
-	  , m_d3d12Resource(copy.m_d3d12Resource)
-	  , m_d3d12ClearValue(std::make_unique<D3D12_CLEAR_VALUE>(*copy.m_d3d12ClearValue))
-	  , m_ResourceName(copy.m_ResourceName)
+	  , dxResource(copy.dxResource)
+	  , clearValue(std::make_unique<D3D12_CLEAR_VALUE>(*copy.clearValue))
+	  , resourceName(copy.resourceName)
 {
 	
 }
 
 GResource::GResource(GResource&& move)
 	: id(std::move(move.id))
-	  , m_d3d12Resource(std::move(move.m_d3d12Resource))
-	  , m_d3d12ClearValue(std::move(move.m_d3d12ClearValue))
-, m_ResourceName(std::move(move.m_ResourceName))
+	  , dxResource(std::move(move.dxResource))
+	  , clearValue(std::move(move.clearValue))
+, resourceName(std::move(move.resourceName))
 {
 }
 
@@ -67,11 +67,11 @@ GResource& GResource::operator=(const GResource& other)
 	if (this != &other)
 	{
 		id = other.id;
-		m_d3d12Resource = other.m_d3d12Resource;
-		m_ResourceName = other.m_ResourceName;
-		if (other.m_d3d12ClearValue)
+		dxResource = other.dxResource;
+		resourceName = other.resourceName;
+		if (other.clearValue)
 		{
-			m_d3d12ClearValue = std::make_unique<D3D12_CLEAR_VALUE>(*other.m_d3d12ClearValue);
+			clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*other.clearValue);
 		}
 	}
 
@@ -83,12 +83,12 @@ GResource& GResource::operator=(GResource&& other) noexcept
 	if (this != &other)
 	{
 		id = other.id;
-		m_d3d12Resource = other.m_d3d12Resource;
-		m_ResourceName = other.m_ResourceName;
-		m_d3d12ClearValue = std::move(other.m_d3d12ClearValue);
+		dxResource = other.dxResource;
+		resourceName = other.resourceName;
+		clearValue = std::move(other.clearValue);
 
-		other.m_d3d12Resource.Reset();
-		other.m_ResourceName.clear();
+		other.dxResource.Reset();
+		other.resourceName.clear();
 	}
 
 	return *this;
@@ -102,20 +102,20 @@ GResource::~GResource()
 
 bool GResource::IsValid() const
 {
-	return (m_d3d12Resource != nullptr);
+	return (dxResource != nullptr);
 }
 
 Microsoft::WRL::ComPtr<ID3D12Resource> GResource::GetD3D12Resource() const
 {
-	return m_d3d12Resource;
+	return dxResource;
 }
 
 D3D12_RESOURCE_DESC GResource::GetD3D12ResourceDesc() const
 {
 	D3D12_RESOURCE_DESC resDesc = {};
-	if (m_d3d12Resource)
+	if (dxResource)
 	{
-		resDesc = m_d3d12Resource->GetDesc();
+		resDesc = dxResource->GetDesc();
 	}
 
 	return resDesc;
@@ -124,34 +124,44 @@ D3D12_RESOURCE_DESC GResource::GetD3D12ResourceDesc() const
 void GResource::SetD3D12Resource(ComPtr<ID3D12Resource> d3d12Resource,
                                  const D3D12_CLEAR_VALUE* clearValue)
 {
-	m_d3d12Resource = std::move(d3d12Resource);
-	if (m_d3d12ClearValue)
+	dxResource = std::move(d3d12Resource);
+	if (this->clearValue)
 	{
-		m_d3d12ClearValue.reset();
-		m_d3d12ClearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
+		this->clearValue.reset();
+		this->clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
 	}
 	else
 	{
-		m_d3d12ClearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
+		this->clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
 	}
 	
-	SetName(m_ResourceName);
+	SetName(resourceName);
 }
 
 void GResource::SetName(const std::wstring& name)
 {
-	m_ResourceName = name;
-	if (m_d3d12Resource && !m_ResourceName.empty())
+	resourceName = name;
+	if (dxResource && !resourceName.empty())
 	{
-		m_d3d12Resource->SetName(m_ResourceName.c_str());
+		dxResource->SetName(resourceName.c_str());
 	}
+}
+
+bool GResource::CheckFormatSupport(D3D12_FORMAT_SUPPORT1 formatSupport) const
+{
+	return (m_FormatSupport.Support1 & formatSupport) != 0;
+}
+
+bool GResource::CheckFormatSupport(D3D12_FORMAT_SUPPORT2 formatSupport) const
+{
+	return (m_FormatSupport.Support2 & formatSupport) != 0;
 }
 
 void GResource::Reset()
 {
-	if(m_d3d12Resource)
-	m_d3d12Resource.Reset();
+	if(dxResource)
+	dxResource.Reset();
 
-	if(m_d3d12ClearValue)
-	m_d3d12ClearValue.reset();
+	if(clearValue)
+	clearValue.reset();
 }

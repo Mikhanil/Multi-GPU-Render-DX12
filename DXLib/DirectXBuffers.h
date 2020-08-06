@@ -6,7 +6,7 @@ class ShaderBuffer
 {
 public:
 	ShaderBuffer(ID3D12Device* device, UINT elementCount, UINT elementByteSize) : elementByteSize(elementByteSize)
-	{
+	{		
 		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,

@@ -108,7 +108,7 @@ namespace DXLib
 		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();
 		custom_unordered_map<std::string, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Material>>();
 		custom_unordered_map<std::string, std::unique_ptr<Shader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Shader>>();
-		custom_unordered_map<std::string, std::unique_ptr<Texture>> textures = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Texture>>();
+		custom_unordered_map<std::wstring, std::unique_ptr<Texture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::unique_ptr<Texture>>();
 		custom_unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<ModelMesh>>();
 		custom_unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<PSO>>();
 		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();

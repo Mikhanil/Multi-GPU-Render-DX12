@@ -9,19 +9,23 @@
 using namespace Microsoft::WRL;
 
 
+struct UploadAllocation
+{
+    void* CPU;
+    D3D12_GPU_VIRTUAL_ADDRESS GPU;
+    ID3D12Resource& d3d12Resource;
+    size_t Offset;
+};
+
 
 class GDataUploader
 {
 public:
 
-    struct UploadAllocation
-    {
-        void* CPU;
-        D3D12_GPU_VIRTUAL_ADDRESS GPU;
-    };
+    
    
 
-    explicit GDataUploader(size_t pageSize = 1024);
+    explicit GDataUploader(size_t pageSize = 1024*1024*256);
 
     virtual ~GDataUploader();
 
@@ -30,6 +34,7 @@ public:
     UploadAllocation Allocate(size_t sizeInBytes, size_t alignment);
 
     void Reset();
+    void Clear();
 
 private:
    
@@ -47,7 +52,7 @@ private:
     private:
 
         Microsoft::WRL::ComPtr<ID3D12Resource> d3d12Resource;
-
+           	
         void* CPUPtr;
         D3D12_GPU_VIRTUAL_ADDRESS GPUPtr;
 

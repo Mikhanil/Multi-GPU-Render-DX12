@@ -173,6 +173,8 @@ namespace DXLib
 		{
 			pair.second->ClearTrack();
 		}
+
+		DXAllocator::UploaderClear();
 	}
 
 	bool ShapesApp::Initialize()
@@ -603,14 +605,14 @@ namespace DXLib
 	{
 		std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");
 
-		std::vector<std::string> doomNames =
+		std::vector<std::wstring> doomNames =
 		{
-			"Doomarms",
-			"Doomcowl",
-			"Doomhelmet",
-			"Doomlegs",
-			"Doomtorso",
-			"Doomvisor"
+			L"Doomarms",
+			L"Doomcowl",
+			L"Doomhelmet",
+			L"Doomlegs",
+			L"Doomtorso",
+			L"Doomvisor"
 		};
 
 		std::vector<std::wstring> doomTextures =
@@ -636,7 +638,7 @@ namespace DXLib
 		for (UINT i = 0; i < doomNames.size(); ++i)
 		{
 			auto texture = std::make_unique<Texture>(doomNames[i], doomFolder + doomTextures[i], TextureUsage::Diffuse);
-			auto normal = std::make_unique<Texture>(doomNames[i].append("Normal"), doomFolder + doomNormals[i],
+			auto normal = std::make_unique<Texture>(doomNames[i].append(L"Normal"), doomFolder + doomNormals[i],
 			                                        TextureUsage::Normalmap);
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
@@ -645,39 +647,39 @@ namespace DXLib
 
 	void ShapesApp::LoadStudyTexture()
 	{
-		auto bricksTex = std::make_unique<Texture>("bricksTex", L"Data\\Textures\\bricks2.dds");
+		auto bricksTex = std::make_unique<Texture>(L"bricksTex", L"Data\\Textures\\bricks2.dds");
 		textures[bricksTex->GetName()] = std::move(bricksTex);
 
-		auto stoneTex = std::make_unique<Texture>("stoneTex", L"Data\\Textures\\stone.dds");
+		auto stoneTex = std::make_unique<Texture>(L"stoneTex", L"Data\\Textures\\stone.dds");
 		textures[stoneTex->GetName()] = std::move(stoneTex);
 
-		auto tileTex = std::make_unique<Texture>("tileTex", L"Data\\Textures\\tile.dds");
+		auto tileTex = std::make_unique<Texture>(L"tileTex", L"Data\\Textures\\tile.dds");
 		textures[tileTex->GetName()] = std::move(tileTex);
 
-		auto fenceTex = std::make_unique<Texture>("fenceTex", L"Data\\Textures\\WireFence.dds");
+		auto fenceTex = std::make_unique<Texture>(L"fenceTex", L"Data\\Textures\\WireFence.dds");
 		textures[fenceTex->GetName()] = std::move(fenceTex);
 
-		auto waterTex = std::make_unique<Texture>("waterTex", L"Data\\Textures\\water1.dds");
+		auto waterTex = std::make_unique<Texture>(L"waterTex", L"Data\\Textures\\water1.dds");
 		textures[waterTex->GetName()] = std::move(waterTex);
 
-		auto skyTex = std::make_unique<Texture>("skyTex", L"Data\\Textures\\skymap.dds");
+		auto skyTex = std::make_unique<Texture>(L"skyTex", L"Data\\Textures\\skymap.dds");
 		textures[skyTex->GetName()] = std::move(skyTex);
 
-		auto grassTex = std::make_unique<Texture>("grassTex", L"Data\\Textures\\grass.dds");
+		auto grassTex = std::make_unique<Texture>(L"grassTex", L"Data\\Textures\\grass.dds");
 		textures[grassTex->GetName()] = std::move(grassTex);
 
-		auto treeArrayTex = std::make_unique<Texture>("treeArrayTex", L"Data\\Textures\\treeArray2.dds");
+		auto treeArrayTex = std::make_unique<Texture>(L"treeArrayTex", L"Data\\Textures\\treeArray2.dds");
 		textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
 
-		auto seamless = std::make_unique<Texture>("seamless", L"Data\\Textures\\seamless_grass.jpg");
+		auto seamless = std::make_unique<Texture>(L"seamless", L"Data\\Textures\\seamless_grass.jpg");
 		textures[seamless->GetName()] = std::move(seamless);
 
 
-		std::vector<std::string> texNormalNames =
+		std::vector<std::wstring> texNormalNames =
 		{
-			"bricksNormalMap",
-			"tileNormalMap",
-			"defaultNormalMap"
+			L"bricksNormalMap",
+			L"tileNormalMap",
+			L"defaultNormalMap"
 		};
 
 		std::vector<std::wstring> texNormalFilenames =
@@ -698,14 +700,14 @@ namespace DXLib
 	{
 		std::wstring nanoFolder(L"Data\\Objects\\Nanosuit\\");
 
-		std::vector<std::string> nanoNames =
+		std::vector<std::wstring> nanoNames =
 		{
-			"Nanoarm",
-			"Nanobody",
-			"Nanoglass",
-			"Nanohand",
-			"Nanohelm",
-			"Nanoleg"
+			L"Nanoarm",
+			L"Nanobody",
+			L"Nanoglass",
+			L"Nanohand",
+			L"Nanohelm",
+			L"Nanoleg"
 		};
 
 		std::vector<std::wstring> nanoTextures =
@@ -731,7 +733,7 @@ namespace DXLib
 		for (UINT i = 0; i < nanoNames.size(); ++i)
 		{
 			auto texture = std::make_unique<Texture>(nanoNames[i], nanoFolder + nanoTextures[i], TextureUsage::Diffuse);
-			auto normal = std::make_unique<Texture>(nanoNames[i].append("Normal"), nanoFolder + nanoNormals[i],
+			auto normal = std::make_unique<Texture>(nanoNames[i].append(L"Normal"), nanoFolder + nanoNormals[i],
 			                                        TextureUsage::Normalmap);
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
@@ -742,11 +744,11 @@ namespace DXLib
 	{
 		std::wstring atlasFolder(L"Data\\Objects\\Atlas\\");
 
-		std::vector<std::string> AtlasNames =
+		std::vector<std::wstring> AtlasNames =
 		{
-			"Atlasframe",
-			"Atlasshell",
-			"Atlaseye",
+			L"Atlasframe",
+			L"Atlasshell",
+			L"Atlaseye",
 		};
 
 		std::vector<std::wstring> AtlasTextures =
@@ -769,12 +771,12 @@ namespace DXLib
 	{
 		std::wstring PBodyFolder(L"Data\\Objects\\P-Body\\");
 
-		std::vector<std::string> PBodyNames =
+		std::vector<std::wstring> PBodyNames =
 		{
-			"PBodyframe",
-			"PBodyshell",
-			"PBodyorange",
-			"PBodyeye",
+			L"PBodyframe",
+			L"PBodyshell",
+			L"PBodyorange",
+			L"PBodyeye",
 		};
 
 		std::vector<std::wstring> PBodyTextures =
@@ -798,9 +800,9 @@ namespace DXLib
 	{
 		std::wstring mechFolder(L"Data\\Objects\\StoneGolem\\");
 
-		std::vector<std::string> mechNames =
+		std::vector<std::wstring> mechNames =
 		{
-			"golemColor",
+			L"golemColor",
 		};
 
 		std::vector<std::wstring> mechTextures =
@@ -816,7 +818,7 @@ namespace DXLib
 		for (UINT i = 0; i < mechNames.size(); ++i)
 		{
 			auto texture = std::make_unique<Texture>(mechNames[i], mechFolder + mechTextures[i], TextureUsage::Diffuse);
-			auto normal = std::make_unique<Texture>(mechNames[i].append("Normal"), mechFolder + mechNormals[i],
+			auto normal = std::make_unique<Texture>(mechNames[i].append(L"Normal"), mechFolder + mechNormals[i],
 			                                        TextureUsage::Normalmap);
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
@@ -1581,15 +1583,15 @@ namespace DXLib
 		bricks0->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		bricks0->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 		bricks0->Roughness = 0.3f;
-		bricks0->SetDiffuseTexture(textures["bricksTex"].get());
-		bricks0->SetNormalMap(textures["bricksNormalMap"].get());
+		bricks0->SetDiffuseTexture(textures[L"bricksTex"].get());
+		bricks0->SetNormalMap(textures[L"bricksNormalMap"].get());
 		materials[bricks0->GetName()] = std::move(bricks0);
 
 		auto seamless = std::make_unique<Material>("seamless", psos[PsoType::Opaque].get());
 		seamless->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 		seamless->Roughness = 0.1f;
-		seamless->SetDiffuseTexture(textures["seamless"].get());
-		seamless->SetNormalMap(textures["defaultNormalMap"].get());
+		seamless->SetDiffuseTexture(textures[L"seamless"].get());
+		seamless->SetNormalMap(textures[L"defaultNormalMap"].get());
 		materials[seamless->GetName()] = std::move(seamless);
 
 		std::vector<std::string> doomNames =
@@ -1608,8 +1610,8 @@ namespace DXLib
 			material->FresnelR0 = Vector3::One * 0.05;
 			material->Roughness = 0.95;
 
-			material->SetDiffuseTexture(textures[name].get());
-			material->SetNormalMap(textures[name + "Normal"].get());
+			material->SetDiffuseTexture(textures[AnsiToWString( name)].get());
+			material->SetNormalMap(textures[AnsiToWString(name + "Normal")].get());
 
 			if (material->GetName() == "Doomvisor")
 			{
@@ -1637,8 +1639,8 @@ namespace DXLib
 			material->FresnelR0 = Vector3::One * 0.05;
 			material->Roughness = 0.95;
 
-			material->SetDiffuseTexture(textures[name].get());
-			material->SetNormalMap(textures[name + "Normal"].get());
+			material->SetDiffuseTexture(textures[AnsiToWString(name)].get());
+			material->SetNormalMap(textures[AnsiToWString(name + "Normal")].get());
 
 			if (material->GetName() == "Nanoglass")
 			{
@@ -1662,8 +1664,8 @@ namespace DXLib
 			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
 			material->FresnelR0 = Vector3::One * 0.05;
 			material->Roughness = 0.6;
-			material->SetDiffuseTexture(textures[name].get());
-			material->SetNormalMap(textures["defaultNormalMap"].get());
+			material->SetDiffuseTexture(textures[AnsiToWString(name)].get());
+			material->SetNormalMap(textures[L"defaultNormalMap"].get());
 			materials[material->GetName()] = std::move(material);
 		}
 
@@ -1680,8 +1682,8 @@ namespace DXLib
 			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
 			material->FresnelR0 = Vector3::One * 0.05;
 			material->Roughness = 0.6;
-			material->SetDiffuseTexture(textures[name].get());
-			material->SetNormalMap(textures["defaultNormalMap"].get());
+			material->SetDiffuseTexture(textures[AnsiToWString(name)].get());
+			material->SetNormalMap(textures[L"defaultNormalMap"].get());
 			materials[material->GetName()] = std::move(material);
 		}
 
@@ -1696,8 +1698,8 @@ namespace DXLib
 			material->FresnelR0 = Vector3::One * 0.05;
 			material->Roughness = 0.95;
 
-			material->SetDiffuseTexture(textures[name].get());
-			material->SetNormalMap(textures[name + "Normal"].get());
+			material->SetDiffuseTexture(textures[AnsiToWString(name)].get());
+			material->SetNormalMap(textures[AnsiToWString(name + "Normal")].get());
 			materials[material->GetName()] = std::move(material);
 		}
 
@@ -1705,40 +1707,40 @@ namespace DXLib
 		stone0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
 		stone0->Roughness = 0.1f;
 		stone0->DiffuseAlbedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
-		stone0->SetDiffuseTexture(textures["stoneTex"].get());
-		stone0->SetNormalMap(textures["defaultNormalMap"].get());
+		stone0->SetDiffuseTexture(textures[L"stoneTex"].get());
+		stone0->SetNormalMap(textures[L"defaultNormalMap"].get());
 		materials[stone0->GetName()] = std::move(stone0);
 
 		auto tile0 = std::make_unique<Material>("tile0", psos[PsoType::Opaque].get());
 		tile0->DiffuseAlbedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
 		tile0->FresnelR0 = XMFLOAT3(0.2f, 0.2f, 0.2f);
 		tile0->Roughness = 0.1f;
-		tile0->SetDiffuseTexture(textures["tileTex"].get());
-		tile0->SetNormalMap(textures["tileNormalMap"].get());
+		tile0->SetDiffuseTexture(textures[L"tileTex"].get());
+		tile0->SetNormalMap(textures[L"tileNormalMap"].get());
 		materials[tile0->GetName()] = std::move(tile0);
 
 		auto wirefence = std::make_unique<Material>("wirefence", psos[PsoType::OpaqueAlphaDrop].get());
 		wirefence->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		wirefence->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 		wirefence->Roughness = 0.25f;
-		wirefence->SetDiffuseTexture(textures["fenceTex"].get());
-		wirefence->SetNormalMap(textures["defaultNormalMap"].get());
+		wirefence->SetDiffuseTexture(textures[L"fenceTex"].get());
+		wirefence->SetNormalMap(textures[L"defaultNormalMap"].get());
 		materials[wirefence->GetName()] = std::move(wirefence);
 
 		auto water = std::make_unique<Material>("water", psos[PsoType::Transparent].get());
 		water->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.5f);
 		water->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 		water->Roughness = 0.0f;
-		water->SetDiffuseTexture(textures["waterTex"].get());
-		water->SetNormalMap(textures["defaultNormalMap"].get());
+		water->SetDiffuseTexture(textures[L"waterTex"].get());
+		water->SetNormalMap(textures[L"defaultNormalMap"].get());
 		materials[water->GetName()] = std::move(water);
 
 		auto skyBox = std::make_unique<Material>("sky", psos[PsoType::SkyBox].get());
 		skyBox->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		skyBox->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 		skyBox->Roughness = 1.0f;
-		skyBox->SetDiffuseTexture(textures["skyTex"].get());
-		skyBox->SetNormalMap(textures["defaultNormalMap"].get());
+		skyBox->SetDiffuseTexture(textures[L"skyTex"].get());
+		skyBox->SetNormalMap(textures[L"defaultNormalMap"].get());
 		materials[skyBox->GetName()] = std::move(skyBox);
 
 
@@ -1746,8 +1748,8 @@ namespace DXLib
 		treeSprites->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		treeSprites->FresnelR0 = XMFLOAT3(0.01f, 0.01f, 0.01f);
 		treeSprites->Roughness = 0.125f;
-		treeSprites->SetDiffuseTexture(textures["treeArrayTex"].get());
-		treeSprites->SetNormalMap(textures["defaultNormalMap"].get());
+		treeSprites->SetDiffuseTexture(textures[L"treeArrayTex"].get());
+		treeSprites->SetNormalMap(textures[L"defaultNormalMap"].get());
 		materials[treeSprites->GetName()] = std::move(treeSprites);
 
 		for (auto&& pair : materials)

@@ -150,9 +150,6 @@
     <ClInclude Include="Lazy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GResource.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
     <ClInclude Include="DXAllocator.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
@@ -172,6 +169,12 @@
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
     <ClInclude Include="GCommandQueue.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
+    <ClInclude Include="GCommandList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GResource.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
   </ItemGroup>
@@ -291,7 +294,10 @@
       <Filter>Source Files\Allocators</Filter>
     </ClCompile>
     <ClCompile Include="GCommandQueue.cpp">
-      <Filter>Header Files\Allocators</Filter>
+      <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="GCommandList.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

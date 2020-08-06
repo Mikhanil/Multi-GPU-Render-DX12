@@ -32,11 +32,17 @@ void DXAllocator::ResetAllocator()
 	}	
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS DXAllocator::UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment)
+void DXAllocator::UploaderClear()
+{
+	uploader->Clear();
+}
+
+UploadAllocation DXAllocator::UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment = 8)
 {
 	const auto allocation = uploader->Allocate(sizeInBytes, alignment);
-	memcpy(allocation.CPU, bufferData, sizeInBytes);
-	return allocation.GPU;
+	if(bufferData != nullptr)
+		memcpy(allocation.CPU, bufferData, sizeInBytes);
+	return allocation;
 }
 
 GMemory DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount)

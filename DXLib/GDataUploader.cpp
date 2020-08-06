@@ -17,7 +17,7 @@ GDataUploader::~GDataUploader()
     pages.clear();
 }
 
-GDataUploader::UploadAllocation GDataUploader::Allocate(size_t sizeInBytes, size_t alignment = 8)
+UploadAllocation GDataUploader::Allocate(size_t sizeInBytes, size_t alignment = 8)
 {
 	for (auto && page : pages)
     {
@@ -35,8 +35,11 @@ GDataUploader::UploadAllocation GDataUploader::Allocate(size_t sizeInBytes, size
     }
     else
     {
-	    const uint32_t newSize = Math::NextHighestPow2((uint32_t)sizeInBytes);    	
-	    page = CreatePage(Math::IsAligned(newSize, alignment) ? sizeInBytes : Math::AlignUp(newSize, alignment));    	
+	    uint32_t newSize = Math::NextHighestPow2((uint32_t)sizeInBytes);
+
+        newSize = Math::IsAligned(newSize, alignment) ? sizeInBytes : Math::AlignUp(newSize, alignment);
+    	
+	    page = CreatePage(newSize);
     }
     pages.push_back(std::move(page));
     return pages.back()->Allocate(sizeInBytes, alignment);
@@ -54,6 +57,17 @@ void GDataUploader::Reset()
         page->Reset();
     }
 }
+
+void GDataUploader::Clear()
+{
+    for (auto&& page : pages)
+    {
+        page->Reset();
+    }
+
+    pages.clear();
+}
+
 
 GDataUploader::UploadMemoryPage::UploadMemoryPage(size_t sizeInBytes)
     : CPUPtr(nullptr)
@@ -83,7 +97,7 @@ GDataUploader::UploadMemoryPage::~UploadMemoryPage()
     d3d12Resource->Unmap(0, nullptr);
     CPUPtr = nullptr;
     GPUPtr = D3D12_GPU_VIRTUAL_ADDRESS(0);
-    d3d12Resource->Release();
+    d3d12Resource.Reset();
 }
 
 bool GDataUploader::UploadMemoryPage::HasSpace(size_t sizeInBytes, size_t alignment) const
@@ -94,15 +108,18 @@ bool GDataUploader::UploadMemoryPage::HasSpace(size_t sizeInBytes, size_t alignm
     return alignedOffset + alignedSize <= PageSize;
 }
 
-GDataUploader::UploadAllocation GDataUploader::UploadMemoryPage::Allocate(size_t sizeInBytes, size_t alignment)
+UploadAllocation GDataUploader::UploadMemoryPage::Allocate(size_t sizeInBytes, size_t alignment)
 {   
     const size_t alignedSize = Math::AlignUp(sizeInBytes, alignment);
+    auto oldOffset = Offset;
     Offset = Math::AlignUp(Offset, alignment);
 
     const UploadAllocation allocation
     {
-     static_cast<uint8_t*>(CPUPtr) + Offset,
-     GPUPtr + Offset
+     static_cast<uint64_t*>(CPUPtr) + Offset,
+     GPUPtr + Offset,
+    	*d3d12Resource.Get(),
+        Offset
     };
 
     Offset += alignedSize;
@@ -114,6 +131,7 @@ void GDataUploader::UploadMemoryPage::Reset()
 {
     Offset = 0;
 }
+
 
 size_t GDataUploader::GetPageSize() const
 {
