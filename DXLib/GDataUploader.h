@@ -11,7 +11,7 @@ using namespace Microsoft::WRL;
 
 struct UploadAllocation
 {
-    void* CPU;
+    BYTE* CPU;
     D3D12_GPU_VIRTUAL_ADDRESS GPU;
     ID3D12Resource& d3d12Resource;
     size_t Offset;
@@ -53,7 +53,7 @@ private:
 
         Microsoft::WRL::ComPtr<ID3D12Resource> d3d12Resource;
            	
-        void* CPUPtr;
+        BYTE* CPUPtr;
         D3D12_GPU_VIRTUAL_ADDRESS GPUPtr;
 
         size_t PageSize;

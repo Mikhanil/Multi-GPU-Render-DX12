@@ -8,7 +8,7 @@
 class ModelMesh
 {
 public:
-	ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name, custom_vector<Vertex>& vertices,
+	ModelMesh(ID3D12GraphicsCommandList* cmdList, std::string name, custom_vector<Vertex>& vertices,
 	          custom_vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	void Update(Transform* transform);
@@ -16,7 +16,7 @@ public:
 	void Draw(ID3D12GraphicsCommandList* cmdList) const;
 	void static CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex>& vertex);
 
-	Material* material;
+	Material* material{};
 
 private:
 	ObjectConstants bufferConstant{};
@@ -34,9 +34,9 @@ class ModelRenderer : public Renderer
 {
 	custom_vector<ModelMesh> meshes = DXAllocator::CreateVector<ModelMesh>();
 
-	void ProcessNode(aiNode* node, const aiScene* scene, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
+	void ProcessNode(aiNode* node, const aiScene* scene, ID3D12GraphicsCommandList* cmdList);
 
-	static ModelMesh ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12Device* device,
+	static ModelMesh ProcessMesh(aiMesh* mesh, const aiScene* scene,
 	                             ID3D12GraphicsCommandList* cmdList);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList) override;

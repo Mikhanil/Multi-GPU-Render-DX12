@@ -1,8 +1,12 @@
 #include "GeneratedMipsPSO.h"
+
+#include "d3dApp.h"
 #include "Shader.h"
 
-GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
+GeneratedMipsPSO::GeneratedMipsPSO()
 {
+	auto& device = DXLib::D3DApp::GetApp().GetDevice();
+	
 	//The compute shader expects 2 floats, the source texture and the destination texture
 	CD3DX12_DESCRIPTOR_RANGE srvCbvRanges[2];
 	srvCbvRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
@@ -40,7 +44,7 @@ GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 
 	computePSOdesc.pRootSignature = m_RootSignature.GetRootSignature().Get();
 	computePSOdesc.CS = shader->GetShaderResource();
-	ThrowIfFailed(device->CreateComputePipelineState(&computePSOdesc, IID_PPV_ARGS(&m_PipelineState)));
+	ThrowIfFailed(device.CreateComputePipelineState(&computePSOdesc, IID_PPV_ARGS(&m_PipelineState)));
 
 
 	//Create the descriptor heap with layout: source texture - destination texture
@@ -49,9 +53,9 @@ GeneratedMipsPSO::GeneratedMipsPSO(ID3D12Device* device)
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-	device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&UAVdescriptorHeap));
+	device.CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&UAVdescriptorHeap));
 
-	mipsBuffer = std::make_unique<ConstantBuffer<GenerateMipsCB>>(device, 1);
+	mipsBuffer = std::make_unique<ConstantBuffer<GenerateMipsCB>>(1);
 }
 
 const ComPtr<ID3D12RootSignature> GeneratedMipsPSO::GetRootSignature() const

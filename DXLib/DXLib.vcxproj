@@ -162,6 +162,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CameraController.h" />
+    <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GCommandList.h" />
     <ClInclude Include="GCommandQueue.h" />
     <ClInclude Include="Component.h" />
@@ -207,6 +208,8 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CameraController.cpp" />
+    <ClCompile Include="DirectXBuffers.cpp" />
+    <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GCommandList.cpp" />
     <ClCompile Include="GCommandQueue.cpp" />
     <ClCompile Include="Component.cpp" />

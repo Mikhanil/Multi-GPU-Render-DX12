@@ -13,8 +13,7 @@ GResource::GResource(const std::wstring& name)
 	id = ++resourceId;
 }
 
-GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const D3D12_CLEAR_VALUE* clearValue,
-                   const std::wstring& name)
+GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, const D3D12_CLEAR_VALUE* clearValue)
 {
 	id = ++resourceId;
 	
@@ -94,7 +93,6 @@ GResource& GResource::operator=(GResource&& other) noexcept
 	return *this;
 }
 
-
 GResource::~GResource()
 {
 	GResource::Reset();
@@ -125,13 +123,10 @@ void GResource::SetD3D12Resource(ComPtr<ID3D12Resource> d3d12Resource,
                                  const D3D12_CLEAR_VALUE* clearValue)
 {
 	dxResource = std::move(d3d12Resource);
-	if (this->clearValue)
+	
+	if (clearValue)
 	{
 		this->clearValue.reset();
-		this->clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
-	}
-	else
-	{
 		this->clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*clearValue);
 	}
 	
@@ -147,15 +142,7 @@ void GResource::SetName(const std::wstring& name)
 	}
 }
 
-bool GResource::CheckFormatSupport(D3D12_FORMAT_SUPPORT1 formatSupport) const
-{
-	return (m_FormatSupport.Support1 & formatSupport) != 0;
-}
 
-bool GResource::CheckFormatSupport(D3D12_FORMAT_SUPPORT2 formatSupport) const
-{
-	return (m_FormatSupport.Support2 & formatSupport) != 0;
-}
 
 void GResource::Reset()
 {

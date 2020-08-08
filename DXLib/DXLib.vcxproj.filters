@@ -171,10 +171,13 @@
     <ClInclude Include="GCommandQueue.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
-    <ClInclude Include="GCommandList.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GResource.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
+    <ClInclude Include="GCommandList.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
+    <ClInclude Include="GBuffer.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
   </ItemGroup>
@@ -296,8 +299,14 @@
     <ClCompile Include="GCommandQueue.cpp">
       <Filter>Source Files\Allocators</Filter>
     </ClCompile>
+    <ClCompile Include="DirectXBuffers.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
     <ClCompile Include="GCommandList.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="GBuffer.cpp">
+      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

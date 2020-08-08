@@ -2,6 +2,7 @@
 #include <mutex>
 
 #include "d3dUtil.h"
+#include "GCommandQueue.h"
 #include "GeneratedMipsPSO.h"
 #include "GMemory.h"
 #include "GResource.h"
@@ -25,58 +26,38 @@ class Texture : public GResource
 	static UINT textureIndexGlobal;
 	UINT textureIndex = -1;
 
-	std::wstring Filename;
-	bool isLoaded = false;
-
 	TextureUsage usage;
 
 	custom_vector<ComPtr<ID3D12Resource>> track = DXAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
-	GMemory m_RenderTargetView;
-	GMemory m_DepthStencilView;
+	GMemory renderTargetView;
+	GMemory depthStencilView;
 
-	mutable custom_unordered_map<size_t, GMemory> m_ShaderResourceViews = DXAllocator::CreateUnorderedMap<
+	mutable custom_unordered_map<size_t, GMemory> shaderResourceViews = DXAllocator::CreateUnorderedMap<
 		size_t, GMemory>();
-	mutable custom_unordered_map<size_t, GMemory> m_UnorderedAccessViews = DXAllocator::CreateUnorderedMap<
+	mutable custom_unordered_map<size_t, GMemory> unorderedAccessViews = DXAllocator::CreateUnorderedMap<
 		size_t, GMemory>();
 
-	mutable std::mutex m_ShaderResourceViewsMutex;
-	mutable std::mutex m_UnorderedAccessViewsMutex;
+	mutable std::mutex shaderResourceViewsMutex;
+	mutable std::mutex unorderedAccessViewsMutex;
+	
 
 public:
+	bool HasMipMap;
 
-	bool CheckSRVSupport() const
-	{
-		return CheckFormatSupport(D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE);
-	}
+	static void Resize(Texture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize);
 
-	bool CheckRTVSupport() const
-	{
-		return CheckFormatSupport(D3D12_FORMAT_SUPPORT1_RENDER_TARGET);
-	}
 
-	bool CheckUAVSupport() const
-	{
-		return CheckFormatSupport(D3D12_FORMAT_SUPPORT1_TYPED_UNORDERED_ACCESS_VIEW) &&
-			CheckFormatSupport(D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) &&
-			CheckFormatSupport(D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE);
-	}
-
-	bool CheckDSVSupport() const
-	{
-		return CheckFormatSupport(D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL);
-	}
-
+	static void GenerateMipMaps(DXLib::GCommandQueue* queue, Texture** textures, size_t count);
 	TextureUsage GetTextureType() const;
 
 	UINT GetTextureIndex() const;
 
-	Texture(std::wstring name, std::wstring filename, TextureUsage use = TextureUsage::Diffuse);
+	Texture(std::wstring name, TextureUsage use = TextureUsage::Diffuse);
 
 	Texture(const D3D12_RESOURCE_DESC& resourceDesc,
-	                 const D3D12_CLEAR_VALUE* clearValue = nullptr,
-	                 TextureUsage textureUsage = TextureUsage::Albedo,
-	                 const std::wstring& name = L"");
+		const std::wstring& name = L"", TextureUsage textureUsage = TextureUsage::Albedo,
+		const D3D12_CLEAR_VALUE* clearValue = nullptr);
 	Texture(ComPtr<ID3D12Resource> resource,
 	                 TextureUsage textureUsage = TextureUsage::Albedo,
 	                 const std::wstring& name = L"");
@@ -93,9 +74,8 @@ public:
 	virtual ~Texture();
 
 
-	static DXGI_FORMAT GetUAVCompatableFormat(DXGI_FORMAT format);
-
-	void LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D12GraphicsCommandList* commandList);
+	static std::shared_ptr<Texture> LoadTextureFromFile(std::wstring filepath,
+	                                   ID3D12GraphicsCommandList* commandList, TextureUsage usage = TextureUsage::Diffuse);
 
 	void ClearTrack();
 
@@ -103,18 +83,17 @@ public:
 
 	std::wstring& GetName();
 
-	std::wstring& GetFileName();
+	static DXGI_FORMAT GetUAVCompatableFormat(DXGI_FORMAT format);
+	
+	static bool IsUAVCompatibleFormat(DXGI_FORMAT format);
 
+	static bool IsSRGBFormat(DXGI_FORMAT format);
 
-	bool IsUAVCompatibleFormat(DXGI_FORMAT format);
+	static bool IsBGRFormat(DXGI_FORMAT format);
 
-	bool IsSRGBFormat(DXGI_FORMAT format);
+	static bool IsDepthFormat(DXGI_FORMAT format);
 
-	bool IsBGRFormat(DXGI_FORMAT format);
-
-	bool IsDepthFormat(DXGI_FORMAT format);
-
-	DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
+	static DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const override;
 	D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const override;

@@ -7,15 +7,17 @@
 #include "DirectXMesh.h"
 #include "STLCustomAllocator.h"
 
-ModelMesh::ModelMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, std::string name,
+ModelMesh::ModelMesh(ID3D12GraphicsCommandList* cmdList, std::string name,
 	custom_vector<Vertex>& vertices,
 	custom_vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology): name(std::move(name))
 {
-	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(device, 1);
+	auto& device = DXLib::D3DApp::GetApp().GetDevice();
+	
+	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>( 1);
 
 	PrimitiveType = topology;
-	vertexBuffer = std::make_unique<VertexBuffer>(device, cmdList, vertices.data(), vertices.size());
-	indexBuffer = std::make_unique<IndexBuffer>(device, cmdList, DXGI_FORMAT_R32_UINT, indices.data(), indices.size());
+	vertexBuffer = std::make_unique<VertexBuffer>(&device, cmdList, vertices.data(), vertices.size());
+	indexBuffer = std::make_unique<IndexBuffer>(&device, cmdList, DXGI_FORMAT_R32_UINT, indices.data(), indices.size());
 }
 
 void ModelMesh::Update(Transform* transform)
@@ -39,18 +41,18 @@ void ModelMesh::Draw(ID3D12GraphicsCommandList* cmdList) const
 	cmdList->DrawIndexedInstanced(indexBuffer->GetElementsCount(), 1, 0, 0, 0);
 }
 
-void ModelRenderer::ProcessNode(aiNode* node, const aiScene* scene, ID3D12Device* device,
+void ModelRenderer::ProcessNode(aiNode* node, const aiScene* scene,
                                 ID3D12GraphicsCommandList* cmdList)
 {
 	for (UINT i = 0; i < node->mNumMeshes; i++)
 	{
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-		meshes.push_back(ProcessMesh(mesh, scene, device, cmdList));
+		meshes.push_back(ProcessMesh(mesh, scene, cmdList));
 	}
 
 	for (UINT i = 0; i < node->mNumChildren; i++)
 	{
-		ProcessNode(node->mChildren[i], scene, device, cmdList);
+		ProcessNode(node->mChildren[i], scene, cmdList);
 	}
 }
 
@@ -85,7 +87,7 @@ void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex
 	vertex[i3].TangentU = Vector3(tangent[2].x, tangent[2].y, tangent[2].z);
 }
 
-ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12Device* device,
+ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene,
                                      ID3D12GraphicsCommandList* cmdList)
 {
 	
@@ -181,7 +183,7 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene, ID3D12D
 	}
 
 
-	return ModelMesh(device, cmdList, mesh->mName.C_Str(), vertices, indices);
+	return ModelMesh(cmdList, mesh->mName.C_Str(), vertices, indices);
 }
 
 void ModelRenderer::Draw(ID3D12GraphicsCommandList* cmdList)
@@ -214,6 +216,6 @@ bool ModelRenderer::AddModel(ID3D12Device* device, ID3D12GraphicsCommandList* cm
 	if (pScene == nullptr)
 		return false;
 
-	ProcessNode(pScene->mRootNode, pScene, device, cmdList);
+	ProcessNode(pScene->mRootNode, pScene, cmdList);
 	return true;
 }

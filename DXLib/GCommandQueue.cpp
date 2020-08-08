@@ -125,7 +125,7 @@ namespace DXLib
 		commandList->Close();
 
 		ID3D12CommandAllocator* commandAllocator;
-		UINT dataSize = sizeof(commandAllocator);
+		UINT dataSize = sizeof(ID3D12CommandAllocator);
 		ThrowIfFailed(commandList->GetPrivateData(__uuidof(ID3D12CommandAllocator), &dataSize, &commandAllocator));
 
 		ID3D12CommandList* const ppCommandLists[] = {

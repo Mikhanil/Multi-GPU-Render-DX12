@@ -13,6 +13,132 @@
 
 UINT Texture::textureIndexGlobal = 0;
 
+void Texture::Resize(Texture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
+{
+	if(texture.dxResource)
+	{
+		GResourceStateTracker::RemoveGlobalResourceState(texture.dxResource.Get());
+
+		CD3DX12_RESOURCE_DESC resDesc(texture.dxResource->GetDesc());
+		resDesc.Width = std::max(width, 1u);
+		resDesc.Height = std::max(height, 1u);
+		resDesc.DepthOrArraySize = depthOrArraySize;
+
+		auto& device = DXLib::D3DApp::GetApp().GetDevice();
+
+		ThrowIfFailed(device.CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&resDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			texture.clearValue.get(),
+			IID_PPV_ARGS(&texture.dxResource)
+		));
+
+		texture.dxResource->SetName(texture.GetName().c_str());
+
+		GResourceStateTracker::AddGlobalResourceState(texture.dxResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+	}
+}
+
+void Texture::GenerateMipMaps(DXLib::GCommandQueue* queue, Texture** textures, size_t count)
+{
+	UINT requiredHeapSize = 0;
+
+	for (int i =0; i < count; ++i)
+	{
+		requiredHeapSize += textures[i]->GetResource()->GetDesc().MipLevels - 1;
+	}
+
+	if (requiredHeapSize == 0)
+	{
+		return;
+	}
+
+	
+	auto& device = DXLib::D3DApp::GetApp().GetDevice();
+	
+	const auto mipMapsMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 * requiredHeapSize);
+	UINT descriptorSize = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srcTextureSRVDesc = {};
+	srcTextureSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srcTextureSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC destTextureUAVDesc = {};	
+	destTextureUAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	
+	GeneratedMipsPSO genMipMapPSO;
+
+	auto cmdList = queue->GetCommandList();
+	
+	cmdList->SetComputeRootSignature(genMipMapPSO.GetRootSignature().Get());
+	cmdList->SetPipelineState(genMipMapPSO.GetPipelineState().Get());
+
+	auto dHeap = mipMapsMemory.GetDescriptorHeap();
+	cmdList->SetDescriptorHeaps(1, &dHeap);
+
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE currentCPUHandle(mipMapsMemory.GetCPUHandle(), 0,
+		descriptorSize);
+
+	CD3DX12_GPU_DESCRIPTOR_HANDLE currentGPUHandle(mipMapsMemory.GetGPUHandle(), 0,
+		descriptorSize);
+
+
+	/*ѕочему-то логика взаимодействи€ с константным буфером как дл€ отрисовки тут не работает*/
+	//auto mipBuffer = genMipMapPSO->GetBuffer();
+
+	for (int i = 0; i < count; ++i)
+	{
+		auto tex = textures[i];
+		
+		auto texture = tex->GetResource();
+		auto textureDesc = texture->GetDesc();
+
+		for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
+		{
+			uint32_t dstWidth = std::max(uint32_t(textureDesc.Width >> (TopMip + 1)), uint32_t(1));
+			uint32_t dstHeight = std::max(uint32_t(textureDesc.Height >> (TopMip + 1)), uint32_t(1));
+
+
+			srcTextureSRVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
+			srcTextureSRVDesc.Texture2D.MipLevels = 1;
+			srcTextureSRVDesc.Texture2D.MostDetailedMip = TopMip;
+			device.CreateShaderResourceView(texture, &srcTextureSRVDesc, currentCPUHandle);
+			currentCPUHandle.Offset(1, descriptorSize);
+
+
+			destTextureUAVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
+			destTextureUAVDesc.Texture2D.MipSlice = TopMip + 1;
+			device.CreateUnorderedAccessView(texture, nullptr, &destTextureUAVDesc, currentCPUHandle);
+			currentCPUHandle.Offset(1, descriptorSize);
+
+			//GenerateMipsCB mipData = {};			
+			//mipData.TexelSize = Vector2{ (1.0f / dstWidth) ,(1.0f / dstHeight) };			
+			//mipBuffer->CopyData(0, mipData);			
+			//commandListDirect->SetComputeRootConstantBufferView(0, mipBuffer->Resource()->GetGPUVirtualAddress());
+
+			Vector2 texelSize = Vector2{ (1.0f / dstWidth), (1.0f / dstHeight) };
+			cmdList->SetComputeRoot32BitConstants(0, 2, &texelSize, 0);
+			cmdList->SetComputeRootDescriptorTable(1, currentGPUHandle);
+			currentGPUHandle.Offset(1, descriptorSize);
+			
+			cmdList->SetComputeRootDescriptorTable(2, currentGPUHandle);
+			currentGPUHandle.Offset(1, descriptorSize);
+
+			cmdList->Dispatch(std::max(dstWidth / 8, 1u), std::max(dstHeight / 8, 1u), 1);
+			
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(texture));
+		}
+	}
+
+	queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
+}
+
+
 TextureUsage Texture::GetTextureType() const
 {
 	return usage;
@@ -23,14 +149,13 @@ UINT Texture::GetTextureIndex() const
 	return textureIndex;
 }
 
-Texture::Texture(std::wstring name, std::wstring filename, TextureUsage use): GResource( name),
-                                                                             Filename(std::move(filename)), usage(use)
+Texture::Texture(std::wstring name, TextureUsage use): GResource( name),
+                                                                              usage(use)
 {
 	textureIndex = textureIndexGlobal++;
 }
 
-Texture::Texture(const D3D12_RESOURCE_DESC& resourceDesc, const D3D12_CLEAR_VALUE* clearValue,
-                 TextureUsage textureUsage, const std::wstring& name) : GResource(resourceDesc, clearValue, name),
+Texture::Texture(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, TextureUsage textureUsage, const D3D12_CLEAR_VALUE* clearValue) : GResource(resourceDesc, name, clearValue),
                                                                         usage(textureUsage)
 {
 	textureIndex = textureIndexGlobal++;
@@ -85,26 +210,24 @@ void Texture::CreateViews()
 
 		CD3DX12_RESOURCE_DESC desc(dxResource->GetDesc());
 
-		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0 &&
-			CheckRTVSupport())
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0)
 		{
-			m_RenderTargetView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			device.CreateRenderTargetView(dxResource.Get(), nullptr, m_RenderTargetView.GetCPUHandle());
+			renderTargetView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			device.CreateRenderTargetView(dxResource.Get(), nullptr, renderTargetView.GetCPUHandle());
 		}
-		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0 &&
-			CheckDSVSupport())
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
 		{
-			m_DepthStencilView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-			device.CreateDepthStencilView(dxResource.Get(), nullptr, m_DepthStencilView.GetCPUHandle());
+			depthStencilView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			device.CreateDepthStencilView(dxResource.Get(), nullptr, depthStencilView.GetCPUHandle());
 		}
 	}
 
-	std::lock_guard<std::mutex> lock(m_ShaderResourceViewsMutex);
-	std::lock_guard<std::mutex> guard(m_UnorderedAccessViewsMutex);
+	std::lock_guard<std::mutex> lock(shaderResourceViewsMutex);
+	std::lock_guard<std::mutex> guard(unorderedAccessViewsMutex);
 
 	// SRVs and UAVs will be created as needed.
-	m_ShaderResourceViews.clear();
-	m_UnorderedAccessViews.clear();
+	shaderResourceViews.clear();
+	unorderedAccessViews.clear();
 }
 
 GMemory Texture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
@@ -144,13 +267,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetShaderResourceView(const D3D12_SHADER_RE
 		hash = std::hash<D3D12_SHADER_RESOURCE_VIEW_DESC>{}(*srvDesc);
 	}
 
-	std::lock_guard<std::mutex> lock(m_ShaderResourceViewsMutex);
+	std::lock_guard<std::mutex> lock(shaderResourceViewsMutex);
 
-	auto iter = m_ShaderResourceViews.find(hash);
-	if (iter == m_ShaderResourceViews.end())
+	auto iter = shaderResourceViews.find(hash);
+	if (iter == shaderResourceViews.end())
 	{
 		auto srv = CreateShaderResourceView(srvDesc);
-		iter = m_ShaderResourceViews.insert({hash, std::move(srv)}).first;
+		iter = shaderResourceViews.insert({hash, std::move(srv)}).first;
 	}
 
 	return iter->second.GetCPUHandle();
@@ -164,13 +287,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView(const D3D12_UNORDERE
 		hash = std::hash<D3D12_UNORDERED_ACCESS_VIEW_DESC>{}(*uavDesc);
 	}
 
-	std::lock_guard<std::mutex> guard(m_UnorderedAccessViewsMutex);
+	std::lock_guard<std::mutex> guard(unorderedAccessViewsMutex);
 
-	auto iter = m_UnorderedAccessViews.find(hash);
-	if (iter == m_UnorderedAccessViews.end())
+	auto iter = unorderedAccessViews.find(hash);
+	if (iter == unorderedAccessViews.end())
 	{
 		auto uav = CreateUnorderedAccessView(uavDesc);
-		iter = m_UnorderedAccessViews.insert({hash, std::move(uav)}).first;
+		iter = unorderedAccessViews.insert({hash, std::move(uav)}).first;
 	}
 
 	return iter->second.GetCPUHandle();
@@ -178,12 +301,12 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView(const D3D12_UNORDERE
 
 D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetRenderTargetView() const
 {
-	return m_RenderTargetView.GetCPUHandle();
+	return renderTargetView.GetCPUHandle();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetDepthStencilView() const
 {
-	return m_DepthStencilView.GetCPUHandle();
+	return depthStencilView.GetCPUHandle();
 }
 
 
@@ -212,40 +335,24 @@ DXGI_FORMAT Texture::GetUAVCompatableFormat(DXGI_FORMAT format)
 	return uavFormat;
 }
 
-void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D12GraphicsCommandList* commandList)
+static custom_unordered_map<std::wstring, std::shared_ptr<Texture>> cashedLoadTextures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Texture>>();
+
+
+std::shared_ptr<Texture> Texture::LoadTextureFromFile(std::wstring filepath,
+                                     ID3D12GraphicsCommandList* commandList, TextureUsage usage)
 {
-	if (isLoaded) return;
-
-
-	std::filesystem::path filePath(Filename);
+	auto it = cashedLoadTextures.find(filepath);
+	if(cashedLoadTextures.find(filepath) != cashedLoadTextures.end())
+	{
+	  return it->second;
+	}
+		
+	std::filesystem::path filePath(filepath);
 	if (!exists(filePath))
 	{
 		assert("File not found.");
 	}
-
-
-	//winrt::init_apartment();
-
-	//DirectX::ResourceUploadBatch upload(device);
-	//upload.Begin();
-	//
-	//if (filePath.extension() == ".dds")
-	//{
-
-	//	ThrowIfFailed(DirectX::CreateDDSTextureFromFile(device,
-	//		upload, Filename.c_str(), directxResource.GetAddressOf()));
-	//}
-	//else
-	//{
-	//	DirectX::CreateWICTextureFromFile(device, upload, Filename.c_str(), directxResource.GetAddressOf(), true);
-	//}
-	//
-
-	//// Upload the resources to the GPU.
-	//upload.End(queue).wait();
-
-	//isLoaded = true;
-	//return;
+	
 
 	DirectX::TexMetadata metadata;
 	DirectX::ScratchImage scratchImage;
@@ -255,20 +362,20 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 	if (filePath.extension() == ".dds")
 	{
-		ThrowIfFailed(DirectX::LoadFromDDSFile(Filename.c_str(), DirectX::DDS_FLAGS_NONE , &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromDDSFile(filepath.c_str(), DirectX::DDS_FLAGS_NONE , &metadata, scratchImage));
 	}
 	else if (filePath.extension() == ".hdr")
 	{
-		ThrowIfFailed(DirectX::LoadFromHDRFile(Filename.c_str(), &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromHDRFile(filepath.c_str(), &metadata, scratchImage));
 	}
 	else if (filePath.extension() == ".tga")
 	{
-		ThrowIfFailed(DirectX::LoadFromTGAFile(Filename.c_str(), &metadata, scratchImage));
+		ThrowIfFailed(DirectX::LoadFromTGAFile(filepath.c_str(), &metadata, scratchImage));
 	}
 	else
 	{
 		ThrowIfFailed(
-			DirectX::LoadFromWICFile(Filename.c_str(), DirectX::WIC_FLAGS_FORCE_RGB, &metadata, scratchImage));
+			DirectX::LoadFromWICFile(filepath.c_str(), DirectX::WIC_FLAGS_FORCE_RGB, &metadata, scratchImage));
 
 		//≈сли это не DDS или "специфична€" текстура, то дл€ нее нужно будет генерировать мипмапы
 		//по этому даем возможность сделать ее UAV
@@ -284,9 +391,11 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	D3D12_RESOURCE_DESC desc = {};
 	desc.Width = static_cast<UINT>(metadata.width);
 	desc.Height = static_cast<UINT>(metadata.height);
+	
 	/*
 	 * DDS текстуры нельз€ использовать как UAV дл€ генерации мипмап карт.
 	 */
+	
 	desc.MipLevels = resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
 		                 ? 0
 		                 : static_cast<UINT16>(metadata.mipLevels);
@@ -298,33 +407,37 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 	desc.SampleDesc.Count = 1;
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
-	ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+	auto& device = DXLib::D3DApp::GetApp().GetDevice();
+
+
+	ComPtr<ID3D12Resource> textureResource;
+	
+	ThrowIfFailed(device.CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_COMMON,
 		nullptr,
-		IID_PPV_ARGS(&dxResource)));
-
+		IID_PPV_ARGS(&textureResource)));
+		
 	// Update the global state tracker.
-	GResourceStateTracker::AddGlobalResourceState(dxResource.Get(), D3D12_RESOURCE_STATE_COMMON);
-
+	GResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_COMMON);
 	
 	std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
 	ThrowIfFailed(
-		PrepareUpload(device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
+		PrepareUpload(&device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
 			subresources));
 
-	if (dxResource)
+	if (textureResource)
 	{
 		
 		
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dxResource.Get(),
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(textureResource.Get(),
 		                                                                      D3D12_RESOURCE_STATE_COMMON,
 		                                                                      D3D12_RESOURCE_STATE_COPY_DEST));
 
-		GResourceStateTracker::AddGlobalResourceState(dxResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+		GResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
 		
-		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(dxResource.Get(),
+		const UINT64 uploadBufferSize = GetRequiredIntermediateSize(textureResource.Get(),
 		                                                            0, static_cast<unsigned int>(subresources.size()));
 		
 		auto upload = DXAllocator::UploadData(uploadBufferSize, nullptr, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
@@ -332,21 +445,33 @@ void Texture::LoadTexture(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
 
 
 		UpdateSubresources(commandList,
-			dxResource.Get(), &upload.d3d12Resource,
+			textureResource.Get(), &upload.d3d12Resource,
 			upload.Offset, 0, static_cast<unsigned int>(subresources.size()),
 		                   subresources.data());
 
-		track.push_back(dxResource);
 
-
-		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dxResource.Get(),
+		commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(textureResource.Get(),
 		                                                                      D3D12_RESOURCE_STATE_COPY_DEST,
 		                                                                      D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-		GResourceStateTracker::AddGlobalResourceState(dxResource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	}
+		GResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	isLoaded = true;
+
+		auto tex = std::make_shared<Texture>(filepath, usage);
+				
+		tex->SetName(filepath);
+		tex->SetD3D12Resource(textureResource);
+
+		if (resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+		{
+			tex->HasMipMap = false;
+		}
+
+		cashedLoadTextures[filepath] = std::move(tex);
+
+		return cashedLoadTextures[filepath];
+	}
+		
 }
 
 void Texture::ClearTrack()
@@ -536,12 +661,10 @@ DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
 	return typelessFormat;
 }
 
-
 ID3D12Resource* Texture::GetResource() const
 {
-	if (isLoaded)return dxResource.Get();
+	return dxResource.Get();
 
-	return nullptr;
 }
 
 std::wstring& Texture::GetName()
@@ -549,7 +672,3 @@ std::wstring& Texture::GetName()
 	return resourceName;
 }
 
-std::wstring& Texture::GetFileName()
-{
-	return Filename;
-}

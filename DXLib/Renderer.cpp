@@ -6,7 +6,7 @@ Renderer::Renderer(): Component()
 {
 	auto& device = DXLib::D3DApp::GetApp().GetDevice();
 
-	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(&device, 1);
+	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
 }
 
 void Renderer::SendDataToConstantBuffer()

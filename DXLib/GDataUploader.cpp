@@ -89,7 +89,7 @@ GDataUploader::UploadMemoryPage::UploadMemoryPage(size_t sizeInBytes)
     d3d12Resource->SetName(L"Upload Buffer (Page)");
 
     GPUPtr = d3d12Resource->GetGPUVirtualAddress();
-    d3d12Resource->Map(0, nullptr, &CPUPtr);
+    d3d12Resource->Map(0, nullptr, reinterpret_cast<void**>(&CPUPtr));
 }
 
 GDataUploader::UploadMemoryPage::~UploadMemoryPage()
@@ -111,12 +111,11 @@ bool GDataUploader::UploadMemoryPage::HasSpace(size_t sizeInBytes, size_t alignm
 UploadAllocation GDataUploader::UploadMemoryPage::Allocate(size_t sizeInBytes, size_t alignment)
 {   
     const size_t alignedSize = Math::AlignUp(sizeInBytes, alignment);
-    auto oldOffset = Offset;
     Offset = Math::AlignUp(Offset, alignment);
 
     const UploadAllocation allocation
     {
-     static_cast<uint64_t*>(CPUPtr) + Offset,
+     (CPUPtr) + Offset,
      GPUPtr + Offset,
     	*d3d12Resource.Get(),
         Offset

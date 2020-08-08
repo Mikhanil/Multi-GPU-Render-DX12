@@ -7,6 +7,9 @@
 #include "GDataUploader.h"
 #include "GResource.h"
 #include "GResourceStateTracker.h"
+#include "GMemory.h"
+#include "PSO.h"
+#include "RootSignature.h"
 
 custom_map<std::wstring, ID3D12Resource* > GCommandList::ms_TextureCache = DXAllocator::CreateMap<std::wstring, ID3D12Resource* >();
 std::mutex GCommandList::ms_TextureCacheMutex;
@@ -35,11 +38,6 @@ GCommandList::GCommandList(D3D12_COMMAND_LIST_TYPE type)
 
     m_ResourceStateTracker = std::make_unique<GResourceStateTracker>();
 
-    /*for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
-    {
-        m_DynamicDescriptorHeap[i] = std::make_unique<DynamicDescriptorHeap>(static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(i));
-        m_DescriptorHeaps[i] = nullptr;
-    }*/
 }
 
 GCommandList::~GCommandList()
@@ -53,6 +51,142 @@ D3D12_COMMAND_LIST_TYPE GCommandList::GetCommandListType() const
 ComPtr<ID3D12GraphicsCommandList2> GCommandList::GetGraphicsCommandList() const
 {
 	return m_d3d12CommandList;
+}
+
+void GCommandList::SetGMemory(GMemory** memory, size_t count) const
+{
+	std::vector<ID3D12DescriptorHeap*> heaps(count);
+
+	for (int i = 0; i < count; ++i)
+	{
+		heaps[i] = memory[i]->GetDescriptorHeap();
+	}
+
+    m_d3d12CommandList->SetDescriptorHeaps(heaps.size(), heaps.data());
+
+}
+
+void GCommandList::SetRootSignature(RootSignature* signature)
+{
+	const auto d3d12RootSignature = signature->GetRootSignature();
+	
+    if(setedRootSignature == d3d12RootSignature) return;
+    
+    setedRootSignature = d3d12RootSignature;
+	
+	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{
+        m_d3d12CommandList->SetGraphicsRootSignature(setedRootSignature.Get());
+	}
+
+	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+        m_d3d12CommandList->SetComputeRootSignature(setedRootSignature.Get());
+	}
+	
+    TrackResource(setedRootSignature);
+}
+
+void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource)
+{
+    if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
+
+    if (!resource.IsValid()) assert("Resource is invalid");
+	
+    auto res = resource.GetD3D12Resource();   
+	
+	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+	{		
+        m_d3d12CommandList->SetGraphicsRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
+	}
+
+	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	{
+        m_d3d12CommandList->SetComputeRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
+	}
+
+    TrackResource(resource);
+}
+
+void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource)
+{
+    if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
+
+    if (!resource.IsValid()) assert("Resource is invalid");
+
+    auto res = resource.GetD3D12Resource();
+	
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        m_d3d12CommandList->SetGraphicsRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        m_d3d12CommandList->SetComputeRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
+    }
+
+    TrackResource(resource);
+}
+
+void GCommandList::SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource)
+{
+    if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
+
+    if (!resource.IsValid()) assert("Resource is invalid");
+
+    auto res = resource.GetD3D12Resource();
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        m_d3d12CommandList->SetGraphicsRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        m_d3d12CommandList->SetComputeRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
+    }
+
+    TrackResource(resource);
+}
+
+void GCommandList::SetRootDescriptorTable(UINT rootSignatureSlot, GMemory& memory, UINT offset) const
+{
+	
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        m_d3d12CommandList->SetGraphicsRootDescriptorTable(rootSignatureSlot, memory.GetGPUHandle(offset));
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        m_d3d12CommandList->SetComputeRootDescriptorTable(rootSignatureSlot, memory.GetGPUHandle(offset));
+    }
+}
+
+void GCommandList::SetViewports(const D3D12_VIEWPORT* viewports, size_t count) const
+{
+    assert(count < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+    m_d3d12CommandList->RSSetViewports(count, viewports);
+}
+
+void GCommandList::SetScissorRects(const D3D12_RECT* scissorRects, size_t count) const
+{
+    assert(count < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
+    m_d3d12CommandList->RSSetScissorRects(count, scissorRects);
+}
+
+void GCommandList::SetPipelineState(PSO& pso)
+{
+	const auto pipeState = pso.GetPSO();
+
+	if(pipeState == setedPSO) return;
+
+    setedPSO = pipeState;
+
+    m_d3d12CommandList->SetPipelineState(setedPSO.Get());
+
+    TrackResource(pipeState);
 }
 
 void GCommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource, bool flushBarriers)

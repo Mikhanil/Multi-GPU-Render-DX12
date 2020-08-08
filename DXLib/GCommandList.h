@@ -4,11 +4,14 @@
 #include <map>
 #include <mutex>
 #include "DXAllocator.h"
-#include "GResourceStateTracker.h"
 
 using namespace  Microsoft::WRL;
 
 class GResource;
+class GMemory;
+class GResourceStateTracker;
+class RootSignature;
+class PSO;
 
 class GCommandList
 {
@@ -28,6 +31,8 @@ private:
 	D3D12_COMMAND_LIST_TYPE m_d3d12CommandListType;
 	std::unique_ptr<GResourceStateTracker> m_ResourceStateTracker;
 
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> setedRootSignature = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> setedPSO = nullptr;
 
 	void TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> object);
 	void TrackResource(const GResource& res);
@@ -41,6 +46,23 @@ public:
 
 	ComPtr<ID3D12GraphicsCommandList2> GetGraphicsCommandList() const;
 
+	void SetGMemory(GMemory** memory, size_t count) const;
+
+	void SetRootSignature(RootSignature* signature);
+
+	void SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource);
+
+	void SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource);
+
+	void SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource);
+
+	void SetRootDescriptorTable(UINT rootSignatureSlot, GMemory& memory, UINT offset = 0) const;
+
+	void SetViewports(const D3D12_VIEWPORT* viewports, size_t count) const;
+
+	void SetScissorRects(const D3D12_RECT* scissorRects, size_t count) const;
+
+	void SetPipelineState(PSO& pso);
 	
 	void TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false);
 	void TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false);

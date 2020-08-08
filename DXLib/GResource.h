@@ -13,8 +13,8 @@ class GResource
 public:
 	GResource(const std::wstring& name = L"");
 	GResource(const D3D12_RESOURCE_DESC& resourceDesc,
-	         const D3D12_CLEAR_VALUE* clearValue = nullptr,
-	         const std::wstring& name = L"");
+				const std::wstring& name = L"",
+	         const D3D12_CLEAR_VALUE* clearValue = nullptr);
 	GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std::wstring& name = L"");
 	GResource(const GResource& copy);
 	GResource(GResource&& move);
@@ -43,8 +43,6 @@ public:
 	
 	void SetName(const std::wstring& name);
 
-	bool CheckFormatSupport(D3D12_FORMAT_SUPPORT1 formatSupport) const;
-	bool CheckFormatSupport(D3D12_FORMAT_SUPPORT2 formatSupport) const;
 	
 	
 	virtual void Reset();
@@ -52,7 +50,6 @@ public:
 protected:
 
 	uint64_t id = 0;
-	D3D12_FEATURE_DATA_FORMAT_SUPPORT m_FormatSupport;
 	Microsoft::WRL::ComPtr<ID3D12Resource> dxResource;
 	std::unique_ptr<D3D12_CLEAR_VALUE> clearValue;
 	std::wstring resourceName;

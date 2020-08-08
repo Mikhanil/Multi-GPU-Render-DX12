@@ -14,7 +14,7 @@ struct GenerateMipsCB
 class GeneratedMipsPSO
 {
 public:
-	GeneratedMipsPSO(ID3D12Device* device);;
+	GeneratedMipsPSO();;
 
 	const ComPtr<ID3D12RootSignature> GetRootSignature() const;
 
