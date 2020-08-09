@@ -14,8 +14,8 @@ GHeap::GHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
 
     ThrowIfFailed(device.CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&d3d12DescriptorHeap)));
 
-    baseCPUDescriptor = d3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    baseGPUDescriptor = d3d12DescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+    startCPUDescriptor = d3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+    startGPUDescriptor = d3d12DescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	
     descriptorHandleIncrementSize = device.GetDescriptorHandleIncrementSize(heapType);
     freeHandlesCount = numDescriptorsInHeap;
@@ -81,13 +81,13 @@ GMemory GHeap::Allocate(uint32_t numDescriptors)
     freeHandlesCount -= numDescriptors;
 
     return GMemory(
-        CD3DX12_CPU_DESCRIPTOR_HANDLE(baseCPUDescriptor, offset, descriptorHandleIncrementSize), CD3DX12_GPU_DESCRIPTOR_HANDLE(baseGPUDescriptor, offset, descriptorHandleIncrementSize),
+        CD3DX12_CPU_DESCRIPTOR_HANDLE(startCPUDescriptor, offset, descriptorHandleIncrementSize), CD3DX12_GPU_DESCRIPTOR_HANDLE(startGPUDescriptor, offset, descriptorHandleIncrementSize),
         numDescriptors, descriptorHandleIncrementSize, shared_from_this());
 }
 
 uint32_t GHeap::ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 {
-    return static_cast<uint32_t>(handle.ptr - baseCPUDescriptor.ptr) / descriptorHandleIncrementSize;
+    return static_cast<uint32_t>(handle.ptr - startCPUDescriptor.ptr) / descriptorHandleIncrementSize;
 }
 
 void GHeap::Free(GMemory&& descriptor, uint64_t frameNumber)

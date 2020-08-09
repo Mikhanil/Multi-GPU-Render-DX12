@@ -6,8 +6,8 @@
 #include "GHeap.h"
 
 GMemory::GMemory()
-    : cpuDescriptor{ 0 }
-    , gpuDescriptor{ 0 }
+    : cpuDescriptor{  }
+    , gpuDescriptor{  }
     , handlersCount(0)
     , descriptorSize(0)
     , heap(nullptr)
@@ -64,8 +64,8 @@ void GMemory::Free()
     {
         heap->Free(std::move(*this), DXLib::D3DApp::GetApp().GetFrameCount());
 
-        cpuDescriptor.ptr = 0;
-        gpuDescriptor.ptr = 0;
+        cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE();
+        gpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE();
         handlersCount = 0;
         descriptorSize = 0;
         heap.reset();
@@ -79,16 +79,20 @@ bool GMemory::IsNull() const
 
 D3D12_CPU_DESCRIPTOR_HANDLE GMemory::GetCPUHandle(uint32_t offset) const
 {
-    assert(offset < handlersCount);
+	if(offset > handlersCount)
+		assert("Bad GMemmory offset");
 
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuDescriptor, offset, descriptorSize);	
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuDescriptor, offset, descriptorSize);
+		
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE GMemory::GetGPUHandle(uint32_t offset) const
 {
-    assert(offset < handlersCount);
+    if (offset > handlersCount)
+        assert("Bad GMemmory offset");
 
     return CD3DX12_GPU_DESCRIPTOR_HANDLE(gpuDescriptor, offset, descriptorSize);
+	
 }
 
 uint32_t GMemory::GetHandlersCount() const

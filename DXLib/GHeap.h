@@ -34,9 +34,9 @@ protected:
     void FreeBlock(uint32_t offset, uint32_t numDescriptors);
 
 private:
-    using OffsetType = uint32_t;
+    using OffsetType = size_t;
    
-    using SizeType = uint32_t;
+    using SizeType = size_t;
 
     struct FreeBlockInfo;
 	    
@@ -73,8 +73,8 @@ private:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap;
 	
     D3D12_DESCRIPTOR_HEAP_TYPE heapType;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE baseCPUDescriptor;    	
-    CD3DX12_GPU_DESCRIPTOR_HANDLE baseGPUDescriptor;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE startCPUDescriptor;    	
+    CD3DX12_GPU_DESCRIPTOR_HANDLE startGPUDescriptor;
 	
     uint32_t descriptorHandleIncrementSize;
     uint32_t numDescriptorsInHeap;

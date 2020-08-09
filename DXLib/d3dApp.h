@@ -83,13 +83,12 @@ namespace DXLib
 
 		void Flush();
 
-		ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(UINT numDescriptors, D3D12_DESCRIPTOR_HEAP_TYPE type);
 
 		UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 
 		GameTimer* GetTimer();
 
-		ID3D12Device& GetDevice();
+		static ID3D12Device& GetDevice();
 
 		static D3DApp& GetApp();
 

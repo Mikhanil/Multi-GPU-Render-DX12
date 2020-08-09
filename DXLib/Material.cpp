@@ -31,10 +31,8 @@ void Material::InitMaterial(ID3D12Device* device, GMemory& textureHeap)
 {
 	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	gpuTextureHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(textureHeap.GetGPUHandle(),
-	                                                 this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
-	cpuTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(textureHeap.GetCPUHandle(),
-	                                                 this->DiffuseMapIndex, cbvSrvUavDescriptorSize);
+	gpuTextureHandle = textureHeap.GetGPUHandle(this->DiffuseMapIndex ); 
+	cpuTextureHandle = textureHeap.GetCPUHandle(this->DiffuseMapIndex );
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;

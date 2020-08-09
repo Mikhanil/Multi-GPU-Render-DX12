@@ -77,14 +77,6 @@ namespace DXLib
 		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index) const;
-
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index) const;
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index) const;
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index) const;
-
 
 	private:
 
@@ -101,8 +93,6 @@ namespace DXLib
 
 		D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
 
-		GMemory rtvHeap;
-		GMemory dsvHeap;
 		GMemory srvHeap;
 
 		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();

@@ -101,8 +101,7 @@ namespace DXLib
 		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto cmdList = commandQueue->GetCommandList();
 
-		mShadowMap = std::make_unique<ShadowMap>(
-			dxDevice.Get(), 4096, 4096);
+		mShadowMap = std::make_unique<ShadowMap>( 4096, 4096);
 
 		mSsao = std::make_unique<Ssao>(
 			dxDevice.Get(),
@@ -155,7 +154,7 @@ namespace DXLib
 			mSsao->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
 			// Resources changed, so need to rebuild descriptors.
-			mSsao->RebuildDescriptors(MainWindow->GetDepthStencilBuffer().Get());
+			mSsao->RebuildDescriptors(MainWindow->GetDepthStencilBuffer().GetResource());
 		}
 	}
 
@@ -885,19 +884,12 @@ namespace DXLib
 
 	void ShapesApp::BuildTexturesHeap()
 	{
-
-		///* Add +1 for screen normal map, +2 for ambient maps.
-		rtvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 3);
-
-		//+1 для карты теней
-		dsvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
-
-		srvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size() + 1 + 5);			
+		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size()));			
 
 
 		mShadowMap->BuildDescriptors();
 
-		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer().Get());
+		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer().GetResource());
 	}
 
 	void ShapesApp::BuildShadersAndInputLayout()
@@ -2114,33 +2106,7 @@ namespace DXLib
 		std::sort(lights.begin(), lights.end(), [](Light const* a, Light const* b) { return a->Type() < b->Type(); });
 	}
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE ShapesApp::GetCpuSrv(int index) const
-	{
-		auto srv = CD3DX12_CPU_DESCRIPTOR_HANDLE(srvHeap.GetCPUHandle());
-		srv.Offset(index, cbvSrvUavDescriptorSize);
-		return srv;
-	}
-
-	CD3DX12_GPU_DESCRIPTOR_HANDLE ShapesApp::GetGpuSrv(int index) const
-	{
-		auto srv = CD3DX12_GPU_DESCRIPTOR_HANDLE(srvHeap.GetGPUHandle());
-		srv.Offset(index, cbvSrvUavDescriptorSize);
-		return srv;
-	}
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE ShapesApp::GetDsv(int index) const
-	{
-		auto dsv = CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvHeap.GetCPUHandle());
-		dsv.Offset(index, dsvDescriptorSize);
-		return dsv;
-	}
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE ShapesApp::GetRtv(int index) const
-	{
-		auto rtv = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap.GetCPUHandle());
-		rtv.Offset(index, rtvDescriptorSize);
-		return rtv;
-	}
+	
 
 	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> ShapesApp::GetStaticSamplers()
 	{

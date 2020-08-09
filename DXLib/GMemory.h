@@ -3,6 +3,8 @@
 #include <d3d12.h>
 #include <memory>
 
+#include "d3dx12.h"
+
 class GHeap;
 
 class GMemory
@@ -35,8 +37,8 @@ public:
 private:   
     void Free();
         
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptor;   
-    D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor;   
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuDescriptor;   
+    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuDescriptor;
     uint32_t handlersCount;
     uint32_t descriptorSize;
 

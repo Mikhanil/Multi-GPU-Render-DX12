@@ -197,20 +197,7 @@ namespace DXLib
 		copyCommandQueue->Flush();
 	}
 
-	ComPtr<ID3D12DescriptorHeap> D3DApp::CreateDescriptorHeap(UINT numDescriptors,
-	                                                          D3D12_DESCRIPTOR_HEAP_TYPE type)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-		desc.Type = type;
-		desc.NumDescriptors = numDescriptors;
-		desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		desc.NodeMask = 0;
-
-		ComPtr<ID3D12DescriptorHeap> descriptorHeap;
-		ThrowIfFailed(dxDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&descriptorHeap)));
-
-		return descriptorHeap;
-	}
+	
 
 	UINT D3DApp::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
 	{
@@ -366,7 +353,7 @@ namespace DXLib
 
 	ID3D12Device& D3DApp::GetDevice()
 	{
-		return *dxDevice.Get();
+		return *(GetApp().dxDevice.Get());
 	}
 
 	HINSTANCE D3DApp::AppInst() const

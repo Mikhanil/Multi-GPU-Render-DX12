@@ -1,17 +1,20 @@
 #include "ShadowMap.h"
 
-#include "DXAllocator.h"
 
-ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height)
+#include "d3dApp.h"
+#include "DXAllocator.h"
+#include "GResourceStateTracker.h"
+
+ShadowMap::ShadowMap(UINT width, UINT height)
 {
-	md3dDevice = device;
 
 	mWidth = width;
 	mHeight = height;
 
 	mViewport = {0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
 	mScissorRect = {0, 0, static_cast<int>(width), static_cast<int>(height)};
-
+	
+	
 	// Save references to the descriptors. 
 	srvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	dsvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
@@ -31,7 +34,7 @@ UINT ShadowMap::Height() const
 
 ID3D12Resource* ShadowMap::Resource()
 {
-	return mShadowMap.Get();
+	return mShadowMap.GetResource();
 }
 
 CD3DX12_GPU_DESCRIPTOR_HANDLE ShadowMap::Srv() const
@@ -73,6 +76,7 @@ void ShadowMap::OnResize(UINT newWidth, UINT newHeight)
 void ShadowMap::BuildDescriptors()
 {
 	
+	auto& device = DXLib::D3DApp::GetDevice();
 	
 	// Create SRV to resource so we can sample the shadow map in a shader program.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -83,7 +87,8 @@ void ShadowMap::BuildDescriptors()
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	srvDesc.Texture2D.PlaneSlice = 0;
-	md3dDevice->CreateShaderResourceView(mShadowMap.Get(), &srvDesc, srvMemory.GetCPUHandle());
+
+	device.CreateShaderResourceView(mShadowMap.GetResource(), &srvDesc, srvMemory.GetCPUHandle());
 
 	// Create DSV to resource so we can render to the shadow map.
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
@@ -91,11 +96,13 @@ void ShadowMap::BuildDescriptors()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.Texture2D.MipSlice = 0;
-	md3dDevice->CreateDepthStencilView(mShadowMap.Get(), &dsvDesc, dsvMemory.GetCPUHandle());
+	device.CreateDepthStencilView(mShadowMap.GetResource(), &dsvDesc, dsvMemory.GetCPUHandle());
 }
 
 void ShadowMap::BuildResource()
 {
+	
+	
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
 	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -115,11 +122,19 @@ void ShadowMap::BuildResource()
 	optClear.DepthStencil.Depth = 1.0f;
 	optClear.DepthStencil.Stencil = 0;
 
-	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+	ComPtr<ID3D12Resource> map;
+	
+	auto& device = DXLib::D3DApp::GetDevice();
+	ThrowIfFailed(device.CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		&optClear,
-		IID_PPV_ARGS(&mShadowMap)));
+		IID_PPV_ARGS(&map)));
+	
+	mShadowMap = Texture(map,TextureUsage::Depth, std::wstring(L"Depth Map"));
+	GResourceStateTracker::AddGlobalResourceState(mShadowMap.GetResource(), D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	
 }

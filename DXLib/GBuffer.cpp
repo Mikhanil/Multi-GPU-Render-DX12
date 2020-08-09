@@ -36,12 +36,12 @@ size_t GVertexBuffer::GetVertexSize() const
 	return VertexSize;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GVertexBuffer::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
+DescriptorHandle GVertexBuffer::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
 {
     throw std::exception("GVertexBuffer::GetShaderResourceView should not be called.");
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE GVertexBuffer::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
+DescriptorHandle GVertexBuffer::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
 {
     throw std::exception("GVertexBuffer::GetUnorderedAccessView should not be called.");
 }

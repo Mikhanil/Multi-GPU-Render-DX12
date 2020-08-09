@@ -5,12 +5,19 @@
 #include <string>
 #include <memory>
 
+struct DescriptorHandle
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
+};
+
 class GResource
 {
 	static uint64_t  resourceId;
 
 	
 public:
+	
 	GResource(const std::wstring& name = L"");
 	GResource(const D3D12_RESOURCE_DESC& resourceDesc,
 				const std::wstring& name = L"",
@@ -35,10 +42,13 @@ public:
 	                              const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
 	
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr)	const = 0;
+	virtual DescriptorHandle GetShaderResourceView(
+		const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const = 0;
 
 	
-	virtual D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const = 0;
+	virtual DescriptorHandle GetUnorderedAccessView(
+		const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const = 0;
+
 
 	
 	void SetName(const std::wstring& name);
