@@ -3,10 +3,13 @@
 #include <cassert>
 
 
+
+#include "d3dApp.h"
 #include "GCommandQueue.h"
 #include "d3dUtil.h"
+#include "GResourceStateTracker.h"
 #include "Lazy.h"
-#include "ShapesApp.h"
+#include "../DXDemo/ShapesApp.h"
 
 namespace DXLib
 {
@@ -32,7 +35,7 @@ namespace DXLib
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Window::GetDepthStencilView() const
 	{
-		return depthStencilViewHeap->GetCPUDescriptorHandleForHeapStart();
+		return depthStencilViewHeap.cpuHandle;
 	}
 
 
@@ -134,16 +137,15 @@ namespace DXLib
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentBackBufferView() const
 	{
-		return CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-		                                     currentBackBufferIndex, rtvDescriptorSize);
+		return rtvDescriptorHeap[currentBackBufferIndex].cpuHandle;
 	}
 
-	ComPtr<ID3D12Resource> Window::GetCurrentBackBuffer() const
+	Texture& Window::GetCurrentBackBuffer() 
 	{
 		return backBuffers[currentBackBufferIndex];
 	}
 
-	ComPtr<ID3D12Resource> Window::GetDepthStencilBuffer() const
+	Texture& Window::GetDepthStencilBuffer() 
 	{
 		return depthStencilBuffer;
 	}
@@ -191,11 +193,13 @@ namespace DXLib
 		isTearingSupported = app.IsTearingSupported();
 
 		swapChain = CreateSwapChain();
-		rtvDescriptorHeap = app.CreateDescriptorHeap(BufferCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		rtvDescriptorSize = app.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-		depthStencilViewHeap = app.CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-		dsvDescriptorSize = app.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+		depthStencilBuffer = Texture(L"Depth " + windowName, TextureUsage::Depth);
+
+		for (int i = 0; i < BufferCount; ++i)
+		{
+			backBuffers.push_back(Texture(windowName + L" Backbuffer[" + std::to_wstring(i) + L"]", TextureUsage::RenderTarget));
+		}
 
 		auto queue = D3DApp::GetApp().GetCommandQueue();
 		queue->Flush();
@@ -302,6 +306,12 @@ namespace DXLib
 
 		for (int i = 0; i < BufferCount; ++i)
 		{
+			GResourceStateTracker::RemoveGlobalResourceState(backBuffers[i].GetD3D12Resource().Get());
+			backBuffers[i].Reset();
+		}
+		
+		for (int i = 0; i < BufferCount; ++i)
+		{
 			backBuffers[i].Reset();
 		}
 
@@ -311,7 +321,7 @@ namespace DXLib
 			backBufferFormat,
 			isTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
-		currentBackBufferIndex = 0;
+		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
 
 		UpdateRenderTargetViews();
@@ -336,23 +346,31 @@ namespace DXLib
 		optClear.Format = depthStencilFormat;
 		optClear.DepthStencil.Depth = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
+
+		ComPtr<ID3D12Resource> depth;
 		ThrowIfFailed(dxDevice.CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&depthStencilDesc,
 			D3D12_RESOURCE_STATE_COMMON,
 			&optClear,
-			IID_PPV_ARGS(depthStencilBuffer.GetAddressOf())));
+			IID_PPV_ARGS(depth.GetAddressOf())));
 
+		depthStencilBuffer.SetD3D12Resource(depth, &optClear);
+		
+		
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		dsvDesc.Format = depthStencilFormat;
 		dsvDesc.Texture2D.MipSlice = 0;
-		dxDevice.CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
-		                                depthStencilViewHeap->GetCPUDescriptorHandleForHeapStart());
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.Get(),
+		depthStencilViewHeap = depthStencilBuffer.GetDepthStencilView(&dsvDesc);
+		
+		/*dxDevice.CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
+		                                depthStencilViewHeap.GetCPUHandle());*/
+
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.GetResource(),
 		                                                                  D3D12_RESOURCE_STATE_COMMON,
 		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
@@ -436,9 +454,8 @@ namespace DXLib
 	{
 		assert(swapChain);
 
-		ID3D12Device& device = static_cast<ShapesApp&>(ShapesApp::GetApp()).GetDevice();
+		ID3D12Device& device =(D3DApp::GetApp()).GetDevice();
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 		rtvDesc.Format = GetSRGBFormat(backBufferFormat);
@@ -449,11 +466,12 @@ namespace DXLib
 			ComPtr<ID3D12Resource> backBuffer;
 			ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
 
-			device.CreateRenderTargetView(backBuffer.Get(), &rtvDesc, rtvHandle);
+			GResourceStateTracker::AddGlobalResourceState(backBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
+			
+			//device.CreateRenderTargetView(backBuffer.Get(), &rtvDesc, rtvDescriptorHeap.GetCPUHandle(i));
 
-			backBuffers[i] = backBuffer;
-
-			rtvHandle.Offset(rtvDescriptorSize);
+			backBuffers[i].SetD3D12Resource(backBuffer);
+			rtvDescriptorHeap[i] = backBuffers[i].GetRenderTargetView(&rtvDesc);
 		}
 	}
 }

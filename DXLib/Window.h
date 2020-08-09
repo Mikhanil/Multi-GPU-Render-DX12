@@ -10,7 +10,9 @@
 #include "d3d11.h"
 #include "d3d11on12.h"
 #include "GameTimer.h"
+#include "GMemory.h"
 #include "Lazy.h"
+#include "Texture.h"
 
 using namespace Microsoft::WRL;
 
@@ -51,9 +53,9 @@ namespace DXLib
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
 
 
-		ComPtr<ID3D12Resource> GetCurrentBackBuffer() const;
+		Texture& GetCurrentBackBuffer();
 
-		ComPtr<ID3D12Resource> GetDepthStencilBuffer() const;
+		Texture& GetDepthStencilBuffer() ;
 
 		void SetHeight(int height);
 
@@ -112,16 +114,17 @@ namespace DXLib
 		ComPtr<IDXGISwapChain4> CreateSwapChain();
 		ComPtr<IDXGISwapChain4> swapChain;
 
-		ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
-
-		ComPtr<ID3D12DescriptorHeap> depthStencilViewHeap;
-		ComPtr<ID3D12Resource> depthStencilBuffer;
-		ComPtr<ID3D12Resource> backBuffers[BufferCount];
+		
+		
+		DescriptorHandle depthStencilViewHeap;
+		Texture depthStencilBuffer;
+		
+		std::vector<Texture> backBuffers;
+		DescriptorHandle rtvDescriptorHeap[BufferCount];
+		
 		D3D12_VIEWPORT screenViewport;
 		D3D12_RECT scissorRect;
 
-		UINT rtvDescriptorSize;
-		UINT dsvDescriptorSize;
 		UINT currentBackBufferIndex;
 
 		RECT windowRect;

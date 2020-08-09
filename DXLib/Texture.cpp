@@ -203,24 +203,7 @@ Texture& Texture::operator=(Texture&& other)
 
 void Texture::CreateViews()
 {
-	if (dxResource)
-	{
-		auto& app = DXLib::D3DApp::GetApp();
-		auto& device = app.GetDevice();
-
-		CD3DX12_RESOURCE_DESC desc(dxResource->GetDesc());
-
-		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0)
-		{
-			renderTargetView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			device.CreateRenderTargetView(dxResource.Get(), nullptr, renderTargetView.GetCPUHandle());
-		}
-		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
-		{
-			depthStencilView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-			device.CreateDepthStencilView(dxResource.Get(), nullptr, depthStencilView.GetCPUHandle());
-		}
-	}
+	
 
 	std::lock_guard<std::mutex> lock(shaderResourceViewsMutex);
 	std::lock_guard<std::mutex> guard(unorderedAccessViewsMutex);
@@ -237,9 +220,11 @@ GMemory Texture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC*
 
 	auto srv = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+	return (srv);
+	
 	device.CreateShaderResourceView(dxResource.Get(), srvDesc, srv.GetCPUHandle());
 
-	return srv;
+	
 }
 
 GMemory Texture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
@@ -254,12 +239,36 @@ GMemory Texture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DES
 	return uav;
 }
 
+GMemory Texture::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+
+	auto srv = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	device.CreateRenderTargetView(dxResource.Get(), rtvDesc, srv.GetCPUHandle());
+
+	return srv;
+}
+
+GMemory Texture::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+
+	auto srv = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	device.CreateDepthStencilView(dxResource.Get(), dsvDesc, srv.GetCPUHandle());
+
+	return srv;
+}
+
 
 Texture::~Texture()
 {
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
+DescriptorHandle Texture::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
 {
 	std::size_t hash = 0;
 	if (srvDesc)
@@ -276,10 +285,10 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetShaderResourceView(const D3D12_SHADER_RE
 		iter = shaderResourceViews.insert({hash, std::move(srv)}).first;
 	}
 
-	return iter->second.GetCPUHandle();
+	return DescriptorHandle{ iter->second.GetCPUHandle(), iter->second.GetGPUHandle() };
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
+DescriptorHandle Texture::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
 {
 	std::size_t hash = 0;
 	if (uavDesc)
@@ -296,17 +305,50 @@ D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetUnorderedAccessView(const D3D12_UNORDERE
 		iter = unorderedAccessViews.insert({hash, std::move(uav)}).first;
 	}
 
-	return iter->second.GetCPUHandle();
+	return DescriptorHandle{ iter->second.GetCPUHandle(), iter->second.GetGPUHandle() };
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetRenderTargetView() const
+DescriptorHandle Texture::GetRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc) const
 {
-	return renderTargetView.GetCPUHandle();
+	if (renderTargetView.IsNull())
+	{
+		auto& app = DXLib::D3DApp::GetApp();
+		auto& device = app.GetDevice();
+
+		CD3DX12_RESOURCE_DESC desc(dxResource->GetDesc());
+
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0)
+		{
+			renderTargetView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			device.CreateRenderTargetView(dxResource.Get(), rtvDesc, renderTargetView.GetCPUHandle());
+		}
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
+		{
+			depthStencilView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			device.CreateDepthStencilView(dxResource.Get(), nullptr, depthStencilView.GetCPUHandle());
+		}
+	}
+	
+	return DescriptorHandle{ renderTargetView.GetCPUHandle(), renderTargetView.GetGPUHandle() };
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Texture::GetDepthStencilView() const
+DescriptorHandle Texture::GetDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc) const
 {
-	return depthStencilView.GetCPUHandle();
+	if (depthStencilView.IsNull())
+	{
+		auto& app = DXLib::D3DApp::GetApp();
+		auto& device = app.GetDevice();
+
+		CD3DX12_RESOURCE_DESC desc(dxResource->GetDesc());
+
+		if ((desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0)
+		{
+			depthStencilView = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			device.CreateDepthStencilView(dxResource.Get(), dsvDesc, depthStencilView.GetCPUHandle());
+		}
+	}
+	
+	return DescriptorHandle{ depthStencilView.GetCPUHandle(), depthStencilView.GetGPUHandle() };
 }
 
 

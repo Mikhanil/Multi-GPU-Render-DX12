@@ -38,6 +38,10 @@ GCommandList::GCommandList(D3D12_COMMAND_LIST_TYPE type)
 
     m_ResourceStateTracker = std::make_unique<GResourceStateTracker>();
 
+    for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+    {
+        m_DescriptorHeaps[i] = nullptr;
+    }
 }
 
 GCommandList::~GCommandList()
@@ -53,17 +57,36 @@ ComPtr<ID3D12GraphicsCommandList2> GCommandList::GetGraphicsCommandList() const
 	return m_d3d12CommandList;
 }
 
-void GCommandList::SetGMemory(GMemory** memory, size_t count) const
+void GCommandList::SetGMemory(D3D12_DESCRIPTOR_HEAP_TYPE heapType, GMemory* memory) 
 {
-	std::vector<ID3D12DescriptorHeap*> heaps(count);
+	if(memory == nullptr)
+		assert("Memory Descriptor Heap is null");
 
-	for (int i = 0; i < count; ++i)
+    const auto heap = memory->GetDescriptorHeap();
+	
+    if (m_DescriptorHeaps[heapType] != heap)
+    {
+        m_DescriptorHeaps[heapType] = heap;
+    	
+		BindDescriptorHeaps();
+    }
+}
+
+void GCommandList::BindDescriptorHeaps()
+{
+	UINT numDescriptorHeaps = 0;
+	ID3D12DescriptorHeap* descriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES] = {};
+
+	for (uint32_t i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
 	{
-		heaps[i] = memory[i]->GetDescriptorHeap();
+		ID3D12DescriptorHeap* descriptorHeap = m_DescriptorHeaps[i];
+		if (descriptorHeap)
+		{
+			descriptorHeaps[numDescriptorHeaps++] = descriptorHeap;
+		}
 	}
 
-    m_d3d12CommandList->SetDescriptorHeaps(heaps.size(), heaps.data());
-
+	m_d3d12CommandList->SetDescriptorHeaps(numDescriptorHeaps, descriptorHeaps);
 }
 
 void GCommandList::SetRootSignature(RootSignature* signature)
@@ -283,6 +306,80 @@ void GCommandList::ResolveSubresource(GResource& dstRes, const GResource& srcRes
 
     TrackResource(srcRes);
     TrackResource(dstRes);
+}
+
+void GCommandList::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t startVertex, uint32_t startInstance)
+{
+    FlushResourceBarriers();
+
+    m_d3d12CommandList->DrawInstanced(vertexCount, instanceCount, startVertex, startInstance);
+}
+
+void GCommandList::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t startIndex, int32_t baseVertex,
+	uint32_t startInstance)
+{
+    FlushResourceBarriers();
+
+    m_d3d12CommandList->DrawIndexedInstanced(indexCount, instanceCount, startIndex, baseVertex, startInstance);
+}
+
+void GCommandList::Dispatch(uint32_t numGroupsX, uint32_t numGroupsY, uint32_t numGroupsZ) const
+{	
+    FlushResourceBarriers();
+    m_d3d12CommandList->Dispatch(numGroupsX, numGroupsY, numGroupsZ);
+}
+
+void GCommandList::ReleaseTrackedObjects()
+{
+    m_TrackedObjects.clear();
+}
+
+void GCommandList::Reset(PSO* pso)
+{	
+	ThrowIfFailed(m_d3d12CommandAllocator->Reset());
+
+    m_ResourceStateTracker->Reset();
+    m_UploadBuffer->Reset();
+
+    ReleaseTrackedObjects();
+
+    setedRootSignature = nullptr;
+    setedPSO = nullptr;
+
+    for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+    {
+        m_DescriptorHeaps[i] = nullptr;
+    }
+	
+    if (pso != nullptr)
+    {
+	    setedPSO = pso->GetPSO();
+        TrackResource(setedPSO);
+    }
+	
+	ThrowIfFailed(m_d3d12CommandList->Reset(m_d3d12CommandAllocator.Get(), setedPSO.Get()));
+}
+
+bool GCommandList::Close(GCommandList& pendingCommandList)
+{
+    // Flush any remaining barriers.
+    FlushResourceBarriers();
+
+    m_d3d12CommandList->Close();
+
+    const auto peddingCmdList = pendingCommandList.GetGraphicsCommandList();
+    // Flush pending resource barriers.
+    const uint32_t numPendingBarriers = m_ResourceStateTracker->FlushPendingResourceBarriers(*peddingCmdList.Get());
+    // Commit the final resource state to the global state.
+    m_ResourceStateTracker->CommitFinalResourceStates();
+
+    return numPendingBarriers > 0;
+}
+
+void GCommandList::Close()
+{
+    FlushResourceBarriers();
+    m_d3d12CommandList->Close();
 }
 
 void GCommandList::SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY primitiveTopology) const

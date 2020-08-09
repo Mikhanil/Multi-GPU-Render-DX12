@@ -249,7 +249,7 @@ namespace DXLib
 		cmdList->RSSetViewports(1, &MainWindow->GetViewPort());
 		cmdList->RSSetScissorRects(1, &MainWindow->GetRect());
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 		cmdList->ClearRenderTargetView(MainWindow->GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
 
@@ -293,7 +293,7 @@ namespace DXLib
 			DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Debug)]);
 		}
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().Get(),
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetResource(),
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
 		                                                                  D3D12_RESOURCE_STATE_PRESENT));
 
@@ -787,19 +787,19 @@ namespace DXLib
 		rootSignature = std::make_unique<RootSignature>();
 
 		CD3DX12_DESCRIPTOR_RANGE texParam[4];
-		texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0); //SkyMap
-		texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0); //ShadowMap
-		texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0); //SsaoMap
-		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, textures.size(), 3, 0);
+		texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
+		texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
+		texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SsaoMap - 3, 0); //SsaoMap
+		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, textures.size(), StandardShaderSlot::TexturesMap - 3, 0);
 
 
 		rootSignature->AddConstantBufferParameter(0);
 		rootSignature->AddConstantBufferParameter(1);
 		rootSignature->AddShaderResourceView(0, 1);
-		rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_ALL);
-		rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_ALL);
-		rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_ALL);
-		rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_ALL);
+		rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 		rootSignature->Initialize();
 	}

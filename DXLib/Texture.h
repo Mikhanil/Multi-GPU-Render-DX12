@@ -30,8 +30,8 @@ class Texture : public GResource
 
 	custom_vector<ComPtr<ID3D12Resource>> track = DXAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
-	GMemory renderTargetView;
-	GMemory depthStencilView;
+	mutable GMemory renderTargetView;
+	mutable GMemory depthStencilView;
 
 	mutable custom_unordered_map<size_t, GMemory> shaderResourceViews = DXAllocator::CreateUnorderedMap<
 		size_t, GMemory>();
@@ -53,7 +53,7 @@ public:
 
 	UINT GetTextureIndex() const;
 
-	Texture(std::wstring name, TextureUsage use = TextureUsage::Diffuse);
+	Texture(std::wstring name = L"", TextureUsage use = TextureUsage::Diffuse);
 
 	Texture(const D3D12_RESOURCE_DESC& resourceDesc,
 		const std::wstring& name = L"", TextureUsage textureUsage = TextureUsage::Albedo,
@@ -68,9 +68,12 @@ public:
 	Texture& operator=(const Texture& other);
 	Texture& operator=(Texture&& other);
 	void CreateViews();
+	
 	GMemory CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const;
 	GMemory CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const;
-
+	GMemory CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc) const;
+	GMemory CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc) const;
+	
 	virtual ~Texture();
 
 
@@ -95,8 +98,8 @@ public:
 
 	static DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const override;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView() const;
-	D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
+	DescriptorHandle GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const override;
+	DescriptorHandle GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const override;
+	DescriptorHandle GetRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc) const;
+	DescriptorHandle GetDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* rtvDesc) const;
 };

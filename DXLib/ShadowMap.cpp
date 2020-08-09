@@ -87,7 +87,6 @@ void ShadowMap::BuildDescriptors()
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	srvDesc.Texture2D.PlaneSlice = 0;
-
 	device.CreateShaderResourceView(mShadowMap.GetResource(), &srvDesc, srvMemory.GetCPUHandle());
 
 	// Create DSV to resource so we can render to the shadow map.

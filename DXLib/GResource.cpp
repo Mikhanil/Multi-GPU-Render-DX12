@@ -47,10 +47,13 @@ GResource::GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std
 GResource::GResource(const GResource& copy)
 	: id(copy.id)
 	  , dxResource(copy.dxResource)
-	  , clearValue(std::make_unique<D3D12_CLEAR_VALUE>(*copy.clearValue))
 	  , resourceName(copy.resourceName)
 {
-	
+
+	if (copy.clearValue)
+		clearValue = (std::make_unique<D3D12_CLEAR_VALUE>(*copy.clearValue.get()));
+	else
+		clearValue = nullptr;
 }
 
 GResource::GResource(GResource&& move)
