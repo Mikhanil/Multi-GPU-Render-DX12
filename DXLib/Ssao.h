@@ -35,12 +35,7 @@ public:
 	CD3DX12_GPU_DESCRIPTOR_HANDLE AmbientMapSrv() const;
 
 	void BuildDescriptors(
-		ID3D12Resource* depthStencilBuffer,
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv,
-		UINT cbvSrvUavDescriptorSize,
-		UINT rtvDescriptorSize);
+		ID3D12Resource* depthStencilBuffer);
 
 	void RebuildDescriptors(ID3D12Resource* depthStencilBuffer);
 
@@ -94,24 +89,33 @@ private:
 	ComPtr<ID3D12Resource> mAmbientMap0;
 	ComPtr<ID3D12Resource> mAmbientMap1;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuSrv;
+	GMemory normalMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,1);
+	GMemory normalMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+	
+	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhNormalMapGpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuRtv;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuRtv;*/
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhDepthMapCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;
+	GMemory depthMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	
+	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhDepthMapCpuSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;*/
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhRandomVectorMapCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhRandomVectorMapGpuSrv;
+	GMemory randomVectorSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	
+	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhRandomVectorMapCpuSrv;
+	CD3DX12_GPU_DESCRIPTOR_HANDLE mhRandomVectorMapGpuSrv;*/
 
 	// Need two for ping-ponging during blur.
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap0CpuSrv;
+	GMemory ambientMapMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+	GMemory ambientMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2);
+	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap0CpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhAmbientMap0GpuSrv;
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap0CpuRtv;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuSrv;
 	CD3DX12_GPU_DESCRIPTOR_HANDLE mhAmbientMap1GpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuRtv;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuRtv;*/
 
 	UINT mRenderTargetWidth;
 	UINT mRenderTargetHeight;

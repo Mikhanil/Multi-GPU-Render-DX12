@@ -1,6 +1,7 @@
 #pragma once
 
 #include "d3dUtil.h"
+#include "GMemory.h"
 using namespace Microsoft::WRL;
 class ShadowMap
 {
@@ -21,15 +22,12 @@ public:
 	D3D12_VIEWPORT Viewport() const;
 	D3D12_RECT ScissorRect() const;
 
-	void BuildDescriptors(
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-		CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv);
+	void BuildDescriptors();
 
 	void OnResize(UINT newWidth, UINT newHeight);
 
 private:
-	void BuildDescriptors();
+	
 	void BuildResource();
 
 private:
@@ -43,9 +41,9 @@ private:
 	UINT mHeight = 0;
 	DXGI_FORMAT mFormat = DXGI_FORMAT_R24G8_TYPELESS;
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhGpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhCpuDsv;
+	GMemory srvMemory;
+	GMemory dsvMemory;
+	
 
 	ComPtr<ID3D12Resource> mShadowMap = nullptr;
 };

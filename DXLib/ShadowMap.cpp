@@ -1,5 +1,7 @@
 #include "ShadowMap.h"
 
+#include "DXAllocator.h"
+
 ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height)
 {
 	md3dDevice = device;
@@ -10,6 +12,10 @@ ShadowMap::ShadowMap(ID3D12Device* device, UINT width, UINT height)
 	mViewport = {0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
 	mScissorRect = {0, 0, static_cast<int>(width), static_cast<int>(height)};
 
+	// Save references to the descriptors. 
+	srvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	dsvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+	
 	BuildResource();
 }
 
@@ -30,12 +36,12 @@ ID3D12Resource* ShadowMap::Resource()
 
 CD3DX12_GPU_DESCRIPTOR_HANDLE ShadowMap::Srv() const
 {
-	return mhGpuSrv;
+	return CD3DX12_GPU_DESCRIPTOR_HANDLE(srvMemory.GetGPUHandle());
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE ShadowMap::Dsv() const
 {
-	return mhCpuDsv;
+	return CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvMemory.GetCPUHandle());
 }
 
 D3D12_VIEWPORT ShadowMap::Viewport() const
@@ -48,18 +54,7 @@ D3D12_RECT ShadowMap::ScissorRect() const
 	return mScissorRect;
 }
 
-void ShadowMap::BuildDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
-                                 CD3DX12_GPU_DESCRIPTOR_HANDLE hGpuSrv,
-                                 CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuDsv)
-{
-	// Save references to the descriptors. 
-	mhCpuSrv = hCpuSrv;
-	mhGpuSrv = hGpuSrv;
-	mhCpuDsv = hCpuDsv;
 
-	//  Create the descriptors
-	BuildDescriptors();
-}
 
 void ShadowMap::OnResize(UINT newWidth, UINT newHeight)
 {
@@ -77,6 +72,8 @@ void ShadowMap::OnResize(UINT newWidth, UINT newHeight)
 
 void ShadowMap::BuildDescriptors()
 {
+	
+	
 	// Create SRV to resource so we can sample the shadow map in a shader program.
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -86,7 +83,7 @@ void ShadowMap::BuildDescriptors()
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	srvDesc.Texture2D.PlaneSlice = 0;
-	md3dDevice->CreateShaderResourceView(mShadowMap.Get(), &srvDesc, mhCpuSrv);
+	md3dDevice->CreateShaderResourceView(mShadowMap.Get(), &srvDesc, srvMemory.GetCPUHandle());
 
 	// Create DSV to resource so we can render to the shadow map.
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
@@ -94,7 +91,7 @@ void ShadowMap::BuildDescriptors()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.Texture2D.MipSlice = 0;
-	md3dDevice->CreateDepthStencilView(mShadowMap.Get(), &dsvDesc, mhCpuDsv);
+	md3dDevice->CreateDepthStencilView(mShadowMap.Get(), &dsvDesc, dsvMemory.GetCPUHandle());
 }
 
 void ShadowMap::BuildResource()

@@ -894,23 +894,10 @@ namespace DXLib
 
 		srvHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size() + 1 + 5);			
 
-		mShadowMapHeapIndex = textures.size();
-		mSsaoHeapIndexStart = mShadowMapHeapIndex + 1;
-		mSsaoAmbientMapIndex = mSsaoHeapIndexStart + 3;
 
+		mShadowMap->BuildDescriptors();
 
-		mShadowMap->BuildDescriptors(
-			GetCpuSrv(mShadowMapHeapIndex),
-			GetGpuSrv(mShadowMapHeapIndex),
-			GetDsv(0));
-
-		mSsao->BuildDescriptors(
-			MainWindow->GetDepthStencilBuffer().Get(),
-			GetCpuSrv(mSsaoHeapIndexStart),
-			GetGpuSrv(mSsaoHeapIndexStart),
-			GetRtv(0),
-			cbvSrvUavDescriptorSize,
-			rtvDescriptorSize);
+		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer().Get());
 	}
 
 	void ShapesApp::BuildShadersAndInputLayout()
