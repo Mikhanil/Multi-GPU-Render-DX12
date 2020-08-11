@@ -262,14 +262,14 @@ namespace DXLib
 	}
 
 	void Window::CalculateFrameStats()
-	{
-		static int frameCnt = 0;
-		static float timeElapsed = 0.0f;
+	{		
 
 		frameCnt++;
 
 		if ((renderClock.TotalTime() - timeElapsed) >= 1.0f)
 		{
+			OutputDebugStringW((std::to_wstring(renderClock.TotalTime()) + L"\n").c_str());
+			
 			float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
 			float mspf = 1000.0f / fps;
 
@@ -292,6 +292,13 @@ namespace DXLib
 		renderClock.Tick();
 
 		CalculateFrameStats();
+
+	}
+
+	void Window::ResetTimer()
+	{
+		renderClock.Reset();
+		updateClock.Reset();
 	}
 
 	void Window::OnResize()

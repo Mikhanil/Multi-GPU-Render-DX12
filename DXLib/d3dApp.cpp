@@ -391,6 +391,11 @@ namespace DXLib
 
 		timer.Reset();
 
+		for (auto && pair : gs_Windows)
+		{
+			pair.second->ResetTimer();
+		}
+		
 		while (msg.message != WM_QUIT)
 		{
 			// If there are Window messages then process them.
@@ -409,7 +414,6 @@ namespace DXLib
 					CalculateFrameStats();
 					Update(timer);
 					Draw(timer);
-					frameCount++;
 				}
 				else
 				{
@@ -734,7 +738,7 @@ namespace DXLib
 
 	bool D3DApp::InitMainWindow()
 	{
-		MainWindow = CreateRenderWindow(mainWindowCaption, 800, 600, false);
+		MainWindow = CreateRenderWindow(mainWindowCaption, 1920, 1080, false);
 		
 		return true;
 	}
@@ -771,7 +775,7 @@ namespace DXLib
 
 	void D3DApp::CalculateFrameStats()
 	{
-		MainWindow->CalculateFrameStats();
+		MainWindow->OnRender();
 	}
 
 	void D3DApp::LogAdapters()

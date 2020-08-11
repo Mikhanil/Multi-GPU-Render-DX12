@@ -82,6 +82,7 @@ namespace DXLib
 		virtual void OnUpdate();
 		void CalculateFrameStats();
 		virtual void OnRender();
+		void ResetTimer();
 
 		virtual void OnResize();
 
@@ -92,6 +93,10 @@ namespace DXLib
 
 	private:
 
+		int frameCnt = 0;
+		float timeElapsed = 0.0f;
+
+		
 		Window(const Window& copy) = delete;
 		Window& operator=(const Window& other) = delete;
 
