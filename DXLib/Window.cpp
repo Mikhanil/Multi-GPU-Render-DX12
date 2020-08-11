@@ -9,7 +9,7 @@
 #include "d3dUtil.h"
 #include "GResourceStateTracker.h"
 #include "Lazy.h"
-#include "../DXDemo/ShapesApp.h"
+#include "GCommandList.h"
 
 namespace DXLib
 {
@@ -302,7 +302,8 @@ namespace DXLib
 
 		queue->Flush();
 
-		auto cmdList = queue->GetCommandList();
+		auto cmdListD3D = queue->GetCommandList();
+		auto cmdList = cmdListD3D->GetGraphicsCommandList();
 
 		for (int i = 0; i < BufferCount; ++i)
 		{
@@ -374,7 +375,7 @@ namespace DXLib
 		                                                                  D3D12_RESOURCE_STATE_COMMON,
 		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
-		queue->ExecuteCommandList(cmdList);
+		queue->ExecuteCommandList(cmdListD3D);
 		queue->Flush();
 
 		screenViewport.TopLeftX = 0;

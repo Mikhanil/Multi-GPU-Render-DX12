@@ -13,6 +13,7 @@
 #include "Shadow.h"
 #include "pix3.h"
 #include "filesystem"
+#include "GCommandList.h"
 #include "GDataUploader.h"
 #include "Window.h"
 #include "GMemory.h"
@@ -62,9 +63,7 @@ namespace DXLib
 
 		for (auto && texture : generatedMipTextures)
 		{
-			graphicList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->GetResource(),
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+			graphicList->TransitionBarrier(texture->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}		
 		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
 
@@ -78,9 +77,7 @@ namespace DXLib
 		graphicList = graphicQueue->GetCommandList();
 		for (auto&& texture : generatedMipTextures)
 		{
-			graphicList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->GetResource(),
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS ,
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+			graphicList->TransitionBarrier(texture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
 
@@ -105,10 +102,10 @@ namespace DXLib
 
 		mSsao = std::make_unique<Ssao>(
 			dxDevice.Get(),
-			cmdList.Get(),
+			cmdList->GetGraphicsCommandList().Get(),
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-		LoadTextures(commandQueue->GetD3D12CommandQueue().Get(), cmdList.Get());
+		LoadTextures(commandQueue->GetD3D12CommandQueue().Get(), cmdList->GetGraphicsCommandList().Get());
 
 
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
@@ -199,7 +196,8 @@ namespace DXLib
 
 		auto commandQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		auto cmdList = commandQueue->GetCommandList();
+		auto cmdListD3d = commandQueue->GetCommandList();
+		auto cmdList = cmdListD3d->GetGraphicsCommandList();
 
 
 		ID3D12DescriptorHeap* descriptorHeaps[] = {srvHeap.GetDescriptorHeap()};
@@ -297,7 +295,7 @@ namespace DXLib
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
 		                                                                  D3D12_RESOURCE_STATE_PRESENT));
 
-		currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
+		currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdListD3d);
 
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
@@ -1125,11 +1123,11 @@ namespace DXLib
 		auto cmdList = commandQueue->GetCommandList();
 
 		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                    cmdList.Get(), vertices.data(), vbByteSize,
+		                                                    cmdList->GetGraphicsCommandList().Get(), vertices.data(), vbByteSize,
 		                                                    geo->VertexBufferUploader);
 
 		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                   cmdList.Get(), indices.data(), ibByteSize,
+			cmdList->GetGraphicsCommandList().Get(), indices.data(), ibByteSize,
 		                                                   geo->IndexBufferUploader);
 
 		commandQueue->ExecuteCommandList(cmdList);
@@ -1210,11 +1208,11 @@ namespace DXLib
 		auto cmdList = commandQueue->GetCommandList();
 
 		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                    cmdList.Get(), vertices.data(), vbByteSize,
+			cmdList->GetGraphicsCommandList().Get(), vertices.data(), vbByteSize,
 		                                                    geo->VertexBufferUploader);
 
 		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                   cmdList.Get(), indices.data(), ibByteSize,
+			cmdList->GetGraphicsCommandList().Get(), indices.data(), ibByteSize,
 		                                                   geo->IndexBufferUploader);
 
 		commandQueue->ExecuteCommandList(cmdList);
@@ -1277,11 +1275,11 @@ namespace DXLib
 
 
 		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                    cmdList.Get(), vertices.data(), vbByteSize,
+			cmdList->GetGraphicsCommandList().Get(), vertices.data(), vbByteSize,
 		                                                    geo->VertexBufferUploader);
 
 		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                   cmdList.Get(), indices.data(), ibByteSize,
+			cmdList->GetGraphicsCommandList().Get(), indices.data(), ibByteSize,
 		                                                   geo->IndexBufferUploader);
 
 		commandQueue->ExecuteCommandList(cmdList);
@@ -1646,7 +1644,7 @@ namespace DXLib
 
 		for (auto&& pair : materials)
 		{
-			pair.second->InitMaterial(dxDevice.Get(), srvHeap);
+			pair.second->InitMaterial(srvHeap);
 		}
 	}
 
@@ -1743,7 +1741,7 @@ namespace DXLib
 		man->GetTransform()->SetScale(Vector3::One * 0.25);
 		man->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		auto modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
+		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
 		{
 			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
 			{
@@ -1778,7 +1776,7 @@ namespace DXLib
 		doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
 		doomMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
+		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1816,7 +1814,7 @@ namespace DXLib
 		AtlasMan->GetTransform()->SetScale(Vector3::One * 0.2);
 		AtlasMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\Atlas\\Atlas.obj"))
+		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\Atlas\\Atlas.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1853,7 +1851,7 @@ namespace DXLib
 		PBodyMan->GetTransform()->SetScale(Vector3::One * 0.2);
 		PBodyMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\P-Body\\P-Body.obj"))
+		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\P-Body\\P-Body.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1891,7 +1889,7 @@ namespace DXLib
 		golem->GetTransform()->SetScale(Vector3::One * 0.5);
 		golem->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList.Get(), "Data\\Objects\\StoneGolem\\Stone.obj"))
+		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\StoneGolem\\Stone.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{

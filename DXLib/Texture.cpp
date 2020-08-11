@@ -10,6 +10,7 @@
 #include "GDataUploader.h"
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
+#include "GCommandList.h"
 
 UINT Texture::textureIndexGlobal = 0;
 
@@ -72,7 +73,8 @@ void Texture::GenerateMipMaps(DXLib::GCommandQueue* queue, Texture** textures, s
 	
 	GeneratedMipsPSO genMipMapPSO;
 
-	auto cmdList = queue->GetCommandList();
+	auto cmdListD3D = queue->GetCommandList();
+	auto cmdList = cmdListD3D->GetGraphicsCommandList();
 	
 	cmdList->SetComputeRootSignature(genMipMapPSO.GetRootSignature().Get());
 	cmdList->SetPipelineState(genMipMapPSO.GetPipelineState().Get());
@@ -135,7 +137,7 @@ void Texture::GenerateMipMaps(DXLib::GCommandQueue* queue, Texture** textures, s
 		}
 	}
 
-	queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
+	queue->WaitForFenceValue(queue->ExecuteCommandList(cmdListD3D));
 }
 
 

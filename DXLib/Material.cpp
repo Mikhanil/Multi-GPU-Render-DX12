@@ -1,5 +1,7 @@
 #include "Material.h"
 
+
+#include "d3dApp.h"
 #include "GMemory.h"
 #include "PSO.h"
 
@@ -27,10 +29,8 @@ Material::Material(std::string name, PSO* pso): Name(std::move(name)), pso(pso)
 }
 
 
-void Material::InitMaterial(ID3D12Device* device, GMemory& textureHeap)
+void Material::InitMaterial(GMemory& textureHeap)
 {
-	cbvSrvUavDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 	gpuTextureHandle = textureHeap.GetGPUHandle(this->DiffuseMapIndex ); 
 	cpuTextureHandle = textureHeap.GetCPUHandle(this->DiffuseMapIndex );
 
@@ -38,6 +38,8 @@ void Material::InitMaterial(ID3D12Device* device, GMemory& textureHeap)
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 
+	auto& device = DXLib::D3DApp::GetDevice();
+	
 	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
 	if (textures[0])
 	{
@@ -75,7 +77,7 @@ void Material::InitMaterial(ID3D12Device* device, GMemory& textureHeap)
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			}
 		}
-		device->CreateShaderResourceView(textures[0]->GetResource(), &srvDesc, cpuTextureHandle);
+		device.CreateShaderResourceView(textures[0]->GetResource(), &srvDesc, cpuTextureHandle);
 	}
 
 	if (normalMap)
@@ -85,9 +87,8 @@ void Material::InitMaterial(ID3D12Device* device, GMemory& textureHeap)
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		srvDesc.Texture2D.MipLevels = normalMap->GetResource()->GetDesc().MipLevels;
-		auto cpuNormalMapTextureHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-			textureHeap.GetCPUHandle(), NormalMapIndex, cbvSrvUavDescriptorSize);
-		device->CreateShaderResourceView(normalMap->GetResource(), &srvDesc, cpuNormalMapTextureHandle);
+		auto cpuNormalMapTextureHandle = textureHeap.GetCPUHandle(NormalMapIndex);
+		device.CreateShaderResourceView(normalMap->GetResource(), &srvDesc, cpuNormalMapTextureHandle);
 	}
 }
 

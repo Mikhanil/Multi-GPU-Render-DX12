@@ -24,14 +24,13 @@ void GCommandList::TrackResource(const GResource& res)
     TrackResource(res.GetD3D12Resource());
 }
 
-GCommandList::GCommandList(D3D12_COMMAND_LIST_TYPE type)
-    : m_d3d12CommandListType(type)
+GCommandList::GCommandList(ComPtr<ID3D12Device> device,D3D12_COMMAND_LIST_TYPE type)
+    : m_d3d12CommandListType(type), device(device)
 {
-    auto& device = DXLib::D3DApp::GetApp().GetDevice();
 
-    ThrowIfFailed(device.CreateCommandAllocator(m_d3d12CommandListType, IID_PPV_ARGS(&m_d3d12CommandAllocator)));
+    ThrowIfFailed(device->CreateCommandAllocator(m_d3d12CommandListType, IID_PPV_ARGS(&m_d3d12CommandAllocator)));
 
-    ThrowIfFailed(device.CreateCommandList(0, m_d3d12CommandListType, m_d3d12CommandAllocator.Get(),
+    ThrowIfFailed(device->CreateCommandList(0, m_d3d12CommandListType, m_d3d12CommandAllocator.Get(),
         nullptr, IID_PPV_ARGS(&m_d3d12CommandList)));
 
     m_UploadBuffer = std::make_unique<GDataUploader>();

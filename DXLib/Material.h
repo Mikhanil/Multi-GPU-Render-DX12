@@ -21,7 +21,6 @@ class Material
 	MaterialConstants matConstants{};
 
 	UINT NumFramesDirty = globalCountFrameResources;
-	UINT cbvSrvUavDescriptorSize = 0;
 
 	custom_vector<Texture*> textures = DXAllocator::CreateVector<Texture*>();
 
@@ -64,7 +63,7 @@ public:
 
 	Material(std::string name, PSO* pso);
 
-	void InitMaterial(ID3D12Device* device, GMemory& textureHeap);
+	void InitMaterial(GMemory& textureHeap);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList) const;
 

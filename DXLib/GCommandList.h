@@ -40,9 +40,11 @@ private:
 	void TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> object);
 	void TrackResource(const GResource& res);
 
+	ComPtr<ID3D12Device> device;
+
 public:
 
-	GCommandList(D3D12_COMMAND_LIST_TYPE type);
+	GCommandList(ComPtr<ID3D12Device> device, D3D12_COMMAND_LIST_TYPE type);
 	virtual ~GCommandList();
 
 	D3D12_COMMAND_LIST_TYPE GetCommandListType() const;

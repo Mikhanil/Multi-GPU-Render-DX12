@@ -180,6 +180,9 @@
     <ClInclude Include="GBuffer.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
+    <ClInclude Include="ThreadSafeQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dUtil.cpp">
@@ -307,6 +310,9 @@
     </ClCompile>
     <ClCompile Include="GBuffer.cpp">
       <Filter>Source Files\Allocators</Filter>
+    </ClCompile>
+    <ClCompile Include="ThreadSaveQueue.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

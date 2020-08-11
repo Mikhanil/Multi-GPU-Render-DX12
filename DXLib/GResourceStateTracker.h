@@ -5,7 +5,7 @@
 
 #include "DXAllocator.h"
 
-class CommandList;
+class GCommandList;
 class GResource;
 
 class GResourceStateTracker
@@ -106,15 +106,15 @@ protected:
 
 private:
     
-    using ResourceBarriers = custom_vector<D3D12_RESOURCE_BARRIER>;
+    using ResourceBarriers = std::vector<D3D12_RESOURCE_BARRIER>;
 
     // Pending resource transitions are committed before a command list
     // is executed on the command queue. This guarantees that resources will
     // be in the expected state at the beginning of a command list.
-    ResourceBarriers pendingResourceBarriers = DXAllocator::CreateVector<D3D12_RESOURCE_BARRIER>();
+    ResourceBarriers pendingResourceBarriers;
 
     // GResource barriers that need to be committed to the command list.
-    ResourceBarriers resourceBarriers = DXAllocator::CreateVector<D3D12_RESOURCE_BARRIER>();
+    ResourceBarriers resourceBarriers;
 
     // Tracks the state of a particular resource and all of its subresources.
     struct ResourceState
