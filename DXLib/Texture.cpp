@@ -49,7 +49,7 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 
 	for (int i =0; i < count; ++i)
 	{
-		requiredHeapSize += textures[i]->GetResource()->GetDesc().MipLevels - 1;
+		requiredHeapSize += textures[i]->GetD3D12Resource()->GetDesc().MipLevels - 1;
 	}
 
 	if (requiredHeapSize == 0)
@@ -119,7 +119,7 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 	{
 		auto tex = textures[i];
 		
-		auto texture = tex->GetResource();
+		auto texture = tex->GetD3D12Resource().Get();
 		auto textureDesc = texture->GetDesc();
 
 		for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
@@ -604,11 +604,6 @@ DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
 	return typelessFormat;
 }
 
-ID3D12Resource* Texture::GetResource() const
-{
-	return dxResource.Get();
-
-}
 
 std::wstring& Texture::GetName()
 {

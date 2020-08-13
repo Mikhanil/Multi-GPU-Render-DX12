@@ -12,6 +12,27 @@ MaterialConstants& Material::GetMaterialConstantData()
 	return matConstants;
 }
 
+UINT Material::GetIndex() const
+{
+	return materialIndex;
+}
+
+void Material::SetDirty()
+{
+	NumFramesDirty = globalCountFrameResources;
+}
+
+void Material::SetNormalMap(Texture* texture)
+{
+	normalMap = texture;
+	NormalMapIndex = texture->GetTextureIndex();
+}
+
+void Material::SetPSO(GraphicPSO* pso)
+{
+	this->pso = pso;
+}
+
 GraphicPSO* Material::GetPSO() const
 {
 	return pso;
@@ -43,7 +64,7 @@ void Material::InitMaterial(GMemory& textureHeap)
 	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
 	if (textures[0])
 	{
-		auto desc = textures[0]->GetResource()->GetDesc();
+		auto desc = textures[0]->GetD3D12Resource()->GetDesc();
 
 		if (textures[0])
 		{
@@ -77,18 +98,18 @@ void Material::InitMaterial(GMemory& textureHeap)
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			}
 		}
-		device.CreateShaderResourceView(textures[0]->GetResource(), &srvDesc, cpuTextureHandle);
+		device.CreateShaderResourceView(textures[0]->GetD3D12Resource().Get(), &srvDesc, cpuTextureHandle);
 	}
 
 	if (normalMap)
 	{
-		srvDesc.Format = normalMap->GetResource()->GetDesc().Format;
+		srvDesc.Format = normalMap->GetD3D12Resource()->GetDesc().Format;
 		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-		srvDesc.Texture2D.MipLevels = normalMap->GetResource()->GetDesc().MipLevels;
+		srvDesc.Texture2D.MipLevels = normalMap->GetD3D12Resource()->GetDesc().MipLevels;
 		auto cpuNormalMapTextureHandle = textureHeap.GetCPUHandle(NormalMapIndex);
-		device.CreateShaderResourceView(normalMap->GetResource(), &srvDesc, cpuNormalMapTextureHandle);
+		device.CreateShaderResourceView(normalMap->GetD3D12Resource().Get(), &srvDesc, cpuNormalMapTextureHandle);
 	}
 }
 

@@ -47,7 +47,7 @@ namespace DXLib
 			texture.second->ClearTrack();
 
 			/*ТОлько те что можно использовать как UAV*/
-			if (texture.second->GetResource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+			if (texture.second->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 				continue;
 						
 			if (!texture.second->HasMipMap)
@@ -62,7 +62,7 @@ namespace DXLib
 
 		for (auto && texture : generatedMipTextures)
 		{
-			graphicList->TransitionBarrier(texture->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			graphicList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 		graphicQueue->ExecuteCommandList(graphicList);
 
@@ -75,7 +75,7 @@ namespace DXLib
 		graphicList = graphicQueue->GetCommandList();
 		for (auto&& texture : generatedMipTextures)
 		{
-			graphicList->TransitionBarrier(texture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			graphicList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 		graphicQueue->ExecuteCommandList(graphicList);
 
@@ -149,7 +149,7 @@ namespace DXLib
 			mSsao->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
 			// Resources changed, so need to rebuild descriptors.
-			mSsao->RebuildDescriptors(MainWindow->GetDepthStencilBuffer().GetResource());
+			mSsao->RebuildDescriptors(MainWindow->GetDepthStencilBuffer().GetD3D12Resource().Get());
 		}
 	}
 
@@ -245,7 +245,7 @@ namespace DXLib
 		cmdList->RSSetViewports(1, &MainWindow->GetViewPort());
 		cmdList->RSSetScissorRects(1, &MainWindow->GetRect());
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetResource(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 		cmdList->ClearRenderTargetView(MainWindow->GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
 
@@ -289,7 +289,7 @@ namespace DXLib
 			DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Debug)]);
 		}
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetResource(),
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
 		                                                                  D3D12_RESOURCE_STATE_PRESENT));
 
@@ -885,7 +885,7 @@ namespace DXLib
 
 		mShadowMap->BuildDescriptors();
 
-		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer().GetResource());
+		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer().GetD3D12Resource().Get());
 	}
 
 	void ShapesApp::BuildShadersAndInputLayout()

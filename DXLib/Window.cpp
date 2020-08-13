@@ -378,7 +378,7 @@ namespace DXLib
 		/*dxDevice.CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
 		                                depthStencilViewHeap.GetCPUHandle());*/
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.GetResource(),
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_COMMON,
 		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
 

@@ -74,7 +74,6 @@ public:
 
 	void ClearTrack();
 
-	ID3D12Resource* GetResource() const;
 
 	std::wstring& GetName();
 
