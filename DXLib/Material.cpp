@@ -3,7 +3,7 @@
 
 #include "d3dApp.h"
 #include "GMemory.h"
-#include "PSO.h"
+#include "GraphicPSO.h"
 
 UINT Material::materialIndexGlobal = 0;
 
@@ -12,7 +12,7 @@ MaterialConstants& Material::GetMaterialConstantData()
 	return matConstants;
 }
 
-PSO* Material::GetPSO() const
+GraphicPSO* Material::GetPSO() const
 {
 	return pso;
 }
@@ -23,7 +23,7 @@ void Material::SetDiffuseTexture(Texture* texture)
 	DiffuseMapIndex = texture->GetTextureIndex();
 }
 
-Material::Material(std::string name, PSO* pso): Name(std::move(name)), pso(pso)
+Material::Material(std::string name, GraphicPSO* pso): Name(std::move(name)), pso(pso)
 {
 	materialIndex = materialIndexGlobal++;
 }

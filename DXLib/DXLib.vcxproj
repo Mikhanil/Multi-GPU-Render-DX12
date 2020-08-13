@@ -174,7 +174,7 @@
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GameTimer.h" />
-    <ClInclude Include="GeneratedMipsPSO.h" />
+    <ClInclude Include="ComputePSO.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="GraphicBuffer.h" />
     <ClInclude Include="GMemory.h" />
@@ -190,7 +190,7 @@
     <ClInclude Include="ModelRenderer.h" />
     <ClInclude Include="Mouse.h" />
     <ClInclude Include="ObjectMover.h" />
-    <ClInclude Include="PSO.h" />
+    <ClInclude Include="GraphicPSO.h" />
     <ClInclude Include="Reflected.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="GResource.h" />
@@ -220,7 +220,7 @@
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameTimer.cpp" />
-    <ClCompile Include="GeneratedMipsPSO.cpp" />
+    <ClCompile Include="ComputePSO.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="GraphicBuffer.cpp" />
     <ClCompile Include="GMemory.cpp" />
@@ -236,7 +236,7 @@
     <ClCompile Include="ModelRenderer.cpp" />
     <ClCompile Include="Mouse.cpp" />
     <ClCompile Include="ObjectMover.cpp" />
-    <ClCompile Include="PSO.cpp" />
+    <ClCompile Include="GraphicPSO.cpp" />
     <ClCompile Include="Reflected.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="GResource.cpp" />

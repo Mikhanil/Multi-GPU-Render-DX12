@@ -45,14 +45,14 @@ public:
     /**
     * Get the SRV for a resource.
     */
-    virtual DescriptorHandle GetShaderResourceView(
-	    const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const override;
+    virtual void GetShaderResourceView(
+	    const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const ;
 
     /**
     * Get the UAV for a (sub)resource.
     */
-    virtual DescriptorHandle GetUnorderedAccessView(
-	    const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const override;
+    virtual void GetUnorderedAccessView(
+	    const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const ;
 
 protected:
 

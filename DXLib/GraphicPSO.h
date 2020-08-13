@@ -29,7 +29,7 @@ public:
 	};
 };
 
-class PSO
+class GraphicPSO
 {
 	ComPtr<ID3D12PipelineState> pipelineStateObject;
 	ComPtr<ID3D12PipelineState> debugPso;
@@ -40,7 +40,7 @@ class PSO
 
 public:
 
-	PSO(PsoType::Type type = PsoType::Opaque);
+	GraphicPSO(PsoType::Type type = PsoType::Opaque);
 
 	ComPtr<ID3D12PipelineState> GetPSO() const
 	{

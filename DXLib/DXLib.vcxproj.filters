@@ -117,9 +117,6 @@
     <ClInclude Include="ObjectMover.h">
       <Filter>Header Files\Engine\Components</Filter>
     </ClInclude>
-    <ClInclude Include="PSO.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
     <ClInclude Include="RootSignature.h">
       <Filter>Header Files\Engine\Graphic</Filter>
     </ClInclude>
@@ -139,9 +136,6 @@
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
     <ClInclude Include="Ssao.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedMipsPSO.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
     <ClInclude Include="Window.h">
@@ -182,6 +176,12 @@
     </ClInclude>
     <ClInclude Include="ThreadSafeQueue.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ComputePSO.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicPSO.h">
+      <Filter>Header Files\Engine\Graphic</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -242,9 +242,6 @@
     <ClCompile Include="SkyBox.cpp">
       <Filter>Source Files\Engine\Components</Filter>
     </ClCompile>
-    <ClCompile Include="PSO.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
     <ClCompile Include="RootSignature.cpp">
       <Filter>Source Files\Engine\Graphic</Filter>
     </ClCompile>
@@ -267,9 +264,6 @@
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
     <ClCompile Include="Ssao.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedMipsPSO.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
     <ClCompile Include="Window.cpp">
@@ -313,6 +307,12 @@
     </ClCompile>
     <ClCompile Include="ThreadSaveQueue.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ComputePSO.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicPSO.cpp">
+      <Filter>Source Files\Engine\Graphic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -3,7 +3,7 @@
 
 #include "d3dUtil.h"
 #include "GCommandQueue.h"
-#include "GeneratedMipsPSO.h"
+#include "ComputePSO.h"
 #include "GMemory.h"
 #include "GResource.h"
 
@@ -30,13 +30,6 @@ class Texture : public GResource
 
 	custom_vector<ComPtr<ID3D12Resource>> track = DXAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
-	mutable GMemory renderTargetView;
-	mutable GMemory depthStencilView;
-
-	mutable custom_unordered_map<size_t, GMemory> shaderResourceViews = DXAllocator::CreateUnorderedMap<
-		size_t, GMemory>();
-	mutable custom_unordered_map<size_t, GMemory> unorderedAccessViews = DXAllocator::CreateUnorderedMap<
-		size_t, GMemory>();
 
 	mutable std::mutex shaderResourceViewsMutex;
 	mutable std::mutex unorderedAccessViewsMutex;
@@ -48,7 +41,7 @@ public:
 	static void Resize(Texture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize);
 
 
-	static void GenerateMipMaps(DXLib::GCommandQueue* queue, Texture** textures, size_t count);
+	static void GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** textures, size_t count);
 	TextureUsage GetTextureType() const;
 
 	UINT GetTextureIndex() const;
@@ -67,18 +60,17 @@ public:
 
 	Texture& operator=(const Texture& other);
 	Texture& operator=(Texture&& other);
-	void CreateViews();
 	
-	GMemory CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const;
-	GMemory CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const;
-	GMemory CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc) const;
-	GMemory CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc) const;
+	void CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, GMemory* memory, size_t offset = 0) const;
+	void CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, GMemory* memory, size_t offset = 0) const;
+	void CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, GMemory* memory, size_t offset = 0) const;
+	void CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, GMemory* memory, size_t offset = 0) const;
 	
 	virtual ~Texture();
 
 
 	static std::shared_ptr<Texture> LoadTextureFromFile(std::wstring filepath,
-	                                   ID3D12GraphicsCommandList* commandList, TextureUsage usage = TextureUsage::Diffuse);
+	                                                    std::shared_ptr<GCommandList> commandList, TextureUsage usage = TextureUsage::Diffuse);
 
 	void ClearTrack();
 
@@ -97,9 +89,4 @@ public:
 	static bool IsDepthFormat(DXGI_FORMAT format);
 
 	static DXGI_FORMAT GetTypelessFormat(DXGI_FORMAT format);
-
-	DescriptorHandle GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const override;
-	DescriptorHandle GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const override;
-	DescriptorHandle GetRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc) const;
-	DescriptorHandle GetDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* rtvDesc) const;
 };

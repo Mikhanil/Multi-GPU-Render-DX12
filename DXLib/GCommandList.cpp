@@ -2,13 +2,14 @@
 
 
 
+#include "ComputePSO.h"
 #include "d3dApp.h"
 #include "d3dUtil.h"
 #include "GDataUploader.h"
 #include "GResource.h"
 #include "GResourceStateTracker.h"
 #include "GMemory.h"
-#include "PSO.h"
+#include "GraphicPSO.h"
 #include "RootSignature.h"
 
 custom_map<std::wstring, ID3D12Resource* > GCommandList::ms_TextureCache = DXAllocator::CreateMap<std::wstring, ID3D12Resource* >();
@@ -31,7 +32,7 @@ GCommandList::GCommandList(ComPtr<ID3D12Device> device,D3D12_COMMAND_LIST_TYPE t
     ThrowIfFailed(device->CreateCommandAllocator(m_d3d12CommandListType, IID_PPV_ARGS(&m_d3d12CommandAllocator)));
 
     ThrowIfFailed(device->CreateCommandList(0, m_d3d12CommandListType, m_d3d12CommandAllocator.Get(),
-        nullptr, IID_PPV_ARGS(&m_d3d12CommandList)));
+        nullptr, IID_PPV_ARGS(&cmdList)));
 
     m_UploadBuffer = std::make_unique<GDataUploader>();
 
@@ -53,19 +54,20 @@ D3D12_COMMAND_LIST_TYPE GCommandList::GetCommandListType() const
 
 ComPtr<ID3D12GraphicsCommandList2> GCommandList::GetGraphicsCommandList() const
 {
-	return m_d3d12CommandList;
+	return cmdList;
 }
 
-void GCommandList::SetGMemory(D3D12_DESCRIPTOR_HEAP_TYPE heapType, GMemory* memory) 
+void GCommandList::SetGMemory(const GMemory* memory) 
 {
-	if(memory == nullptr)
+	if(memory == nullptr || memory->IsNull())
 		assert("Memory Descriptor Heap is null");
 
+    const auto type = memory->GetType();
     const auto heap = memory->GetDescriptorHeap();
 	
-    if (m_DescriptorHeaps[heapType] != heap)
+    if (m_DescriptorHeaps[type] != heap)
     {
-        m_DescriptorHeaps[heapType] = heap;
+        m_DescriptorHeaps[type] = heap;
     	
 		BindDescriptorHeaps();
     }
@@ -85,7 +87,7 @@ void GCommandList::BindDescriptorHeaps()
 		}
 	}
 
-	m_d3d12CommandList->SetDescriptorHeaps(numDescriptorHeaps, descriptorHeaps);
+	cmdList->SetDescriptorHeaps(numDescriptorHeaps, descriptorHeaps);
 }
 
 void GCommandList::SetRootSignature(RootSignature* signature)
@@ -98,12 +100,12 @@ void GCommandList::SetRootSignature(RootSignature* signature)
 	
 	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{
-        m_d3d12CommandList->SetGraphicsRootSignature(setedRootSignature.Get());
+        cmdList->SetGraphicsRootSignature(setedRootSignature.Get());
 	}
 
 	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
-        m_d3d12CommandList->SetComputeRootSignature(setedRootSignature.Get());
+        cmdList->SetComputeRootSignature(setedRootSignature.Get());
 	}
 	
     TrackResource(setedRootSignature);
@@ -119,12 +121,12 @@ void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, GResource& 
 	
 	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{		
-        m_d3d12CommandList->SetGraphicsRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
 	}
 
 	if(m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
-        m_d3d12CommandList->SetComputeRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetComputeRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
 	}
 
     TrackResource(resource);
@@ -140,16 +142,32 @@ void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, GResource& 
 	
     if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
     {
-        m_d3d12CommandList->SetGraphicsRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
     }
 
     if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
     {
-        m_d3d12CommandList->SetComputeRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetComputeRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
     }
 
     TrackResource(resource);
 }
+
+void GCommandList::SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data, UINT DestOffsetIn32BitValueToSet )
+{
+	
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        cmdList->SetGraphicsRoot32BitConstants(rootSignatureSlot, Count32BitValueToSet, data, DestOffsetIn32BitValueToSet);
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        cmdList->SetComputeRoot32BitConstants(rootSignatureSlot, Count32BitValueToSet, data,DestOffsetIn32BitValueToSet);
+    }
+
+}
+
 
 void GCommandList::SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource)
 {
@@ -161,44 +179,70 @@ void GCommandList::SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource&
 
     if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
     {
-        m_d3d12CommandList->SetGraphicsRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
     }
 
     if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
     {
-        m_d3d12CommandList->SetComputeRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetComputeRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
     }
 
     TrackResource(resource);
 }
 
-void GCommandList::SetRootDescriptorTable(UINT rootSignatureSlot, GMemory& memory, UINT offset) const
+void GCommandList::SetRootDescriptorTable(UINT rootSignatureSlot,const GMemory* memory, UINT offset) const
 {
+    if(memory == nullptr || memory->IsNull())
+    {
+        assert("Memory null");
+    }
+
 	
     if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
     {
-        m_d3d12CommandList->SetGraphicsRootDescriptorTable(rootSignatureSlot, memory.GetGPUHandle(offset));
+        cmdList->SetGraphicsRootDescriptorTable(rootSignatureSlot, memory->GetGPUHandle(offset));
     }
 
     if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
     {
-        m_d3d12CommandList->SetComputeRootDescriptorTable(rootSignatureSlot, memory.GetGPUHandle(offset));
+        cmdList->SetComputeRootDescriptorTable(rootSignatureSlot, memory->GetGPUHandle(offset));
     }
+}
+
+void GCommandList::UpdateSubresource(GResource& destResource, D3D12_SUBRESOURCE_DATA* subresources,
+                                      size_t countSubresources)
+{
+    auto res = destResource.GetD3D12Resource();
+	
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(res.Get(),
+        0, countSubresources);
+
+    auto upload = DXAllocator::UploadData(uploadBufferSize, nullptr, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+
+    m_ResourceStateTracker->TransitionResource(res.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+    FlushResourceBarriers();
+	
+    UpdateSubresources(cmdList.Get(),
+        res.Get(), &upload.d3d12Resource,
+        upload.Offset, 0, countSubresources,
+        subresources);
+
+    TrackResource(res.Get());
 }
 
 void GCommandList::SetViewports(const D3D12_VIEWPORT* viewports, size_t count) const
 {
     assert(count < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
-    m_d3d12CommandList->RSSetViewports(count, viewports);
+    cmdList->RSSetViewports(count, viewports);
 }
 
 void GCommandList::SetScissorRects(const D3D12_RECT* scissorRects, size_t count) const
 {
     assert(count < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
-    m_d3d12CommandList->RSSetScissorRects(count, scissorRects);
+    cmdList->RSSetScissorRects(count, scissorRects);
 }
 
-void GCommandList::SetPipelineState(PSO& pso)
+void GCommandList::SetPipelineState(GraphicPSO& pso)
 {
 	const auto pipeState = pso.GetPSO();
 
@@ -206,10 +250,24 @@ void GCommandList::SetPipelineState(PSO& pso)
 
     setedPSO = pipeState;
 
-    m_d3d12CommandList->SetPipelineState(setedPSO.Get());
+    cmdList->SetPipelineState(setedPSO.Get());
 
     TrackResource(pipeState);
 }
+
+void GCommandList::SetPipelineState(ComputePSO& pso)
+{
+    const auto pipeState = pso.GetPSO();
+
+    if (pipeState == setedPSO) return;
+
+    setedPSO = pipeState;
+
+    cmdList->SetPipelineState(setedPSO.Get());
+
+    TrackResource(pipeState);
+}
+
 
 void GCommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource, bool flushBarriers)
 {
@@ -267,7 +325,7 @@ void GCommandList::AliasingBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> before
 
 void GCommandList::FlushResourceBarriers() const
 {
-    m_ResourceStateTracker->FlushResourceBarriers(*m_d3d12CommandList.Get());
+    m_ResourceStateTracker->FlushResourceBarriers(*cmdList.Get());
 }
 
 void GCommandList::TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource, bool flushBarriers)
@@ -282,7 +340,7 @@ void GCommandList::CopyResource(Microsoft::WRL::ComPtr<ID3D12Resource> dstRes, M
 
     FlushResourceBarriers();
 
-    m_d3d12CommandList->CopyResource(dstRes.Get(), srcRes.Get());
+    cmdList->CopyResource(dstRes.Get(), srcRes.Get());
 
     TrackResource(dstRes.Get());
     TrackResource(srcRes.Get());
@@ -301,7 +359,7 @@ void GCommandList::ResolveSubresource(GResource& dstRes, const GResource& srcRes
 
     FlushResourceBarriers();
 
-    m_d3d12CommandList->ResolveSubresource(dstRes.GetD3D12Resource().Get(), dstSubresource, srcRes.GetD3D12Resource().Get(), srcSubresource, dstRes.GetD3D12ResourceDesc().Format);
+    cmdList->ResolveSubresource(dstRes.GetD3D12Resource().Get(), dstSubresource, srcRes.GetD3D12Resource().Get(), srcSubresource, dstRes.GetD3D12ResourceDesc().Format);
 
     TrackResource(srcRes);
     TrackResource(dstRes);
@@ -311,7 +369,7 @@ void GCommandList::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t s
 {
     FlushResourceBarriers();
 
-    m_d3d12CommandList->DrawInstanced(vertexCount, instanceCount, startVertex, startInstance);
+    cmdList->DrawInstanced(vertexCount, instanceCount, startVertex, startInstance);
 }
 
 void GCommandList::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t startIndex, int32_t baseVertex,
@@ -319,13 +377,13 @@ void GCommandList::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint
 {
     FlushResourceBarriers();
 
-    m_d3d12CommandList->DrawIndexedInstanced(indexCount, instanceCount, startIndex, baseVertex, startInstance);
+    cmdList->DrawIndexedInstanced(indexCount, instanceCount, startIndex, baseVertex, startInstance);
 }
 
 void GCommandList::Dispatch(uint32_t numGroupsX, uint32_t numGroupsY, uint32_t numGroupsZ) const
 {	
     FlushResourceBarriers();
-    m_d3d12CommandList->Dispatch(numGroupsX, numGroupsY, numGroupsZ);
+    cmdList->Dispatch(numGroupsX, numGroupsY, numGroupsZ);
 }
 
 void GCommandList::ReleaseTrackedObjects()
@@ -333,7 +391,7 @@ void GCommandList::ReleaseTrackedObjects()
     m_TrackedObjects.clear();
 }
 
-void GCommandList::Reset(PSO* pso)
+void GCommandList::Reset(GraphicPSO* pso)
 {	
 	ThrowIfFailed(m_d3d12CommandAllocator->Reset());
 
@@ -356,7 +414,7 @@ void GCommandList::Reset(PSO* pso)
         TrackResource(setedPSO);
     }
 	
-	ThrowIfFailed(m_d3d12CommandList->Reset(m_d3d12CommandAllocator.Get(), setedPSO.Get()));
+	ThrowIfFailed(cmdList->Reset(m_d3d12CommandAllocator.Get(), setedPSO.Get()));
 }
 
 bool GCommandList::Close(GCommandList& pendingCommandList)
@@ -364,7 +422,7 @@ bool GCommandList::Close(GCommandList& pendingCommandList)
     // Flush any remaining barriers.
     FlushResourceBarriers();
 
-    m_d3d12CommandList->Close();
+    cmdList->Close();
 
     const auto peddingCmdList = pendingCommandList.GetGraphicsCommandList();
     // Flush pending resource barriers.
@@ -378,10 +436,10 @@ bool GCommandList::Close(GCommandList& pendingCommandList)
 void GCommandList::Close()
 {
     FlushResourceBarriers();
-    m_d3d12CommandList->Close();
+    cmdList->Close();
 }
 
 void GCommandList::SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY primitiveTopology) const
 {
-    m_d3d12CommandList->IASetPrimitiveTopology(primitiveTopology);
+    cmdList->IASetPrimitiveTopology(primitiveTopology);
 }

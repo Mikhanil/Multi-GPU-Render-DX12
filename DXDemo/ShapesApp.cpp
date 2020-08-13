@@ -49,8 +49,7 @@ namespace DXLib
 			/*ТОлько те что можно использовать как UAV*/
 			if (texture.second->GetResource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 				continue;
-
-			
+						
 			if (!texture.second->HasMipMap)
 			{
 				generatedMipTextures.push_back(texture.second.get());
@@ -64,22 +63,21 @@ namespace DXLib
 		for (auto && texture : generatedMipTextures)
 		{
 			graphicList->TransitionBarrier(texture->GetResource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		}		
-		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
+		}
+		graphicQueue->ExecuteCommandList(graphicList);
 
 		const auto computeQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		
-		Texture::GenerateMipMaps(computeQueue.get(), generatedMipTextures.data(), generatedMipTextures.size());				
-		
+		auto cmdList = computeQueue->GetCommandList();		
+		Texture::GenerateMipMaps(cmdList, generatedMipTextures.data(), generatedMipTextures.size());		
+		computeQueue->ExecuteCommandList(cmdList);
 
-		
 		
 		graphicList = graphicQueue->GetCommandList();
 		for (auto&& texture : generatedMipTextures)
 		{
 			graphicList->TransitionBarrier(texture->GetResource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
-		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
+		graphicQueue->ExecuteCommandList(graphicList);
 
 		
 		for (auto&& pair : textures)
@@ -105,7 +103,7 @@ namespace DXLib
 			cmdList->GetGraphicsCommandList().Get(),
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-		LoadTextures(commandQueue->GetD3D12CommandQueue().Get(), cmdList->GetGraphicsCommandList().Get());
+		LoadTextures( cmdList);
 
 
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
@@ -516,7 +514,7 @@ namespace DXLib
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 
-	void ShapesApp::LoadDoomSlayerTexture(ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadDoomSlayerTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");
 
@@ -556,7 +554,7 @@ namespace DXLib
 			texture->SetName(doomNames[i]);
 			
 			auto normal = Texture::LoadTextureFromFile(doomFolder + doomNormals[i], cmdList,
-			                                        TextureUsage::Normalmap);
+			                                           TextureUsage::Normalmap);
 			normal->SetName(doomNames[i].append(L"Normal"));
 			
 			textures[texture->GetName()] = std::move(texture);
@@ -564,7 +562,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::LoadStudyTexture(ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadStudyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		auto bricksTex = Texture::LoadTextureFromFile( L"Data\\Textures\\bricks2.dds", cmdList);
 		bricksTex->SetName(L"bricksTex");
@@ -625,7 +623,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::LoadNanosuitTexture(ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadNanosuitTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring nanoFolder(L"Data\\Objects\\Nanosuit\\");
 
@@ -664,14 +662,14 @@ namespace DXLib
 			auto texture = Texture::LoadTextureFromFile(nanoFolder + nanoTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(nanoNames[i]);
 			auto normal = Texture::LoadTextureFromFile( nanoFolder + nanoNormals[i], cmdList,
-			                                        TextureUsage::Normalmap);
+			                                            TextureUsage::Normalmap);
 			normal->SetName(nanoNames[i].append(L"Normal"));
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
 		}
 	}
 
-	void ShapesApp::LoadAtlasTexture(ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring atlasFolder(L"Data\\Objects\\Atlas\\");
 
@@ -698,7 +696,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::LoadPBodyTexture(ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring PBodyFolder(L"Data\\Objects\\P-Body\\");
 
@@ -722,13 +720,13 @@ namespace DXLib
 		for (UINT i = 0; i < PBodyNames.size(); ++i)
 		{			
 			auto texture = Texture::LoadTextureFromFile( PBodyFolder + PBodyTextures[i], cmdList,
-			                                         TextureUsage::Diffuse);
+			                                             TextureUsage::Diffuse);
 			texture->SetName(PBodyNames[i]);
 			textures[texture->GetName()] = std::move(texture);
 		}
 	}
 
-	void ShapesApp::LoadGolemTexture(ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadGolemTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring mechFolder(L"Data\\Objects\\StoneGolem\\");
 
@@ -752,14 +750,14 @@ namespace DXLib
 			auto texture = Texture::LoadTextureFromFile( mechFolder + mechTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(mechNames[i]);
 			auto normal = Texture::LoadTextureFromFile(mechFolder + mechNormals[i], cmdList,
-			                                        TextureUsage::Normalmap);
+			                                           TextureUsage::Normalmap);
 			normal->SetName(mechNames[i].append(L"Normal"));
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
 		}
 	}
 
-	void ShapesApp::LoadTextures(ID3D12CommandQueue* queue, ID3D12GraphicsCommandList2* cmdList)
+	void ShapesApp::LoadTextures( std::shared_ptr<GCommandList> cmdList)
 	{
 		LoadStudyTexture(cmdList);
 
@@ -1323,14 +1321,14 @@ namespace DXLib
 		auto rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 
 
-		auto opaquePSO = std::make_unique<PSO>();
+		auto opaquePSO = std::make_unique<GraphicPSO>();
 		opaquePSO->SetPsoDesc(basePsoDesc);
 		depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
 		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		opaquePSO->SetDepthStencilState(depthStencilDesc);
 
-		auto alphaDropPso = std::make_unique<PSO>(PsoType::OpaqueAlphaDrop);
+		auto alphaDropPso = std::make_unique<GraphicPSO>(PsoType::OpaqueAlphaDrop);
 		alphaDropPso->SetPsoDesc(opaquePSO->GetPsoDescription());
 		alphaDropPso->SetShader(shaders["AlphaDrop"].get());
 		rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -1338,7 +1336,7 @@ namespace DXLib
 		alphaDropPso->SetRasterizationState(rasterizedDesc);
 
 
-		auto shadowMapPSO = std::make_unique<PSO>(PsoType::ShadowMapOpaque);
+		auto shadowMapPSO = std::make_unique<GraphicPSO>(PsoType::ShadowMapOpaque);
 		shadowMapPSO->SetPsoDesc(basePsoDesc);
 		shadowMapPSO->SetShader(shaders["shadowVS"].get());
 		shadowMapPSO->SetShader(shaders["shadowOpaquePS"].get());
@@ -1352,12 +1350,12 @@ namespace DXLib
 		shadowMapPSO->SetRasterizationState(rasterizedDesc);
 
 
-		auto shadowMapDropPSO = std::make_unique<PSO>(PsoType::ShadowMapOpaqueDrop);
+		auto shadowMapDropPSO = std::make_unique<GraphicPSO>(PsoType::ShadowMapOpaqueDrop);
 		shadowMapDropPSO->SetPsoDesc(shadowMapPSO->GetPsoDescription());
 		shadowMapDropPSO->SetShader(shaders["shadowOpaqueDropPS"].get());
 
 
-		auto drawNormalsPso = std::make_unique<PSO>(PsoType::DrawNormalsOpaque);
+		auto drawNormalsPso = std::make_unique<GraphicPSO>(PsoType::DrawNormalsOpaque);
 		drawNormalsPso->SetPsoDesc(basePsoDesc);
 		drawNormalsPso->SetShader(shaders["drawNormalsVS"].get());
 		drawNormalsPso->SetShader(shaders["drawNormalsPS"].get());
@@ -1366,14 +1364,14 @@ namespace DXLib
 		drawNormalsPso->SetSampleQuality(0);
 		drawNormalsPso->SetDSVFormat(depthStencilFormat);
 
-		auto drawNormalsDropPso = std::make_unique<PSO>(PsoType::DrawNormalsOpaqueDrop);
+		auto drawNormalsDropPso = std::make_unique<GraphicPSO>(PsoType::DrawNormalsOpaqueDrop);
 		drawNormalsDropPso->SetPsoDesc(drawNormalsPso->GetPsoDescription());
 		drawNormalsDropPso->SetShader(shaders["drawNormalsAlphaDropPS"].get());
 		rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;
 		drawNormalsDropPso->SetRasterizationState(rasterizedDesc);
 
-		auto ssaoPSO = std::make_unique<PSO>(PsoType::Ssao);
+		auto ssaoPSO = std::make_unique<GraphicPSO>(PsoType::Ssao);
 		ssaoPSO->SetPsoDesc(basePsoDesc);
 		ssaoPSO->SetInputLayout({nullptr, 0});
 		ssaoPSO->SetRootSignature(ssaoRootSignature.Get());
@@ -1388,12 +1386,12 @@ namespace DXLib
 		depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 		ssaoPSO->SetDepthStencilState(depthStencilDesc);
 
-		auto ssaoBlurPSO = std::make_unique<PSO>(PsoType::SsaoBlur);
+		auto ssaoBlurPSO = std::make_unique<GraphicPSO>(PsoType::SsaoBlur);
 		ssaoBlurPSO->SetPsoDesc(ssaoPSO->GetPsoDescription());
 		ssaoBlurPSO->SetShader(shaders["ssaoBlurVS"].get());
 		ssaoBlurPSO->SetShader(shaders["ssaoBlurPS"].get());
 
-		auto skyBoxPSO = std::make_unique<PSO>(PsoType::SkyBox);
+		auto skyBoxPSO = std::make_unique<GraphicPSO>(PsoType::SkyBox);
 		skyBoxPSO->SetPsoDesc(basePsoDesc);
 		skyBoxPSO->SetShader(shaders["SkyBoxVertex"].get());
 		skyBoxPSO->SetShader(shaders["SkyBoxPixel"].get());
@@ -1406,7 +1404,7 @@ namespace DXLib
 		skyBoxPSO->SetRasterizationState(rasterizedDesc);
 
 
-		auto transperentPSO = std::make_unique<PSO>(PsoType::Transparent);
+		auto transperentPSO = std::make_unique<GraphicPSO>(PsoType::Transparent);
 		transperentPSO->SetPsoDesc(basePsoDesc);
 		D3D12_RENDER_TARGET_BLEND_DESC transparencyBlendDesc = {};
 		transparencyBlendDesc.BlendEnable = true;
@@ -1422,7 +1420,7 @@ namespace DXLib
 		transperentPSO->SetRenderTargetBlendState(0, transparencyBlendDesc);
 
 
-		auto treeSprite = std::make_unique<PSO>(PsoType::AlphaSprites);
+		auto treeSprite = std::make_unique<GraphicPSO>(PsoType::AlphaSprites);
 		treeSprite->SetPsoDesc(basePsoDesc);
 		treeSprite->SetShader(shaders["treeSpriteVS"].get());
 		treeSprite->SetShader(shaders["treeSpriteGS"].get());
@@ -1433,7 +1431,7 @@ namespace DXLib
 		rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;
 		treeSprite->SetRasterizationState(rasterizedDesc);
 
-		auto debugPso = std::make_unique<PSO>(PsoType::Debug);
+		auto debugPso = std::make_unique<GraphicPSO>(PsoType::Debug);
 		debugPso->SetPsoDesc(basePsoDesc);
 		debugPso->SetShader(shaders["ssaoDebugVS"].get());
 		debugPso->SetShader(shaders["ssaoDebugPS"].get());

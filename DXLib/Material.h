@@ -5,7 +5,7 @@
 #include "ShaderBuffersData.h"
 #include "Texture.h"
 
-class PSO;
+class GraphicPSO;
 using namespace Microsoft::WRL;
 
 
@@ -16,7 +16,7 @@ class Material
 	UINT materialIndex = -1;
 
 	std::string Name;
-	PSO* pso = nullptr;
+	GraphicPSO* pso = nullptr;
 
 	MaterialConstants matConstants{};
 
@@ -46,7 +46,7 @@ public:
 		NumFramesDirty = globalCountFrameResources;
 	}
 
-	PSO* GetPSO() const;
+	GraphicPSO* GetPSO() const;
 
 	void SetNormalMap(Texture* texture)
 	{
@@ -54,14 +54,14 @@ public:
 		NormalMapIndex = texture->GetTextureIndex();
 	}
 
-	void SetPSO(PSO* pso)
+	void SetPSO(GraphicPSO* pso)
 	{
 		this->pso = pso;
 	}
 
 	void SetDiffuseTexture(Texture* texture);
 
-	Material(std::string name, PSO* pso);
+	Material(std::string name, GraphicPSO* pso);
 
 	void InitMaterial(GMemory& textureHeap);
 

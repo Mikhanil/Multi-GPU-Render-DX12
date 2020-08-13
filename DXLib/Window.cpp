@@ -35,7 +35,7 @@ namespace DXLib
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Window::GetDepthStencilView() const
 	{
-		return depthStencilViewHeap.cpuHandle;
+		return depthStencilViewHeap.GetCPUHandle();
 	}
 
 
@@ -137,7 +137,7 @@ namespace DXLib
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentBackBufferView() const
 	{
-		return rtvDescriptorHeap[currentBackBufferIndex].cpuHandle;
+		return rtvDescriptorHeap.GetCPUHandle(currentBackBufferIndex);
 	}
 
 	Texture& Window::GetCurrentBackBuffer() 
@@ -373,7 +373,7 @@ namespace DXLib
 		dsvDesc.Format = depthStencilFormat;
 		dsvDesc.Texture2D.MipSlice = 0;
 
-		depthStencilViewHeap = depthStencilBuffer.GetDepthStencilView(&dsvDesc);
+		depthStencilBuffer.CreateDepthStencilView(&dsvDesc, &depthStencilViewHeap);
 		
 		/*dxDevice.CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
 		                                depthStencilViewHeap.GetCPUHandle());*/
@@ -479,7 +479,7 @@ namespace DXLib
 			//device.CreateRenderTargetView(backBuffer.Get(), &rtvDesc, rtvDescriptorHeap.GetCPUHandle(i));
 
 			backBuffers[i].SetD3D12Resource(backBuffer);
-			rtvDescriptorHeap[i] = backBuffers[i].GetRenderTargetView(&rtvDesc);
+			backBuffers[i].CreateRenderTargetView(&rtvDesc, &rtvDescriptorHeap, i);
 		}
 	}
 }

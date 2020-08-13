@@ -12,7 +12,8 @@ class GDataUploader;
 class GMemory;
 class GResourceStateTracker;
 class RootSignature;
-class PSO;
+class GraphicPSO;
+class ComputePSO;
 
 class GCommandList
 {
@@ -25,7 +26,7 @@ private:
 	TrackedObjects m_TrackedObjects = DXAllocator::CreateVector<Microsoft::WRL::ComPtr<ID3D12Object> >();
 
 	std::unique_ptr<GDataUploader> m_UploadBuffer;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> m_d3d12CommandList;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList2> cmdList;
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_d3d12CommandAllocator;
 
 
@@ -53,23 +54,28 @@ public:
 
 	void BindDescriptorHeaps();
 	
-	void SetGMemory(D3D12_DESCRIPTOR_HEAP_TYPE heapType, GMemory* memory);
+	void SetGMemory(const GMemory* memory);
 
 	void SetRootSignature(RootSignature* signature);
 
 	void SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource);
 
 	void SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource);
+	void SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data,
+	                               UINT DestOffsetIn32BitValueToSet);
 
 	void SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource);
 
-	void SetRootDescriptorTable(UINT rootSignatureSlot, GMemory& memory, UINT offset = 0) const;
+	void SetRootDescriptorTable(UINT rootSignatureSlot, const GMemory* memory, UINT offset = 0) const;
+
+	void UpdateSubresource(GResource& destResource, D3D12_SUBRESOURCE_DATA* subresources, size_t countSubresources);
 
 	void SetViewports(const D3D12_VIEWPORT* viewports, size_t count) const;
 
 	void SetScissorRects(const D3D12_RECT* scissorRects, size_t count) const;
 
-	void SetPipelineState(PSO& pso);
+	void SetPipelineState(GraphicPSO& pso);
+	void SetPipelineState(ComputePSO& pso);
 
 	void SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY primitiveTopology) const;
 	
@@ -99,7 +105,7 @@ public:
 	
 	void ReleaseTrackedObjects();
 	
-	void Reset(PSO* pso = nullptr);
+	void Reset(GraphicPSO* pso = nullptr);
 
 	bool Close(GCommandList& pendingCommandList);
 	

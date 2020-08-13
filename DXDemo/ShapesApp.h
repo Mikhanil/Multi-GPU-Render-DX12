@@ -10,7 +10,7 @@
 #include "GMemory.h"
 #include "Light.h"
 #include "Shader.h"
-#include "PSO.h"
+#include "GraphicPSO.h"
 #include "RootSignature.h"
 #include "ShadowMap.h"
 #include "Ssao.h"
@@ -45,12 +45,12 @@ namespace DXLib
 		void UpdateShadowTransform(const GameTimer& gt);
 		void UpdateShadowPassCB(const GameTimer& gt);
 		void UpdateSsaoCB(const GameTimer& gt);
-		void LoadDoomSlayerTexture(ID3D12GraphicsCommandList2* cmdList);
-		void LoadStudyTexture(ID3D12GraphicsCommandList2* cmdList);
-		void LoadNanosuitTexture(ID3D12GraphicsCommandList2* cmdList);
-		void LoadAtlasTexture(ID3D12GraphicsCommandList2* cmdList);
-		void LoadPBodyTexture(ID3D12GraphicsCommandList2* cmdList);
-		void LoadGolemTexture(ID3D12GraphicsCommandList2* cmdList);
+		void LoadDoomSlayerTexture(std::shared_ptr<GCommandList> cmdList);
+		void LoadStudyTexture(std::shared_ptr<GCommandList> cmdList);
+		void LoadNanosuitTexture(std::shared_ptr<GCommandList> cmdList);
+		void LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList);
+		void LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList);
+		void LoadGolemTexture(std::shared_ptr<GCommandList> cmdList);
 		void BuildTexturesHeap();
 		void Update(const GameTimer& gt) override;
 		void UpdateMaterial(const GameTimer& gt);
@@ -62,7 +62,7 @@ namespace DXLib
 		void UpdateMainPassCB(const GameTimer& gt);
 
 
-		void LoadTextures(ID3D12CommandQueue* queue, ID3D12GraphicsCommandList2* cmdList);
+		void LoadTextures( std::shared_ptr<GCommandList> cmdList);
 		void BuildRootSignature();
 		void BuildShadersAndInputLayout();
 		void BuildShapeGeometry();
@@ -100,7 +100,7 @@ namespace DXLib
 		custom_unordered_map<std::string, std::unique_ptr<Shader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Shader>>();
 		custom_unordered_map<std::wstring, std::shared_ptr<Texture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Texture>>();
 		custom_unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<ModelMesh>>();
-		custom_unordered_map<PsoType::Type, std::unique_ptr<PSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<PSO>>();
+		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
 		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
 		
 

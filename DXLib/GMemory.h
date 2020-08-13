@@ -32,6 +32,8 @@ public:
         
     std::shared_ptr<GHeap> GetDescriptorAllocatorPage() const;
 
+    D3D12_DESCRIPTOR_HEAP_TYPE GetType() const;
+
     ID3D12DescriptorHeap* GetDescriptorHeap() const;
 
 private:   

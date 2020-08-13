@@ -42,12 +42,6 @@ public:
 	                              const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
 	
-	virtual DescriptorHandle GetShaderResourceView(
-		const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc = nullptr) const = 0;
-
-	
-	virtual DescriptorHandle GetUnorderedAccessView(
-		const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc = nullptr) const = 0;
 
 
 	

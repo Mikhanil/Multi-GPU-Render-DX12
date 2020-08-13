@@ -121,11 +121,11 @@ namespace DXLib
 
 		
 		
-		DescriptorHandle depthStencilViewHeap;
+		GMemory depthStencilViewHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 		Texture depthStencilBuffer;
 		
 		std::vector<Texture> backBuffers;
-		DescriptorHandle rtvDescriptorHeap[BufferCount];
+		GMemory rtvDescriptorHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
 		
 		D3D12_VIEWPORT screenViewport;
 		D3D12_RECT scissorRect;

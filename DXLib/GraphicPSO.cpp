@@ -1,6 +1,6 @@
-#include "PSO.h"
+#include "GraphicPSO.h"
 
-PSO::PSO(PsoType::Type type): type(type)
+GraphicPSO::GraphicPSO(PsoType::Type type): type(type)
 {
 	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -11,73 +11,73 @@ PSO::PSO(PsoType::Type type): type(type)
 	psoDesc.NumRenderTargets = 1;
 }
 
-D3D12_GRAPHICS_PIPELINE_STATE_DESC PSO::GetPsoDescription() const
+D3D12_GRAPHICS_PIPELINE_STATE_DESC GraphicPSO::GetPsoDescription() const
 {
 	return psoDesc;
 }
 
-void PSO::SetRootSignature(ID3D12RootSignature* rootSign)
+void GraphicPSO::SetRootSignature(ID3D12RootSignature* rootSign)
 {
 	psoDesc.pRootSignature = rootSign;
 }
 
-void PSO::SetInputLayout(D3D12_INPUT_LAYOUT_DESC layoutDesc)
+void GraphicPSO::SetInputLayout(D3D12_INPUT_LAYOUT_DESC layoutDesc)
 {
 	psoDesc.InputLayout = layoutDesc;
 }
 
-void PSO::SetRasterizationState(D3D12_RASTERIZER_DESC rastState)
+void GraphicPSO::SetRasterizationState(D3D12_RASTERIZER_DESC rastState)
 {
 	psoDesc.RasterizerState = rastState;
 }
 
-void PSO::SetBlendState(D3D12_BLEND_DESC blendDesc)
+void GraphicPSO::SetBlendState(D3D12_BLEND_DESC blendDesc)
 {
 	psoDesc.BlendState = blendDesc;
 }
 
-void PSO::SetDepthStencilState(D3D12_DEPTH_STENCIL_DESC ddsDesc)
+void GraphicPSO::SetDepthStencilState(D3D12_DEPTH_STENCIL_DESC ddsDesc)
 {
 	psoDesc.DepthStencilState = ddsDesc;
 }
 
-void PSO::SetDSVFormat(DXGI_FORMAT format)
+void GraphicPSO::SetDSVFormat(DXGI_FORMAT format)
 {
 	psoDesc.DSVFormat = format;
 }
 
-void PSO::SetSampleMask(UINT sampleMask)
+void GraphicPSO::SetSampleMask(UINT sampleMask)
 {
 	psoDesc.SampleMask = sampleMask;
 }
 
-void PSO::SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE primitiveType)
+void GraphicPSO::SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE primitiveType)
 {
 	psoDesc.PrimitiveTopologyType = primitiveType;
 }
 
-void PSO::SetRenderTargetsCount(UINT count)
+void GraphicPSO::SetRenderTargetsCount(UINT count)
 {
 	psoDesc.NumRenderTargets = count;
 }
 
-void PSO::SetRTVFormat(UINT index, DXGI_FORMAT format)
+void GraphicPSO::SetRTVFormat(UINT index, DXGI_FORMAT format)
 {
 	index = std::clamp(index, 0U, 7U);
 	psoDesc.RTVFormats[index] = format;
 }
 
-void PSO::SetSampleCount(UINT count)
+void GraphicPSO::SetSampleCount(UINT count)
 {
 	psoDesc.SampleDesc.Count = count;
 }
 
-void PSO::SetSampleQuality(UINT quality)
+void GraphicPSO::SetSampleQuality(UINT quality)
 {
 	psoDesc.SampleDesc.Quality = quality;
 }
 
-void PSO::SetShader(Shader* shader)
+void GraphicPSO::SetShader(Shader* shader)
 {
 	switch (shader->GetType())
 	{
@@ -113,12 +113,12 @@ void PSO::SetShader(Shader* shader)
 	}
 }
 
-PsoType::Type PSO::GetType() const
+PsoType::Type GraphicPSO::GetType() const
 {
 	return type;
 }
 
-void PSO::Initialize(ID3D12Device* device)
+void GraphicPSO::Initialize(ID3D12Device* device)
 {
 	if (isInitial) return;
 
