@@ -98,7 +98,7 @@ void Material::InitMaterial(GMemory& textureHeap)
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			}
 		}
-		device.CreateShaderResourceView(textures[0]->GetD3D12Resource().Get(), &srvDesc, cpuTextureHandle);
+		textures[0]->CreateShaderResourceView(&srvDesc, &textureHeap, DiffuseMapIndex);
 	}
 
 	if (normalMap)
@@ -108,8 +108,8 @@ void Material::InitMaterial(GMemory& textureHeap)
 		srvDesc.Texture2D.MostDetailedMip = 0;
 		srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 		srvDesc.Texture2D.MipLevels = normalMap->GetD3D12Resource()->GetDesc().MipLevels;
-		auto cpuNormalMapTextureHandle = textureHeap.GetCPUHandle(NormalMapIndex);
-		device.CreateShaderResourceView(normalMap->GetD3D12Resource().Get(), &srvDesc, cpuNormalMapTextureHandle);
+		normalMap->CreateShaderResourceView(&srvDesc, &textureHeap, NormalMapIndex);
+
 	}
 }
 

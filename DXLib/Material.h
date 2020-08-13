@@ -36,28 +36,15 @@ public:
 
 	MaterialConstants& GetMaterialConstantData();
 
-	UINT GetIndex() const
-	{
-		return materialIndex;
-	}
+	UINT GetIndex() const;
 
-	void SetDirty()
-	{
-		NumFramesDirty = globalCountFrameResources;
-	}
+	void SetDirty();
 
 	GraphicPSO* GetPSO() const;
 
-	void SetNormalMap(Texture* texture)
-	{
-		normalMap = texture;
-		NormalMapIndex = texture->GetTextureIndex();
-	}
+	void SetNormalMap(Texture* texture);
 
-	void SetPSO(GraphicPSO* pso)
-	{
-		this->pso = pso;
-	}
+	void SetPSO(GraphicPSO* pso);
 
 	void SetDiffuseTexture(Texture* texture);
 

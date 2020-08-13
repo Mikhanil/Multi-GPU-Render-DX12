@@ -2,6 +2,7 @@
 
 #include "d3dUtil.h"
 #include "FrameResource.h"
+#include "GraphicPSO.h"
 
 
 class Ssao
@@ -39,7 +40,7 @@ public:
 
 	void RebuildDescriptors(ID3D12Resource* depthStencilBuffer);
 
-	void SetPSOs(ID3D12PipelineState* ssaoPso, ID3D12PipelineState* ssaoBlurPso);
+	void SetPSOs(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso);
 
 	///<summary>
 	/// Call when the backbuffer is resized.  
@@ -78,44 +79,26 @@ private:
 private:
 	ID3D12Device* md3dDevice;
 
-	ComPtr<ID3D12RootSignature> mSsaoRootSig;
+	GraphicPSO mSsaoPso;
+	GraphicPSO mBlurPso;
 
-	ID3D12PipelineState* mSsaoPso = nullptr;
-	ID3D12PipelineState* mBlurPso = nullptr;
-
-	ComPtr<ID3D12Resource> mRandomVectorMap;
-	ComPtr<ID3D12Resource> mRandomVectorMapUploadBuffer;
-	ComPtr<ID3D12Resource> mNormalMap;
-	ComPtr<ID3D12Resource> mAmbientMap0;
-	ComPtr<ID3D12Resource> mAmbientMap1;
+	Texture mRandomVectorMap;
+	Texture mNormalMap;
+	Texture mAmbientMap0;
+	Texture mAmbientMap1;
 
 	GMemory normalMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,1);
 	GMemory normalMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
 	
-	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhNormalMapGpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhNormalMapCpuRtv;*/
-
 	GMemory depthMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	
-	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhDepthMapCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhDepthMapGpuSrv;*/
-
 	GMemory randomVectorSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	
-	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhRandomVectorMapCpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhRandomVectorMapGpuSrv;*/
 
 	// Need two for ping-ponging during blur.
 	GMemory ambientMapMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 	GMemory ambientMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2);
-	/*CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap0CpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhAmbientMap0GpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap0CpuRtv;
-
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuSrv;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE mhAmbientMap1GpuSrv;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE mhAmbientMap1CpuRtv;*/
+	
 
 	UINT mRenderTargetWidth;
 	UINT mRenderTargetHeight;

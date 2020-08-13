@@ -125,8 +125,8 @@ namespace DXLib
 		BuildGameObjects();
 		BuildFrameResources();
 		SortGO();
-
-		mSsao->SetPSOs(psos[PsoType::Ssao]->GetPSO().Get(), psos[PsoType::SsaoBlur]->GetPSO().Get());
+				
+		mSsao->SetPSOs(*psos[PsoType::Ssao], *psos[PsoType::SsaoBlur]);
 
 
 		// Wait until initialization is complete.
@@ -2013,7 +2013,7 @@ namespace DXLib
 		cmdList->RSSetViewports(1, &mShadowMap->Viewport());
 		cmdList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->GetTexture().GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
 		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
@@ -2037,7 +2037,7 @@ namespace DXLib
 		DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->GetTexture().GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		                                                                  D3D12_RESOURCE_STATE_GENERIC_READ));
 	}
@@ -2052,7 +2052,7 @@ namespace DXLib
 
 		// Change to RENDER_TARGET.
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
-		                                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+		                                                                  D3D12_RESOURCE_STATE_COMMON,
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 		// Clear the screen normal map and depth buffer.
@@ -2079,7 +2079,7 @@ namespace DXLib
 		// Change back to GENERIC_READ so we can read the texture in a shader.
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-		                                                                  D3D12_RESOURCE_STATE_GENERIC_READ));
+			D3D12_RESOURCE_STATE_COMMON));
 	}
 
 	void ShapesApp::SortGO()
