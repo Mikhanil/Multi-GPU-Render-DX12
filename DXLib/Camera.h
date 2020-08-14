@@ -2,12 +2,12 @@
 #include "Component.h"
 #include "SimpleMath.h"
 
-
+class GCommandList;
 using namespace DirectX::SimpleMath;
 
 class Camera : public Component
 {
-	void Draw(ID3D12GraphicsCommandList* cmdList) override
+	void Draw(std::shared_ptr<GCommandList> cmdList) override
 	{
 	};
 	void Update() override;

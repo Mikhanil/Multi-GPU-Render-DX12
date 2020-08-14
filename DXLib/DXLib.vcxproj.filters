@@ -132,12 +132,6 @@
     <ClInclude Include="ShaderBuffersData.h">
       <Filter>Header Files\Engine</Filter>
     </ClInclude>
-    <ClInclude Include="ShadowMap.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Ssao.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
     <ClInclude Include="Window.h">
       <Filter>Header Files\Refactor</Filter>
     </ClInclude>
@@ -182,6 +176,12 @@
     </ClInclude>
     <ClInclude Include="GraphicPSO.h">
       <Filter>Header Files\Engine\Graphic</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowMapPath.h">
+      <Filter>Header Files\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="SsaoPath.h">
+      <Filter>Header Files\Engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -260,12 +260,6 @@
     <ClCompile Include="Keyboard.cpp">
       <Filter>Source Files\Engine</Filter>
     </ClCompile>
-    <ClCompile Include="ShadowMap.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Ssao.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
     <ClCompile Include="Window.cpp">
       <Filter>Header Files\Refactor</Filter>
     </ClCompile>
@@ -313,6 +307,12 @@
     </ClCompile>
     <ClCompile Include="GraphicPSO.cpp">
       <Filter>Source Files\Engine\Graphic</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowMapPath.cpp">
+      <Filter>Source Files\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="SsaoPath.cpp">
+      <Filter>Source Files\Engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

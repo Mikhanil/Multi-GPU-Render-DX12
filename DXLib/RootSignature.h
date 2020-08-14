@@ -44,7 +44,7 @@ public:
 	void AddConstantBufferParameter(UINT shaderRegister, UINT registerSpace = 0,
 	                                D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
 
-	void AddConstantParameter(UINT value, UINT shaderRegister, UINT registerSpace = 0,
+	void AddConstantParameter(UINT valueCount, UINT shaderRegister, UINT registerSpace = 0,
 	                          D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);
 
 	void AddShaderResourceView(UINT shaderRegister, UINT registerSpace = 0,

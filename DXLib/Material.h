@@ -6,6 +6,7 @@
 #include "Texture.h"
 
 class GraphicPSO;
+class GCommandList;
 using namespace Microsoft::WRL;
 
 
@@ -52,7 +53,7 @@ public:
 
 	void InitMaterial(GMemory& textureHeap);
 
-	void Draw(ID3D12GraphicsCommandList* cmdList) const;
+	void Draw(std::shared_ptr<GCommandList> cmdList) const;
 
 	void Update();
 

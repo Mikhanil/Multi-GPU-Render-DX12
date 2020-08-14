@@ -30,7 +30,7 @@ void GameObject::Update()
 	}
 }
 
-void GameObject::Draw(ID3D12GraphicsCommandList* cmdList)
+void GameObject::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 	for (auto&& component : components)
 	{

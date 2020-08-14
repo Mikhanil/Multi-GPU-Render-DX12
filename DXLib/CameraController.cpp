@@ -86,6 +86,6 @@ void CameraController::Update()
 	}
 }
 
-void CameraController::Draw(ID3D12GraphicsCommandList* cmdList)
+void CameraController::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 }

@@ -13,7 +13,7 @@ public:
 
 	void Update(Transform* transform);
 
-	void Draw(ID3D12GraphicsCommandList* cmdList) const;
+	void Draw(std::shared_ptr<GCommandList> cmdList) const;
 	void static CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex>& vertex);
 
 	Material* material{};
@@ -39,7 +39,7 @@ class ModelRenderer : public Renderer
 	static ModelMesh ProcessMesh(aiMesh* mesh, const aiScene* scene,
 	                             ID3D12GraphicsCommandList* cmdList);
 
-	void Draw(ID3D12GraphicsCommandList* cmdList) override;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 
 	void Update() override;
 

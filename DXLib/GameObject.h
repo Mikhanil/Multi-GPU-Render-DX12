@@ -3,6 +3,8 @@
 #include "Transform.h"
 #include "Renderer.h"
 
+class GCommandList;
+
 class GameObject
 {
 public:
@@ -15,7 +17,7 @@ public:
 
 	void virtual Update();
 
-	void virtual Draw(ID3D12GraphicsCommandList* cmdList);
+	void virtual Draw(std::shared_ptr<GCommandList> cmdList);
 
 	Transform* GetTransform() const;
 

@@ -5,6 +5,7 @@
 #include "assimp/Importer.hpp"
 #include "assimp/mesh.h"
 #include "DirectXMesh.h"
+#include "GCommandList.h"
 #include "STLCustomAllocator.h"
 
 ModelMesh::ModelMesh(ID3D12GraphicsCommandList* cmdList, std::string name,
@@ -31,14 +32,16 @@ void ModelMesh::Update(Transform* transform)
 	}
 }
 
-void ModelMesh::Draw(ID3D12GraphicsCommandList* cmdList) const
+void ModelMesh::Draw(std::shared_ptr<GCommandList> cmdList) const
 {
-	cmdList->SetGraphicsRootConstantBufferView(StandardShaderSlot::ObjectData,
+	auto d3d12CommandList = cmdList->GetGraphicsCommandList();
+	
+	d3d12CommandList->SetGraphicsRootConstantBufferView(StandardShaderSlot::ObjectData,
 	                                           objectConstantBuffer->Resource()->GetGPUVirtualAddress());
-	cmdList->IASetVertexBuffers(0, 1, &vertexBuffer->VertexBufferView());
-	cmdList->IASetIndexBuffer(&indexBuffer->IndexBufferView());
-	cmdList->IASetPrimitiveTopology(PrimitiveType);
-	cmdList->DrawIndexedInstanced(indexBuffer->GetElementsCount(), 1, 0, 0, 0);
+	d3d12CommandList->IASetVertexBuffers(0, 1, &vertexBuffer->VertexBufferView());
+	d3d12CommandList->IASetIndexBuffer(&indexBuffer->IndexBufferView());
+	d3d12CommandList->IASetPrimitiveTopology(PrimitiveType);
+	d3d12CommandList->DrawIndexedInstanced(indexBuffer->GetElementsCount(), 1, 0, 0, 0);
 }
 
 void ModelRenderer::ProcessNode(aiNode* node, const aiScene* scene,
@@ -186,7 +189,7 @@ ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene,
 	return ModelMesh(cmdList, mesh->mName.C_Str(), vertices, indices);
 }
 
-void ModelRenderer::Draw(ID3D12GraphicsCommandList* cmdList)
+void ModelRenderer::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 	if (material != nullptr)
 		material->Draw(cmdList);

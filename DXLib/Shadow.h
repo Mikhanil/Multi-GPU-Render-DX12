@@ -9,7 +9,7 @@ class Shadow : public Renderer
 {
 	void Update() override;
 
-	void Draw(ID3D12GraphicsCommandList* cmdList) override
+	void Draw(std::shared_ptr<GCommandList> cmdList) override
 	{
 		Renderer::Draw(cmdList);
 	};

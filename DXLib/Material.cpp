@@ -2,6 +2,7 @@
 
 
 #include "d3dApp.h"
+#include "GCommandList.h"
 #include "GMemory.h"
 #include "GraphicPSO.h"
 
@@ -58,8 +59,6 @@ void Material::InitMaterial(GMemory& textureHeap)
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-
-	auto& device = DXLib::D3DApp::GetDevice();
 	
 	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
 	if (textures[0])
@@ -113,13 +112,13 @@ void Material::InitMaterial(GMemory& textureHeap)
 	}
 }
 
-void Material::Draw(ID3D12GraphicsCommandList* cmdList) const
+void Material::Draw(std::shared_ptr<GCommandList> cmdList) const
 {
 	//TODO: Спросить у Павла, можно ли как-то это обойти, как получилось с билбордами деревьев, через привязку одного большого массива текстур, а дальше в зависимости от индекса и шейдера работать с текстурой как с текстурой нужного мне типа (Texture2DArray, TextureCube)
 	const auto psoType = pso->GetType();
 	if (psoType == PsoType::SkyBox)
 	{
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
+		cmdList->GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
 	}
 }
 

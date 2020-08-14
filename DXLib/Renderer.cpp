@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "GameObject.h"
 #include "d3dApp.h"
+#include "GCommandList.h"
 
 Renderer::Renderer(): Component()
 {
@@ -26,17 +27,19 @@ void Renderer::Update()
 	}
 }
 
-void Renderer::Draw(ID3D12GraphicsCommandList* cmdList)
+void Renderer::Draw(std::shared_ptr<GCommandList> cmdList)
 {
-	cmdList->SetGraphicsRootConstantBufferView(StandardShaderSlot::ObjectData,
+	cmdList->SetRootConstantBufferView(StandardShaderSlot::ObjectData,
 	                                           objectConstantBuffer->Resource()->GetGPUVirtualAddress());
 
 	material->Draw(cmdList);
 
-	cmdList->IASetVertexBuffers(0, 1, &mesh->VertexBufferView());
-	cmdList->IASetIndexBuffer(&mesh->IndexBufferView());
-	cmdList->IASetPrimitiveTopology(PrimitiveType);
+	auto d3d12CommandList = cmdList->GetGraphicsCommandList();
+	
+	d3d12CommandList->IASetVertexBuffers(0, 1, &mesh->VertexBufferView());
+	d3d12CommandList->IASetIndexBuffer(&mesh->IndexBufferView());
+	d3d12CommandList->IASetPrimitiveTopology(PrimitiveType);
 
 
-	cmdList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
+	d3d12CommandList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 }

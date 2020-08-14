@@ -107,6 +107,8 @@ namespace DXLib
 			delete instance;
 			instance = nullptr;
 		}
+
+		
 	}
 
 	bool D3DApp::IsTearingSupported() const
@@ -192,8 +194,13 @@ namespace DXLib
 
 	void D3DApp::Flush()
 	{
+		directCommandQueue->Signal();
 		directCommandQueue->Flush();
+		
+		computeCommandQueue->Signal();
 		computeCommandQueue->Flush();
+
+		copyCommandQueue->Signal();
 		copyCommandQueue->Flush();
 	}
 
@@ -597,6 +604,9 @@ namespace DXLib
 
 				// WM_DESTROY is sent when the window is being destroyed.
 			case WM_DESTROY:
+
+				Flush();
+				
 				// If a window is being destroyed, remove it from the 
 				// window maps.
 				RemoveWindow(hwnd);

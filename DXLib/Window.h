@@ -52,6 +52,15 @@ namespace DXLib
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const;
 
+		GMemory* GetRTVMemory()
+		{
+			return &rtvDescriptorHeap;
+		}
+
+		GMemory* GetDSVMemory()
+		{
+			return &depthStencilViewHeap;
+		}
 
 		Texture& GetCurrentBackBuffer();
 
@@ -95,8 +104,9 @@ namespace DXLib
 
 		int frameCnt = 0;
 		float timeElapsed = 0.0f;
+		HANDLE m_SwapChainEvent;
 
-		
+
 		Window(const Window& copy) = delete;
 		Window& operator=(const Window& other) = delete;
 

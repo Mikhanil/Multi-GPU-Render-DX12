@@ -2,6 +2,7 @@
 #include "Component.h"
 #include "Material.h"
 
+class GCommandList;
 
 class Renderer : public Component
 {
@@ -28,5 +29,5 @@ public:
 
 
 	void Update() override;
-	void Draw(ID3D12GraphicsCommandList* cmdList) override;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 };

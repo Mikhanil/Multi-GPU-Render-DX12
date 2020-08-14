@@ -14,5 +14,5 @@ public:
 	Plane mirrorPlane = {0.0f, 0.0f, 1.0f, 0.0f}; // xy plane
 
 	void Update() override;;
-	void Draw(ID3D12GraphicsCommandList* cmdList) override;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 };

@@ -5,7 +5,7 @@
 
 using namespace DirectX::SimpleMath;
 
-void ObjectMover::Draw(ID3D12GraphicsCommandList* cmdList)
+void ObjectMover::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 }
 

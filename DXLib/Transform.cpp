@@ -23,7 +23,7 @@ void Transform::Update()
 	}
 }
 
-void Transform::Draw(ID3D12GraphicsCommandList* cmdList)
+void Transform::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 }
 

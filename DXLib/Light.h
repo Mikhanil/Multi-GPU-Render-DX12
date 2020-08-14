@@ -2,6 +2,7 @@
 #include "Component.h"
 #include "GameObject.h"
 
+class GCommandList;
 
 class Light : public Component
 {
@@ -11,7 +12,7 @@ private:
 	LightData lightData{};
 
 	void Update() override;;
-	void Draw(ID3D12GraphicsCommandList* cmdList) override;;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;;
 
 	DirectX::XMFLOAT3 strength = {0.5f, 0.5f, 0.5f};
 	DirectX::XMFLOAT3 direction = {0, 0, 0};

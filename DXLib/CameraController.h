@@ -4,6 +4,7 @@
 #include "Mouse.h"
 #include "GameTimer.h"
 
+class GCommandList;
 
 using namespace DirectX::SimpleMath;
 class CameraController :
@@ -22,5 +23,5 @@ public:
 	CameraController();
 
 	void Update() override;;
-	void Draw(ID3D12GraphicsCommandList* cmdList) override;;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;;
 };

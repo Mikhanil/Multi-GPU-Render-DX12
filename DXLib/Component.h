@@ -2,7 +2,7 @@
 #include "d3dUtil.h"
 
 class GameObject;
-
+class GCommandList;
 
 class Component
 {
@@ -13,5 +13,5 @@ public:
 	Component();
 
 	virtual void Update() = 0;
-	virtual void Draw(ID3D12GraphicsCommandList* cmdList) = 0;
+	virtual void Draw(std::shared_ptr<GCommandList> cmdList) = 0;
 };

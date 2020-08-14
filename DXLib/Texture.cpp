@@ -18,7 +18,7 @@ UINT Texture::textureIndexGlobal = 0;
 void Texture::Resize(Texture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
 {
 	if(texture.dxResource)
-	{
+	{	
 		GResourceStateTracker::RemoveGlobalResourceState(texture.dxResource.Get());
 
 		CD3DX12_RESOURCE_DESC resDesc(texture.dxResource->GetDesc());

@@ -15,7 +15,7 @@ void Light::Update()
 	}
 }
 
-void Light::Draw(ID3D12GraphicsCommandList* cmdList)
+void Light::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 }
 

@@ -11,7 +11,7 @@ void Reflected::Update()
 	gameObject->GetTransform()->SetWorldMatrix(originRenderer->gameObject->GetTransform()->GetWorldMatrix() * reflect);
 }
 
-void Reflected::Draw(ID3D12GraphicsCommandList* cmdList)
+void Reflected::Draw(std::shared_ptr<GCommandList> cmdList)
 {
 	originRenderer->Draw(cmdList);
 }

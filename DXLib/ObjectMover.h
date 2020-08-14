@@ -7,7 +7,7 @@ class ObjectMover :
 {
 	Keyboard* keyboard;
 
-	void Draw(ID3D12GraphicsCommandList* cmdList) override;;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;;
 
 	void Update() override;;
 public:

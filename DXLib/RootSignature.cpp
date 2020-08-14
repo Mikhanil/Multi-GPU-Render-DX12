@@ -129,11 +129,11 @@ void RootSignature::AddConstantBufferParameter(UINT shaderRegister, UINT registe
 	AddParameter(slotParameter);
 }
 
-void RootSignature::AddConstantParameter(UINT value, UINT shaderRegister, UINT registerSpace,
+void RootSignature::AddConstantParameter(UINT valueCount, UINT shaderRegister, UINT registerSpace,
                                          D3D12_SHADER_VISIBILITY visibility)
 {
 	CD3DX12_ROOT_PARAMETER slotParameter;
-	slotParameter.InitAsConstants(value, shaderRegister, registerSpace, visibility);
+	slotParameter.InitAsConstants(valueCount, shaderRegister, registerSpace, visibility);
 	AddParameter(slotParameter);
 }
 
