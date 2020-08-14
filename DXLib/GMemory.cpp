@@ -79,6 +79,7 @@ bool GMemory::IsNull() const
 
 D3D12_CPU_DESCRIPTOR_HANDLE GMemory::GetCPUHandle(uint32_t offset) const
 {
+	
 	if(offset > handlersCount)
 		assert("Bad GMemmory offset");
 
@@ -88,6 +89,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE GMemory::GetCPUHandle(uint32_t offset) const
 
 D3D12_GPU_DESCRIPTOR_HANDLE GMemory::GetGPUHandle(uint32_t offset) const
 {
+	
     if (offset > handlersCount)
         assert("Bad GMemmory offset");
 

@@ -17,6 +17,8 @@
 #include "GDataUploader.h"
 #include "Window.h"
 #include "GMemory.h"
+#include "GResourceStateTracker.h"
+
 namespace DXLib
 {
 	ShapesApp::ShapesApp(HINSTANCE hInstance)
@@ -100,7 +102,7 @@ namespace DXLib
 
 		mSsao = std::make_unique<Ssao>(
 			dxDevice.Get(),
-			cmdList->GetGraphicsCommandList().Get(),
+			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
 		LoadTextures( cmdList);
@@ -128,8 +130,6 @@ namespace DXLib
 				
 		mSsao->SetPSOs(*psos[PsoType::Ssao], *psos[PsoType::SsaoBlur]);
 
-
-		// Wait until initialization is complete.
 		commandQueue->Flush();
 
 		return true;
@@ -147,9 +147,7 @@ namespace DXLib
 		if (mSsao != nullptr)
 		{
 			mSsao->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
-
-			// Resources changed, so need to rebuild descriptors.
-			mSsao->RebuildDescriptors(MainWindow->GetDepthStencilBuffer().GetD3D12Resource().Get());
+			mSsao->RebuildDescriptors(MainWindow->GetDepthStencilBuffer());
 		}
 	}
 
@@ -194,106 +192,104 @@ namespace DXLib
 
 		auto commandQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		auto cmdListD3d = commandQueue->GetCommandList();
-		auto cmdList = cmdListD3d->GetGraphicsCommandList();
+		auto cmdList = commandQueue->GetCommandList();
 
 
-		ID3D12DescriptorHeap* descriptorHeaps[] = {srvHeap.GetDescriptorHeap()};
-		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+		
 
-		cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
+		/*ID3D12DescriptorHeap* descriptorHeaps[] = {srvHeap.GetDescriptorHeap()};
+		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);*/
+		cmdList->SetGMemory(&srvHeap);		
+		cmdList->SetRootSignature(rootSignature.get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Prepare Render 3D");
 			
 
 		/*Bind all materials*/
 		auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
-		cmdList->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
+		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
 
 		
 		/*Bind all Diffuse Textures*/
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,srvHeap.GetGPUHandle());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,&srvHeap);
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Render 3D");
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Shadow Map Pass");
-		DrawSceneToShadowMap(cmdList.Get());
+		DrawSceneToShadowMap(cmdList);
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Normal and Depth Pass");
-		DrawNormalsAndDepth(cmdList.Get());
+		DrawNormalsAndDepth(cmdList);
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Compute SSAO");
 		if (computeSsao)
 		{
-			cmdList->SetGraphicsRootSignature(ssaoRootSignature.Get());
-			mSsao->ComputeSsao(cmdList.Get(), currentFrameResource, 3);
+			cmdList->SetRootSignature(ssaoRootSignature.get());
+			mSsao->ComputeSsao(cmdList, currentFrameResource, 3);
 		}
 		else
 		{
-			mSsao->ClearAmbiantMap(cmdList.Get());
+			mSsao->ClearAmbiantMap(cmdList);
 		}
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Main Pass");
 
-		cmdList->SetGraphicsRootSignature(rootSignature->GetRootSignature().Get());
+		cmdList->SetRootSignature(rootSignature.get());
 
-		cmdList->RSSetViewports(1, &MainWindow->GetViewPort());
-		cmdList->RSSetScissorRects(1, &MainWindow->GetRect());
+		cmdList->SetViewports( &MainWindow->GetViewPort(),1);
+		cmdList->SetScissorRects( &MainWindow->GetRect(), 1);
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-		cmdList->ClearRenderTargetView(MainWindow->GetCurrentBackBufferView(), Colors::BlanchedAlmond, 0, nullptr);
-
-		/*cmdList->ClearDepthStencilView(GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
-			1.0f, 0, 0, nullptr);*/
+		cmdList->TransitionBarrier((MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get()), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdList->FlushResourceBarriers();		
+		cmdList->ClearRenderTarget(MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex());
 
 
-		cmdList->OMSetRenderTargets(1, &MainWindow->GetCurrentBackBufferView(), true,
-		                            &MainWindow->GetDepthStencilView());
+		cmdList->SetRenderTargets(1, MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex(), MainWindow->GetDSVMemory());
 
 
 		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-
 		
 		cmdList->
-			SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
 
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::ShadowMap, mShadowMap->Srv());
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::SsaoMap, mSsao->AmbientMapSrv());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, mShadowMap->GetSrvMemory());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, mSsao->AmbientMapSrv(), 0);
 
 		/*Bind all Diffuse Textures*/
-		cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::TexturesMap,
-		                                        srvHeap.GetGPUHandle());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,
+		                                        &srvHeap);
 
 
-		cmdList->SetPipelineState(psos[PsoType::SkyBox]->GetPSO().Get());
-		DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::SkyBox)]);
+		cmdList->SetPipelineState(*psos[PsoType::SkyBox]);
+		DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::SkyBox)]);
 
-		cmdList->SetPipelineState(psos[PsoType::Opaque]->GetPSO().Get());
-		DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Opaque)]);
+		cmdList->SetPipelineState(*psos[PsoType::Opaque]);
+		DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Opaque)]);
 
-		cmdList->SetPipelineState(psos[PsoType::OpaqueAlphaDrop]->GetPSO().Get());
-		DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::OpaqueAlphaDrop)]);
+		cmdList->SetPipelineState(*psos[PsoType::OpaqueAlphaDrop]);
+		DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::OpaqueAlphaDrop)]);
 
-		cmdList->SetPipelineState(psos[PsoType::Transparent]->GetPSO().Get());
-		DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Transparent)]);
+		cmdList->SetPipelineState(*psos[PsoType::Transparent]);
+		DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Transparent)]);
 
 		if (ShowAmbiantMap)
 		{
-			cmdList->SetPipelineState(psos[PsoType::Debug]->GetPSO().Get());
-			DrawGameObjects(cmdList.Get(), typedGameObjects[static_cast<int>(PsoType::Debug)]);
+			cmdList->SetPipelineState(*psos[PsoType::Debug]);
+			DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Debug)]);
 		}
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(),
+		cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer().GetD3D12Resource(), D3D12_RESOURCE_STATE_PRESENT);
+		
+		/*cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-		                                                                  D3D12_RESOURCE_STATE_PRESENT));
+		                                                                  D3D12_RESOURCE_STATE_PRESENT));*/
 
-		currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdListD3d);
+		currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
 
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
@@ -802,20 +798,18 @@ namespace DXLib
 
 	void ShapesApp::BuildSsaoRootSignature()
 	{
+		ssaoRootSignature = std::make_unique<RootSignature>();
+		
 		CD3DX12_DESCRIPTOR_RANGE texTable0;
 		texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
 
 		CD3DX12_DESCRIPTOR_RANGE texTable1;
 		texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
 
-		// Root parameter can be a table, root descriptor or root constants.
-		CD3DX12_ROOT_PARAMETER slotRootParameter[4];
-
-		// Perfomance TIP: Order from most frequent to least frequent.
-		slotRootParameter[0].InitAsConstantBufferView(0);
-		slotRootParameter[1].InitAsConstants(1, 1);
-		slotRootParameter[2].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
-		slotRootParameter[3].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
+		ssaoRootSignature->AddConstantBufferParameter(0);
+		ssaoRootSignature->AddConstantParameter(1, 1);
+		ssaoRootSignature->AddDescriptorParameter( &texTable0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		ssaoRootSignature->AddDescriptorParameter( &texTable1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 		const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
 			0, // shaderRegister
@@ -854,28 +848,12 @@ namespace DXLib
 			pointClamp, linearClamp, depthMapSam, linearWrap
 		};
 
-		// A root signature is an array of root parameters.
-		CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
-		                                        static_cast<UINT>(staticSamplers.size()), staticSamplers.data(),
-		                                        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-		// create a root signature with a single slot which points to a descriptor range consisting of a single constant buffer
-		ComPtr<ID3DBlob> serializedRootSig = nullptr;
-		ComPtr<ID3DBlob> errorBlob = nullptr;
-		HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-		                                         serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
-
-		if (errorBlob != nullptr)
+		for (auto && sampler : staticSamplers)
 		{
-			OutputDebugStringA(static_cast<char*>(errorBlob->GetBufferPointer()));
+			ssaoRootSignature->AddStaticSampler(sampler);
 		}
-		ThrowIfFailed(hr);
-
-		ThrowIfFailed(dxDevice->CreateRootSignature(
-			0,
-			serializedRootSig->GetBufferPointer(),
-			serializedRootSig->GetBufferSize(),
-			IID_PPV_ARGS(ssaoRootSignature.GetAddressOf())));
+		
+		ssaoRootSignature->Initialize();
 	}
 
 	void ShapesApp::BuildTexturesHeap()
@@ -885,7 +863,7 @@ namespace DXLib
 
 		mShadowMap->BuildDescriptors();
 
-		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer().GetD3D12Resource().Get());
+		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer());
 	}
 
 	void ShapesApp::BuildShadersAndInputLayout()
@@ -1374,7 +1352,7 @@ namespace DXLib
 		auto ssaoPSO = std::make_unique<GraphicPSO>(PsoType::Ssao);
 		ssaoPSO->SetPsoDesc(basePsoDesc);
 		ssaoPSO->SetInputLayout({nullptr, 0});
-		ssaoPSO->SetRootSignature(ssaoRootSignature.Get());
+		ssaoPSO->SetRootSignature(ssaoRootSignature->GetRootSignature().Get());
 		ssaoPSO->SetShader(shaders["ssaoVS"].get());
 		ssaoPSO->SetShader(shaders["ssaoPS"].get());
 		ssaoPSO->SetRTVFormat(0, Ssao::AmbientMapFormat);
@@ -1999,7 +1977,7 @@ namespace DXLib
 		commandQueue->ExecuteCommandList(cmdList);
 	}
 
-	void ShapesApp::DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const custom_vector<GameObject*>& ritems)
+	void ShapesApp::DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems)
 	{
 		// For each render item...
 		for (auto& ri : ritems)
@@ -2008,76 +1986,76 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::DrawSceneToShadowMap(ID3D12GraphicsCommandList* cmdList)
+	void ShapesApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> list)
 	{
-		cmdList->RSSetViewports(1, &mShadowMap->Viewport());
-		cmdList->RSSetScissorRects(1, &mShadowMap->ScissorRect());
+		auto cmdList = list->GetGraphicsCommandList();
+		
+		list->SetViewports(&mShadowMap->Viewport(), 1);
+		list->SetScissorRects(&mShadowMap->ScissorRect(), 1);
 
+		//list->TransitionBarrier(mShadowMap->GetTexture().GetD3D12Resource(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->GetTexture().GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_GENERIC_READ,
+		                                                                  D3D12_RESOURCE_STATE_COMMON,
 		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
 
 
-		cmdList->ClearDepthStencilView(mShadowMap->Dsv(),
-		                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		list->ClearDepthStencil(mShadowMap->GetDsvMemory(), 0,
+		                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
-		cmdList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
+		list->SetRenderTargets(0, nullptr, false, mShadowMap->GetDsvMemory());
 
 		UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 		// Bind the pass constant buffer for the shadow map pass.
 		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
 		D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-		cmdList->SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
+		list->SetRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
 
-		cmdList->SetPipelineState(psos[PsoType::ShadowMapOpaque]->GetPSO().Get());
+		list->SetPipelineState(*psos[PsoType::ShadowMapOpaque]);
 
-		DrawGameObjects(cmdList, typedGameObjects[PsoType::Opaque]);
+		DrawGameObjects(list, typedGameObjects[PsoType::Opaque]);
 
-		cmdList->SetPipelineState(psos[PsoType::ShadowMapOpaqueDrop]->GetPSO().Get());
-		DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
+		list->SetPipelineState(*psos[PsoType::ShadowMapOpaqueDrop]);
+		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
 
+		//list->TransitionBarrier(mShadowMap->GetTexture().GetD3D12Resource(), D3D12_RESOURCE_STATE_GENERIC_READ);
+		
 		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->GetTexture().GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		                                                                  D3D12_RESOURCE_STATE_GENERIC_READ));
+		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE,	D3D12_RESOURCE_STATE_COMMON));
+
 	}
 
-	void ShapesApp::DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList)
+	void ShapesApp::DrawNormalsAndDepth(std::shared_ptr<GCommandList> list)
 	{
-		cmdList->RSSetViewports(1, &MainWindow->GetViewPort());
-		cmdList->RSSetScissorRects(1, &MainWindow->GetRect());
+		auto cmdList = list->GetGraphicsCommandList();
+		
+		list->SetViewports( &MainWindow->GetViewPort(),1);
+		list->SetScissorRects( &MainWindow->GetRect(),1);
 
 		auto normalMap = mSsao->NormalMap();
 		auto normalMapRtv = mSsao->NormalMapRtv();
 
-		// Change to RENDER_TARGET.
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap.GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_COMMON,
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-		// Clear the screen normal map and depth buffer.
 		float clearValue[] = {0.0f, 0.0f, 1.0f, 0.0f};
-		cmdList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
-		cmdList->ClearDepthStencilView(MainWindow->GetDepthStencilView(),
-		                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0,
-		                               0, nullptr);
+		list->ClearRenderTarget(normalMapRtv,0, clearValue);
+		list->ClearDepthStencil(MainWindow->GetDSVMemory(), 0,
+		                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
-		// Specify the buffers we are going to render to.
-		cmdList->OMSetRenderTargets(1, &normalMapRtv, true, &MainWindow->GetDepthStencilView());
+		list->SetRenderTargets(1, normalMapRtv, 0, MainWindow->GetDSVMemory());
 
-		// Bind the constant buffer for this pass.
 		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-		cmdList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+		list->SetRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
 
-		cmdList->SetPipelineState(psos[PsoType::DrawNormalsOpaque]->GetPSO().Get());
+		list->SetPipelineState(*psos[PsoType::DrawNormalsOpaque]);
+		DrawGameObjects(list, typedGameObjects[PsoType::Opaque]);
+		list->SetPipelineState(*psos[PsoType::DrawNormalsOpaqueDrop]);
+		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
-		DrawGameObjects(cmdList, typedGameObjects[PsoType::Opaque]);
-
-		cmdList->SetPipelineState(psos[PsoType::DrawNormalsOpaqueDrop]->GetPSO().Get());
-		DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
-
-		// Change back to GENERIC_READ so we can read the texture in a shader.
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,
+		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap.GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_COMMON));
 	}

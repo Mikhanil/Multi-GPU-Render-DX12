@@ -54,8 +54,8 @@ namespace DXLib
 		void BuildTexturesHeap();
 		void Update(const GameTimer& gt) override;
 		void UpdateMaterial(const GameTimer& gt);
-		void DrawSceneToShadowMap(ID3D12GraphicsCommandList* cmdList);
-		void DrawNormalsAndDepth(ID3D12GraphicsCommandList* cmdList);
+		void DrawSceneToShadowMap(std::shared_ptr<GCommandList> cmdList);
+		void DrawNormalsAndDepth(std::shared_ptr<GCommandList> cmdList);
 		void Draw(const GameTimer& gt) override;
 
 		void UpdateGameObjects(const GameTimer& gt);
@@ -73,7 +73,7 @@ namespace DXLib
 		void BuildTreesGeometry();
 		void BuildMaterials();
 		void BuildGameObjects();
-		static void DrawGameObjects(ID3D12GraphicsCommandList* cmdList, const custom_vector<GameObject*>& ritems);
+		static void DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems);
 		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();
 
@@ -88,7 +88,7 @@ namespace DXLib
 
 
 		std::unique_ptr<RootSignature> rootSignature = nullptr;
-		ComPtr<ID3D12RootSignature> ssaoRootSignature = nullptr;
+		std::unique_ptr<RootSignature> ssaoRootSignature = nullptr;
 		std::unique_ptr<Ssao> mSsao;
 
 		D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);

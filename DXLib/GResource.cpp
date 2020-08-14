@@ -4,6 +4,7 @@
 
 #include "d3dApp.h"
 #include "d3dUtil.h"
+#include "GResourceStateTracker.h"
 
 uint64_t GResource::resourceId = 0;
 
@@ -33,6 +34,8 @@ GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring
 		IID_PPV_ARGS(&dxResource)
 	));
 
+	GResourceStateTracker::AddCurrentState(dxResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+	
 	SetName(name);
 }
 
@@ -149,9 +152,16 @@ void GResource::SetName(const std::wstring& name)
 
 void GResource::Reset()
 {
-	if(dxResource)
-	dxResource.Reset();
+	if (dxResource)
+	{
+		dxResource.Reset();
+		
+	}
 
-	if(clearValue)
-	clearValue.reset();
+	
+	
+	if (clearValue)
+	{
+		clearValue.reset();
+	}
 }

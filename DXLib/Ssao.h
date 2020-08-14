@@ -10,7 +10,7 @@ class Ssao
 public:
 
 	Ssao(ID3D12Device* device,
-	     ID3D12GraphicsCommandList* cmdList,
+	     std::shared_ptr<GCommandList> cmdList,
 	     UINT width, UINT height);
 	Ssao(const Ssao& rhs) = delete;
 	Ssao& operator=(const Ssao& rhs) = delete;
@@ -28,50 +28,48 @@ public:
 	std::vector<float> CalcGaussWeights(float sigma);
 
 
-	ID3D12Resource* NormalMap();
-	ID3D12Resource* AmbientMap();
+	Texture& NormalMap();
+	Texture& AmbientMap();
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE NormalMapRtv() const;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE NormalMapSrv() const;
-	CD3DX12_GPU_DESCRIPTOR_HANDLE AmbientMapSrv() const;
+	GMemory* NormalMapRtv()
+	{
+		return &normalMapRtvMemory;
+	};
+	GMemory* NormalMapSrv()
+	{
+		return &normalMapSrvMemory;
+	};
+	GMemory* AmbientMapSrv()
+	{
+		return &ambientMapMapSrvMemory;
+	};
 
 	void BuildDescriptors(
-		ID3D12Resource* depthStencilBuffer);
+		Texture& depthStencilBuffer);
 
-	void RebuildDescriptors(ID3D12Resource* depthStencilBuffer);
+	void RebuildDescriptors(Texture& depthStencilBuffer);
 
 	void SetPSOs(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso);
 
-	///<summary>
-	/// Call when the backbuffer is resized.  
-	///</summary>
 	void OnResize(UINT newWidth, UINT newHeight);
 
-	///<summary>
-	/// Changes the render target to the Ambient render target and draws a fullscreen
-	/// quad to kick off the pixel shader to compute the AmbientMap.  We still keep the
-	/// main depth buffer binded to the pipeline, but depth buffer read/writes
-	/// are disabled, as we do not need the depth buffer computing the Ambient map.
-	///</summary>
+	
 	void ComputeSsao(
-		ID3D12GraphicsCommandList* cmdList,
+		std::shared_ptr<GCommandList> cmdList,
 		FrameResource* currFrame,
 		int blurCount);
-	void ClearAmbiantMap(ID3D12GraphicsCommandList* cmdList);
+	void ClearAmbiantMap(std::shared_ptr<GCommandList> cmdList);
 
 
 private:
-
-	///<summary>
-	/// Blurs the ambient map to smooth out the noise caused by only taking a
-	/// few random samples per pixel.  We use an edge preserving blur so that 
-	/// we do not blur across discontinuities--we want edges to remain edges.
-	///</summary>
-	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, FrameResource* currFrame, int blurCount);
-	void BlurAmbientMap(ID3D12GraphicsCommandList* cmdList, bool horzBlur);
+		
+	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, FrameResource* currFrame, int blurCount);
+	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur);
+	Texture CreateNormalMap();
+	Texture CreateAmbientMap();
 
 	void BuildResources();
-	void BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList);
+	void BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList);
 
 	void BuildOffsetVectors();
 
@@ -94,8 +92,6 @@ private:
 	
 	GMemory randomVectorSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	
-
-	// Need two for ping-ponging during blur.
 	GMemory ambientMapMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 	GMemory ambientMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2);
 	

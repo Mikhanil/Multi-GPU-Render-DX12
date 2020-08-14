@@ -74,12 +74,7 @@ namespace DXLib
 		std::unique_lock<std::mutex> lock(commandQueueExecutorMutex);
 		CommandListExecutorCondition.wait(lock, [this] { return m_InFlightCommandLists.Empty(); });
 
-		// In case the command queue was signaled directly 
-		// using the GCommandQueue::Signal method then the 
-		// fence value of the command queue might be higher than the fence
-		// value of any of the executed command lists.
-		WaitForFenceValue(FenceValue);
-
+		WaitForFenceValue(Signal());
 	}
 	std::shared_ptr<GCommandList> GCommandQueue::GetCommandList()
 	{

@@ -1,6 +1,7 @@
 #pragma once
 #include <wrl.h>
 #include <d3d12.h>
+#include <DirectXColors.h>
 #include <map>
 #include <mutex>
 #include "DXAllocator.h"
@@ -59,11 +60,15 @@ public:
 	void SetRootSignature(RootSignature* signature);
 
 	void SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource);
+	void SetRootShaderResourceView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address);
 
 	void SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource);
+	void SetRootConstantBufferView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address);
 	void SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data,
-	                               UINT DestOffsetIn32BitValueToSet);
+	                           UINT DestOffsetIn32BitValueToSet);
 
+	void SetRoot32BitConstant(UINT shaderRegister, UINT value, UINT offset);
+	
 	void SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource);
 
 	void SetRootDescriptorTable(UINT rootSignatureSlot, const GMemory* memory, UINT offset = 0) const;
@@ -78,6 +83,13 @@ public:
 	void SetPipelineState(ComputePSO& pso);
 
 	void SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY primitiveTopology) const;
+
+	void ClearRenderTarget(GMemory* memory, size_t offset = 0, const FLOAT rgba[4] = DirectX::Colors::Black, D3D12_RECT* rects = nullptr, size_t rectCount = 0);
+
+	void SetRenderTargets(size_t RTCount = 0, GMemory* rtvMemory = nullptr, size_t rtvOffset = 0, GMemory* dsvMemory = nullptr, size_t dsvOffset = 0);
+
+	void ClearDepthStencil(GMemory* dsvMemory, size_t dsvOffset, D3D12_CLEAR_FLAGS flags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, FLOAT depthValue = 1.0f, UINT stencilValue = 0, D3D12_RECT* rects = nullptr, size_t
+	                       rectCount = 0);
 	
 	void TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false);
 	void TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false);

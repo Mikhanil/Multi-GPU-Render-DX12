@@ -16,9 +16,17 @@ public:
 	UINT Width() const;
 	UINT Height() const;
 	Texture& GetTexture();
-	D3D12_GPU_DESCRIPTOR_HANDLE Srv() const;
-	D3D12_CPU_DESCRIPTOR_HANDLE Dsv() const;
 
+	GMemory* GetSrvMemory()
+	{
+		return &srvMemory;
+	}
+
+	GMemory* GetDsvMemory()
+	{
+		return &dsvMemory;
+	}
+	
 	D3D12_VIEWPORT Viewport() const;
 	D3D12_RECT ScissorRect() const;
 

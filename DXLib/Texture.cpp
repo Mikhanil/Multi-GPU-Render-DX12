@@ -353,55 +353,24 @@ std::shared_ptr<Texture> Texture::LoadTextureFromFile(std::wstring filepath,
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
 	auto& device = DXLib::D3DApp::GetApp().GetDevice();
-
-
-	ComPtr<ID3D12Resource> textureResource;
 	
-	ThrowIfFailed(device.CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-		D3D12_HEAP_FLAG_NONE,
-		&desc,
-		D3D12_RESOURCE_STATE_COMMON,
-		nullptr,
-		IID_PPV_ARGS(&textureResource)));
-		
-	// Update the global state tracker.
-	GResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_COMMON);
-
-
-	auto tex = std::make_shared<Texture>(filepath, usage);
-
-	tex->SetName(filepath);
-	tex->SetD3D12Resource(textureResource);
+	auto tex = std::make_shared<Texture>(desc, filepath, usage);
 	
-	if (textureResource)
+	if (tex->GetD3D12Resource())
 	{
 		std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
 		ThrowIfFailed(
 			PrepareUpload(&device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
 				subresources));
 		
-		commandList->TransitionBarrier(textureResource, D3D12_RESOURCE_STATE_COPY_DEST);
+		commandList->TransitionBarrier(tex->GetD3D12Resource(), D3D12_RESOURCE_STATE_COPY_DEST);
+		commandList->FlushResourceBarriers();
 
-		GResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
-
-		commandList->UpdateSubresource(*tex.get(), subresources.data(), subresources.size());
 		
-		/*const UINT64 uploadBufferSize = GetRequiredIntermediateSize(textureResource.Get(),
-		                                                            0, static_cast<unsigned int>(subresources.size()));
-		
-		auto upload = DXAllocator::UploadData(uploadBufferSize, nullptr, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-				
+		commandList->UpdateSubresource(*tex.get(), subresources.data(), subresources.size());		
 
-
-		UpdateSubresources(commandList,
-			textureResource.Get(), &upload.d3d12Resource,
-			upload.Offset, 0, static_cast<unsigned int>(subresources.size()),
-		                   subresources.data());*/
-
-		commandList->TransitionBarrier(textureResource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		GResourceStateTracker::AddGlobalResourceState(textureResource.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-
+		commandList->TransitionBarrier(tex->GetD3D12Resource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		commandList->FlushResourceBarriers();
 
 		if (resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 		{

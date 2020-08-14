@@ -132,6 +132,20 @@ void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, GResource& 
     TrackResource(resource);
 }
 
+void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address)
+{
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        cmdList->SetGraphicsRootShaderResourceView(rootSignatureSlot, address);
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        cmdList->SetComputeRootShaderResourceView(rootSignatureSlot, address);
+    }
+}
+
 void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource)
 {
     if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
@@ -153,6 +167,20 @@ void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, GResource& 
     TrackResource(resource);
 }
 
+void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address)
+{
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        cmdList->SetGraphicsRootConstantBufferView(rootSignatureSlot, address);
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        cmdList->SetComputeRootConstantBufferView(rootSignatureSlot, address);
+    }
+}
+
 void GCommandList::SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data, UINT DestOffsetIn32BitValueToSet )
 {
 	
@@ -166,6 +194,19 @@ void GCommandList::SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32Bit
         cmdList->SetComputeRoot32BitConstants(rootSignatureSlot, Count32BitValueToSet, data,DestOffsetIn32BitValueToSet);
     }
 
+}
+
+void GCommandList::SetRoot32BitConstant(UINT shaderRegister, UINT value, UINT offset)
+{
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT)
+    {
+        cmdList->SetGraphicsRoot32BitConstant(shaderRegister, value, offset);
+    }
+
+    if (m_d3d12CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+    {
+        cmdList->SetComputeRoot32BitConstant(shaderRegister, value, offset);
+    }	
 }
 
 
@@ -273,6 +314,7 @@ void GCommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> reso
 {
     if (resource)
     {
+    	
         // The "before" state is not important. It will be resolved by the resource state tracker.
         const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), D3D12_RESOURCE_STATE_COMMON, stateAfter, subresource);
         m_ResourceStateTracker->ResourceBarrier(barrier);
@@ -442,4 +484,29 @@ void GCommandList::Close()
 void GCommandList::SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY primitiveTopology) const
 {
     cmdList->IASetPrimitiveTopology(primitiveTopology);
+}
+
+void GCommandList::ClearRenderTarget(GMemory* memory, size_t offset, const FLOAT rgba[4], D3D12_RECT* rects,
+	size_t rectCount)
+{
+    if(memory == nullptr || memory->IsNull())
+    {
+        assert("Bad Clear Render Target");
+    }	
+    cmdList->ClearRenderTargetView(memory->GetCPUHandle(offset), rgba, rectCount, rects);
+}
+
+void GCommandList::SetRenderTargets(size_t RTCount, GMemory* rtvMemory, size_t rtvOffset, GMemory* dsvMemory,
+	size_t dsvOffset)
+{
+    auto* rtvPtr = (rtvMemory == nullptr || rtvMemory->IsNull()) ? nullptr : &rtvMemory->GetCPUHandle(rtvOffset);
+
+    auto* dsvPtr = (dsvMemory == nullptr || dsvMemory->IsNull()) ? nullptr : &dsvMemory->GetCPUHandle(dsvOffset);
+	
+    cmdList->OMSetRenderTargets(RTCount, rtvPtr, RTCount == 1, dsvPtr);
+}
+
+void GCommandList::ClearDepthStencil(GMemory* dsvMemory, size_t dsvOffset, D3D12_CLEAR_FLAGS flags, FLOAT depthValue,  UINT stencilValue, D3D12_RECT* rects, size_t rectCount )
+{
+    cmdList->ClearDepthStencilView(dsvMemory->GetCPUHandle(dsvOffset), flags, depthValue, stencilValue, rectCount, rects);
 }
