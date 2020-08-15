@@ -319,8 +319,7 @@ namespace DXLib
 
 		queue->Flush();
 
-		auto cmdListD3D = queue->GetCommandList();
-		auto cmdList = cmdListD3D->GetGraphicsCommandList();
+		auto cmdList = queue->GetCommandList();
 
 		for (int i = 0; i < BufferCount; ++i)
 		{
@@ -341,14 +340,10 @@ namespace DXLib
 
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-
-		UpdateRenderTargetViews();
+		UpdateRenderTargets();
 
 		if (depthStencilBuffer.GetD3D12Resource() == nullptr)
 		{
-			ID3D12Device& dxDevice = D3DApp::GetApp().GetDevice();
-
-
 			D3D12_RESOURCE_DESC depthStencilDesc;
 			depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 			depthStencilDesc.Alignment = 0;
@@ -367,16 +362,7 @@ namespace DXLib
 			optClear.DepthStencil.Depth = 1.0f;
 			optClear.DepthStencil.Stencil = 0;
 
-			ComPtr<ID3D12Resource> depth;
-			ThrowIfFailed(dxDevice.CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-				D3D12_HEAP_FLAG_NONE,
-				&depthStencilDesc,
-				D3D12_RESOURCE_STATE_COMMON,
-				&optClear,
-				IID_PPV_ARGS(depth.GetAddressOf())));
-
-			depthStencilBuffer.SetD3D12Resource(depth, &optClear);			
+			depthStencilBuffer = Texture(depthStencilDesc, windowName + L" DepthStencil", TextureUsage::Depth, &optClear);
 		}
 		else
 		{
@@ -388,16 +374,13 @@ namespace DXLib
 		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		dsvDesc.Format = depthStencilFormat;
 		dsvDesc.Texture2D.MipSlice = 0;
-		depthStencilBuffer.CreateDepthStencilView(&dsvDesc, &depthStencilViewHeap);
+		depthStencilBuffer.CreateDepthStencilView(&dsvDesc, &depthStencilViewHeap);		
+
+		cmdList->TransitionBarrier(depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		cmdList->FlushResourceBarriers();
 		
-		/*dxDevice.CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
-		                                depthStencilViewHeap.GetCPUHandle());*/
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(depthStencilBuffer.GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_COMMON,
-		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
-
-		queue->ExecuteCommandList(cmdListD3D);
+		queue->ExecuteCommandList(cmdList);
 		queue->Flush();
 
 		screenViewport.TopLeftX = 0;
@@ -474,12 +457,9 @@ namespace DXLib
 		return swapChain;
 	}
 
-	void Window::UpdateRenderTargetViews()
+	void Window::UpdateRenderTargets()
 	{
 		assert(swapChain);
-
-		ID3D12Device& device =(D3DApp::GetApp()).GetDevice();
-
 
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 		rtvDesc.Format = GetSRGBFormat(backBufferFormat);
@@ -491,9 +471,6 @@ namespace DXLib
 			ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
 
 			GResourceStateTracker::AddGlobalResourceState(backBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
-			
-			//device.CreateRenderTargetView(backBuffer.Get(), &rtvDesc, rtvDescriptorHeap.GetCPUHandle(i));
-
 			backBuffers[i].SetD3D12Resource(backBuffer);
 			backBuffers[i].CreateRenderTargetView(&rtvDesc, &rtvDescriptorHeap, i);
 		}

@@ -65,8 +65,8 @@ private:
 		
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, FrameResource* currFrame, int blurCount);
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur);
-	Texture CreateNormalMap();
-	Texture CreateAmbientMap();
+	Texture CreateNormalMap() const;
+	Texture CreateAmbientMap() const;
 
 	void BuildResources();
 	void BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList);

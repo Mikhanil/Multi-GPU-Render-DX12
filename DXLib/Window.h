@@ -97,7 +97,7 @@ namespace DXLib
 
 		ComPtr<IDXGISwapChain4> GetSwapChain();
 
-		void UpdateRenderTargetViews();
+		void UpdateRenderTargets();
 
 
 	private:

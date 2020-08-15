@@ -58,9 +58,8 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 	}
 
 	
-	auto& device = DXLib::D3DApp::GetApp().GetDevice();
 	
-	const auto mipMapsMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 * requiredHeapSize);	
+	auto mipMapsMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 * requiredHeapSize);	
 
 		
 	CD3DX12_DESCRIPTOR_RANGE srvCbvRanges[2];
@@ -127,17 +126,15 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 			uint32_t dstWidth = std::max(uint32_t(textureDesc.Width >> (TopMip + 1)), uint32_t(1));
 			uint32_t dstHeight = std::max(uint32_t(textureDesc.Height >> (TopMip + 1)), uint32_t(1));
 
-
 			srcTextureSRVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
 			srcTextureSRVDesc.Texture2D.MipLevels = 1;
 			srcTextureSRVDesc.Texture2D.MostDetailedMip = TopMip;
-			device.CreateShaderResourceView(texture, &srcTextureSRVDesc, mipMapsMemory.GetCPUHandle(cpuOffset));
+			textures[i]->CreateShaderResourceView(&srcTextureSRVDesc, &mipMapsMemory, (cpuOffset));
 			cpuOffset++;
-
 
 			destTextureUAVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
 			destTextureUAVDesc.Texture2D.MipSlice = TopMip + 1;
-			device.CreateUnorderedAccessView(texture, nullptr, &destTextureUAVDesc, mipMapsMemory.GetCPUHandle(cpuOffset));
+			textures[i]->CreateUnorderedAccessView(&destTextureUAVDesc, &mipMapsMemory,(cpuOffset));
 			cpuOffset++;
 
 
@@ -153,9 +150,7 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 			
 			cmdList->UAVBarrier((texture));
 		}
-	}
-
-	
+	}	
 }
 
 TextureUsage Texture::GetTextureType() const

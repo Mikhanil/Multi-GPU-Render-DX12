@@ -1,27 +1,26 @@
-#include "ShapesApp.h"
+#include "SampleApp.h"
 
 #include <DirectXTex.h>
 
-#include "Renderer.h"
-#include "GameObject.h"
-#include "ModelRenderer.h"
-#include "Camera.h"
 #include <ppl.h>
+#include "Camera.h"
 #include "CameraController.h"
-#include "GCommandQueue.h"
-#include "Reflected.h"
-#include "Shadow.h"
-#include "pix3.h"
 #include "filesystem"
+#include "GameObject.h"
 #include "GCommandList.h"
-#include "GDataUploader.h"
-#include "Window.h"
+#include "GCommandQueue.h"
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
+#include "ModelRenderer.h"
+#include "pix3.h"
+#include "Reflected.h"
+#include "Renderer.h"
+#include "Shadow.h"
+#include "Window.h"
 
 namespace DXLib
 {
-	ShapesApp::ShapesApp(HINSTANCE hInstance)
+	SampleApp::SampleApp(HINSTANCE hInstance)
 		: D3DApp(hInstance)
 	{
 		mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
@@ -33,14 +32,13 @@ namespace DXLib
 		}
 	}
 
-	ShapesApp::~ShapesApp()
+	SampleApp::~SampleApp()
 	{
 		Flush();
 	}
 
-	
 
-	void ShapesApp::GeneratedMipMap()
+	void SampleApp::GeneratedMipMap()
 	{
 		std::vector<Texture*> generatedMipTextures;
 
@@ -51,29 +49,29 @@ namespace DXLib
 			/*ТОлько те что можно использовать как UAV*/
 			if (texture.second->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 				continue;
-						
+
 			if (!texture.second->HasMipMap)
 			{
 				generatedMipTextures.push_back(texture.second.get());
 			}
 		}
-				
+
 
 		auto graphicQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto graphicList = graphicQueue->GetCommandList();
 
-		for (auto && texture : generatedMipTextures)
+		for (auto&& texture : generatedMipTextures)
 		{
 			graphicList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 		graphicQueue->ExecuteCommandList(graphicList);
 
 		const auto computeQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		auto cmdList = computeQueue->GetCommandList();		
-		Texture::GenerateMipMaps(cmdList, generatedMipTextures.data(), generatedMipTextures.size());		
+		auto cmdList = computeQueue->GetCommandList();
+		Texture::GenerateMipMaps(cmdList, generatedMipTextures.data(), generatedMipTextures.size());
 		computeQueue->ExecuteCommandList(cmdList);
 
-		
+
 		graphicList = graphicQueue->GetCommandList();
 		for (auto&& texture : generatedMipTextures)
 		{
@@ -81,7 +79,7 @@ namespace DXLib
 		}
 		graphicQueue->ExecuteCommandList(graphicList);
 
-		
+
 		for (auto&& pair : textures)
 		{
 			pair.second->ClearTrack();
@@ -90,7 +88,7 @@ namespace DXLib
 		DXAllocator::UploaderClear();
 	}
 
-	bool ShapesApp::Initialize()
+	bool SampleApp::Initialize()
 	{
 		if (!D3DApp::Initialize())
 			return false;
@@ -98,14 +96,14 @@ namespace DXLib
 		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto cmdList = commandQueue->GetCommandList();
 
-		mShadowMap = std::make_unique<ShadowMap>( 4096, 4096);
+		mShadowMap = std::make_unique<ShadowMap>(4096, 4096);
 
 		mSsao = std::make_unique<Ssao>(
 			dxDevice.Get(),
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-		LoadTextures( cmdList);
+		LoadTextures(cmdList);
 
 
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
@@ -127,7 +125,7 @@ namespace DXLib
 		BuildGameObjects();
 		BuildFrameResources();
 		SortGO();
-				
+
 		mSsao->SetPSOs(*psos[PsoType::Ssao], *psos[PsoType::SsaoBlur]);
 
 		commandQueue->Flush();
@@ -135,7 +133,7 @@ namespace DXLib
 		return true;
 	}
 
-	void ShapesApp::OnResize()
+	void SampleApp::OnResize()
 	{
 		D3DApp::OnResize();
 
@@ -151,7 +149,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::Update(const GameTimer& gt)
+	void SampleApp::Update(const GameTimer& gt)
 	{
 		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
@@ -186,7 +184,7 @@ namespace DXLib
 		UpdateSsaoCB(gt);
 	}
 
-	void ShapesApp::Draw(const GameTimer& gt)
+	void SampleApp::Draw(const GameTimer& gt)
 	{
 		if (isResizing) return;
 
@@ -194,24 +192,19 @@ namespace DXLib
 
 		auto cmdList = commandQueue->GetCommandList();
 
-
-		
-
-		/*ID3D12DescriptorHeap* descriptorHeaps[] = {srvHeap.GetDescriptorHeap()};
-		cmdList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);*/
-		cmdList->SetGMemory(&srvHeap);		
+		cmdList->SetGMemory(&srvHeap);
 		cmdList->SetRootSignature(rootSignature.get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Prepare Render 3D");
-			
+
 
 		/*Bind all materials*/
 		auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
 
-		
+
 		/*Bind all Diffuse Textures*/
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,&srvHeap);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvHeap);
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 
@@ -241,19 +234,21 @@ namespace DXLib
 
 		cmdList->SetRootSignature(rootSignature.get());
 
-		cmdList->SetViewports( &MainWindow->GetViewPort(),1);
-		cmdList->SetScissorRects( &MainWindow->GetRect(), 1);
+		cmdList->SetViewports(&MainWindow->GetViewPort(), 1);
+		cmdList->SetScissorRects(&MainWindow->GetRect(), 1);
 
-		cmdList->TransitionBarrier((MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get()), D3D12_RESOURCE_STATE_RENDER_TARGET);
-		cmdList->FlushResourceBarriers();		
+		cmdList->TransitionBarrier((MainWindow->GetCurrentBackBuffer()), D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdList->FlushResourceBarriers();
+
 		cmdList->ClearRenderTarget(MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex());
 
 
-		cmdList->SetRenderTargets(1, MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex(), MainWindow->GetDSVMemory());
+		cmdList->SetRenderTargets(1, MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex(),
+		                          MainWindow->GetDSVMemory());
 
 
 		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-		
+
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
 
@@ -262,7 +257,7 @@ namespace DXLib
 
 		/*Bind all Diffuse Textures*/
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,
-		                                        &srvHeap);
+		                                &srvHeap);
 
 
 		cmdList->SetPipelineState(*psos[PsoType::SkyBox]);
@@ -283,8 +278,9 @@ namespace DXLib
 			DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Debug)]);
 		}
 
-		cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer().GetD3D12Resource(), D3D12_RESOURCE_STATE_PRESENT);
-		
+		cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+		cmdList->FlushResourceBarriers();
+
 		/*cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(),
 		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
 		                                                                  D3D12_RESOURCE_STATE_PRESENT));*/
@@ -297,7 +293,7 @@ namespace DXLib
 		currBackBufferIndex = MainWindow->Present();
 	}
 
-	void ShapesApp::AnimatedMaterial(const GameTimer& gt)
+	void SampleApp::AnimatedMaterial(const GameTimer& gt)
 	{
 		// Scroll the water material texture coordinates.
 		auto waterMat = materials["water"].get();
@@ -322,7 +318,7 @@ namespace DXLib
 	}
 
 
-	void ShapesApp::UpdateGameObjects(const GameTimer& gt)
+	void SampleApp::UpdateGameObjects(const GameTimer& gt)
 	{
 		const float dt = gt.DeltaTime();
 
@@ -332,7 +328,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::UpdateMaterial(const GameTimer& gt)
+	void SampleApp::UpdateMaterial(const GameTimer& gt)
 	{
 		auto currentMaterialBuffer = currentFrameResource->MaterialBuffer.get();
 
@@ -344,7 +340,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::UpdateShadowTransform(const GameTimer& gt)
+	void SampleApp::UpdateShadowTransform(const GameTimer& gt)
 	{
 		// Only the first "main" light casts a shadow.
 		Vector3 lightDir = mRotatedLightDirections[0];
@@ -385,7 +381,7 @@ namespace DXLib
 		mShadowTransform = S;
 	}
 
-	void ShapesApp::UpdateShadowPassCB(const GameTimer& gt)
+	void SampleApp::UpdateShadowPassCB(const GameTimer& gt)
 	{
 		auto view = mLightView;
 		auto proj = mLightProj;
@@ -414,7 +410,7 @@ namespace DXLib
 		currPassCB->CopyData(1, mShadowPassCB);
 	}
 
-	void ShapesApp::UpdateMainPassCB(const GameTimer& gt)
+	void SampleApp::UpdateMainPassCB(const GameTimer& gt)
 	{
 		auto view = camera->GetViewMatrix();
 		auto proj = camera->GetProjectionMatrix();
@@ -442,8 +438,10 @@ namespace DXLib
 		mainPassCB.ViewProjTex = viewProjTex.Transpose();
 		mainPassCB.ShadowTransform = shadowTransform.Transpose();
 		mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetPosition();
-		mainPassCB.RenderTargetSize = XMFLOAT2(static_cast<float>(MainWindow->GetClientWidth()), static_cast<float>(MainWindow->GetClientHeight()));
-		mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mainPassCB.RenderTargetSize.x, 1.0f / mainPassCB.RenderTargetSize.y);
+		mainPassCB.RenderTargetSize = XMFLOAT2(static_cast<float>(MainWindow->GetClientWidth()),
+		                                       static_cast<float>(MainWindow->GetClientHeight()));
+		mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mainPassCB.RenderTargetSize.x,
+		                                          1.0f / mainPassCB.RenderTargetSize.y);
 		mainPassCB.NearZ = 1.0f;
 		mainPassCB.FarZ = 1000.0f;
 		mainPassCB.TotalTime = gt.TotalTime();
@@ -474,7 +472,7 @@ namespace DXLib
 		currentPassCB->CopyData(0, mainPassCB);
 	}
 
-	void ShapesApp::UpdateSsaoCB(const GameTimer& gt)
+	void SampleApp::UpdateSsaoCB(const GameTimer& gt)
 	{
 		SsaoConstants ssaoCB;
 
@@ -510,7 +508,7 @@ namespace DXLib
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 
-	void ShapesApp::LoadDoomSlayerTexture(std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadDoomSlayerTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");
 
@@ -545,30 +543,30 @@ namespace DXLib
 		};
 
 		for (UINT i = 0; i < doomNames.size(); ++i)
-		{			
-			auto texture = Texture::LoadTextureFromFile( doomFolder + doomTextures[i], cmdList, TextureUsage::Diffuse);
+		{
+			auto texture = Texture::LoadTextureFromFile(doomFolder + doomTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(doomNames[i]);
-			
+
 			auto normal = Texture::LoadTextureFromFile(doomFolder + doomNormals[i], cmdList,
 			                                           TextureUsage::Normalmap);
 			normal->SetName(doomNames[i].append(L"Normal"));
-			
+
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
 		}
 	}
 
-	void ShapesApp::LoadStudyTexture(std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadStudyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
-		auto bricksTex = Texture::LoadTextureFromFile( L"Data\\Textures\\bricks2.dds", cmdList);
+		auto bricksTex = Texture::LoadTextureFromFile(L"Data\\Textures\\bricks2.dds", cmdList);
 		bricksTex->SetName(L"bricksTex");
 		textures[bricksTex->GetName()] = std::move(bricksTex);
 
-		auto stoneTex = Texture::LoadTextureFromFile( L"Data\\Textures\\stone.dds", cmdList);
+		auto stoneTex = Texture::LoadTextureFromFile(L"Data\\Textures\\stone.dds", cmdList);
 		stoneTex->SetName(L"stoneTex");
 		textures[stoneTex->GetName()] = std::move(stoneTex);
 
-		auto tileTex = Texture::LoadTextureFromFile( L"Data\\Textures\\tile.dds", cmdList);
+		auto tileTex = Texture::LoadTextureFromFile(L"Data\\Textures\\tile.dds", cmdList);
 		tileTex->SetName(L"tileTex");
 		textures[tileTex->GetName()] = std::move(tileTex);
 
@@ -576,23 +574,23 @@ namespace DXLib
 		fenceTex->SetName(L"fenceTex");
 		textures[fenceTex->GetName()] = std::move(fenceTex);
 
-		auto waterTex = Texture::LoadTextureFromFile( L"Data\\Textures\\water1.dds", cmdList);
-		waterTex->SetName(L"waterTex" );
+		auto waterTex = Texture::LoadTextureFromFile(L"Data\\Textures\\water1.dds", cmdList);
+		waterTex->SetName(L"waterTex");
 		textures[waterTex->GetName()] = std::move(waterTex);
 
-		auto skyTex = Texture::LoadTextureFromFile( L"Data\\Textures\\skymap.dds", cmdList);
+		auto skyTex = Texture::LoadTextureFromFile(L"Data\\Textures\\skymap.dds", cmdList);
 		skyTex->SetName(L"skyTex");
 		textures[skyTex->GetName()] = std::move(skyTex);
 
-		auto grassTex = Texture::LoadTextureFromFile( L"Data\\Textures\\grass.dds", cmdList);
+		auto grassTex = Texture::LoadTextureFromFile(L"Data\\Textures\\grass.dds", cmdList);
 		grassTex->SetName(L"grassTex");
 		textures[grassTex->GetName()] = std::move(grassTex);
 
-		auto treeArrayTex = Texture::LoadTextureFromFile( L"Data\\Textures\\treeArray2.dds", cmdList);
+		auto treeArrayTex = Texture::LoadTextureFromFile(L"Data\\Textures\\treeArray2.dds", cmdList);
 		treeArrayTex->SetName(L"treeArrayTex");
 		textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
 
-		auto seamless = Texture::LoadTextureFromFile( L"Data\\Textures\\seamless_grass.jpg", cmdList);
+		auto seamless = Texture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList);
 		seamless->SetName(L"seamless");
 		textures[seamless->GetName()] = std::move(seamless);
 
@@ -613,13 +611,13 @@ namespace DXLib
 
 		for (int i = 0; i < texNormalNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile( texNormalFilenames[i], cmdList, TextureUsage::Normalmap);
+			auto texture = Texture::LoadTextureFromFile(texNormalFilenames[i], cmdList, TextureUsage::Normalmap);
 			texture->SetName(texNormalNames[i]);
 			textures[texture->GetName()] = std::move(texture);
 		}
 	}
 
-	void ShapesApp::LoadNanosuitTexture(std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadNanosuitTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring nanoFolder(L"Data\\Objects\\Nanosuit\\");
 
@@ -657,15 +655,15 @@ namespace DXLib
 		{
 			auto texture = Texture::LoadTextureFromFile(nanoFolder + nanoTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(nanoNames[i]);
-			auto normal = Texture::LoadTextureFromFile( nanoFolder + nanoNormals[i], cmdList,
-			                                            TextureUsage::Normalmap);
+			auto normal = Texture::LoadTextureFromFile(nanoFolder + nanoNormals[i], cmdList,
+			                                           TextureUsage::Normalmap);
 			normal->SetName(nanoNames[i].append(L"Normal"));
 			textures[texture->GetName()] = std::move(texture);
 			textures[normal->GetName()] = std::move(normal);
 		}
 	}
 
-	void ShapesApp::LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring atlasFolder(L"Data\\Objects\\Atlas\\");
 
@@ -686,13 +684,13 @@ namespace DXLib
 
 		for (UINT i = 0; i < AtlasNames.size(); ++i)
 		{
-			auto texture =Texture::LoadTextureFromFile( atlasFolder + AtlasTextures[i], cmdList,TextureUsage::Diffuse);
+			auto texture = Texture::LoadTextureFromFile(atlasFolder + AtlasTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(AtlasNames[i]);
 			textures[texture->GetName()] = std::move(texture);
 		}
 	}
 
-	void ShapesApp::LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring PBodyFolder(L"Data\\Objects\\P-Body\\");
 
@@ -714,15 +712,15 @@ namespace DXLib
 
 
 		for (UINT i = 0; i < PBodyNames.size(); ++i)
-		{			
-			auto texture = Texture::LoadTextureFromFile( PBodyFolder + PBodyTextures[i], cmdList,
-			                                             TextureUsage::Diffuse);
+		{
+			auto texture = Texture::LoadTextureFromFile(PBodyFolder + PBodyTextures[i], cmdList,
+			                                            TextureUsage::Diffuse);
 			texture->SetName(PBodyNames[i]);
 			textures[texture->GetName()] = std::move(texture);
 		}
 	}
 
-	void ShapesApp::LoadGolemTexture(std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadGolemTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		std::wstring mechFolder(L"Data\\Objects\\StoneGolem\\");
 
@@ -743,7 +741,7 @@ namespace DXLib
 
 		for (UINT i = 0; i < mechNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile( mechFolder + mechTextures[i], cmdList, TextureUsage::Diffuse);
+			auto texture = Texture::LoadTextureFromFile(mechFolder + mechTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(mechNames[i]);
 			auto normal = Texture::LoadTextureFromFile(mechFolder + mechNormals[i], cmdList,
 			                                           TextureUsage::Normalmap);
@@ -753,7 +751,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::LoadTextures( std::shared_ptr<GCommandList> cmdList)
+	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
 	{
 		LoadStudyTexture(cmdList);
 
@@ -774,7 +772,7 @@ namespace DXLib
 		//}
 	}
 
-	void ShapesApp::BuildRootSignature()
+	void SampleApp::BuildRootSignature()
 	{
 		rootSignature = std::make_unique<RootSignature>();
 
@@ -796,10 +794,10 @@ namespace DXLib
 		rootSignature->Initialize();
 	}
 
-	void ShapesApp::BuildSsaoRootSignature()
+	void SampleApp::BuildSsaoRootSignature()
 	{
 		ssaoRootSignature = std::make_unique<RootSignature>();
-		
+
 		CD3DX12_DESCRIPTOR_RANGE texTable0;
 		texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
 
@@ -808,8 +806,8 @@ namespace DXLib
 
 		ssaoRootSignature->AddConstantBufferParameter(0);
 		ssaoRootSignature->AddConstantParameter(1, 1);
-		ssaoRootSignature->AddDescriptorParameter( &texTable0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-		ssaoRootSignature->AddDescriptorParameter( &texTable1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		ssaoRootSignature->AddDescriptorParameter(&texTable0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+		ssaoRootSignature->AddDescriptorParameter(&texTable1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 		const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
 			0, // shaderRegister
@@ -848,17 +846,17 @@ namespace DXLib
 			pointClamp, linearClamp, depthMapSam, linearWrap
 		};
 
-		for (auto && sampler : staticSamplers)
+		for (auto&& sampler : staticSamplers)
 		{
 			ssaoRootSignature->AddStaticSampler(sampler);
 		}
-		
+
 		ssaoRootSignature->Initialize();
 	}
 
-	void ShapesApp::BuildTexturesHeap()
+	void SampleApp::BuildTexturesHeap()
 	{
-		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size()));			
+		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size()));
 
 
 		mShadowMap->BuildDescriptors();
@@ -866,7 +864,7 @@ namespace DXLib
 		mSsao->BuildDescriptors(MainWindow->GetDepthStencilBuffer());
 	}
 
-	void ShapesApp::BuildShadersAndInputLayout()
+	void SampleApp::BuildShadersAndInputLayout()
 	{
 		const D3D_SHADER_MACRO defines[] =
 		{
@@ -968,7 +966,7 @@ namespace DXLib
 		};
 	}
 
-	void ShapesApp::BuildShapeGeometry()
+	void SampleApp::BuildShapeGeometry()
 	{
 		GeometryGenerator geoGen;
 		GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
@@ -1041,7 +1039,7 @@ namespace DXLib
 			cylinder.Vertices.size() + skySphere.Vertices.size() + quad.Vertices.size();
 
 		custom_vector<Vertex> vertices = DXAllocator::CreateVector<Vertex>();
-		vertices.resize (totalVertexCount);
+		vertices.resize(totalVertexCount);
 
 		UINT k = 0;
 		for (size_t i = 0; i < box.Vertices.size(); ++i, ++k)
@@ -1099,11 +1097,13 @@ namespace DXLib
 		auto cmdList = commandQueue->GetCommandList();
 
 		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                    cmdList->GetGraphicsCommandList().Get(), vertices.data(), vbByteSize,
+		                                                    cmdList->GetGraphicsCommandList().Get(), vertices.data(),
+		                                                    vbByteSize,
 		                                                    geo->VertexBufferUploader);
 
 		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-			cmdList->GetGraphicsCommandList().Get(), indices.data(), ibByteSize,
+		                                                   cmdList->GetGraphicsCommandList().Get(), indices.data(),
+		                                                   ibByteSize,
 		                                                   geo->IndexBufferUploader);
 
 		commandQueue->ExecuteCommandList(cmdList);
@@ -1119,11 +1119,11 @@ namespace DXLib
 		geo->Submeshs["cylinder"] = cylinderSubmeshs;
 		geo->Submeshs["sky"] = skySphererSubmeshs;
 		geo->Submeshs["quad"] = quadSubmesh;
-				
+
 		meshes[geo->Name] = std::move(geo);
 	}
 
-	void ShapesApp::BuildRoomGeometry()
+	void SampleApp::BuildRoomGeometry()
 	{
 	}
 
@@ -1146,7 +1146,7 @@ namespace DXLib
 		return n;
 	}
 
-	void ShapesApp::BuildLandGeometry()
+	void SampleApp::BuildLandGeometry()
 	{
 		GeometryGenerator geoGen;
 		GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
@@ -1158,7 +1158,7 @@ namespace DXLib
 		//
 
 		custom_vector<Vertex> vertices = DXAllocator::CreateVector<Vertex>();
-		vertices.resize (grid.Vertices.size());
+		vertices.resize(grid.Vertices.size());
 		for (size_t i = 0; i < grid.Vertices.size(); ++i)
 		{
 			vertices[i] = grid.Vertices[i];
@@ -1184,11 +1184,13 @@ namespace DXLib
 		auto cmdList = commandQueue->GetCommandList();
 
 		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-			cmdList->GetGraphicsCommandList().Get(), vertices.data(), vbByteSize,
+		                                                    cmdList->GetGraphicsCommandList().Get(), vertices.data(),
+		                                                    vbByteSize,
 		                                                    geo->VertexBufferUploader);
 
 		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-			cmdList->GetGraphicsCommandList().Get(), indices.data(), ibByteSize,
+		                                                   cmdList->GetGraphicsCommandList().Get(), indices.data(),
+		                                                   ibByteSize,
 		                                                   geo->IndexBufferUploader);
 
 		commandQueue->ExecuteCommandList(cmdList);
@@ -1208,7 +1210,7 @@ namespace DXLib
 		meshes["landGeo"] = std::move(geo);
 	}
 
-	void ShapesApp::BuildTreesGeometry()
+	void SampleApp::BuildTreesGeometry()
 	{
 		struct TreeSpriteVertex
 		{
@@ -1251,11 +1253,13 @@ namespace DXLib
 
 
 		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-			cmdList->GetGraphicsCommandList().Get(), vertices.data(), vbByteSize,
+		                                                    cmdList->GetGraphicsCommandList().Get(), vertices.data(),
+		                                                    vbByteSize,
 		                                                    geo->VertexBufferUploader);
 
 		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-			cmdList->GetGraphicsCommandList().Get(), indices.data(), ibByteSize,
+		                                                   cmdList->GetGraphicsCommandList().Get(), indices.data(),
+		                                                   ibByteSize,
 		                                                   geo->IndexBufferUploader);
 
 		commandQueue->ExecuteCommandList(cmdList);
@@ -1275,7 +1279,7 @@ namespace DXLib
 		meshes["treeSpritesGeo"] = std::move(geo);
 	}
 
-	void ShapesApp::BuildPSOs()
+	void SampleApp::BuildPSOs()
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC basePsoDesc;
 
@@ -1434,7 +1438,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::BuildFrameResources()
+	void SampleApp::BuildFrameResources()
 	{
 		for (int i = 0; i < globalCountFrameResources; ++i)
 		{
@@ -1443,7 +1447,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::BuildMaterials()
+	void SampleApp::BuildMaterials()
 	{
 		auto bricks0 = std::make_unique<Material>("bricks", psos[PsoType::Opaque].get());
 		bricks0->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1476,7 +1480,7 @@ namespace DXLib
 			material->FresnelR0 = Vector3::One * 0.05;
 			material->Roughness = 0.95;
 
-			material->SetDiffuseTexture(textures[AnsiToWString( name)].get());
+			material->SetDiffuseTexture(textures[AnsiToWString(name)].get());
 			material->SetNormalMap(textures[AnsiToWString(name + "Normal")].get());
 
 			if (material->GetName() == "Doomvisor")
@@ -1624,7 +1628,7 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::BuildGameObjects()
+	void SampleApp::BuildGameObjects()
 	{
 		auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
 		camera->GetTransform()->SetPosition({-3.667396, 3.027442, -12.024042});
@@ -1717,7 +1721,7 @@ namespace DXLib
 		man->GetTransform()->SetScale(Vector3::One * 0.25);
 		man->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		auto modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
+		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
 		{
 			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
 			{
@@ -1752,7 +1756,7 @@ namespace DXLib
 		doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
 		doomMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\DoomSlayer\\doommarine.obj"))
+		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\DoomSlayer\\doommarine.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1790,7 +1794,7 @@ namespace DXLib
 		AtlasMan->GetTransform()->SetScale(Vector3::One * 0.2);
 		AtlasMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\Atlas\\Atlas.obj"))
+		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\Atlas\\Atlas.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1827,7 +1831,7 @@ namespace DXLib
 		PBodyMan->GetTransform()->SetScale(Vector3::One * 0.2);
 		PBodyMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\P-Body\\P-Body.obj"))
+		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\P-Body\\P-Body.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1865,7 +1869,7 @@ namespace DXLib
 		golem->GetTransform()->SetScale(Vector3::One * 0.5);
 		golem->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(dxDevice.Get(), cmdList->GetGraphicsCommandList().Get(), "Data\\Objects\\StoneGolem\\Stone.obj"))
+		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\StoneGolem\\Stone.obj"))
 		{
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
@@ -1977,7 +1981,7 @@ namespace DXLib
 		commandQueue->ExecuteCommandList(cmdList);
 	}
 
-	void ShapesApp::DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems)
+	void SampleApp::DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems)
 	{
 		// For each render item...
 		for (auto& ri : ritems)
@@ -1986,27 +1990,21 @@ namespace DXLib
 		}
 	}
 
-	void ShapesApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> list)
+	void SampleApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> list)
 	{
-		auto cmdList = list->GetGraphicsCommandList();
-		
 		list->SetViewports(&mShadowMap->Viewport(), 1);
 		list->SetScissorRects(&mShadowMap->ScissorRect(), 1);
 
-		//list->TransitionBarrier(mShadowMap->GetTexture().GetD3D12Resource(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->GetTexture().GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_COMMON,
-		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		list->TransitionBarrier(mShadowMap->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		list->FlushResourceBarriers();
 
 
 		list->ClearDepthStencil(mShadowMap->GetDsvMemory(), 0,
-		                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		list->SetRenderTargets(0, nullptr, false, mShadowMap->GetDsvMemory());
 
 		UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-		// Bind the pass constant buffer for the shadow map pass.
 		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
 		D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
 		list->SetRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
@@ -2018,32 +2016,25 @@ namespace DXLib
 		list->SetPipelineState(*psos[PsoType::ShadowMapOpaqueDrop]);
 		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
-
-		//list->TransitionBarrier(mShadowMap->GetTexture().GetD3D12Resource(), D3D12_RESOURCE_STATE_GENERIC_READ);
-		
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->GetTexture().GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_DEPTH_WRITE,	D3D12_RESOURCE_STATE_COMMON));
-
+		list->TransitionBarrier(mShadowMap->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
+		list->FlushResourceBarriers();
 	}
 
-	void ShapesApp::DrawNormalsAndDepth(std::shared_ptr<GCommandList> list)
+	void SampleApp::DrawNormalsAndDepth(std::shared_ptr<GCommandList> list)
 	{
-		auto cmdList = list->GetGraphicsCommandList();
-		
-		list->SetViewports( &MainWindow->GetViewPort(),1);
-		list->SetScissorRects( &MainWindow->GetRect(),1);
+		list->SetViewports(&MainWindow->GetViewPort(), 1);
+		list->SetScissorRects(&MainWindow->GetRect(), 1);
 
 		auto normalMap = mSsao->NormalMap();
 		auto normalMapRtv = mSsao->NormalMapRtv();
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap.GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_COMMON,
-		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
+		list->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		list->FlushResourceBarriers();
 
 		float clearValue[] = {0.0f, 0.0f, 1.0f, 0.0f};
-		list->ClearRenderTarget(normalMapRtv,0, clearValue);
+		list->ClearRenderTarget(normalMapRtv, 0, clearValue);
 		list->ClearDepthStencil(MainWindow->GetDSVMemory(), 0,
-		                               D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		list->SetRenderTargets(1, normalMapRtv, 0, MainWindow->GetDSVMemory());
 
@@ -2055,12 +2046,12 @@ namespace DXLib
 		list->SetPipelineState(*psos[PsoType::DrawNormalsOpaqueDrop]);
 		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
-		cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap.GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_COMMON));
+
+		list->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_COMMON);
+		list->FlushResourceBarriers();
 	}
 
-	void ShapesApp::SortGO()
+	void SampleApp::SortGO()
 	{
 		for (auto&& item : gameObjects)
 		{
@@ -2080,9 +2071,8 @@ namespace DXLib
 		std::sort(lights.begin(), lights.end(), [](Light const* a, Light const* b) { return a->Type() < b->Type(); });
 	}
 
-	
 
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> ShapesApp::GetStaticSamplers()
+	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> SampleApp::GetStaticSamplers()
 	{
 		const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
 			0, // shaderRegister

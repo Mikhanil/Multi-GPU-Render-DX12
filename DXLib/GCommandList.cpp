@@ -309,6 +309,16 @@ void GCommandList::SetPipelineState(ComputePSO& pso)
     TrackResource(pipeState);
 }
 
+void GCommandList::SetVBuffer(UINT slot, UINT count, D3D12_VERTEX_BUFFER_VIEW* views)
+{
+    cmdList->IASetVertexBuffers(slot, count, views);
+}
+
+void GCommandList::SetIBuffer(D3D12_INDEX_BUFFER_VIEW* views)
+{
+    cmdList->IASetIndexBuffer(views);
+}
+
 
 void GCommandList::TransitionBarrier(Microsoft::WRL::ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource, bool flushBarriers)
 {

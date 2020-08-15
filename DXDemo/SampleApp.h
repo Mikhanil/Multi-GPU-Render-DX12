@@ -1,17 +1,15 @@
 #pragma once
 
-#include "d3dApp.h"
-#include "MathHelper.h"
-#include "DirectXBuffers.h"
-#include "GeometryGenerator.h"
-#include "FrameResource.h"
-#include "ModelRenderer.h"
 #include "Camera.h"
+#include "d3dApp.h"
+#include "FrameResource.h"
+#include "GeometryGenerator.h"
 #include "GMemory.h"
-#include "Light.h"
-#include "Shader.h"
 #include "GraphicPSO.h"
+#include "Light.h"
+#include "ModelRenderer.h"
 #include "RootSignature.h"
+#include "Shader.h"
 #include "ShadowMap.h"
 #include "Ssao.h"
 
@@ -22,13 +20,13 @@ using namespace PackedVector;
 
 namespace DXLib
 {
-	class ShapesApp : public D3DApp
+	class SampleApp : public D3DApp
 	{
 	public:
-		ShapesApp(HINSTANCE hInstance);
-		ShapesApp(const ShapesApp& rhs) = delete;
-		ShapesApp& operator=(const ShapesApp& rhs) = delete;
-		~ShapesApp();
+		SampleApp(HINSTANCE hInstance);
+		SampleApp(const SampleApp& rhs) = delete;
+		SampleApp& operator=(const SampleApp& rhs) = delete;
+		~SampleApp();
 
 	
 

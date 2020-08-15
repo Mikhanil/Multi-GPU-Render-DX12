@@ -153,12 +153,11 @@ void Ssao::ComputeSsao(
 {
 	cmdList->SetViewports( &mViewport,1);
 	cmdList->SetScissorRects( &mScissorRect,1);
+	
+	cmdList->TransitionBarrier(mAmbientMap0, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	cmdList->FlushResourceBarriers();
 
-	auto d3d12Cmdlist = cmdList->GetGraphicsCommandList();	
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_COMMON,
-	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
-
+	
 	float clearValue[] = {1.0f, 1.0f, 1.0f, 1.0f};
 	cmdList->ClearRenderTarget(&ambientMapRtvMemory,0 , clearValue);
 
@@ -175,33 +174,30 @@ void Ssao::ComputeSsao(
 	cmdList->SetRootDescriptorTable(3, &randomVectorSrvMemory);
 
 
-	d3d12Cmdlist->IASetVertexBuffers(0, 0, nullptr);
-	d3d12Cmdlist->IASetIndexBuffer(nullptr);
-	d3d12Cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	d3d12Cmdlist->DrawInstanced(6, 1, 0, 0);
+	cmdList->SetVBuffer(0, 0, nullptr);
+	cmdList->SetIBuffer(nullptr);
+	cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList->Draw(6, 1, 0, 0);
 
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_COMMON));
 
+	cmdList->TransitionBarrier(mAmbientMap0, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->FlushResourceBarriers();
+	
 	BlurAmbientMap(cmdList, currFrame, blurCount);
 }
 
 void Ssao::ClearAmbiantMap(
 	std::shared_ptr<GCommandList> cmdList)
 {
-	auto d3d12Cmdlist = cmdList->GetGraphicsCommandList();
-	
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.GetD3D12Resource().Get(),
-		D3D12_RESOURCE_STATE_COMMON,
-	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
+	cmdList->TransitionBarrier(mAmbientMap0, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	cmdList->FlushResourceBarriers();
 
 	float clearValue[] = {0.0f, 0.0f, 0.0f, 1.0f};
 	cmdList->ClearRenderTarget(&ambientMapRtvMemory,0, clearValue);
 
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_COMMON));
+
+	cmdList->TransitionBarrier(mAmbientMap0, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->FlushResourceBarriers();
 }
 
 void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, FrameResource* currFrame, int blurCount)
@@ -239,12 +235,9 @@ void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur)
 		cmdList->SetRoot32BitConstant(1, 0, 0);
 	}
 
-	auto d3d12Cmdlist = cmdList->GetGraphicsCommandList();
+	cmdList->TransitionBarrier(output, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	cmdList->FlushResourceBarriers();
 	
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_COMMON,
-	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET));
-
 	float clearValue[] = {1.0f, 1.0f, 1.0f, 1.0f};
 	cmdList->ClearRenderTarget(&ambientMapRtvMemory, outputRtv, clearValue);
 
@@ -255,17 +248,16 @@ void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur)
 	cmdList->SetRootDescriptorTable(3, &ambientMapMapSrvMemory, inputSrv);
 
 	// Draw fullscreen quad.
-	d3d12Cmdlist->IASetVertexBuffers(0, 0, nullptr);
-	d3d12Cmdlist->IASetIndexBuffer(nullptr);
-	d3d12Cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	d3d12Cmdlist->DrawInstanced(6, 1, 0, 0);
+	cmdList->SetVBuffer(0, 0, nullptr);
+	cmdList->SetIBuffer(nullptr);
+	cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdList->Draw(6, 1, 0, 0);
 
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(output.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_COMMON));
+	cmdList->TransitionBarrier(output, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->FlushResourceBarriers();
 }
 
-Texture Ssao::CreateNormalMap()
+Texture Ssao::CreateNormalMap() const
 {
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
@@ -288,7 +280,7 @@ Texture Ssao::CreateNormalMap()
 	return  Texture(texDesc, L"SSAO NormalMap", TextureUsage::Normalmap, &optClear);
 }
 
-Texture Ssao::CreateAmbientMap()
+Texture Ssao::CreateAmbientMap() const
 {
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
@@ -357,20 +349,8 @@ void Ssao::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
 	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 	mRandomVectorMap = Texture(texDesc, L"SSAO Random Vector Map", TextureUsage::Normalmap);
-
-	//
-	// In order to copy CPU memory data into our default buffer, we need to create
-	// an intermediate upload heap. 
-	//
-
-	const UINT num2DSubresources = texDesc.DepthOrArraySize * texDesc.MipLevels;
-	const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mRandomVectorMap.GetD3D12Resource().Get(), 0, num2DSubresources);
-
-	auto upload = DXAllocator::UploadData(uploadBufferSize, nullptr, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 	
-	
-
-	custom_vector<Vector4> data = DXAllocator::CreateVector<Vector4>();
+	std::vector<Vector4> data;
 	data.resize(256 * 256);
 
 	for (int i = 0; i < 256; ++i)
@@ -379,7 +359,6 @@ void Ssao::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
 		{
 			// Random vector in [0,1].  We will decompress in shader to [-1,1].
 			Vector3 v(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
-
 			data[i * 256 + j] = Vector4(v.x, v.y, v.z, 0.0f);
 		}
 	}
@@ -387,18 +366,15 @@ void Ssao::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
 	D3D12_SUBRESOURCE_DATA subResourceData = {};
 	subResourceData.pData = data.data();
 	subResourceData.RowPitch = 256 * sizeof(Vector4);
-	subResourceData.SlicePitch = subResourceData.RowPitch * 256;
+	subResourceData.SlicePitch = subResourceData.RowPitch * 256;	
 
-	auto d3d12Cmdlist = cmdList->GetGraphicsCommandList();
+	cmdList->TransitionBarrier(mRandomVectorMap.GetD3D12Resource(), D3D12_RESOURCE_STATE_COPY_DEST);
+	cmdList->FlushResourceBarriers();
+
+	cmdList->UpdateSubresource(mRandomVectorMap, &subResourceData, 1);
 	
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mRandomVectorMap.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_COMMON,
-	                                                                  D3D12_RESOURCE_STATE_COPY_DEST));
-	UpdateSubresources(d3d12Cmdlist.Get(), mRandomVectorMap.GetD3D12Resource().Get(), &upload.d3d12Resource,
-	                   upload.Offset, 0, num2DSubresources, &subResourceData);
-	d3d12Cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mRandomVectorMap.GetD3D12Resource().Get(),
-	                                                                  D3D12_RESOURCE_STATE_COPY_DEST,
-	                                                                  D3D12_RESOURCE_STATE_GENERIC_READ));
+	cmdList->TransitionBarrier(mRandomVectorMap.GetD3D12Resource(), D3D12_RESOURCE_STATE_GENERIC_READ);
+	cmdList->FlushResourceBarriers();
 }
 
 void Ssao::BuildOffsetVectors()

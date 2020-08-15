@@ -4,11 +4,12 @@
 #include "STLCustomAllocator.h"
 #include "assimp/scene.h"
 
+class GCommandList;
 
 class ModelMesh
 {
 public:
-	ModelMesh(ID3D12GraphicsCommandList* cmdList, std::string name, custom_vector<Vertex>& vertices,
+	ModelMesh(std::shared_ptr<GCommandList> cmdList, std::string name, custom_vector<Vertex>& vertices,
 	          custom_vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	void Update(Transform* transform);
@@ -34,10 +35,10 @@ class ModelRenderer : public Renderer
 {
 	custom_vector<ModelMesh> meshes = DXAllocator::CreateVector<ModelMesh>();
 
-	void ProcessNode(aiNode* node, const aiScene* scene, ID3D12GraphicsCommandList* cmdList);
+	void ProcessNode(aiNode* node, const aiScene* scene, std::shared_ptr<GCommandList>);
 
 	static ModelMesh ProcessMesh(aiMesh* mesh, const aiScene* scene,
-	                             ID3D12GraphicsCommandList* cmdList);
+		std::shared_ptr<GCommandList> cmdList);
 
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 
@@ -45,7 +46,7 @@ class ModelRenderer : public Renderer
 
 public:
 
-	bool AddModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const std::string& filePath);
+	bool AddModel(std::shared_ptr<GCommandList> cmdList, const std::string& filePath);
 
 	UINT GetMeshesCount()
 	{

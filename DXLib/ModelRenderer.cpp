@@ -8,7 +8,7 @@
 #include "GCommandList.h"
 #include "STLCustomAllocator.h"
 
-ModelMesh::ModelMesh(ID3D12GraphicsCommandList* cmdList, std::string name,
+ModelMesh::ModelMesh(std::shared_ptr<GCommandList> cmdList, std::string name,
 	custom_vector<Vertex>& vertices,
 	custom_vector<DWORD>& indices, D3D12_PRIMITIVE_TOPOLOGY topology): name(std::move(name))
 {
@@ -17,8 +17,11 @@ ModelMesh::ModelMesh(ID3D12GraphicsCommandList* cmdList, std::string name,
 	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>( 1);
 
 	PrimitiveType = topology;
-	vertexBuffer = std::make_unique<VertexBuffer>(&device, cmdList, vertices.data(), vertices.size());
-	indexBuffer = std::make_unique<IndexBuffer>(&device, cmdList, DXGI_FORMAT_R32_UINT, indices.data(), indices.size());
+
+	auto d3d12CmdList = cmdList->GetGraphicsCommandList();
+	
+	vertexBuffer = std::make_unique<VertexBuffer>(&device, d3d12CmdList.Get(), vertices.data(), vertices.size());
+	indexBuffer = std::make_unique<IndexBuffer>(&device, d3d12CmdList.Get(), DXGI_FORMAT_R32_UINT, indices.data(), indices.size());
 }
 
 void ModelMesh::Update(Transform* transform)
@@ -33,19 +36,17 @@ void ModelMesh::Update(Transform* transform)
 }
 
 void ModelMesh::Draw(std::shared_ptr<GCommandList> cmdList) const
-{
-	auto d3d12CommandList = cmdList->GetGraphicsCommandList();
-	
-	d3d12CommandList->SetGraphicsRootConstantBufferView(StandardShaderSlot::ObjectData,
+{	
+	cmdList->SetRootConstantBufferView(StandardShaderSlot::ObjectData,
 	                                           objectConstantBuffer->Resource()->GetGPUVirtualAddress());
-	d3d12CommandList->IASetVertexBuffers(0, 1, &vertexBuffer->VertexBufferView());
-	d3d12CommandList->IASetIndexBuffer(&indexBuffer->IndexBufferView());
-	d3d12CommandList->IASetPrimitiveTopology(PrimitiveType);
-	d3d12CommandList->DrawIndexedInstanced(indexBuffer->GetElementsCount(), 1, 0, 0, 0);
+	cmdList->SetVBuffer(0, 1, &vertexBuffer->VertexBufferView());
+	cmdList->SetIBuffer(&indexBuffer->IndexBufferView());
+	cmdList->SetPrimitiveTopology(PrimitiveType);
+	cmdList->DrawIndexed(indexBuffer->GetElementsCount(), 1, 0, 0, 0);
 }
 
 void ModelRenderer::ProcessNode(aiNode* node, const aiScene* scene,
-                                ID3D12GraphicsCommandList* cmdList)
+	std::shared_ptr<GCommandList> cmdList)
 {
 	for (UINT i = 0; i < node->mNumMeshes; i++)
 	{
@@ -91,7 +92,7 @@ void ModelMesh::CalculateTangent(UINT i1, UINT i2, UINT i3, custom_vector<Vertex
 }
 
 ModelMesh ModelRenderer::ProcessMesh(aiMesh* mesh, const aiScene* scene,
-                                     ID3D12GraphicsCommandList* cmdList)
+	std::shared_ptr<GCommandList> cmdList)
 {
 	
 	// Data to fill
@@ -208,7 +209,7 @@ void ModelRenderer::Update()
 	}
 }
 
-bool ModelRenderer::AddModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, const std::string& filePath)
+bool ModelRenderer::AddModel(std::shared_ptr<GCommandList> cmdList, const std::string& filePath)
 {
 	Assimp::Importer importer;
 

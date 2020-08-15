@@ -33,13 +33,11 @@ void Renderer::Draw(std::shared_ptr<GCommandList> cmdList)
 	                                           objectConstantBuffer->Resource()->GetGPUVirtualAddress());
 
 	material->Draw(cmdList);
-
-	auto d3d12CommandList = cmdList->GetGraphicsCommandList();
 	
-	d3d12CommandList->IASetVertexBuffers(0, 1, &mesh->VertexBufferView());
-	d3d12CommandList->IASetIndexBuffer(&mesh->IndexBufferView());
-	d3d12CommandList->IASetPrimitiveTopology(PrimitiveType);
+	cmdList->SetVBuffer(0, 1, &mesh->VertexBufferView());
+	cmdList->SetIBuffer(&mesh->IndexBufferView());
+	cmdList->SetPrimitiveTopology(PrimitiveType);
 
 
-	d3d12CommandList->DrawIndexedInstanced(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
+	cmdList->DrawIndexed(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
 }
