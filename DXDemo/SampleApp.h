@@ -26,16 +26,11 @@ namespace DXLib
 		SampleApp(HINSTANCE hInstance);
 		SampleApp(const SampleApp& rhs) = delete;
 		SampleApp& operator=(const SampleApp& rhs) = delete;
-		~SampleApp();
-
-	
+		~SampleApp();	
 
 		void GeneratedMipMap();
 		void BuildSsaoRootSignature();
 		bool Initialize() override;
-
-
-
 
 	private:
 		void OnResize() override;
@@ -74,8 +69,7 @@ namespace DXLib
 		static void DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems);
 		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();
-
-
+		
 	private:
 
 
@@ -97,7 +91,7 @@ namespace DXLib
 		custom_unordered_map<std::string, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Material>>();
 		custom_unordered_map<std::string, std::unique_ptr<Shader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Shader>>();
 		custom_unordered_map<std::wstring, std::shared_ptr<Texture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Texture>>();
-		custom_unordered_map<std::string, std::unique_ptr<ModelMesh>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<ModelMesh>>();
+		custom_unordered_map<std::string, std::shared_ptr<Model>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::shared_ptr<Model>>();
 		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
 		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
 		
@@ -106,7 +100,6 @@ namespace DXLib
 		custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 
 		custom_vector<std::unique_ptr<GameObject>> gameObjects = DXAllocator::CreateVector<std::unique_ptr<GameObject>>();
-
 		
 		custom_vector<custom_vector<GameObject*>> typedGameObjects = DXAllocator::CreateVector<custom_vector<GameObject*>>();
 
@@ -122,8 +115,6 @@ namespace DXLib
 		Matrix mLightProj = Matrix::Identity;
 		Matrix mShadowTransform = Matrix::Identity;
 
-		UINT mShadowMapHeapIndex = 0;
-
 
 		float mLightRotationAngle = 0.0f;
 		Vector3 mBaseLightDirections[3] = {
@@ -137,11 +128,5 @@ namespace DXLib
 		std::unique_ptr<ShadowMap> mShadowMap;
 
 		BoundingSphere mSceneBounds;
-
-		UINT passCbvOffset = 0;
-
-		bool isWireframe = false;
-		UINT mSsaoHeapIndexStart;
-		UINT mSsaoAmbientMapIndex;
 	};
 }

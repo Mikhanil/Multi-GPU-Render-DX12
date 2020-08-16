@@ -416,15 +416,15 @@ namespace DXLib
 			{
 				timer.Tick();
 
-				if (!isAppPaused)
+				//if (!isAppPaused)
 				{
 					CalculateFrameStats();
 					Update(timer);
 					Draw(timer);
 				}
-				else
+				//else
 				{
-					Sleep(100);
+					//Sleep(100);
 				}
 
 				DXAllocator::ResetAllocator();
@@ -514,13 +514,13 @@ namespace DXLib
 			case WM_ACTIVATE:
 				if (LOWORD(wParam) == WA_INACTIVE)
 				{
-					isAppPaused = true;
-					timer.Stop();
+					//isAppPaused = true;
+					//timer.Stop();
 				}
 				else
 				{
-					isAppPaused = false;
-					timer.Start();
+					//isAppPaused = false;
+					//timer.Start();
 				}
 				return 0;
 

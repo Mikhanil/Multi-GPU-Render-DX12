@@ -25,7 +25,7 @@ public:
     
    
 
-    explicit GDataUploader(size_t pageSize = 1024*1024*256);
+    explicit GDataUploader(size_t pageSize = 1024);
 
     virtual ~GDataUploader();
 

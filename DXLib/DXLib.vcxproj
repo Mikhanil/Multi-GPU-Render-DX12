@@ -176,11 +176,12 @@
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="ComputePSO.h" />
     <ClInclude Include="GeometryGenerator.h" />
-    <ClInclude Include="GraphicBuffer.h" />
     <ClInclude Include="GMemory.h" />
     <ClInclude Include="GAllocator.h" />
     <ClInclude Include="GHeap.h" />
     <ClInclude Include="GDataUploader.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="GResourceStateTracker.h" />
     <ClInclude Include="Keyboard.h" />
     <ClInclude Include="Lazy.h" />
@@ -222,11 +223,12 @@
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="ComputePSO.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
-    <ClCompile Include="GraphicBuffer.cpp" />
     <ClCompile Include="GMemory.cpp" />
     <ClCompile Include="GAllocator.cpp" />
     <ClCompile Include="GHeap.cpp" />
     <ClCompile Include="GDataUploader.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="GResourceStateTracker.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="Lazy.cpp" />

@@ -282,7 +282,7 @@ std::shared_ptr<Texture> Texture::LoadTextureFromFile(std::wstring filepath,
                                      std::shared_ptr<GCommandList> commandList, TextureUsage usage)
 {
 	auto it = cashedLoadTextures.find(filepath);
-	if(cashedLoadTextures.find(filepath) != cashedLoadTextures.end())
+	if(it != cashedLoadTextures.end())
 	{
 	  return it->second;
 	}

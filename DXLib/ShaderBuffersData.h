@@ -92,7 +92,7 @@ struct ObjectConstants
 {
 	Matrix World = Matrix::Identity;
 	Matrix TextureTransform = Matrix::CreateScale(Vector3::One);
-	UINT materialIndex;
+	UINT MaterialIndex = 0;
 	UINT gObjPad0;
 	UINT gObjPad1;
 	UINT gObjPad2;

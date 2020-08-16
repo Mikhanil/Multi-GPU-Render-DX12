@@ -22,7 +22,7 @@ void Renderer::Update()
 	{
 		bufferConstant.TextureTransform = transform->TextureTransform.Transpose();
 		bufferConstant.World = transform->GetWorldMatrix().Transpose();
-		bufferConstant.materialIndex = material->GetIndex();
+		bufferConstant.MaterialIndex = material->GetIndex();
 		SendDataToConstantBuffer();
 	}
 }

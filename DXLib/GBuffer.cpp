@@ -1,47 +1,72 @@
 #include "GBuffer.h"
+#include "GCommandList.h"
 
-
-GVertexBuffer::GVertexBuffer(const std::wstring& name)
-    : GBuffer(name)
-    , VertexCount(0)
-    , VertexSize(0)
-    , vertexBufferView({})
-{}
-
-GVertexBuffer::~GVertexBuffer()
-= default;
-
-void GVertexBuffer::CreateViews(size_t elementCount, size_t elementSize)
+UINT GBuffer::GetElementsCount() const
 {
-    VertexCount = elementCount;
-    VertexSize = elementSize;
-
-    vertexBufferView.BufferLocation = dxResource->GetGPUVirtualAddress();
-    vertexBufferView.SizeInBytes = static_cast<UINT>(VertexCount * VertexSize);
-    vertexBufferView.StrideInBytes = static_cast<UINT>(VertexSize);
+	return count;
 }
 
-D3D12_VERTEX_BUFFER_VIEW GVertexBuffer::GetVertexBufferView() const
+DWORD GBuffer::GetBufferSize() const
 {
-	return vertexBufferView;
+	return bufferSize;
 }
 
-size_t GVertexBuffer::GetVertexCount() const
+UINT GBuffer::GetStride() const
 {
-	return VertexCount;
+	return stride;
 }
 
-size_t GVertexBuffer::GetVertexSize() const
+ComPtr<ID3DBlob> GBuffer::GetCPUResource() const
 {
-	return VertexSize;
+	return bufferCPU;
 }
 
-void GVertexBuffer::GetShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc) const
+D3D12_INDEX_BUFFER_VIEW GBuffer::IndexBufferView() const
 {
-    throw std::exception("GVertexBuffer::GetShaderResourceView should not be called.");
+	D3D12_INDEX_BUFFER_VIEW ibv;
+	ibv.BufferLocation = dxResource->GetGPUVirtualAddress();
+	ibv.Format = IndexFormat;
+	ibv.SizeInBytes = bufferSize;
+	return ibv;
 }
 
-void GVertexBuffer::GetUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc) const
+D3D12_VERTEX_BUFFER_VIEW GBuffer::VertexBufferView() const
 {
-    throw std::exception("GVertexBuffer::GetUnorderedAccessView should not be called.");
+	D3D12_VERTEX_BUFFER_VIEW vbv;
+	vbv.BufferLocation = dxResource->GetGPUVirtualAddress();
+	vbv.StrideInBytes = stride;
+	vbv.SizeInBytes = bufferSize;
+	return vbv;
+}
+
+
+GBuffer GBuffer::CreateBuffer(std::shared_ptr<GCommandList> cmdList, void* data, UINT elementSize, UINT count, const std::wstring& name)
+{
+	const auto desc = CD3DX12_RESOURCE_DESC::Buffer(elementSize * count);
+	GBuffer buffer(name, desc, elementSize, count, data);
+
+	D3D12_SUBRESOURCE_DATA subResourceData = {};
+	subResourceData.pData = data;
+	subResourceData.RowPitch = buffer.bufferSize;
+	subResourceData.SlicePitch = subResourceData.RowPitch;
+	
+	cmdList->UpdateSubresource(buffer, &subResourceData, 1);
+	cmdList->TransitionBarrier(buffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+	cmdList->FlushResourceBarriers();
+
+	return buffer;
+}
+
+GBuffer::~GBuffer()
+{
+	bufferCPU.Reset();
+	bufferCPU = nullptr;
+}
+
+GBuffer::GBuffer(const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
+                 void* data): GResource(resourceDesc, name), stride(elementSize), count(elementCount)
+{
+	bufferSize = stride * count;
+	ThrowIfFailed(D3DCreateBlob(bufferSize, bufferCPU.GetAddressOf()));
+	CopyMemory(bufferCPU->GetBufferPointer(), data, bufferSize);
 }

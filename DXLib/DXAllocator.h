@@ -4,9 +4,7 @@
 #include "STLCustomAllocator.h"
 
 class GAllocator;
-class GDataUploader;
 class GMemory;
-struct UploadAllocation;
 
 class DXAllocator
 {
@@ -14,15 +12,10 @@ class DXAllocator
 	
 	static custom_vector<std::unique_ptr<GAllocator>> graphicAllocator;
 
-	static std::unique_ptr<GDataUploader> uploader;
 	
 public:
 
 	static void ResetAllocator();
-
-	static void UploaderClear();
-
-	static UploadAllocation UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment);
 
 	static GMemory AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount = 1 );
 	

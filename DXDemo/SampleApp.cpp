@@ -37,7 +37,6 @@ namespace DXLib
 		Flush();
 	}
 
-
 	void SampleApp::GeneratedMipMap()
 	{
 		std::vector<Texture*> generatedMipTextures;
@@ -64,12 +63,13 @@ namespace DXLib
 		{
 			graphicList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
-		graphicQueue->ExecuteCommandList(graphicList);
+		graphicQueue->WaitForFenceValue( graphicQueue->ExecuteCommandList(graphicList));
 
+		
 		const auto computeQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		auto cmdList = computeQueue->GetCommandList();
-		Texture::GenerateMipMaps(cmdList, generatedMipTextures.data(), generatedMipTextures.size());
-		computeQueue->ExecuteCommandList(cmdList);
+		auto computeList = computeQueue->GetCommandList();		
+		Texture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
+		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
 
 
 		graphicList = graphicQueue->GetCommandList();
@@ -77,7 +77,7 @@ namespace DXLib
 		{
 			graphicList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
-		graphicQueue->ExecuteCommandList(graphicList);
+		graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
 
 
 		for (auto&& pair : textures)
@@ -85,7 +85,6 @@ namespace DXLib
 			pair.second->ClearTrack();
 		}
 
-		DXAllocator::UploaderClear();
 	}
 
 	bool SampleApp::Initialize()
@@ -103,10 +102,11 @@ namespace DXLib
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
+		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+		
 		LoadTextures(cmdList);
 
 
-		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 
 
 		GeneratedMipMap();
@@ -280,11 +280,7 @@ namespace DXLib
 
 		cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 		cmdList->FlushResourceBarriers();
-
-		/*cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(MainWindow->GetCurrentBackBuffer().GetD3D12Resource().Get(),
-		                                                                  D3D12_RESOURCE_STATE_RENDER_TARGET,
-		                                                                  D3D12_RESOURCE_STATE_PRESENT));*/
-
+		
 		currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
 
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
@@ -316,7 +312,6 @@ namespace DXLib
 		// Material has changed, so need to update cbuffer.
 		waterMat->SetDirty();
 	}
-
 
 	void SampleApp::UpdateGameObjects(const GameTimer& gt)
 	{
@@ -753,23 +748,35 @@ namespace DXLib
 
 	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
 	{
-		LoadStudyTexture(cmdList);
+		auto queue = GetCommandQueue();
+		
+		auto graphicCmdList = GetCommandQueue()->GetCommandList();		
+		
+		LoadStudyTexture(graphicCmdList);
+		queue->ExecuteCommandList(graphicCmdList);
 
-		LoadDoomSlayerTexture(cmdList);
+		graphicCmdList = GetCommandQueue()->GetCommandList();
+		LoadDoomSlayerTexture(graphicCmdList);
+		queue->ExecuteCommandList(graphicCmdList);
 
-		LoadNanosuitTexture(cmdList);
+		graphicCmdList = GetCommandQueue()->GetCommandList();
+		LoadNanosuitTexture(graphicCmdList);
+		queue->ExecuteCommandList(graphicCmdList);
 
-		LoadAtlasTexture(cmdList);
+		graphicCmdList = GetCommandQueue()->GetCommandList();
+		LoadAtlasTexture(graphicCmdList);
+		queue->ExecuteCommandList(graphicCmdList);
 
-		LoadPBodyTexture(cmdList);
+		graphicCmdList = GetCommandQueue()->GetCommandList();
+		LoadPBodyTexture(graphicCmdList);
+		queue->ExecuteCommandList(graphicCmdList);
 
-		LoadGolemTexture(cmdList);
+		graphicCmdList = GetCommandQueue()->GetCommandList();
+		LoadGolemTexture(graphicCmdList);
+		
+		auto fenceValue = queue->ExecuteCommandList(graphicCmdList);
 
-
-		//for (auto&& pair : textures)
-		//{
-		//	pair.second->LoadTextureFromFile( cmdList);
-		//}
+		queue->WaitForFenceValue(fenceValue);
 	}
 
 	void SampleApp::BuildRootSignature()
@@ -1661,37 +1668,7 @@ namespace DXLib
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 		gameObjects.push_back(std::move(quadRitem));
-
-
-		/*auto treeSpritesRitem = std::make_unique<GameObject>(dxDevice.Get(), "Trees");
-		renderer = new Renderer();
-		renderer->Material = materials["treeSprites"].get();
-		renderer->Mesh = meshes["treeSpritesGeo"].get();
-		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
-		renderer->IndexCount = renderer->Mesh->Submeshs["points"].IndexCount;
-		renderer->StartIndexLocation = renderer->Mesh->Submeshs["points"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->Mesh->Submeshs["points"].BaseVertexLocation;
-		treeSpritesRitem->AddComponent(renderer);
-		typedGameObjects[(int)PsoType::AlphaSprites].push_back(treeSpritesRitem.get());
-		gameObjects.push_back(std::move(treeSpritesRitem));*/
-
-
-		/*auto sphere = std::make_unique<GameObject>(dxDevice.Get(), "Skull");
-		sphere->GetTransform()->SetPosition(Vector3{0, 1, -3} + Vector3::Backward);
-		sphere->GetTransform()->SetScale({2, 2, 2});
-		renderer = new Renderer();
-		renderer->material = materials["bricks"].get();
-		renderer->mesh = meshes["shapeMesh"].get();
-		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
-		renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
-		sphere->AddComponent(renderer);
-		sphere->AddComponent(new ObjectMover());
-		player = sphere.get();
-		typedGameObjects[static_cast<int>(PsoType::Opaque)].push_back(sphere.get());
-		gameObjects.push_back(std::move(sphere));*/
-
+		
 		auto sun1 = std::make_unique<GameObject>(dxDevice.Get(), "Directional Light");
 		auto light = new Light(Directional);
 		light->Direction({0.57735f, -0.57735f, 0.57735f});
@@ -1723,11 +1700,6 @@ namespace DXLib
 		auto modelRenderer = new ModelRenderer();
 		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
 		{
-			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
-			{
-				modelRenderer->SetMeshMaterial(i, materials["seamless"].get());
-			}
-
 			if (modelRenderer->GetMeshesCount() > 0)
 			{
 				std::vector<std::string> names =
