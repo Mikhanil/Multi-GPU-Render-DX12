@@ -13,134 +13,32 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Header Files\App">
-      <UniqueIdentifier>{9493c936-4099-4dcc-97c9-50c2a60d47c6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\App">
-      <UniqueIdentifier>{3e4dd105-6aa8-4fb2-bdda-4787ba0bf2fe}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Engine">
-      <UniqueIdentifier>{9bab763f-1bed-4a4f-ac74-21ff77480d17}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Engine">
-      <UniqueIdentifier>{cc8d5890-24d4-4622-9697-f5f7a131b371}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Engine\Graphic">
-      <UniqueIdentifier>{f3317a98-2e16-42e8-9417-5f1d254d5456}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Engine\Graphic">
-      <UniqueIdentifier>{aa906cd0-a797-4431-acd9-8e6e06a005c2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Engine\Components">
-      <UniqueIdentifier>{558e94a7-b5ec-4abf-aa59-097e5ce605fc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Engine\Components">
-      <UniqueIdentifier>{0af5d9e7-5cfd-4893-9c3b-2c17b1eefea9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Refactor">
-      <UniqueIdentifier>{7238850b-4d2b-43ee-a9c6-924fe5ff1325}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Allocators">
-      <UniqueIdentifier>{4fcefe77-04d1-4d30-b6b3-92b6c5536316}</UniqueIdentifier>
+      <UniqueIdentifier>{823adc1b-d81b-482a-a71e-40f6b9b7e40c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Objects">
+      <UniqueIdentifier>{2db76fbe-329e-464c-ad3e-1c8a78bda49f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Render">
+      <UniqueIdentifier>{3f9c64ff-82ce-4877-ac81-0fd69d64d7f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Helpers">
+      <UniqueIdentifier>{9b88fd54-0400-4970-8669-4ebbb2e66674}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Allocators">
-      <UniqueIdentifier>{4e0cef7b-4c39-42c1-a990-da61e53ba511}</UniqueIdentifier>
+      <UniqueIdentifier>{cb88812d-e6cb-4e3e-8bf5-d2d77cf4f286}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Helpers">
+      <UniqueIdentifier>{9e293e75-4ffa-4951-9cee-86aa087af138}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Render">
+      <UniqueIdentifier>{77c167dd-38ad-4dd5-8de8-06afce5a0da3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Objects">
+      <UniqueIdentifier>{49098e33-7e49-4b94-80fd-9a1e52ad5930}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="d3dUtil.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MathHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="d3dApp.h">
-      <Filter>Header Files\App</Filter>
-    </ClInclude>
-    <ClInclude Include="GameObject.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectXBuffers.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="FrameResource.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="GeometryGenerator.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="Material.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="Shader.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="Texture.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="GameTimer.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Component.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Transform.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Camera.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="ModelRenderer.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Renderer.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Reflected.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Shadow.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="SkyBox.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Light.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="ObjectMover.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="RootSignature.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
-    </ClInclude>
-    <ClInclude Include="CameraController.h">
-      <Filter>Header Files\Engine\Components</Filter>
-    </ClInclude>
-    <ClInclude Include="Mouse.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Keyboard.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderBuffersData.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMap.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Ssao.h">
-      <Filter>Header Files\Engine</Filter>
-    </ClInclude>
-    <ClInclude Include="Window.h">
-      <Filter>Header Files\Refactor</Filter>
-    </ClInclude>
-    <ClInclude Include="Lazy.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="DXAllocator.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
@@ -156,127 +54,79 @@
     <ClInclude Include="GMemory.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
-    <ClInclude Include="GResourceStateTracker.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
-    <ClInclude Include="GCommandQueue.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
-    <ClInclude Include="GResource.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
-    <ClInclude Include="GCommandList.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
-    <ClInclude Include="GBuffer.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
-    <ClInclude Include="ThreadSafeQueue.h">
+    <ClInclude Include="d3dApp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ComputePSO.h">
-      <Filter>Header Files\Engine</Filter>
+      <Filter>Header Files\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="GBuffer.h">
+      <Filter>Header Files\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="GCommandList.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="GCommandQueue.h">
+      <Filter>Header Files\Render</Filter>
     </ClInclude>
     <ClInclude Include="GraphicPSO.h">
-      <Filter>Header Files\Engine\Graphic</Filter>
+      <Filter>Header Files\Objects</Filter>
     </ClInclude>
-    <ClInclude Include="Mesh.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="GResource.h">
+      <Filter>Header Files\Objects</Filter>
     </ClInclude>
-    <ClInclude Include="Model.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="GResourceStateTracker.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="GRootSignature.h">
+      <Filter>Header Files\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="GShader.h">
+      <Filter>Header Files\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="GTexture.h">
+      <Filter>Header Files\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dx12.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="GameTimer.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Lazy.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadSafeQueue.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Window.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dUtil.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXBuffers.h">
+      <Filter>Header Files\Objects</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="d3dUtil.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="d3dApp.cpp">
-      <Filter>Source Files\App</Filter>
-    </ClCompile>
-    <ClCompile Include="GameObject.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="MathHelper.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="FrameResource.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="GeometryGenerator.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="Material.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="Shader.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="Texture.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GameTimer.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Component.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Transform.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="CameraController.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Light.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="ObjectMover.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Reflected.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Shadow.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="SkyBox.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="RootSignature.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="ModelRenderer.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Renderer.cpp">
-      <Filter>Source Files\Engine\Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Mouse.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Keyboard.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="ShadowMap.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Ssao.cpp">
-      <Filter>Source Files\Engine</Filter>
+      <Filter>Source Files\Helpers</Filter>
     </ClCompile>
     <ClCompile Include="Window.cpp">
-      <Filter>Header Files\Refactor</Filter>
+      <Filter>Source Files\Render</Filter>
     </ClCompile>
-    <ClCompile Include="Lazy.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="ComputePSO.cpp">
+      <Filter>Source Files\Objects</Filter>
     </ClCompile>
-    <ClCompile Include="GResource.cpp">
-      <Filter>Source Files\Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="GMemory.cpp">
-      <Filter>Source Files\Allocators</Filter>
+    <ClCompile Include="d3dUtil.cpp">
+      <Filter>Source Files\Helpers</Filter>
     </ClCompile>
     <ClCompile Include="DXAllocator.cpp">
       <Filter>Source Files\Allocators</Filter>
@@ -284,41 +134,53 @@
     <ClCompile Include="GAllocator.cpp">
       <Filter>Source Files\Allocators</Filter>
     </ClCompile>
+    <ClCompile Include="GBuffer.cpp">
+      <Filter>Source Files\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="GCommandList.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="GCommandQueue.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
     <ClCompile Include="GDataUploader.cpp">
       <Filter>Source Files\Allocators</Filter>
     </ClCompile>
     <ClCompile Include="GHeap.cpp">
       <Filter>Source Files\Allocators</Filter>
     </ClCompile>
-    <ClCompile Include="GResourceStateTracker.cpp">
+    <ClCompile Include="GMemory.cpp">
       <Filter>Source Files\Allocators</Filter>
-    </ClCompile>
-    <ClCompile Include="GCommandQueue.cpp">
-      <Filter>Source Files\Allocators</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectXBuffers.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
-    </ClCompile>
-    <ClCompile Include="GCommandList.cpp">
-      <Filter>Source Files\Allocators</Filter>
-    </ClCompile>
-    <ClCompile Include="GBuffer.cpp">
-      <Filter>Source Files\Allocators</Filter>
-    </ClCompile>
-    <ClCompile Include="ThreadSaveQueue.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ComputePSO.cpp">
-      <Filter>Source Files\Engine</Filter>
     </ClCompile>
     <ClCompile Include="GraphicPSO.cpp">
-      <Filter>Source Files\Engine\Graphic</Filter>
+      <Filter>Source Files\Objects</Filter>
     </ClCompile>
-    <ClCompile Include="Mesh.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GResource.cpp">
+      <Filter>Source Files\Objects</Filter>
     </ClCompile>
-    <ClCompile Include="Model.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GResourceStateTracker.cpp">
+      <Filter>Source Files\Render</Filter>
+    </ClCompile>
+    <ClCompile Include="GRootSignature.cpp">
+      <Filter>Source Files\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="GShader.cpp">
+      <Filter>Source Files\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="GTexture.cpp">
+      <Filter>Source Files\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Lazy.cpp">
+      <Filter>Source Files\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="MathHelper.cpp">
+      <Filter>Source Files\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="ThreadSaveQueue.cpp">
+      <Filter>Source Files\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXBuffers.cpp">
+      <Filter>Source Files\Objects</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

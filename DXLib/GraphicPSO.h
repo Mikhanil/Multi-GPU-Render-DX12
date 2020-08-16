@@ -1,7 +1,7 @@
 #pragma once
 
 #include "d3dUtil.h"
-#include "Shader.h"
+#include "GShader.h"
 
 using namespace Microsoft::WRL;
 
@@ -83,7 +83,7 @@ public:
 
 	void SetSampleQuality(UINT quality);
 
-	void SetShader(Shader* shader);
+	void SetShader(GShader* shader);
 
 	PsoType::Type GetType() const;
 

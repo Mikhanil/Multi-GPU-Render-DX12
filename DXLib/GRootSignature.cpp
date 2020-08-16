@@ -1,8 +1,8 @@
-#include "RootSignature.h"
+#include "GRootSignature.h"
 
 #include "d3dApp.h"
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> RootSignature::GetStaticSamplers()
+std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GRootSignature::GetStaticSamplers()
 {
 	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
 		0, // shaderRegister
@@ -69,23 +69,23 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> RootSignature::GetStaticSampler
 	};
 }
 
-RootSignature::~RootSignature()
+GRootSignature::~GRootSignature()
 {
 	slotRootParameters.clear();
 	staticSampler.clear();	
 }
 
-const D3D12_ROOT_SIGNATURE_DESC& RootSignature::GetRootSignatureDesc() const
+const D3D12_ROOT_SIGNATURE_DESC& GRootSignature::GetRootSignatureDesc() const
 {
 	return rootSigDesc;
 }
 
-uint32_t RootSignature::GetParametersCount() const
+uint32_t GRootSignature::GetParametersCount() const
 {
 	return slotRootParameters.size();
 }
 
-uint32_t RootSignature::GetDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType) const
+uint32_t GRootSignature::GetDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType) const
 {
 	uint32_t descriptorTableBitMask = 0;
 	switch (descriptorHeapType)
@@ -101,19 +101,19 @@ uint32_t RootSignature::GetDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE des
 	return descriptorTableBitMask;
 }
 
-uint32_t RootSignature::GetNumDescriptors(uint32_t rootIndex) const
+uint32_t GRootSignature::GetNumDescriptors(uint32_t rootIndex) const
 {
 	assert(rootIndex < 32);
 	return descriptorPerTableCount[rootIndex];
 }
 
 
-void RootSignature::AddParameter(CD3DX12_ROOT_PARAMETER parameter)
+void GRootSignature::AddParameter(CD3DX12_ROOT_PARAMETER parameter)
 {
 	slotRootParameters.push_back(parameter);
 }
 
-void RootSignature::AddDescriptorParameter(CD3DX12_DESCRIPTOR_RANGE* rangeParameters, UINT size,
+void GRootSignature::AddDescriptorParameter(CD3DX12_DESCRIPTOR_RANGE* rangeParameters, UINT size,
                                            D3D12_SHADER_VISIBILITY visibility)
 {
 	CD3DX12_ROOT_PARAMETER slotParameter;
@@ -121,7 +121,7 @@ void RootSignature::AddDescriptorParameter(CD3DX12_DESCRIPTOR_RANGE* rangeParame
 	AddParameter(slotParameter);
 }
 
-void RootSignature::AddConstantBufferParameter(UINT shaderRegister, UINT registerSpace,
+void GRootSignature::AddConstantBufferParameter(UINT shaderRegister, UINT registerSpace,
                                                D3D12_SHADER_VISIBILITY visibility)
 {
 	CD3DX12_ROOT_PARAMETER slotParameter;
@@ -129,7 +129,7 @@ void RootSignature::AddConstantBufferParameter(UINT shaderRegister, UINT registe
 	AddParameter(slotParameter);
 }
 
-void RootSignature::AddConstantParameter(UINT valueCount, UINT shaderRegister, UINT registerSpace,
+void GRootSignature::AddConstantParameter(UINT valueCount, UINT shaderRegister, UINT registerSpace,
                                          D3D12_SHADER_VISIBILITY visibility)
 {
 	CD3DX12_ROOT_PARAMETER slotParameter;
@@ -137,32 +137,32 @@ void RootSignature::AddConstantParameter(UINT valueCount, UINT shaderRegister, U
 	AddParameter(slotParameter);
 }
 
-void RootSignature::AddShaderResourceView(UINT shaderRegister, UINT registerSpace, D3D12_SHADER_VISIBILITY visibility)
+void GRootSignature::AddShaderResourceView(UINT shaderRegister, UINT registerSpace, D3D12_SHADER_VISIBILITY visibility)
 {
 	CD3DX12_ROOT_PARAMETER slotParameter;
 	slotParameter.InitAsShaderResourceView(shaderRegister, registerSpace, visibility);
 	AddParameter(slotParameter);
 }
 
-void RootSignature::AddUnorderedAccessView(UINT shaderRegister, UINT registerSpace, D3D12_SHADER_VISIBILITY visibility)
+void GRootSignature::AddUnorderedAccessView(UINT shaderRegister, UINT registerSpace, D3D12_SHADER_VISIBILITY visibility)
 {
 	CD3DX12_ROOT_PARAMETER slotParameter;
 	slotParameter.InitAsUnorderedAccessView(shaderRegister, registerSpace, visibility);
 	AddParameter(slotParameter);
 }
 
-void RootSignature::AddStaticSampler(const CD3DX12_STATIC_SAMPLER_DESC sampler)
+void GRootSignature::AddStaticSampler(const CD3DX12_STATIC_SAMPLER_DESC sampler)
 {
 	staticSampler.push_back(sampler);
 }
 
-void RootSignature::AddStaticSampler(const D3D12_STATIC_SAMPLER_DESC sampler)
+void GRootSignature::AddStaticSampler(const D3D12_STATIC_SAMPLER_DESC sampler)
 {
 	staticSampler.push_back(sampler);
 }
 
 
-void RootSignature::Initialize()
+void GRootSignature::Initialize()
 {
 	auto& device = DXLib::D3DApp::GetApp().GetDevice();
 	
@@ -235,7 +235,7 @@ void RootSignature::Initialize()
 		IID_PPV_ARGS(signature.GetAddressOf())));
 }
 
-ComPtr<ID3D12RootSignature> RootSignature::GetRootSignature() const
+ComPtr<ID3D12RootSignature> GRootSignature::GetRootSignature() const
 {
 	return signature;
 }

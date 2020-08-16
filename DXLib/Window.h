@@ -12,7 +12,7 @@
 #include "GameTimer.h"
 #include "GMemory.h"
 #include "Lazy.h"
-#include "Texture.h"
+#include "GTexture.h"
 
 using namespace Microsoft::WRL;
 
@@ -62,9 +62,9 @@ namespace DXLib
 			return &depthStencilViewHeap;
 		}
 
-		Texture& GetCurrentBackBuffer();
+		GTexture& GetCurrentBackBuffer();
 
-		Texture& GetDepthStencilBuffer() ;
+		GTexture& GetDepthStencilBuffer() ;
 
 		void SetHeight(int height);
 
@@ -132,9 +132,9 @@ namespace DXLib
 		
 		
 		GMemory depthStencilViewHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-		Texture depthStencilBuffer;
+		GTexture depthStencilBuffer;
 		
-		std::vector<Texture> backBuffers;
+		std::vector<GTexture> backBuffers;
 		GMemory rtvDescriptorHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
 		
 		D3D12_VIEWPORT screenViewport;

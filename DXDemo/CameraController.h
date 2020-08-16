@@ -1,10 +1,10 @@
 #pragma once
 #include "Component.h"
-#include "Keyboard.h"
-#include "Mouse.h"
-#include "GameTimer.h"
 
 class GCommandList;
+class GameTimer;
+class Mouse;
+class Keyboard;
 
 using namespace DirectX::SimpleMath;
 class CameraController :

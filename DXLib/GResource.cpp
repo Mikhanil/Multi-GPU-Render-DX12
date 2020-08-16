@@ -2,6 +2,7 @@
 
 #include <utility>
 
+
 #include "d3dApp.h"
 #include "d3dUtil.h"
 #include "GResourceStateTracker.h"

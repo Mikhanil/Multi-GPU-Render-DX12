@@ -1,10 +1,10 @@
 #include "CameraController.h"
-#include "d3dApp.h"
+#include "SampleApp.h"
 #include "GameObject.h"
 
 CameraController::CameraController()
 {
-	auto& app = DXLib::D3DApp::GetApp();
+	DXLib::SampleApp& app = (DXLib::SampleApp & )DXLib::SampleApp::GetApp();
 	keyboard = app.GetKeyboard();
 	mouse = app.GetMouse();
 	timer = app.GetTimer();
@@ -24,13 +24,13 @@ void CameraController::Update()
 
 		if (keycode == (VK_F1) && keyboard->KeyIsPressed(VK_F1))
 		{
-			auto& app = DXLib::D3DApp::GetApp();
+			DXLib::SampleApp& app = (DXLib::SampleApp&)DXLib::SampleApp::GetApp();
 			app.ShowAmbiantMap = !app.ShowAmbiantMap;
 		}
 
 		if (keycode == (VK_F2) && keyboard->KeyIsPressed(VK_F2))
 		{
-			auto& app = DXLib::D3DApp::GetApp();
+			DXLib::SampleApp& app = (DXLib::SampleApp&)DXLib::SampleApp::GetApp();
 			app.computeSsao = !app.computeSsao;
 		}
 	}

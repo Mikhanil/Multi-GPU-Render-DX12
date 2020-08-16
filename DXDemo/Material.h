@@ -3,7 +3,7 @@
 #include "d3dUtil.h"
 #include "DirectXBuffers.h"
 #include "ShaderBuffersData.h"
-#include "Texture.h"
+#include "GTexture.h"
 
 class GraphicPSO;
 class GCommandList;
@@ -23,9 +23,9 @@ class Material
 
 	UINT NumFramesDirty = globalCountFrameResources;
 
-	custom_vector<Texture*> textures = DXAllocator::CreateVector<Texture*>();
+	custom_vector<GTexture*> textures = DXAllocator::CreateVector<GTexture*>();
 
-	Texture* normalMap = nullptr;
+	GTexture* normalMap = nullptr;
 
 	UINT DiffuseMapIndex = -1;
 	UINT NormalMapIndex = -1;
@@ -43,11 +43,11 @@ public:
 
 	GraphicPSO* GetPSO() const;
 
-	void SetNormalMap(Texture* texture);
+	void SetNormalMap(GTexture* texture);
 
 	void SetPSO(GraphicPSO* pso);
 
-	void SetDiffuseTexture(Texture* texture);
+	void SetDiffuseTexture(GTexture* texture);
 
 	Material(std::string name, GraphicPSO* pso);
 

@@ -20,8 +20,6 @@ public:
 	static GBuffer CreateBuffer(std::shared_ptr<GCommandList> cmdList, void* data, UINT elementSize, UINT count,
 	                            const std::wstring& name = L"");
 
-	~GBuffer();;
-	
 	GBuffer(const GBuffer& rhs) : GResource(rhs)
 	{		
 		this->bufferCPU = rhs.bufferCPU;

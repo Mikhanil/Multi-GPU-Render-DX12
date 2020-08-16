@@ -65,6 +65,7 @@ Mesh::Mesh(const std::wstring name): meshName(std::move(name)), primitiveTopolog
 	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
 }
 
+
 void Mesh::ChangeIndexes(std::shared_ptr<GCommandList> cmdList, DWORD* indices, size_t indexesCount)
 {
 	if (indexBuffer != nullptr) indexBuffer.reset();
@@ -97,6 +98,11 @@ void Mesh::ChangeVertices(std::shared_ptr<GCommandList> cmdList, Vertex* vertixe
 void Mesh::SetName(const std::wstring& name)
 {
 	meshName = name;
+}
+
+void Mesh::SetMaterialIndex(UINT index)
+{
+	constantData.MaterialIndex = index;
 }
 
 std::wstring_view Mesh::GetName() const

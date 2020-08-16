@@ -6,7 +6,7 @@
 
 using namespace Microsoft::WRL;
 
-class RootSignature
+class GRootSignature
 {
 	ComPtr<ID3D12RootSignature> signature;
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
@@ -28,7 +28,7 @@ class RootSignature
 	
 public:
 
-	virtual ~RootSignature();
+	virtual ~GRootSignature();
 
 	const D3D12_ROOT_SIGNATURE_DESC& GetRootSignatureDesc() const;
 

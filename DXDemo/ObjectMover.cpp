@@ -1,6 +1,7 @@
 #include "ObjectMover.h"
 #include "d3dApp.h"
 #include "GameObject.h"
+#include "SampleApp.h"
 #include "SimpleMath.h"
 
 using namespace DirectX::SimpleMath;
@@ -37,5 +38,5 @@ void ObjectMover::Update()
 
 ObjectMover::ObjectMover()
 {
-	keyboard = DXLib::D3DApp::GetApp().GetKeyboard();
+	keyboard = ((DXLib::SampleApp&)DXLib::SampleApp::GetApp()).GetKeyboard();
 }

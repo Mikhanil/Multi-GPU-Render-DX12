@@ -3,7 +3,8 @@
 #include "d3dUtil.h"
 #include "FrameResource.h"
 #include "GraphicPSO.h"
-
+#include "DXAllocator.h"
+#include "GMemory.h"
 
 class Ssao
 {
@@ -14,7 +15,7 @@ public:
 	     UINT width, UINT height);
 	Ssao(const Ssao& rhs) = delete;
 	Ssao& operator=(const Ssao& rhs) = delete;
-	~Ssao() = default;
+	~Ssao();
 
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -28,26 +29,17 @@ public:
 	std::vector<float> CalcGaussWeights(float sigma);
 
 
-	Texture& NormalMap();
-	Texture& AmbientMap();
+	GTexture& NormalMap();
+	GTexture& AmbientMap();
 
-	GMemory* NormalMapRtv()
-	{
-		return &normalMapRtvMemory;
-	};
-	GMemory* NormalMapSrv()
-	{
-		return &normalMapSrvMemory;
-	};
-	GMemory* AmbientMapSrv()
-	{
-		return &ambientMapMapSrvMemory;
-	};
+	GMemory* NormalMapRtv();;
+	GMemory* NormalMapSrv();;
+	GMemory* AmbientMapSrv();;
 
 	void BuildDescriptors(
-		Texture& depthStencilBuffer);
+		GTexture& depthStencilBuffer);
 
-	void RebuildDescriptors(Texture& depthStencilBuffer);
+	void RebuildDescriptors(GTexture& depthStencilBuffer);
 
 	void SetPSOs(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso);
 
@@ -65,8 +57,8 @@ private:
 		
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, FrameResource* currFrame, int blurCount);
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur);
-	Texture CreateNormalMap() const;
-	Texture CreateAmbientMap() const;
+	GTexture CreateNormalMap() const;
+	GTexture CreateAmbientMap() const;
 
 	void BuildResources();
 	void BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList);
@@ -80,10 +72,10 @@ private:
 	GraphicPSO mSsaoPso;
 	GraphicPSO mBlurPso;
 
-	Texture mRandomVectorMap;
-	Texture mNormalMap;
-	Texture mAmbientMap0;
-	Texture mAmbientMap1;
+	GTexture mRandomVectorMap;
+	GTexture mNormalMap;
+	GTexture mAmbientMap0;
+	GTexture mAmbientMap1;
 
 	GMemory normalMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,1);
 	GMemory normalMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);

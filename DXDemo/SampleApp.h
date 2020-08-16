@@ -3,16 +3,16 @@
 #include "Camera.h"
 #include "d3dApp.h"
 #include "FrameResource.h"
-#include "GeometryGenerator.h"
 #include "GMemory.h"
 #include "GraphicPSO.h"
 #include "Light.h"
-#include "ModelRenderer.h"
-#include "RootSignature.h"
-#include "Shader.h"
+#include "GRootSignature.h"
+#include "GShader.h"
 #include "ShadowMap.h"
 #include "Ssao.h"
-
+#include "GameTimer.h"
+#include "Keyboard.h"
+#include "Mouse.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -32,7 +32,22 @@ namespace DXLib
 		void BuildSsaoRootSignature();
 		bool Initialize() override;
 
+
+		Keyboard* GetKeyboard();
+
+		Mouse* GetMouse();
+
+		Camera* GetMainCamera() const;
+
+
+
+		bool ShowAmbiantMap = false;
+		bool computeSsao = false;
+
 	private:
+
+		LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
+		
 		void OnResize() override;
 		void AnimatedMaterial(const GameTimer& gt);
 		void UpdateShadowTransform(const GameTimer& gt);
@@ -72,6 +87,9 @@ namespace DXLib
 		
 	private:
 
+		Keyboard keyboard;
+		Mouse mouse;
+		std::unique_ptr<Camera> camera = nullptr;
 
 		custom_vector<std::unique_ptr<FrameResource>> frameResources = DXAllocator::CreateVector<std::unique_ptr<FrameResource>>();
 		
@@ -79,8 +97,8 @@ namespace DXLib
 		int currentFrameResourceIndex = 0;
 
 
-		std::unique_ptr<RootSignature> rootSignature = nullptr;
-		std::unique_ptr<RootSignature> ssaoRootSignature = nullptr;
+		std::unique_ptr<GRootSignature> rootSignature = nullptr;
+		std::unique_ptr<GRootSignature> ssaoRootSignature = nullptr;
 		std::unique_ptr<Ssao> mSsao;
 
 		D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
@@ -89,9 +107,9 @@ namespace DXLib
 
 		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();
 		custom_unordered_map<std::string, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Material>>();
-		custom_unordered_map<std::string, std::unique_ptr<Shader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Shader>>();
-		custom_unordered_map<std::wstring, std::shared_ptr<Texture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Texture>>();
-		custom_unordered_map<std::string, std::shared_ptr<Model>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::shared_ptr<Model>>();
+		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
+		custom_unordered_map<std::wstring, std::shared_ptr<GTexture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GTexture>>();
+		/*custom_unordered_map<std::string, std::shared_ptr<Model>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::shared_ptr<Model>>();*/
 		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
 		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
 		

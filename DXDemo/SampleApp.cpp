@@ -5,17 +5,15 @@
 #include <ppl.h>
 #include "Camera.h"
 #include "CameraController.h"
-#include "filesystem"
 #include "GameObject.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
+#include "GeometryGenerator.h"
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
 #include "ModelRenderer.h"
 #include "pix3.h"
-#include "Reflected.h"
 #include "Renderer.h"
-#include "Shadow.h"
 #include "Window.h"
 
 namespace DXLib
@@ -39,7 +37,7 @@ namespace DXLib
 
 	void SampleApp::GeneratedMipMap()
 	{
-		std::vector<Texture*> generatedMipTextures;
+		std::vector<GTexture*> generatedMipTextures;
 
 		for (auto&& texture : textures)
 		{
@@ -68,7 +66,7 @@ namespace DXLib
 		
 		const auto computeQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 		auto computeList = computeQueue->GetCommandList();		
-		Texture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
+		GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
 		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
 
 
@@ -131,6 +129,149 @@ namespace DXLib
 		commandQueue->Flush();
 
 		return true;
+	}
+
+	LRESULT SampleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	{	
+
+		switch (msg)
+		{
+		case WM_INPUT:
+		{
+			UINT dataSize;
+			GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize,
+				sizeof(RAWINPUTHEADER));
+			//Need to populate data size first
+
+			if (dataSize > 0)
+			{
+				std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
+				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
+					sizeof(RAWINPUTHEADER)) == dataSize)
+				{
+					RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
+					if (raw->header.dwType == RIM_TYPEMOUSE)
+					{
+						mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+					}
+				}
+			}
+
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		}			
+			//Mouse Messages
+		case WM_MOUSEMOVE:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMouseMove(x, y);
+			return 0;
+		}
+		case WM_LBUTTONDOWN:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnLeftPressed(x, y);
+			return 0;
+		}
+		case WM_RBUTTONDOWN:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnRightPressed(x, y);
+			return 0;
+		}
+		case WM_MBUTTONDOWN:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMiddlePressed(x, y);
+			return 0;
+		}
+		case WM_LBUTTONUP:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnLeftReleased(x, y);
+			return 0;
+		}
+		case WM_RBUTTONUP:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnRightReleased(x, y);
+			return 0;
+		}
+		case WM_MBUTTONUP:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMiddleReleased(x, y);
+			return 0;
+		}
+		case WM_MOUSEWHEEL:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			{
+				mouse.OnWheelUp(x, y);
+			}
+			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+			{
+				mouse.OnWheelDown(x, y);
+			}
+			return 0;
+		}
+		case WM_KEYUP:
+
+		{
+			/*if ((int)wParam == VK_F2)
+				Set4xMsaaState(!isM4xMsaa);*/
+			unsigned char keycode = static_cast<unsigned char>(wParam);
+			keyboard.OnKeyReleased(keycode);
+
+			return 0;
+		}
+		case WM_KEYDOWN:
+		{
+			{
+				unsigned char keycode = static_cast<unsigned char>(wParam);
+				if (keyboard.IsKeysAutoRepeat())
+				{
+					keyboard.OnKeyPressed(keycode);
+				}
+				else
+				{
+					const bool wasPressed = lParam & 0x40000000;
+					if (!wasPressed)
+					{
+						keyboard.OnKeyPressed(keycode);
+					}
+				}
+			}
+		}
+
+		case WM_CHAR:
+		{
+			unsigned char ch = static_cast<unsigned char>(wParam);
+			if (keyboard.IsCharsAutoRepeat())
+			{
+				keyboard.OnChar(ch);
+			}
+			else
+			{
+				const bool wasPressed = lParam & 0x40000000;
+				if (!wasPressed)
+				{
+					keyboard.OnChar(ch);
+				}
+			}
+			return 0;
+		}
+		}
+
+		return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
 	}
 
 	void SampleApp::OnResize()
@@ -539,10 +680,10 @@ namespace DXLib
 
 		for (UINT i = 0; i < doomNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile(doomFolder + doomTextures[i], cmdList, TextureUsage::Diffuse);
+			auto texture = GTexture::LoadTextureFromFile(doomFolder + doomTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(doomNames[i]);
 
-			auto normal = Texture::LoadTextureFromFile(doomFolder + doomNormals[i], cmdList,
+			auto normal = GTexture::LoadTextureFromFile(doomFolder + doomNormals[i], cmdList,
 			                                           TextureUsage::Normalmap);
 			normal->SetName(doomNames[i].append(L"Normal"));
 
@@ -553,39 +694,39 @@ namespace DXLib
 
 	void SampleApp::LoadStudyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
-		auto bricksTex = Texture::LoadTextureFromFile(L"Data\\Textures\\bricks2.dds", cmdList);
+		auto bricksTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\bricks2.dds", cmdList);
 		bricksTex->SetName(L"bricksTex");
 		textures[bricksTex->GetName()] = std::move(bricksTex);
 
-		auto stoneTex = Texture::LoadTextureFromFile(L"Data\\Textures\\stone.dds", cmdList);
+		auto stoneTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\stone.dds", cmdList);
 		stoneTex->SetName(L"stoneTex");
 		textures[stoneTex->GetName()] = std::move(stoneTex);
 
-		auto tileTex = Texture::LoadTextureFromFile(L"Data\\Textures\\tile.dds", cmdList);
+		auto tileTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\tile.dds", cmdList);
 		tileTex->SetName(L"tileTex");
 		textures[tileTex->GetName()] = std::move(tileTex);
 
-		auto fenceTex = Texture::LoadTextureFromFile(L"Data\\Textures\\WireFence.dds", cmdList);
+		auto fenceTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\WireFence.dds", cmdList);
 		fenceTex->SetName(L"fenceTex");
 		textures[fenceTex->GetName()] = std::move(fenceTex);
 
-		auto waterTex = Texture::LoadTextureFromFile(L"Data\\Textures\\water1.dds", cmdList);
+		auto waterTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\water1.dds", cmdList);
 		waterTex->SetName(L"waterTex");
 		textures[waterTex->GetName()] = std::move(waterTex);
 
-		auto skyTex = Texture::LoadTextureFromFile(L"Data\\Textures\\skymap.dds", cmdList);
+		auto skyTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\skymap.dds", cmdList);
 		skyTex->SetName(L"skyTex");
 		textures[skyTex->GetName()] = std::move(skyTex);
 
-		auto grassTex = Texture::LoadTextureFromFile(L"Data\\Textures\\grass.dds", cmdList);
+		auto grassTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\grass.dds", cmdList);
 		grassTex->SetName(L"grassTex");
 		textures[grassTex->GetName()] = std::move(grassTex);
 
-		auto treeArrayTex = Texture::LoadTextureFromFile(L"Data\\Textures\\treeArray2.dds", cmdList);
+		auto treeArrayTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\treeArray2.dds", cmdList);
 		treeArrayTex->SetName(L"treeArrayTex");
 		textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
 
-		auto seamless = Texture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList);
+		auto seamless = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList);
 		seamless->SetName(L"seamless");
 		textures[seamless->GetName()] = std::move(seamless);
 
@@ -606,7 +747,7 @@ namespace DXLib
 
 		for (int i = 0; i < texNormalNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile(texNormalFilenames[i], cmdList, TextureUsage::Normalmap);
+			auto texture = GTexture::LoadTextureFromFile(texNormalFilenames[i], cmdList, TextureUsage::Normalmap);
 			texture->SetName(texNormalNames[i]);
 			textures[texture->GetName()] = std::move(texture);
 		}
@@ -648,9 +789,9 @@ namespace DXLib
 
 		for (UINT i = 0; i < nanoNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile(nanoFolder + nanoTextures[i], cmdList, TextureUsage::Diffuse);
+			auto texture = GTexture::LoadTextureFromFile(nanoFolder + nanoTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(nanoNames[i]);
-			auto normal = Texture::LoadTextureFromFile(nanoFolder + nanoNormals[i], cmdList,
+			auto normal = GTexture::LoadTextureFromFile(nanoFolder + nanoNormals[i], cmdList,
 			                                           TextureUsage::Normalmap);
 			normal->SetName(nanoNames[i].append(L"Normal"));
 			textures[texture->GetName()] = std::move(texture);
@@ -679,7 +820,7 @@ namespace DXLib
 
 		for (UINT i = 0; i < AtlasNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile(atlasFolder + AtlasTextures[i], cmdList, TextureUsage::Diffuse);
+			auto texture = GTexture::LoadTextureFromFile(atlasFolder + AtlasTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(AtlasNames[i]);
 			textures[texture->GetName()] = std::move(texture);
 		}
@@ -708,7 +849,7 @@ namespace DXLib
 
 		for (UINT i = 0; i < PBodyNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile(PBodyFolder + PBodyTextures[i], cmdList,
+			auto texture = GTexture::LoadTextureFromFile(PBodyFolder + PBodyTextures[i], cmdList,
 			                                            TextureUsage::Diffuse);
 			texture->SetName(PBodyNames[i]);
 			textures[texture->GetName()] = std::move(texture);
@@ -736,9 +877,9 @@ namespace DXLib
 
 		for (UINT i = 0; i < mechNames.size(); ++i)
 		{
-			auto texture = Texture::LoadTextureFromFile(mechFolder + mechTextures[i], cmdList, TextureUsage::Diffuse);
+			auto texture = GTexture::LoadTextureFromFile(mechFolder + mechTextures[i], cmdList, TextureUsage::Diffuse);
 			texture->SetName(mechNames[i]);
-			auto normal = Texture::LoadTextureFromFile(mechFolder + mechNormals[i], cmdList,
+			auto normal = GTexture::LoadTextureFromFile(mechFolder + mechNormals[i], cmdList,
 			                                           TextureUsage::Normalmap);
 			normal->SetName(mechNames[i].append(L"Normal"));
 			textures[texture->GetName()] = std::move(texture);
@@ -781,7 +922,7 @@ namespace DXLib
 
 	void SampleApp::BuildRootSignature()
 	{
-		rootSignature = std::make_unique<RootSignature>();
+		rootSignature = std::make_unique<GRootSignature>();
 
 		CD3DX12_DESCRIPTOR_RANGE texParam[4];
 		texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
@@ -801,9 +942,27 @@ namespace DXLib
 		rootSignature->Initialize();
 	}
 
+
+
+	
+	Keyboard* SampleApp::GetKeyboard()
+	{
+		return &keyboard;
+	}
+
+	Mouse* SampleApp::GetMouse()
+	{
+		return &mouse;
+	}
+
+	Camera* SampleApp::GetMainCamera() const
+	{
+		return camera.get();
+	}
+	
 	void SampleApp::BuildSsaoRootSignature()
 	{
-		ssaoRootSignature = std::make_unique<RootSignature>();
+		ssaoRootSignature = std::make_unique<GRootSignature>();
 
 		CD3DX12_DESCRIPTOR_RANGE texTable0;
 		texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
@@ -887,52 +1046,52 @@ namespace DXLib
 		};
 
 		shaders["StandardVertex"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Default.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Default.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["AlphaDrop"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Default.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Default.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
 		shaders["shadowVS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Shadows.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Shadows.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["shadowOpaquePS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Shadows.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Shadows.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 		shaders["shadowOpaqueDropPS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Shadows.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Shadows.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
 		shaders["OpaquePixel"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Default.hlsl", PixelShader, defines, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Default.hlsl", PixelShader, defines, "PS", "ps_5_1"));
 		shaders["SkyBoxVertex"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\SkyBoxShader.hlsl", VertexShader, defines, "SKYMAP_VS", "vs_5_1"));
 		shaders["SkyBoxPixel"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\SkyBoxShader.hlsl", PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\SkyBoxShader.hlsl", PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
 
 		shaders["treeSpriteVS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\TreeSprite.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\TreeSprite.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["treeSpriteGS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\TreeSprite.hlsl", GeometryShader, nullptr, "GS", "gs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\TreeSprite.hlsl", GeometryShader, nullptr, "GS", "gs_5_1"));
 		shaders["treeSpritePS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\TreeSprite.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\TreeSprite.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
 
 
 		shaders["drawNormalsVS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\DrawNormals.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\DrawNormals.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["drawNormalsPS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\DrawNormals.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\DrawNormals.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 		shaders["drawNormalsAlphaDropPS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\DrawNormals.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\DrawNormals.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1"));
 
 
 		shaders["ssaoVS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Ssao.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Ssao.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["ssaoPS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\Ssao.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\Ssao.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 
 		shaders["ssaoBlurVS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\SsaoBlur.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\SsaoBlur.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["ssaoBlurPS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\SsaoBlur.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\SsaoBlur.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 
 		shaders["ssaoDebugVS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\SsaoDebug.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+			std::make_unique<GShader>(L"Shaders\\SsaoDebug.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
 		shaders["ssaoDebugPS"] = std::move(
-			std::make_unique<Shader>(L"Shaders\\SsaoDebug.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+			std::make_unique<GShader>(L"Shaders\\SsaoDebug.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 
 		for (auto&& pair : shaders)
 		{

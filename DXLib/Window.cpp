@@ -149,12 +149,12 @@ namespace DXLib
 		return rtvDescriptorHeap.GetCPUHandle(currentBackBufferIndex);
 	}
 
-	Texture& Window::GetCurrentBackBuffer() 
+	GTexture& Window::GetCurrentBackBuffer() 
 	{
 		return backBuffers[currentBackBufferIndex];
 	}
 
-	Texture& Window::GetDepthStencilBuffer() 
+	GTexture& Window::GetDepthStencilBuffer() 
 	{
 		return depthStencilBuffer;
 	}
@@ -203,11 +203,11 @@ namespace DXLib
 
 		swapChain = CreateSwapChain();
 
-		depthStencilBuffer = Texture(L"Depth " + windowName, TextureUsage::Depth);
+		depthStencilBuffer = GTexture(L"Depth " + windowName, TextureUsage::Depth);
 
 		for (int i = 0; i < BufferCount; ++i)
 		{
-			backBuffers.push_back(Texture(windowName + L" Backbuffer[" + std::to_wstring(i) + L"]", TextureUsage::RenderTarget));
+			backBuffers.push_back(GTexture(windowName + L" Backbuffer[" + std::to_wstring(i) + L"]", TextureUsage::RenderTarget));
 		}
 
 		auto queue = D3DApp::GetApp().GetCommandQueue();
@@ -362,11 +362,11 @@ namespace DXLib
 			optClear.DepthStencil.Depth = 1.0f;
 			optClear.DepthStencil.Stencil = 0;
 
-			depthStencilBuffer = Texture(depthStencilDesc, windowName + L" DepthStencil", TextureUsage::Depth, &optClear);
+			depthStencilBuffer = GTexture(depthStencilDesc, windowName + L" DepthStencil", TextureUsage::Depth, &optClear);
 		}
 		else
 		{
-			Texture::Resize(depthStencilBuffer, width, height, 1);
+			GTexture::Resize(depthStencilBuffer, width, height, 1);
 		}
 		
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;

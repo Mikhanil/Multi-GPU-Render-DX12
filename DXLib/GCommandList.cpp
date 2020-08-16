@@ -10,7 +10,7 @@
 #include "GResourceStateTracker.h"
 #include "GMemory.h"
 #include "GraphicPSO.h"
-#include "RootSignature.h"
+#include "GRootSignature.h"
 
 custom_map<std::wstring, ID3D12Resource* > GCommandList::ms_TextureCache = DXAllocator::CreateMap<std::wstring, ID3D12Resource* >();
 std::mutex GCommandList::ms_TextureCacheMutex;
@@ -93,7 +93,7 @@ void GCommandList::UpdateDescriptorHeaps()
 	cmdList->SetDescriptorHeaps(numDescriptorHeaps, descriptorHeaps);
 }
 
-void GCommandList::SetRootSignature(RootSignature* signature)
+void GCommandList::SetRootSignature(GRootSignature* signature)
 {
 	const auto d3d12RootSignature = signature->GetRootSignature();
 	

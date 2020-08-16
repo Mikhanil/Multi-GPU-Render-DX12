@@ -57,12 +57,6 @@ GBuffer GBuffer::CreateBuffer(std::shared_ptr<GCommandList> cmdList, void* data,
 	return buffer;
 }
 
-GBuffer::~GBuffer()
-{
-	bufferCPU.Reset();
-	bufferCPU = nullptr;
-}
-
 GBuffer::GBuffer(const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
                  void* data): GResource(resourceDesc, name), stride(elementSize), count(elementCount)
 {

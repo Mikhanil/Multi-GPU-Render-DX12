@@ -1,8 +1,7 @@
 #include "ModelRenderer.h"
-
+#include "Model.h"
 #include "GameObject.h"
 #include "GCommandList.h"
-#include "Model.h"
 #include "Transform.h"
 
 

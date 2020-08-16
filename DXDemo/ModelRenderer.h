@@ -1,12 +1,9 @@
 #pragma once
-#include "GBuffer.h"
+#include "Model.h"
 #include "Renderer.h"
-#include "STLCustomAllocator.h"
-#include "assimp/scene.h"
 
 class Transform;
 class GCommandList;
-class Model;
 
 class ModelRenderer : public Renderer
 {	

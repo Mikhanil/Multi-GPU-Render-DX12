@@ -2,9 +2,9 @@
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <wrl/client.h>
-#include "RootSignature.h"
+#include "GRootSignature.h"
 #include "DirectXBuffers.h"
-#include "Shader.h"
+#include "GShader.h"
 
 struct GenerateMipsCB
 {
@@ -19,9 +19,9 @@ public:
 
 	ComPtr<ID3D12PipelineState> GetPSO() const;
 
-	void SetRootSignature(RootSignature& sign);
+	void SetRootSignature(GRootSignature& sign);
 
-	void SetShader(Shader* shader);
+	void SetShader(GShader* shader);
 
 	void Initialize();
 private:

@@ -1,4 +1,4 @@
-#include "Texture.h"
+#include "GTexture.h"
 #include "DirectXTex.h"
 #include "filesystem"
 #include "DDSTextureLoader.h"
@@ -11,11 +11,11 @@
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
 #include "GCommandList.h"
-#include "Shader.h"
+#include "GShader.h"
 
-UINT Texture::textureIndexGlobal = 0;
+UINT GTexture::textureIndexGlobal = 0;
 
-void Texture::Resize(Texture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
+void GTexture::Resize(GTexture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
 {
 	if(texture.dxResource)
 	{	
@@ -43,7 +43,7 @@ void Texture::Resize(Texture& texture, uint32_t width, uint32_t height, uint32_t
 	}
 }
 
-void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** textures, size_t count)
+void GTexture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture** textures, size_t count)
 {
 	UINT requiredHeapSize = 0;
 
@@ -81,14 +81,14 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 	samplerDesc.RegisterSpace = 0;
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	RootSignature signature;
+	GRootSignature signature;
 	signature.AddConstantParameter(2, 0);
 	signature.AddDescriptorParameter(&srvCbvRanges[0], 1);
 	signature.AddDescriptorParameter(&srvCbvRanges[1], 1);
 	signature.AddStaticSampler(samplerDesc);
 	signature.Initialize();
 
-	auto shader = std::make_unique<Shader>(L"Shaders\\MipMapCS.hlsl", ComputeShader, nullptr, "GenerateMipMaps",
+	auto shader = std::make_unique<GShader>(L"Shaders\\MipMapCS.hlsl", ComputeShader, nullptr, "GenerateMipMaps",
 		"cs_5_1");
 	shader->LoadAndCompile();
 
@@ -126,19 +126,19 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 			uint32_t dstWidth = std::max(uint32_t(textureDesc.Width >> (TopMip + 1)), uint32_t(1));
 			uint32_t dstHeight = std::max(uint32_t(textureDesc.Height >> (TopMip + 1)), uint32_t(1));
 
-			srcTextureSRVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
+			srcTextureSRVDesc.Format = GTexture::GetUAVCompatableFormat(textureDesc.Format);
 			srcTextureSRVDesc.Texture2D.MipLevels = 1;
 			srcTextureSRVDesc.Texture2D.MostDetailedMip = TopMip;
 			textures[i]->CreateShaderResourceView(&srcTextureSRVDesc, &mipMapsMemory, (cpuOffset));
 			cpuOffset++;
 
-			destTextureUAVDesc.Format = Texture::GetUAVCompatableFormat(textureDesc.Format);
+			destTextureUAVDesc.Format = GTexture::GetUAVCompatableFormat(textureDesc.Format);
 			destTextureUAVDesc.Texture2D.MipSlice = TopMip + 1;
 			textures[i]->CreateUnorderedAccessView(&destTextureUAVDesc, &mipMapsMemory,(cpuOffset));
 			cpuOffset++;
 
 
-			Vector2 texelSize = Vector2{ (1.0f / dstWidth), (1.0f / dstHeight) };
+			DirectX::SimpleMath::Vector2 texelSize = DirectX::SimpleMath::Vector2{ (1.0f / dstWidth), (1.0f / dstHeight) };
 			cmdList->SetRoot32BitConstants(0, 2, &texelSize, 0);
 			cmdList->SetRootDescriptorTable(1, &mipMapsMemory, gpuOffset);
 			gpuOffset++;
@@ -153,53 +153,43 @@ void Texture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, Texture** t
 	}	
 }
 
-TextureUsage Texture::GetTextureType() const
+TextureUsage GTexture::GetTextureType() const
 {
 	return usage;
 }
 
-UINT Texture::GetTextureIndex() const
+UINT GTexture::GetTextureIndex() const
 {
 	return textureIndex;
 }
 
-Texture::Texture(std::wstring name, TextureUsage use): GResource( name),
+GTexture::GTexture(std::wstring name, TextureUsage use): GResource( name),
                                                                               usage(use)
 {
 	textureIndex = textureIndexGlobal++;
 }
 
-Texture::Texture(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, TextureUsage textureUsage, const D3D12_CLEAR_VALUE* clearValue) : GResource(resourceDesc, name, clearValue),
+GTexture::GTexture(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, TextureUsage textureUsage, const D3D12_CLEAR_VALUE* clearValue) : GResource(resourceDesc, name, clearValue),
                                                                         usage(textureUsage)
 {
 	textureIndex = textureIndexGlobal++;
 }
 
-Texture::Texture(ComPtr<ID3D12Resource> resource, TextureUsage textureUsage,
+GTexture::GTexture(ComPtr<ID3D12Resource> resource, TextureUsage textureUsage,
                  const std::wstring& name) : GResource(resource, name), usage(textureUsage)
 {
 	textureIndex = textureIndexGlobal++;
 }
 
-Texture::Texture(const Texture& copy) : GResource(copy), textureIndex(copy.textureIndex)
+GTexture::GTexture(const GTexture& copy) : GResource(copy), textureIndex(copy.textureIndex)
 {
 }
 
-Texture::Texture(Texture&& copy) : GResource(copy), textureIndex(std::move(copy.textureIndex))
+GTexture::GTexture(GTexture&& copy) : GResource(copy), textureIndex(std::move(copy.textureIndex))
 {
 }
 
-Texture& Texture::operator=(const Texture& other)
-{
-	GResource::operator=(other);
-
-	textureIndex = other.textureIndex;
-
-
-	return *this;
-}
-
-Texture& Texture::operator=(Texture&& other)
+GTexture& GTexture::operator=(const GTexture& other)
 {
 	GResource::operator=(other);
 
@@ -209,7 +199,17 @@ Texture& Texture::operator=(Texture&& other)
 	return *this;
 }
 
-void Texture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, GMemory* memory, size_t offset) const
+GTexture& GTexture::operator=(GTexture&& other)
+{
+	GResource::operator=(other);
+
+	textureIndex = other.textureIndex;
+
+
+	return *this;
+}
+
+void GTexture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, GMemory* memory, size_t offset) const
 {
 	auto& app = DXLib::D3DApp::GetApp();
 	auto& device = app.GetDevice();
@@ -217,7 +217,7 @@ void Texture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* sr
 	
 }
 
-void Texture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, GMemory* memory, size_t offset) const
+void GTexture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, GMemory* memory, size_t offset) const
 {
 	auto& app = DXLib::D3DApp::GetApp();
 	auto& device = app.GetDevice();
@@ -226,7 +226,7 @@ void Texture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* 
 
 }
 
-void Texture::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, GMemory* memory, size_t offset ) const
+void GTexture::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, GMemory* memory, size_t offset ) const
 {
 	auto& app = DXLib::D3DApp::GetApp();
 	auto& device = app.GetDevice();
@@ -235,7 +235,7 @@ void Texture::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDes
 
 }
 
-void Texture::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, GMemory* memory, size_t offset) const
+void GTexture::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, GMemory* memory, size_t offset) const
 {
 	auto& app = DXLib::D3DApp::GetApp();
 	auto& device = app.GetDevice();
@@ -243,14 +243,14 @@ void Texture::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDes
 }
 
 
-Texture::~Texture()
+GTexture::~GTexture()
 {
 }
 
 
 
 
-DXGI_FORMAT Texture::GetUAVCompatableFormat(DXGI_FORMAT format)
+DXGI_FORMAT GTexture::GetUAVCompatableFormat(DXGI_FORMAT format)
 {
 	DXGI_FORMAT uavFormat = format;
 
@@ -275,10 +275,10 @@ DXGI_FORMAT Texture::GetUAVCompatableFormat(DXGI_FORMAT format)
 	return uavFormat;
 }
 
-static custom_unordered_map<std::wstring, std::shared_ptr<Texture>> cashedLoadTextures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Texture>>();
+static custom_unordered_map<std::wstring, std::shared_ptr<GTexture>> cashedLoadTextures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GTexture>>();
 
 
-std::shared_ptr<Texture> Texture::LoadTextureFromFile(std::wstring filepath,
+std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
                                      std::shared_ptr<GCommandList> commandList, TextureUsage usage)
 {
 	auto it = cashedLoadTextures.find(filepath);
@@ -349,7 +349,7 @@ std::shared_ptr<Texture> Texture::LoadTextureFromFile(std::wstring filepath,
 
 	auto& device = DXLib::D3DApp::GetApp().GetDevice();
 	
-	auto tex = std::make_shared<Texture>(desc, filepath, usage);
+	auto tex = std::make_shared<GTexture>(desc, filepath, usage);
 	
 	if (tex->GetD3D12Resource())
 	{
@@ -381,12 +381,12 @@ std::shared_ptr<Texture> Texture::LoadTextureFromFile(std::wstring filepath,
 		
 }
 
-void Texture::ClearTrack()
+void GTexture::ClearTrack()
 {
 	track.clear();
 }
 
-bool Texture::IsUAVCompatibleFormat(DXGI_FORMAT format)
+bool GTexture::IsUAVCompatibleFormat(DXGI_FORMAT format)
 {
 	switch (format)
 	{
@@ -414,7 +414,7 @@ bool Texture::IsUAVCompatibleFormat(DXGI_FORMAT format)
 	}
 }
 
-bool Texture::IsSRGBFormat(DXGI_FORMAT format)
+bool GTexture::IsSRGBFormat(DXGI_FORMAT format)
 {
 	switch (format)
 	{
@@ -427,7 +427,7 @@ bool Texture::IsSRGBFormat(DXGI_FORMAT format)
 	}
 }
 
-bool Texture::IsBGRFormat(DXGI_FORMAT format)
+bool GTexture::IsBGRFormat(DXGI_FORMAT format)
 {
 	switch (format)
 	{
@@ -441,7 +441,7 @@ bool Texture::IsBGRFormat(DXGI_FORMAT format)
 	}
 }
 
-bool Texture::IsDepthFormat(DXGI_FORMAT format)
+bool GTexture::IsDepthFormat(DXGI_FORMAT format)
 {
 	switch (format)
 	{
@@ -455,7 +455,7 @@ bool Texture::IsDepthFormat(DXGI_FORMAT format)
 	}
 }
 
-DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
+DXGI_FORMAT GTexture::GetTypelessFormat(DXGI_FORMAT format)
 {
 	DXGI_FORMAT typelessFormat = format;
 
@@ -569,7 +569,7 @@ DXGI_FORMAT Texture::GetTypelessFormat(DXGI_FORMAT format)
 }
 
 
-std::wstring& Texture::GetName()
+std::wstring& GTexture::GetName()
 {
 	return resourceName;
 }

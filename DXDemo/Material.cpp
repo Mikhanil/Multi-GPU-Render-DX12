@@ -23,7 +23,7 @@ void Material::SetDirty()
 	NumFramesDirty = globalCountFrameResources;
 }
 
-void Material::SetNormalMap(Texture* texture)
+void Material::SetNormalMap(GTexture* texture)
 {
 	normalMap = texture;
 	NormalMapIndex = texture->GetTextureIndex();
@@ -39,7 +39,7 @@ GraphicPSO* Material::GetPSO() const
 	return pso;
 }
 
-void Material::SetDiffuseTexture(Texture* texture)
+void Material::SetDiffuseTexture(GTexture* texture)
 {
 	textures.push_back(texture);
 	DiffuseMapIndex = texture->GetTextureIndex();

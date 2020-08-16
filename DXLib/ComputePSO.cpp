@@ -1,7 +1,7 @@
 #include "ComputePSO.h"
 
 #include "d3dApp.h"
-#include "Shader.h"
+#include "GShader.h"
 
 ComputePSO::ComputePSO()
 {
@@ -20,12 +20,12 @@ ComPtr<ID3D12PipelineState> ComputePSO::GetPSO() const
 	return m_PipelineState;
 }
 
-void ComputePSO::SetRootSignature(RootSignature& sign)
+void ComputePSO::SetRootSignature(GRootSignature& sign)
 {
 	computePSOdesc.pRootSignature = sign.GetRootSignature().Get();
 }
 
-void ComputePSO::SetShader(Shader* shader)
+void ComputePSO::SetShader(GShader* shader)
 {
 	if (shader->GetType() == ComputeShader)
 	{

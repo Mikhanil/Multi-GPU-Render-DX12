@@ -171,8 +171,29 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CameraController.cpp" />
+    <ClCompile Include="Component.cpp" />
+    <ClCompile Include="FrameResource.cpp" />
+    <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="Keyboard.cpp" />
+    <ClCompile Include="Light.cpp" />
+    <ClCompile Include="Material.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModelRenderer.cpp" />
+    <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="ObjectMover.cpp" />
+    <ClCompile Include="Reflected.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="SampleApp.cpp" />
+    <ClCompile Include="Shadow.cpp" />
+    <ClCompile Include="ShadowMap.cpp" />
+    <ClCompile Include="SkyBox.cpp" />
     <ClCompile Include="Source.cpp" />
+    <ClCompile Include="Ssao.cpp" />
+    <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsl">
@@ -309,7 +330,29 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="CameraController.h" />
+    <ClInclude Include="Component.h" />
+    <ClInclude Include="FrameResource.h" />
+    <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="Light.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="ModelRenderer.h" />
+    <ClInclude Include="Mouse.h" />
+    <ClInclude Include="ObjectMover.h" />
+    <ClInclude Include="Reflected.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="SampleApp.h" />
+    <ClInclude Include="ShaderBuffersData.h" />
+    <ClInclude Include="Shadow.h" />
+    <ClInclude Include="ShadowMap.h" />
+    <ClInclude Include="SkyBox.h" />
+    <ClInclude Include="Ssao.h" />
+    <ClInclude Include="Transform.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

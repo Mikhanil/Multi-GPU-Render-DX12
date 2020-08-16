@@ -2,7 +2,7 @@
 
 #include "d3dUtil.h"
 #include "GMemory.h"
-#include "Texture.h"
+#include "GTexture.h"
 using namespace Microsoft::WRL;
 class ShadowMap
 {
@@ -15,7 +15,7 @@ public:
 
 	UINT Width() const;
 	UINT Height() const;
-	Texture& GetTexture();
+	GTexture& GetTexture();
 
 	GMemory* GetSrvMemory()
 	{
@@ -52,6 +52,6 @@ private:
 	
 	GMemory dsvMemory;
 
-	Texture mShadowMap;
+	GTexture mShadowMap;
 
 };

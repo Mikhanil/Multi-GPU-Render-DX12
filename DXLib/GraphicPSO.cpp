@@ -77,7 +77,7 @@ void GraphicPSO::SetSampleQuality(UINT quality)
 	psoDesc.SampleDesc.Quality = quality;
 }
 
-void GraphicPSO::SetShader(Shader* shader)
+void GraphicPSO::SetShader(GShader* shader)
 {
 	switch (shader->GetType())
 	{

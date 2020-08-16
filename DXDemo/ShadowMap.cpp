@@ -29,7 +29,7 @@ UINT ShadowMap::Height() const
 	return mHeight;
 }
 
-Texture& ShadowMap::GetTexture()
+GTexture& ShadowMap::GetTexture()
 {
 	return mShadowMap;
 }
@@ -100,10 +100,10 @@ void ShadowMap::BuildResource()
 		optClear.DepthStencil.Depth = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
 
-		mShadowMap = Texture(texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
+		mShadowMap = GTexture(texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
 	}
 	else
 	{
-		Texture::Resize(mShadowMap, mWidth, mHeight,1);
+		GTexture::Resize(mShadowMap, mWidth, mHeight,1);
 	}	
 }

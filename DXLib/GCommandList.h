@@ -13,7 +13,7 @@ class GResource;
 class GDataUploader;
 class GMemory;
 class GResourceStateTracker;
-class RootSignature;
+class GRootSignature;
 class GraphicPSO;
 class ComputePSO;
 struct UploadAllocation;
@@ -63,7 +63,7 @@ public:
 
 	void SetGMemory(const GMemory* memory);
 
-	void SetRootSignature(RootSignature* signature);
+	void SetRootSignature(GRootSignature* signature);
 
 	void SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource);
 	void SetRootShaderResourceView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address) const;

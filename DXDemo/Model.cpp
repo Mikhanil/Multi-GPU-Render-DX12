@@ -7,15 +7,16 @@
 #include "string"
 
 static Assimp::Importer importer;
+static std::unordered_map<std::string, std::shared_ptr<Model>> cashedLoadTextures;
+
 
 void Model::ProcessNode(std::shared_ptr<Model> model, aiNode* node, const aiScene* scene, std::shared_ptr<GCommandList> cmdList)
 {
 	for (UINT i = 0; i < node->mNumMeshes; i++)
 	{
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-
-		auto modelMesh = CreateSubMesh(mesh, model, cmdList);
-		model->meshes.push_back(std::move(modelMesh));
+		
+		model->meshes.push_back(std::move(CreateSubMesh(mesh, model, cmdList)));
 	}
 
 	for (UINT i = 0; i < node->mNumChildren; i++)
@@ -117,7 +118,6 @@ void Model::UpdateGraphicConstantData(ObjectConstants constantData)
 	}
 }
 
-static custom_unordered_map<std::string, std::shared_ptr<Model>> cashedLoadTextures = DXAllocator::CreateUnorderedMap<std::string, std::shared_ptr<Model>>();
 
 std::shared_ptr<Model> Model::LoadFromFile(const std::string& filePath, std::shared_ptr<GCommandList> cmdList)
 {
@@ -141,9 +141,9 @@ std::shared_ptr<Model> Model::LoadFromFile(const std::string& filePath, std::sha
 
 	ProcessNode(model, pScene->mRootNode, pScene, cmdList);
 
-	cashedLoadTextures[filePath] = model;
+	cashedLoadTextures[filePath] = std::move(model);
 	
-	return model;
+	return cashedLoadTextures[filePath];
 }
 
 UINT Model::GetMeshesCount() const
@@ -155,12 +155,9 @@ Model::Model(const std::wstring modelName): name(modelName)
 {
 }
 
-Model::~Model()
-{
-	meshes.clear();
-}
 
 void Model::SetMeshMaterial(const UINT submesh,const  UINT materialIndex)
 {
 	meshes[submesh].SetMaterialIndex(materialIndex);
 }
+

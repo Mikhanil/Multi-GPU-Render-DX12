@@ -2,14 +2,13 @@
 #include "DXAllocator.h"
 #include "assimp/scene.h"
 #include "ShaderBuffersData.h"
+#include "Mesh.h"
 
-class Mesh;
-class ModelRenderer;
 class GCommandList;
 
 class Model
 {
-	friend ModelRenderer;
+	friend class ModelRenderer;
 	
 	custom_vector<Mesh> meshes = DXAllocator::CreateVector<Mesh>();
 
@@ -32,10 +31,12 @@ class Model
 
 
 public:
-
+	
 	Model(const std::wstring modelName = L"");
 
-	~Model();;
+	~Model() {};
+	
+	
 };
 
 

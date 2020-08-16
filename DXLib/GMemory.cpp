@@ -1,7 +1,7 @@
 #include "GMemory.h"
 
 #include <utility>
-#include <d3dApp.h>
+#include "d3dApp.h"
 
 #include "GHeap.h"
 
