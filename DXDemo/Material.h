@@ -16,7 +16,7 @@ class Material
 
 	UINT materialIndex = -1;
 
-	std::string Name;
+	std::wstring Name;
 	GraphicPSO* pso = nullptr;
 
 	MaterialConstants matConstants{};
@@ -49,7 +49,7 @@ public:
 
 	void SetDiffuseTexture(GTexture* texture);
 
-	Material(std::string name, GraphicPSO* pso);
+	Material(std::wstring name, GraphicPSO* pso);
 
 	void InitMaterial(GMemory& textureHeap);
 
@@ -57,7 +57,7 @@ public:
 
 	void Update();
 
-	std::string& GetName();
+	std::wstring& GetName();
 
 	DirectX::XMFLOAT4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
 	DirectX::XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};

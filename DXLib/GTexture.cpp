@@ -275,17 +275,11 @@ DXGI_FORMAT GTexture::GetUAVCompatableFormat(DXGI_FORMAT format)
 	return uavFormat;
 }
 
-static custom_unordered_map<std::wstring, std::shared_ptr<GTexture>> cashedLoadTextures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GTexture>>();
-
 
 std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
                                      std::shared_ptr<GCommandList> commandList, TextureUsage usage)
 {
-	auto it = cashedLoadTextures.find(filepath);
-	if(it != cashedLoadTextures.end())
-	{
-	  return it->second;
-	}
+	
 		
 	std::filesystem::path filePath(filepath);
 	if (!exists(filePath))
@@ -373,11 +367,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 		}
 	}
 
-
-
-	cashedLoadTextures[filepath] = std::move(tex);
-
-	return cashedLoadTextures[filepath];
+	return tex;
 		
 }
 

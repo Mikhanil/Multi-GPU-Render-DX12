@@ -37,6 +37,11 @@ bool ModelRenderer::AddModel(std::shared_ptr<GCommandList> cmdList, const std::s
 	return true;
 }
 
+void ModelRenderer::AddModel(std::shared_ptr<Model> asset)
+{
+	model = asset;
+}
+
 UINT ModelRenderer::GetMeshesCount() const
 {
 	return model->GetMeshesCount();

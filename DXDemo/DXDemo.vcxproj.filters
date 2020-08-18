@@ -120,6 +120,9 @@
     <ClCompile Include="Ssao.cpp">
       <Filter>Source Files\Render</Filter>
     </ClCompile>
+    <ClCompile Include="BinAssetsLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Default.hlsl">
@@ -219,6 +222,12 @@
     </ClInclude>
     <ClInclude Include="Material.h">
       <Filter>Header Files\Render</Filter>
+    </ClInclude>
+    <ClInclude Include="SquidRoom.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BinAssetsLoader.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -17,6 +17,8 @@ public:
 	
 	bool AddModel(std::shared_ptr<GCommandList> cmdList, const std::string& filePath);
 
+	void AddModel(std::shared_ptr<Model> asset);
+
 	UINT GetMeshesCount() const;
 
 	void SetMeshMaterial(UINT index, Material* material) const;

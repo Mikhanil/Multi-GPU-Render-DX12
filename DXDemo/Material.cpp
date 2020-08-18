@@ -45,7 +45,7 @@ void Material::SetDiffuseTexture(GTexture* texture)
 	DiffuseMapIndex = texture->GetTextureIndex();
 }
 
-Material::Material(std::string name, GraphicPSO* pso): Name(std::move(name)), pso(pso)
+Material::Material(std::wstring name, GraphicPSO* pso): Name(std::move(name)), pso(pso)
 {
 	materialIndex = materialIndexGlobal++;
 }
@@ -137,7 +137,7 @@ void Material::Update()
 	}
 }
 
-std::string& Material::GetName()
+std::wstring& Material::GetName()
 {
 	return Name;
 }

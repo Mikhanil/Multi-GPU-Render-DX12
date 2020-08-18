@@ -51,7 +51,7 @@ public:
 
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const;
 
-protected:
+public:
 
 	GBuffer(const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
 	        void* data);

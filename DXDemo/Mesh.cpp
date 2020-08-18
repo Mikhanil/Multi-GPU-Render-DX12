@@ -11,14 +11,19 @@ void Mesh::UpdateGraphicConstantData(ObjectConstants data)
 	objectConstantBuffer->CopyData(0, constantData);
 }
 
+bool Mesh::isDebug = false;
+
 void Mesh::Draw(std::shared_ptr<GCommandList> cmdList, UINT constantDataSlot) const
-{
+{	
 	cmdList->SetRootConstantBufferView(constantDataSlot,
 		objectConstantBuffer->Resource()->GetGPUVirtualAddress());
+
 	cmdList->SetVBuffer(0, 1, &vertexBuffer->VertexBufferView());
 	cmdList->SetIBuffer(&indexBuffer->IndexBufferView());
 	cmdList->SetPrimitiveTopology(primitiveTopology);
-	cmdList->DrawIndexed(indexBuffer->GetElementsCount(), 1, 0, 0, 0);
+
+	cmdList->DrawIndexed(isTest ? indexCount : indexBuffer->GetElementsCount(), 1, indexStart, baseVertex, 0);	
+	
 }
 
 void Mesh::CalculateTangent(UINT i1, UINT i2, UINT i3, Vertex* vertices)
@@ -65,8 +70,28 @@ Mesh::Mesh(const std::wstring name): meshName(std::move(name)), primitiveTopolog
 	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
 }
 
+Mesh::Mesh(const Mesh& copy) : constantData(copy.constantData), objectConstantBuffer(copy.objectConstantBuffer), meshName(copy.meshName), primitiveTopology(copy.primitiveTopology),
+vertices(copy.vertices), indexes(copy.indexes), vertexBuffer(copy.vertexBuffer), indexBuffer(copy.indexBuffer), baseVertex(copy.baseVertex), indexCount(copy.indexCount), indexStart((copy.indexStart)), isTest(copy.isTest)
+{
 
-void Mesh::ChangeIndexes(std::shared_ptr<GCommandList> cmdList, DWORD* indices, size_t indexesCount)
+}
+
+void Mesh::SetVertexBuffer(std::shared_ptr<GBuffer>& vbuffer)
+{
+	if (vertexBuffer) vertexBuffer.reset();
+
+	vertexBuffer = vbuffer;
+}
+
+void Mesh::SetIndexBuffer(std::shared_ptr<GBuffer>& ibuffer)
+{
+	if (indexBuffer) indexBuffer.reset();
+
+	indexBuffer = ibuffer;
+}
+
+
+void Mesh::ChangeIndexes(std::shared_ptr<GCommandList> cmdList, const DWORD* indices, size_t indexesCount)
 {
 	if (indexBuffer != nullptr) indexBuffer.reset();
 
@@ -77,11 +102,11 @@ void Mesh::ChangeIndexes(std::shared_ptr<GCommandList> cmdList, DWORD* indices, 
 		indexes[i] = indices[i];
 	}
 	
-	indexBuffer = std::make_unique<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, indexes.data(), sizeof(DWORD), indexes.size(),  meshName + L" Indexes")));
+	indexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, indexes.data(), sizeof(DWORD), indexes.size(),  meshName + L" Indexes")));
 	
 }
 
-void Mesh::ChangeVertices(std::shared_ptr<GCommandList> cmdList, Vertex* vertixes, size_t vertexesCount)
+void Mesh::ChangeVertices(std::shared_ptr<GCommandList> cmdList, const Vertex* vertixes, size_t vertexesCount)
 {
 	if (vertexBuffer != nullptr) vertexBuffer.reset();
 
@@ -92,7 +117,7 @@ void Mesh::ChangeVertices(std::shared_ptr<GCommandList> cmdList, Vertex* vertixe
 		vertices[i] = vertixes[i];
 	}
 		
-	vertexBuffer = std::make_unique<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, vertices.data(), sizeof(Vertex), vertices.size(), meshName + L" Vertexes")));
+	vertexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, vertices.data(), sizeof(Vertex), vertices.size(), meshName + L" Vertexes")));
 }
 
 void Mesh::SetName(const std::wstring& name)

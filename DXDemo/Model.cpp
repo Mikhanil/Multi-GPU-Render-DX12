@@ -7,7 +7,6 @@
 #include "string"
 
 static Assimp::Importer importer;
-static std::unordered_map<std::string, std::shared_ptr<Model>> cashedLoadTextures;
 
 
 void Model::ProcessNode(std::shared_ptr<Model> model, aiNode* node, const aiScene* scene, std::shared_ptr<GCommandList> cmdList)
@@ -121,11 +120,7 @@ void Model::UpdateGraphicConstantData(ObjectConstants constantData)
 
 std::shared_ptr<Model> Model::LoadFromFile(const std::string& filePath, std::shared_ptr<GCommandList> cmdList)
 {
-	const auto it = cashedLoadTextures.find(filePath);
-	if (it != cashedLoadTextures.end())
-	{
-		return it->second;
-	}
+	
 	
 	const aiScene* pScene = importer.ReadFile(filePath,
 		aiProcess_Triangulate  |
@@ -140,10 +135,8 @@ std::shared_ptr<Model> Model::LoadFromFile(const std::string& filePath, std::sha
 	auto model = std::make_shared<Model>(AnsiToWString(filePath));
 
 	ProcessNode(model, pScene->mRootNode, pScene, cmdList);
-
-	cashedLoadTextures[filePath] = std::move(model);
 	
-	return cashedLoadTextures[filePath];
+	return model;
 }
 
 UINT Model::GetMeshesCount() const
@@ -159,5 +152,10 @@ Model::Model(const std::wstring modelName): name(modelName)
 void Model::SetMeshMaterial(const UINT submesh,const  UINT materialIndex)
 {
 	meshes[submesh].SetMaterialIndex(materialIndex);
+}
+
+void Model::AddMesh(const std::shared_ptr<Mesh> mesh)
+{
+	meshes.push_back(*mesh);
 }
 

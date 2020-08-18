@@ -12,6 +12,7 @@
 #include "Ssao.h"
 #include "GameTimer.h"
 #include "Keyboard.h"
+#include "Model.h"
 #include "Mouse.h"
 
 using Microsoft::WRL::ComPtr;
@@ -30,6 +31,7 @@ namespace DXLib
 
 		void GeneratedMipMap();
 		void BuildSsaoRootSignature();
+		
 		bool Initialize() override;
 
 
@@ -49,7 +51,6 @@ namespace DXLib
 		LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
 		
 		void OnResize() override;
-		void AnimatedMaterial(const GameTimer& gt);
 		void UpdateShadowTransform(const GameTimer& gt);
 		void UpdateShadowPassCB(const GameTimer& gt);
 		void UpdateSsaoCB(const GameTimer& gt);
@@ -59,6 +60,8 @@ namespace DXLib
 		void LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList);
 		void LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList);
 		void LoadGolemTexture(std::shared_ptr<GCommandList> cmdList);
+		void LoadBinTextures(std::shared_ptr<GCommandList> cmdList, const UINT8* assetData);
+		void LoadSquidModels(std::shared_ptr<GCommandList> cmdLit);
 		void BuildTexturesHeap();
 		void Update(const GameTimer& gt) override;
 		void UpdateMaterial(const GameTimer& gt);
@@ -74,11 +77,8 @@ namespace DXLib
 		void BuildRootSignature();
 		void BuildShadersAndInputLayout();
 		void BuildShapeGeometry();
-		void BuildRoomGeometry();
 		void BuildPSOs();
 		void BuildFrameResources();
-		void BuildLandGeometry();
-		void BuildTreesGeometry();
 		void BuildMaterials();
 		void BuildGameObjects();
 		static void DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems);
@@ -97,6 +97,9 @@ namespace DXLib
 		int currentFrameResourceIndex = 0;
 
 
+		std::shared_ptr<GBuffer> squidVertexBuffer;
+		std::shared_ptr<GBuffer> squidIndexBuffer;
+		
 		std::unique_ptr<GRootSignature> rootSignature = nullptr;
 		std::unique_ptr<GRootSignature> ssaoRootSignature = nullptr;
 		std::unique_ptr<Ssao> mSsao;
@@ -106,10 +109,11 @@ namespace DXLib
 		GMemory srvHeap;
 
 		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();
-		custom_unordered_map<std::string, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<Material>>();
+		custom_unordered_map<std::wstring, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::wstring, std::unique_ptr<Material>>();
 		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
 		custom_unordered_map<std::wstring, std::shared_ptr<GTexture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GTexture>>();
-		/*custom_unordered_map<std::string, std::shared_ptr<Model>> modelMeshes = DXAllocator::CreateUnorderedMap<std::string, std::shared_ptr<Model>>();*/
+		custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
+		custom_vector<std::shared_ptr<Mesh>> meshesModel = DXAllocator::CreateVector<std::shared_ptr<Mesh>>();
 		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
 		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
 		
@@ -147,4 +151,6 @@ namespace DXLib
 
 		BoundingSphere mSceneBounds;
 	};
+
+	
 }

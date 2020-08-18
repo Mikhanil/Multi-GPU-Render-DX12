@@ -27,16 +27,20 @@ class Model
 
 	UINT GetMeshesCount() const;
 
-	void SetMeshMaterial(const UINT submesh, const UINT materiaIindex);
+	
 
 
 public:
+
+	std::wstring GetName() const { return name; }
 	
 	Model(const std::wstring modelName = L"");
 
 	~Model() {};
 	
-	
+	void SetMeshMaterial(const UINT submesh, const UINT materiaIindex);
+
+	void AddMesh(const std::shared_ptr<Mesh> mesh);
 };
 
 

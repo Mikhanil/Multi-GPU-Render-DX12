@@ -99,13 +99,15 @@ float4 PS(VertexOut pin) : SV_Target
     litColor = lerp(litColor, worldBuffer.gFogColor, fogAmount);
 #endif
 
-
-	float3 r = reflect(-toEyeW, bumpedNormalW);
-	float4 reflectionColor = SkyMap.Sample(gsamLinearWrap, r);
-	float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);
-	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
-
 	litColor.a = diffuseAlbedo.a;
+    return litColor;
+	
+	float3 r = reflect(-toEyeW, bumpedNormalW);
+	//float4 reflectionColor = SkyMap.Sample(gsamLinearWrap, r);
+	float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);
+    litColor.rgb += shininess * fresnelFactor;// * reflectionColor.rgb;
+
+	//litColor.a = diffuseAlbedo.a;
 
 	return litColor;
 }
