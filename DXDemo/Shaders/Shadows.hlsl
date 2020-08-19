@@ -31,17 +31,14 @@ VertexOut VS(VertexIn vin)
 	return vout;
 }
 
-// This is only used for alpha cut out geometry, so that shadows 
-// show up correctly.  Geometry that does not need to sample a
-// texture can use a NULL pixel shader for depth pass.
+
 void PS(VertexOut pin)
 {
-	// Fetch the material data.
+	
 	MaterialData matData = materialData[objectBuffer.materialIndex];
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;
 	uint diffuseMapIndex = matData.DiffuseMapIndex;
 
-	// Dynamically look up the texture in the array.
 	diffuseAlbedo *= texturesMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 
 #ifdef ALPHA_TEST

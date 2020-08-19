@@ -358,15 +358,10 @@ namespace DXLib
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Compute SSAO");
-		if (computeSsao)
-		{
-			cmdList->SetRootSignature(ssaoRootSignature.get());
-			mSsao->ComputeSsao(cmdList, currentFrameResource, 3);
-		}
-		else
-		{
-			mSsao->ClearAmbiantMap(cmdList);
-		}
+
+		cmdList->SetRootSignature(ssaoRootSignature.get());
+		mSsao->ComputeSsao(cmdList, currentFrameResource, 3);
+		
 		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
 
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Main Pass");
@@ -411,7 +406,7 @@ namespace DXLib
 		cmdList->SetPipelineState(*psos[PsoType::Transparent]);
 		DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Transparent)]);
 
-		if (ShowAmbiantMap)
+		if (isDebug)
 		{
 			cmdList->SetPipelineState(*psos[PsoType::Debug]);
 			DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Debug)]);

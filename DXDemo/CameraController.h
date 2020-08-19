@@ -15,8 +15,8 @@ class CameraController :
 	GameTimer* timer;
 
 
-	double xMouseSpeed = 180;
-	double yMouseSpeed = 120;
+	double xMouseSpeed = 100;
+	double yMouseSpeed = 70;
 
 public:
 

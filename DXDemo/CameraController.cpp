@@ -25,13 +25,13 @@ void CameraController::Update()
 		if (keycode == (VK_F1) && keyboard->KeyIsPressed(VK_F1))
 		{
 			DXLib::SampleApp& app = (DXLib::SampleApp&)DXLib::SampleApp::GetApp();
-			app.ShowAmbiantMap = !app.ShowAmbiantMap;
+			app.isDebug = !app.isDebug;
 		}
 
 		if (keycode == (VK_F2) && keyboard->KeyIsPressed(VK_F2))
 		{
 			DXLib::SampleApp& app = (DXLib::SampleApp&)DXLib::SampleApp::GetApp();
-			app.computeSsao = !app.computeSsao;
+			app.showPathMap = (app.showPathMap+1) % app.maxPathMap;
 		}
 	}
 

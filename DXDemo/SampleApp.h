@@ -43,8 +43,10 @@ namespace DXLib
 
 
 
-		bool ShowAmbiantMap = false;
-		bool computeSsao = false;
+		bool isDebug = false;
+		UINT showPathMap = 0;
+		//off, shadowMap, ssaoMap
+		const UINT maxPathMap = 3;
 
 	private:
 

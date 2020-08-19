@@ -37,7 +37,7 @@ struct WorldData
 	float4x4 ViewProjTex;
 	float4x4 ShadowTransform;
 	float3 EyePosW;
-	float cbPerObjectPad1;
+	float debugMap;
 	float2 RenderTargetSize;
 	float2 InvRenderTargetSize;
 	float NearZ;

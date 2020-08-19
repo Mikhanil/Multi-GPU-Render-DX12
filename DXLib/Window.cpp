@@ -70,7 +70,7 @@ namespace DXLib
 
 	void Window::SetVSync(bool vSync)
 	{
-		vSync = vSync;
+		this->vSync = vSync;
 	}
 
 
@@ -278,7 +278,7 @@ namespace DXLib
 
 		if ((renderClock.TotalTime() - timeElapsed) >= 1.0f)
 		{
-			OutputDebugStringW((std::to_wstring(renderClock.TotalTime()) + L"\n").c_str());
+			
 			
 			float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
 			float mspf = 1000.0f / fps;

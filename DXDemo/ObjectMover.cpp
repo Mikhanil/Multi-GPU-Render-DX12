@@ -32,8 +32,22 @@ void ObjectMover::Update()
 		offset.x += 1.0f * dt;
 	}
 
+	if (keyboard->KeyIsPressed(VK_NEXT))
+	{
+		offset.y -= 1.0f * dt;
+	}
+	if (keyboard->KeyIsPressed(VK_PRIOR))
+	{
+		offset.y += 1.0f * dt;
+	}
+
+	
 	if (offset != Vector3::Zero)
 		gameObject->GetTransform()->AdjustPosition(offset);
+
+	auto position = gameObject->GetTransform()->GetPosition();
+	
+	OutputDebugStringW((std::to_wstring(position.x) + L" " + std::to_wstring(position.y) + L" "+ std::to_wstring(position.z) + L" " + L"\n").c_str());
 }
 
 ObjectMover::ObjectMover()
