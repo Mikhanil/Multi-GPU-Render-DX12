@@ -34,6 +34,9 @@ T DivideByMultiple(T value, size_t alignment)
 	return static_cast<T>((value + alignment - 1) / alignment);
 }
 
+
+
+
 inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
 {
     using namespace Microsoft::WRL;

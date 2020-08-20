@@ -1,18 +1,15 @@
 #pragma once
-#include "Renderer.h"
 #include "Transform.h"
 #include "Light.h"
+#include "ModelRenderer.h"
 
 using namespace DirectX::SimpleMath;
 
-class Shadow : public Renderer
+class Shadow : public ModelRenderer
 {
 	void Update() override;
 
-	void Draw(std::shared_ptr<GCommandList> cmdList) override
-	{
-		Renderer::Draw(cmdList);
-	};
+	void Draw(std::shared_ptr<GCommandList> cmdList) override;;
 
 	Transform* targetTransform;
 	Light* mainLight;

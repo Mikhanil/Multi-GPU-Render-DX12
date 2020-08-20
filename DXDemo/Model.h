@@ -10,35 +10,39 @@ class Model
 {
 	friend class ModelRenderer;
 	
-	custom_vector<Mesh> meshes = DXAllocator::CreateVector<Mesh>();
+	custom_vector<std::shared_ptr<Mesh>> meshes = DXAllocator::CreateVector<std::shared_ptr<Mesh>>();
 
-	static void ProcessNode(std::shared_ptr<Model> model, aiNode* node, const aiScene* scene, std::shared_ptr<GCommandList>);
-
-	static Mesh CreateSubMesh(aiMesh* mesh, std::shared_ptr<Model> model,
-		std::shared_ptr<GCommandList> cmdList);
+	
 
 	void Draw(std::shared_ptr<GCommandList> cmdList);
 
 	void UpdateGraphicConstantData(ObjectConstants constantData);
 
-	static std::shared_ptr<Model> LoadFromFile(const std::string& filePath, std::shared_ptr<GCommandList> cmdList);
 
 	std::wstring name;
 
-	UINT GetMeshesCount() const;
-
+	
 	
 
 
 public:
+
+	Matrix scaleMatrix = Matrix::CreateScale(1);
+	
+	UINT GetMeshesCount() const;
 
 	std::wstring GetName() const { return name; }
 	
 	Model(const std::wstring modelName = L"");
 
 	~Model() {};
+
+	std::shared_ptr<Mesh> GetMesh(const UINT submesh)
+	{
+		return meshes[submesh];
+	}
 	
-	void SetMeshMaterial(const UINT submesh, const UINT materiaIindex);
+	void SetMeshMaterial(const UINT submesh, const std::shared_ptr<Material> material);
 
 	void AddMesh(const std::shared_ptr<Mesh> mesh);
 };

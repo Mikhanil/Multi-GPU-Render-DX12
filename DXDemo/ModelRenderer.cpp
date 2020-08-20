@@ -22,20 +22,14 @@ void ModelRenderer::Update()
 	
 	if (transform->IsDirty())
 	{
-		bufferConstant.TextureTransform = transform->TextureTransform.Transpose();
-		bufferConstant.World = transform->GetWorldMatrix().Transpose();
-		
+		bufferConstant.TextureTransform = transform->TextureTransform;
+		bufferConstant.World = transform->GetWorldMatrix();		
 	}
 
 	if(model!=nullptr)
 		model->UpdateGraphicConstantData(bufferConstant);
 }
 
-bool ModelRenderer::AddModel(std::shared_ptr<GCommandList> cmdList, const std::string& filePath)
-{
-	model = Model::LoadFromFile(filePath, cmdList);
-	return true;
-}
 
 void ModelRenderer::AddModel(std::shared_ptr<Model> asset)
 {
@@ -47,7 +41,7 @@ UINT ModelRenderer::GetMeshesCount() const
 	return model->GetMeshesCount();
 }
 
-void ModelRenderer::SetMeshMaterial(UINT index, Material* material) const
+void ModelRenderer::SetMeshMaterial(UINT index, const std::shared_ptr<Material> material) const
 {
-	model->SetMeshMaterial(index, material->GetIndex());
+	model->SetMeshMaterial(index, material);
 }

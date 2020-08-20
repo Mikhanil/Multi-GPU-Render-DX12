@@ -17,17 +17,9 @@ public:
 
 
 	Material* material = nullptr;
-	MeshGeometry* mesh = nullptr;
-
-	// Primitive topology.
-	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-
-	// DrawIndexedInstanced parameters.
-	UINT IndexCount = 0;
-	UINT StartIndexLocation = 0;
-	int BaseVertexLocation = 0;
+	
 
 
 	void Update() override;
-	void Draw(std::shared_ptr<GCommandList> cmdList) override;
+	virtual void Draw(std::shared_ptr<GCommandList> cmdList) = 0;
 };

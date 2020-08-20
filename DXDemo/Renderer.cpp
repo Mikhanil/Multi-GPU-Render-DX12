@@ -27,17 +27,3 @@ void Renderer::Update()
 	}
 }
 
-void Renderer::Draw(std::shared_ptr<GCommandList> cmdList)
-{
-	cmdList->SetRootConstantBufferView(StandardShaderSlot::ObjectData,
-	                                           objectConstantBuffer->Resource()->GetGPUVirtualAddress());
-
-	material->Draw(cmdList);
-	
-	cmdList->SetVBuffer(0, 1, &mesh->VertexBufferView());
-	cmdList->SetIBuffer(&mesh->IndexBufferView());
-	cmdList->SetPrimitiveTopology(PrimitiveType);
-
-
-	cmdList->DrawIndexed(IndexCount, 1, StartIndexLocation, BaseVertexLocation, 0);
-}

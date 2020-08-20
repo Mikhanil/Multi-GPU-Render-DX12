@@ -4,7 +4,7 @@
 
 #include <ppl.h>
 
-#include "BinAssetsLoader.h"
+#include "AssetsLoader.h"
 #include "Camera.h"
 #include "CameraController.h"
 #include "GameObject.h"
@@ -42,6 +42,8 @@ namespace DXLib
 	{
 		std::vector<GTexture*> generatedMipTextures;
 
+		auto textures = loader.GetTextures();
+		
 		for (auto&& texture : textures)
 		{
 			texture.second->ClearTrack();
@@ -106,10 +108,7 @@ namespace DXLib
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 		
 		LoadTextures(cmdList);
-		LoadSquidModels(cmdList);
-	
-
-
+		LoadModels();
 		GeneratedMipMap();
 
 
@@ -126,7 +125,10 @@ namespace DXLib
 
 		mSsao->SetPSOs(*psos[PsoType::Ssao], *psos[PsoType::SsaoBlur]);
 
-		commandQueue->Flush();		
+		commandQueue->Flush();
+
+		loader.ClearTrackedObjects();
+		
 		return true;
 	}
 
@@ -422,7 +424,6 @@ namespace DXLib
 
 		currBackBufferIndex = MainWindow->Present();
 
-		Mesh::isDebug = true;
 	}
 	
 	void SampleApp::UpdateGameObjects(const GameTimer& gt)
@@ -439,7 +440,7 @@ namespace DXLib
 	{
 		auto currentMaterialBuffer = currentFrameResource->MaterialBuffer.get();
 
-		for (auto&& material : materials)
+		for (auto&& material : loader.GetMaterials())
 		{
 			material.second->Update();
 			auto constantData = material.second->GetMaterialConstantData();
@@ -535,7 +536,7 @@ namespace DXLib
 			0.0f, 0.0f, 1.0f, 0.0f,
 			0.5f, 0.5f, 0.0f, 1.0f);
 		Matrix viewProjTex = XMMatrixMultiply(viewProj, T);
-
+		mainPassCB.debugMap = showPathMap;
 		mainPassCB.View = view.Transpose();
 		mainPassCB.InvView = invView.Transpose();
 		mainPassCB.Proj = proj.Transpose();
@@ -615,91 +616,44 @@ namespace DXLib
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 
-	void SampleApp::LoadDoomSlayerTexture(std::shared_ptr<GCommandList> cmdList)
-	{
-		std::wstring doomFolder(L"Data\\Objects\\DoomSlayer\\");
-
-		std::vector<std::wstring> doomNames =
-		{
-			L"Doomarms",
-			L"Doomcowl",
-			L"Doomhelmet",
-			L"Doomlegs",
-			L"Doomtorso",
-			L"Doomvisor"
-		};
-
-		std::vector<std::wstring> doomTextures =
-		{
-			L"models_characters_doommarine_doommarine_arms_c.png",
-			L"models_characters_doommarine_doommarine_cowl_c.png",
-			L"models_characters_doommarine_doommarine_helmet_c.png",
-			L"models_characters_doommarine_doommarine_legs_c.png",
-			L"models_characters_doommarine_doommarine_torso_c.png",
-			L"models_characters_doommarine_doommarine_visor_c.png"
-		};
-
-		std::vector<std::wstring> doomNormals =
-		{
-			L"models_characters_doommarine_doommarine_arms_n.png",
-			L"models_characters_doommarine_doommarine_cowl_n.png",
-			L"models_characters_doommarine_doommarine_helmet_n.png",
-			L"models_characters_doommarine_doommarine_legs_n.png",
-			L"models_characters_doommarine_doommarine_torso_n.png",
-			L"models_characters_doommarine_doommarine_visor_n.png"
-		};
-
-		for (UINT i = 0; i < doomNames.size(); ++i)
-		{
-			auto texture = GTexture::LoadTextureFromFile(doomFolder + doomTextures[i], cmdList, TextureUsage::Diffuse);
-			texture->SetName(doomNames[i]);
-
-			auto normal = GTexture::LoadTextureFromFile(doomFolder + doomNormals[i], cmdList,
-			                                           TextureUsage::Normalmap);
-			normal->SetName(doomNames[i].append(L"Normal"));
-
-			textures[texture->GetName()] = std::move(texture);
-			textures[normal->GetName()] = std::move(normal);
-		}
-	}
 
 	void SampleApp::LoadStudyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		auto bricksTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\bricks2.dds", cmdList);
 		bricksTex->SetName(L"bricksTex");
-		textures[bricksTex->GetName()] = std::move(bricksTex);
+		loader.AddTexture(bricksTex);
 
 		auto stoneTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\stone.dds", cmdList);
 		stoneTex->SetName(L"stoneTex");
-		textures[stoneTex->GetName()] = std::move(stoneTex);
+		loader.AddTexture(stoneTex);
 
 		auto tileTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\tile.dds", cmdList);
 		tileTex->SetName(L"tileTex");
-		textures[tileTex->GetName()] = std::move(tileTex);
+		loader.AddTexture(tileTex);
 
 		auto fenceTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\WireFence.dds", cmdList);
 		fenceTex->SetName(L"fenceTex");
-		textures[fenceTex->GetName()] = std::move(fenceTex);
+		loader.AddTexture(fenceTex);
 
 		auto waterTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\water1.dds", cmdList);
 		waterTex->SetName(L"waterTex");
-		textures[waterTex->GetName()] = std::move(waterTex);
+		loader.AddTexture(waterTex);
 
 		auto skyTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\skymap.dds", cmdList);
 		skyTex->SetName(L"skyTex");
-		textures[skyTex->GetName()] = std::move(skyTex);
+		loader.AddTexture(skyTex);
 
 		auto grassTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\grass.dds", cmdList);
 		grassTex->SetName(L"grassTex");
-		textures[grassTex->GetName()] = std::move(grassTex);
+		loader.AddTexture(grassTex);
 
 		auto treeArrayTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\treeArray2.dds", cmdList);
 		treeArrayTex->SetName(L"treeArrayTex");
-		textures[treeArrayTex->GetName()] = std::move(treeArrayTex);
+		loader.AddTexture(treeArrayTex);
 
 		auto seamless = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList);
 		seamless->SetName(L"seamless");
-		textures[seamless->GetName()] = std::move(seamless);
+		loader.AddTexture(seamless);
 
 
 		std::vector<std::wstring> texNormalNames =
@@ -720,195 +674,33 @@ namespace DXLib
 		{
 			auto texture = GTexture::LoadTextureFromFile(texNormalFilenames[i], cmdList, TextureUsage::Normalmap);
 			texture->SetName(texNormalNames[i]);
-			textures[texture->GetName()] = std::move(texture);
+			loader.AddTexture(texture);
 		}
 	}
-
-	void SampleApp::LoadNanosuitTexture(std::shared_ptr<GCommandList> cmdList)
-	{
-		std::wstring nanoFolder(L"Data\\Objects\\Nanosuit\\");
-
-		std::vector<std::wstring> nanoNames =
-		{
-			L"Nanoarm",
-			L"Nanobody",
-			L"Nanoglass",
-			L"Nanohand",
-			L"Nanohelm",
-			L"Nanoleg"
-		};
-
-		std::vector<std::wstring> nanoTextures =
-		{
-			L"arm_dif.png",
-			L"body_dif.png",
-			L"glass_dif.png",
-			L"hand_dif.png",
-			L"helmet_dif.png",
-			L"leg_dif.png",
-		};
-
-		std::vector<std::wstring> nanoNormals =
-		{
-			L"arm_ddn.png",
-			L"body_ddn.png",
-			L"glass_ddn.png",
-			L"hand_ddn.png",
-			L"helmet_ddn.png",
-			L"leg_ddn.png",
-		};
-
-		for (UINT i = 0; i < nanoNames.size(); ++i)
-		{
-			auto texture = GTexture::LoadTextureFromFile(nanoFolder + nanoTextures[i], cmdList, TextureUsage::Diffuse);
-			texture->SetName(nanoNames[i]);
-			auto normal = GTexture::LoadTextureFromFile(nanoFolder + nanoNormals[i], cmdList,
-			                                           TextureUsage::Normalmap);
-			normal->SetName(nanoNames[i].append(L"Normal"));
-			textures[texture->GetName()] = std::move(texture);
-			textures[normal->GetName()] = std::move(normal);
-		}
-	}
-
-	void SampleApp::LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList)
-	{
-		std::wstring atlasFolder(L"Data\\Objects\\Atlas\\");
-
-		std::vector<std::wstring> AtlasNames =
-		{
-			L"Atlasframe",
-			L"Atlasshell",
-			L"Atlaseye",
-		};
-
-		std::vector<std::wstring> AtlasTextures =
-		{
-			L"ballbot_frame.png",
-			L"ballbot_shell.png",
-			L"bot_eye_ring_lights.png"
-		};
-
-
-		for (UINT i = 0; i < AtlasNames.size(); ++i)
-		{
-			auto texture = GTexture::LoadTextureFromFile(atlasFolder + AtlasTextures[i], cmdList, TextureUsage::Diffuse);
-			texture->SetName(AtlasNames[i]);
-			textures[texture->GetName()] = std::move(texture);
-		}
-	}
-
-	void SampleApp::LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList)
-	{
-		std::wstring PBodyFolder(L"Data\\Objects\\P-Body\\");
-
-		std::vector<std::wstring> PBodyNames =
-		{
-			L"PBodyframe",
-			L"PBodyshell",
-			L"PBodyorange",
-			L"PBodyeye",
-		};
-
-		std::vector<std::wstring> PBodyTextures =
-		{
-			L"eggbot_frame.png",
-			L"eggbot_shell.png",
-			L"eggbot_orange.png",
-			L"bot_eye_ring_lights.png"
-		};
-
-
-		for (UINT i = 0; i < PBodyNames.size(); ++i)
-		{
-			auto texture = GTexture::LoadTextureFromFile(PBodyFolder + PBodyTextures[i], cmdList,
-			                                            TextureUsage::Diffuse);
-			texture->SetName(PBodyNames[i]);
-			textures[texture->GetName()] = std::move(texture);
-		}
-	}
-
-	void SampleApp::LoadGolemTexture(std::shared_ptr<GCommandList> cmdList)
-	{
-		std::wstring mechFolder(L"Data\\Objects\\StoneGolem\\");
-
-		std::vector<std::wstring> mechNames =
-		{
-			L"golemColor",
-		};
-
-		std::vector<std::wstring> mechTextures =
-		{
-			L"diffuso.tif",
-		};
-
-		std::vector<std::wstring> mechNormals =
-		{
-			L"normal.png",
-		};
-
-		for (UINT i = 0; i < mechNames.size(); ++i)
-		{
-			auto texture = GTexture::LoadTextureFromFile(mechFolder + mechTextures[i], cmdList, TextureUsage::Diffuse);
-			texture->SetName(mechNames[i]);
-			auto normal = GTexture::LoadTextureFromFile(mechFolder + mechNormals[i], cmdList,
-			                                           TextureUsage::Normalmap);
-			normal->SetName(mechNames[i].append(L"Normal"));
-			textures[texture->GetName()] = std::move(texture);
-			textures[normal->GetName()] = std::move(normal);
-		}
-	}
-
-	void SampleApp::LoadBinTextures(std::shared_ptr<GCommandList> cmdList, const UINT8* assetData)
-	{		
-		const UINT textureCount = _countof(SampleAssets::Textures);
-
-		for (int i = 0; i < textureCount; ++i)
-		{
-			// Describe and create a Texture2D.
-			const SampleAssets::TextureResource& tex = SampleAssets::Textures[i];
-
-			textures[tex.FileName] = std::move(BinAssetsLoader::LoadTexturesFromBin(assetData, tex, cmdList));
-		}
 		
-	}
-
-	void SampleApp::LoadSquidModels(std::shared_ptr<GCommandList> cmdLit)
+	
+	void SampleApp::LoadModels()
 	{
-		// Load scene assets.
-		UINT fileSize = 0;
-		UINT8* pAssetData;
-		ThrowIfFailed(ReadDataFromFile((SampleAssets::DataFileName), &pAssetData, &fileSize));
-				
-		squidVertexBuffer = std::make_shared<GBuffer>(std::move( GBuffer::CreateBuffer(cmdLit, pAssetData + SampleAssets::VertexDataOffset, sizeof(Vertex), SampleAssets::VertexDataSize / sizeof(Vertex), L"SquidVertexBuffer")));
-
-		squidIndexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdLit, pAssetData + SampleAssets::IndexDataOffset, sizeof(UINT), SampleAssets::IndexDataSize / sizeof(UINT32), L"SquidindexBuffer")));
-		
-		cmdLit->TransitionBarrier(squidVertexBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-		cmdLit->FlushResourceBarriers();
-
-		const UINT meshCount = _countof(SampleAssets::Draws);
-				
+		std::string modelPath[] = {
+			"Data\\Objects\\Nanosuit\\Nanosuit.obj",
+			"Data\\Objects\\DoomSlayer\\doommarine.obj",
+			"Data\\Objects\\Atlas\\Atlas.obj",
+			"Data\\Objects\\P-Body\\P-Body.obj",
+			"Data\\Objects\\StoneGolem\\Stone.obj",
+		};
 		
 		
-		for (int i = 0; i < meshCount; ++i)
+		auto queue = GetCommandQueue();
+
+		for (auto && path : modelPath)
 		{
-			const auto& msh = SampleAssets::Draws[i];
-
-			auto mesh = BinAssetsLoader::LoadModelFromBin(pAssetData, msh, squidVertexBuffer, squidIndexBuffer, cmdLit);
-						
-			auto it = models.find(msh.FileName);
-			if(it == models.end())
-			{
-				models[msh.FileName] = std::move(std::make_shared<Model>(msh.FileName));
-				it = models.find(msh.FileName);
-			}
-
-			meshesModel.push_back(std::move(mesh));
-						
-			it->second->AddMesh(meshesModel.back());
+			auto model = loader.GetOrCreateModelFromFile(queue, path);			
+			models.push_back(model);
 		}
+
+		queue->Flush();
+
 		
-		free(pAssetData);		
 	}
 	
 	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
@@ -916,43 +708,9 @@ namespace DXLib
 		auto queue = GetCommandQueue();
 		
 		auto graphicCmdList = GetCommandQueue()->GetCommandList();		
+		LoadStudyTexture(graphicCmdList);		;		
+		queue->WaitForFenceValue(queue->ExecuteCommandList(graphicCmdList));
 
-		// Load scene assets.
-		UINT fileSize = 0;
-		UINT8* pAssetData;
-		ThrowIfFailed(ReadDataFromFile((SampleAssets::DataFileName), &pAssetData, &fileSize));
-				
-		LoadBinTextures(graphicCmdList, pAssetData);
-		queue->ExecuteCommandList(graphicCmdList);
-		
-		graphicCmdList = GetCommandQueue()->GetCommandList();
-		LoadStudyTexture(graphicCmdList);
-		queue->ExecuteCommandList(graphicCmdList);
-
-		graphicCmdList = GetCommandQueue()->GetCommandList();
-		LoadDoomSlayerTexture(graphicCmdList);
-		queue->ExecuteCommandList(graphicCmdList);
-
-		graphicCmdList = GetCommandQueue()->GetCommandList();
-		LoadNanosuitTexture(graphicCmdList);
-		queue->ExecuteCommandList(graphicCmdList);
-
-		graphicCmdList = GetCommandQueue()->GetCommandList();
-		LoadAtlasTexture(graphicCmdList);
-		queue->ExecuteCommandList(graphicCmdList);
-
-		graphicCmdList = GetCommandQueue()->GetCommandList();
-		LoadPBodyTexture(graphicCmdList);
-		queue->ExecuteCommandList(graphicCmdList);
-
-		graphicCmdList = GetCommandQueue()->GetCommandList();
-		LoadGolemTexture(graphicCmdList);
-		
-		auto fenceValue = queue->ExecuteCommandList(graphicCmdList);
-
-		queue->WaitForFenceValue(fenceValue);
-
-		free(pAssetData);
 	}
 
 	void SampleApp::BuildRootSignature()
@@ -963,7 +721,7 @@ namespace DXLib
 		texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
 		texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
 		texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SsaoMap - 3, 0); //SsaoMap
-		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, textures.size(), StandardShaderSlot::TexturesMap - 3, 0);
+		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, loader.GetLoadTexturesCount(), StandardShaderSlot::TexturesMap - 3, 0);
 
 
 		rootSignature->AddConstantBufferParameter(0);
@@ -976,8 +734,7 @@ namespace DXLib
 
 		rootSignature->Initialize();
 	}
-
-	
+		
 	Keyboard* SampleApp::GetKeyboard()
 	{
 		return &keyboard;
@@ -1055,7 +812,7 @@ namespace DXLib
 
 	void SampleApp::BuildTexturesHeap()
 	{
-		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, textures.size()));
+		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,  loader.GetLoadTexturesCount()));
 
 
 		mShadowMap->BuildDescriptors();
@@ -1167,159 +924,16 @@ namespace DXLib
 
 	void SampleApp::BuildShapeGeometry()
 	{
-		GeometryGenerator geoGen;
-		GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
-		GeometryGenerator::MeshData grid = geoGen.CreateGrid(20.0f, 30.0f, 60, 40);
-		GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
-		GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 3.0f, 20, 20);
-		GeometryGenerator::MeshData skySphere = geoGen.CreateSkySphere(10, 10);
-		GeometryGenerator::MeshData quad = geoGen.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
+		auto queue = GetCommandQueue();
+		auto cmdList = queue->GetCommandList();
 
-		//
-		// We are concatenating all the geometry into one big vertex/index buffer.  So
-		// define the regions in the buffer each submesh covers.
-		//
+		const auto sphereModel = loader.GenerateSphere(cmdList);		
+		genModels[L"sphere"] = (sphereModel);
 
-		// Cache the vertex offsets to each object in the concatenated vertex buffer.
-		UINT boxVertexOffset = 0;
-		UINT gridVertexOffset = static_cast<UINT>(box.Vertices.size());
-		UINT sphereVertexOffset = gridVertexOffset + static_cast<UINT>(grid.Vertices.size());
-		UINT cylinderVertexOffset = sphereVertexOffset + static_cast<UINT>(sphere.Vertices.size());
-		UINT skySphererVertexOffset = cylinderVertexOffset + static_cast<UINT>(cylinder.Vertices.size());
-		UINT quadVertexOffset = skySphererVertexOffset + static_cast<UINT>(skySphere.Vertices.size());
+		const auto quadModel = loader.GenerateQuad(cmdList);
+		genModels[L"quad"] = (quadModel);
 
-		// Cache the starting index for each object in the concatenated index buffer.
-		UINT boxIndexOffset = 0;
-		UINT gridIndexOffset = static_cast<UINT>(box.Indices32.size());
-		UINT sphereIndexOffset = gridIndexOffset + static_cast<UINT>(grid.Indices32.size());
-		UINT cylinderIndexOffset = sphereIndexOffset + static_cast<UINT>(sphere.Indices32.size());
-		UINT skySphererIndexOffset = cylinderIndexOffset + static_cast<UINT>(cylinder.Indices32.size());
-		UINT quadIndexOffset = skySphererIndexOffset + static_cast<UINT>(skySphere.Indices32.size());
-
-		SubmeshGeometry boxSubmeshs;
-		boxSubmeshs.IndexCount = static_cast<UINT>(box.Indices32.size());
-		boxSubmeshs.StartIndexLocation = boxIndexOffset;
-		boxSubmeshs.BaseVertexLocation = boxVertexOffset;
-
-		SubmeshGeometry gridSubmeshs;
-		gridSubmeshs.IndexCount = static_cast<UINT>(grid.Indices32.size());
-		gridSubmeshs.StartIndexLocation = gridIndexOffset;
-		gridSubmeshs.BaseVertexLocation = gridVertexOffset;
-
-		SubmeshGeometry sphereSubmeshs;
-		sphereSubmeshs.IndexCount = static_cast<UINT>(sphere.Indices32.size());
-		sphereSubmeshs.StartIndexLocation = sphereIndexOffset;
-		sphereSubmeshs.BaseVertexLocation = sphereVertexOffset;
-
-		SubmeshGeometry cylinderSubmeshs;
-		cylinderSubmeshs.IndexCount = static_cast<UINT>(cylinder.Indices32.size());
-		cylinderSubmeshs.StartIndexLocation = cylinderIndexOffset;
-		cylinderSubmeshs.BaseVertexLocation = cylinderVertexOffset;
-
-		SubmeshGeometry skySphererSubmeshs;
-		skySphererSubmeshs.IndexCount = static_cast<UINT>(skySphere.Indices32.size());
-		skySphererSubmeshs.StartIndexLocation = skySphererIndexOffset;
-		skySphererSubmeshs.BaseVertexLocation = skySphererVertexOffset;
-
-		SubmeshGeometry quadSubmesh;
-		quadSubmesh.IndexCount = static_cast<UINT>(quad.Indices32.size());
-		quadSubmesh.StartIndexLocation = quadIndexOffset;
-		quadSubmesh.BaseVertexLocation = quadVertexOffset;
-
-		//
-		// Extract the vertex elements we are interested in and pack the
-		// vertices of all the meshes into one vertex buffer.
-		//
-
-		auto totalVertexCount =
-			box.Vertices.size() +
-			grid.Vertices.size() +
-			sphere.Vertices.size() +
-			cylinder.Vertices.size() + skySphere.Vertices.size() + quad.Vertices.size();
-
-		custom_vector<Vertex> vertices = DXAllocator::CreateVector<Vertex>();
-		vertices.resize(totalVertexCount);
-
-		UINT k = 0;
-		for (size_t i = 0; i < box.Vertices.size(); ++i, ++k)
-		{
-			vertices[k] = box.Vertices[i];
-		}
-
-		for (size_t i = 0; i < grid.Vertices.size(); ++i, ++k)
-		{
-			vertices[k] = grid.Vertices[i];
-		}
-
-		for (size_t i = 0; i < sphere.Vertices.size(); ++i, ++k)
-		{
-			vertices[k] = sphere.Vertices[i];
-		}
-
-		for (size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k)
-		{
-			vertices[k] = cylinder.Vertices[i];
-		}
-
-		for (size_t i = 0; i < skySphere.Vertices.size(); ++i, ++k)
-		{
-			vertices[k] = skySphere.Vertices[i];
-		}
-
-		for (int i = 0; i < quad.Vertices.size(); ++i, ++k)
-		{
-			vertices[k] = quad.Vertices[i];
-		}
-
-		custom_vector<std::uint16_t> indices = DXAllocator::CreateVector<std::uint16_t>();
-		indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
-		indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
-		indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
-		indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
-		indices.insert(indices.end(), std::begin(skySphere.GetIndices16()), std::end(skySphere.GetIndices16()));
-		indices.insert(indices.end(), std::begin(quad.GetIndices16()), std::end(quad.GetIndices16()));
-
-		const UINT vbByteSize = static_cast<UINT>(vertices.size()) * sizeof(Vertex);
-		const UINT ibByteSize = static_cast<UINT>(indices.size()) * sizeof(std::uint16_t);
-
-		auto geo = std::make_unique<MeshGeometry>();
-		geo->Name = "shapeMesh";
-
-		ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
-		CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
-
-		ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
-		CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
-
-		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-		auto cmdList = commandQueue->GetCommandList();
-
-		geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                    cmdList->GetGraphicsCommandList().Get(), vertices.data(),
-		                                                    vbByteSize,
-		                                                    geo->VertexBufferUploader);
-
-		geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(dxDevice.Get(),
-		                                                   cmdList->GetGraphicsCommandList().Get(), indices.data(),
-		                                                   ibByteSize,
-		                                                   geo->IndexBufferUploader);
-
-		commandQueue->ExecuteCommandList(cmdList);
-
-		geo->VertexByteStride = sizeof(Vertex);
-		geo->VertexBufferByteSize = vbByteSize;
-		geo->IndexFormat = DXGI_FORMAT_R16_UINT;
-		geo->IndexBufferByteSize = ibByteSize;
-
-		geo->Submeshs["box"] = boxSubmeshs;
-		geo->Submeshs["grid"] = gridSubmeshs;
-		geo->Submeshs["sphere"] = sphereSubmeshs;
-		geo->Submeshs["cylinder"] = cylinderSubmeshs;
-		geo->Submeshs["sky"] = skySphererSubmeshs;
-		geo->Submeshs["quad"] = quadSubmesh;
-
-		meshes[geo->Name] = std::move(geo);
+		queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));	
 	}
 
 	void SampleApp::BuildPSOs()
@@ -1332,7 +946,6 @@ namespace DXLib
 		basePsoDesc.VS = shaders["StandardVertex"]->GetShaderResource();
 		basePsoDesc.PS = shaders["OpaquePixel"]->GetShaderResource();
 		basePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-		basePsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 		basePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 		basePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		basePsoDesc.SampleMask = UINT_MAX;
@@ -1487,156 +1100,33 @@ namespace DXLib
 		for (int i = 0; i < globalCountFrameResources; ++i)
 		{
 			frameResources.push_back(
-				std::make_unique<FrameResource>(2, gameObjects.size(), materials.size()));
+				std::make_unique<FrameResource>(2, gameObjects.size(), loader.GetMaterials().size() ));
 		}
 	}
 
 	void SampleApp::BuildMaterials()
-	{
-		for (auto && draw : SampleAssets::Draws)
-		{
-			auto it = materials.find(draw.FileName);
-			if(it == materials.end())
-			{
-				auto mat = std::make_unique<Material>(draw.FileName, psos[PsoType::Opaque].get());
-				mat->DiffuseAlbedo = Vector4::One;
-				mat->FresnelR0 = Vector3::One * 0.002  ;
-				mat->Roughness = 1;
-				mat->SetDiffuseTexture(textures[SampleAssets::Textures[draw.DiffuseTextureIndex].FileName].get());
-				mat->SetNormalMap(textures[SampleAssets::Textures[draw.NormalTextureIndex].FileName].get());
-				materials[mat->GetName()] = std::move(mat);
-				it = materials.find(draw.FileName);
-			}
-		}
-		
-		auto seamless = std::make_unique<Material>(L"seamless", psos[PsoType::Opaque].get());
+	{		
+		auto seamless = std::make_shared<Material>(L"seamless", PsoType::Opaque);
 		seamless->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
 		seamless->Roughness = 0.1f;
-		seamless->SetDiffuseTexture(textures[L"seamless"].get());
-		seamless->SetNormalMap(textures[L"defaultNormalMap"].get());
-		materials[seamless->GetName()] = std::move(seamless);
+		seamless->SetDiffuseTexture(loader.GetTexture(L"seamless"));
+		seamless->SetNormalMap(loader.GetTexture(L"defaultNormalMap"));
+		loader.AddMaterial(seamless);
 
-		std::vector<std::wstring> doomNames =
-		{
-			L"Doomarms",
-			L"Doomcowl",
-			L"Doomhelmet",
-			L"Doomlegs",
-			L"Doomtorso",
-			L"Doomvisor"
-		};
+	
 
-		for (auto&& name : doomNames)
-		{
-			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
-			material->FresnelR0 = Vector3::One * 0.05;
-			material->Roughness = 0.95;
-
-			material->SetDiffuseTexture(textures[name].get());
-			material->SetNormalMap(textures[(name + L"Normal")].get());
-
-			if (material->GetName() == L"Doomvisor")
-			{
-				material->DiffuseAlbedo = XMFLOAT4(0, 0.8f, 0, 0.5f);
-				material->FresnelR0 = Vector3::One * 0.1;
-				material->Roughness = 0.99f;
-			}
-
-			materials[material->GetName()] = std::move(material);
-		}
-
-		std::vector<std::wstring> nanoNames =
-		{
-			L"Nanoarm",
-			L"Nanobody",
-			L"Nanoglass",
-			L"Nanohand",
-			L"Nanohelm",
-			L"Nanoleg"
-		};
-
-		for (auto&& name : nanoNames)
-		{
-			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
-			material->FresnelR0 = Vector3::One * 0.05;
-			material->Roughness = 0.95;
-
-			material->SetDiffuseTexture(textures[(name)].get());
-			material->SetNormalMap(textures[(name + L"Normal")].get());
-
-			if (material->GetName() == L"Nanoglass")
-			{
-				material->DiffuseAlbedo = XMFLOAT4(0, 0.8f, 0, 0.5f);
-				material->FresnelR0 = Vector3::One * 0.1;
-				material->Roughness = 0.99f;
-			}
-
-			materials[material->GetName()] = std::move(material);
-		}
-
-		std::vector<std::wstring> AtlasNames =
-		{
-			L"Atlasframe",
-			L"Atlasshell",
-			L"Atlaseye",
-		};
-
-		for (auto&& name : AtlasNames)
-		{
-			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
-			material->FresnelR0 = Vector3::One * 0.05;
-			material->Roughness = 0.6;
-			material->SetDiffuseTexture(textures[(name)].get());
-			material->SetNormalMap(textures[L"defaultNormalMap"].get());
-			materials[material->GetName()] = std::move(material);
-		}
-
-		std::vector<std::wstring> PBodyNames =
-		{
-			L"PBodyframe",
-			L"PBodyshell",
-			L"PBodyorange",
-			L"PBodyeye",
-		};
-
-		for (auto&& name : PBodyNames)
-		{
-			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
-			material->FresnelR0 = Vector3::One * 0.05;
-			material->Roughness = 0.6;
-			material->SetDiffuseTexture(textures[(name)].get());
-			material->SetNormalMap(textures[L"defaultNormalMap"].get());
-			materials[material->GetName()] = std::move(material);
-		}
-
-		std::vector<std::wstring> mechNames =
-		{
-			L"golemColor",
-		};
-
-		for (auto&& name : mechNames)
-		{
-			auto material = std::make_unique<Material>(name, psos[PsoType::Opaque].get());
-			material->FresnelR0 = Vector3::One * 0.05;
-			material->Roughness = 0.95;
-
-			material->SetDiffuseTexture(textures[(name)].get());
-			material->SetNormalMap(textures[(name + L"Normal")].get());
-			materials[material->GetName()] = std::move(material);
-		}
-
-		
-
-		auto skyBox = std::make_unique<Material>(L"sky", psos[PsoType::SkyBox].get());
+		auto skyBox = std::make_shared<Material>(L"sky", PsoType::SkyBox);
 		skyBox->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 		skyBox->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
 		skyBox->Roughness = 1.0f;
-		skyBox->SetDiffuseTexture(textures[L"skyTex"].get());
-		skyBox->SetNormalMap(textures[L"defaultNormalMap"].get());
-		materials[skyBox->GetName()] = std::move(skyBox);
+		skyBox->SetDiffuseTexture(loader.GetTexture(L"skyTex"));
+		skyBox->SetNormalMap(loader.GetTexture(L"defaultNormalMap"));
+		loader.AddMaterial(skyBox);
 		
 
-		for (auto&& pair : materials)
+		auto materials = loader.GetMaterials();
+		
+		for (auto pair : materials)
 		{
 			pair.second->InitMaterial(srvHeap);
 		}
@@ -1653,25 +1143,19 @@ namespace DXLib
 
 		auto skySphere = std::make_unique<GameObject>(dxDevice.Get(), "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
-		auto renderer = new Renderer();
-		renderer->material = materials[L"sky"].get();
-		renderer->mesh = meshes["shapeMesh"].get();
-		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->mesh->Submeshs["sphere"].IndexCount;
-		renderer->StartIndexLocation = renderer->mesh->Submeshs["sphere"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->mesh->Submeshs["sphere"].BaseVertexLocation;
+		auto renderer = new ModelRenderer();
+		renderer->material = loader.GetMaterials(L"sky").get();
+		renderer->AddModel(genModels[L"sphere"]);
+		renderer->SetMeshMaterial(0, loader.GetMaterials(L"sky"));
 		skySphere->AddComponent(renderer);
 		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 		gameObjects.push_back(std::move(skySphere));
 
 		auto quadRitem = std::make_unique<GameObject>(dxDevice.Get(), "Quad");
-		renderer = new Renderer();
-		renderer->material = materials[L"seamless"].get();
-		renderer->mesh = meshes["shapeMesh"].get();
-		renderer->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		renderer->IndexCount = renderer->mesh->Submeshs["quad"].IndexCount;
-		renderer->StartIndexLocation = renderer->mesh->Submeshs["quad"].StartIndexLocation;
-		renderer->BaseVertexLocation = renderer->mesh->Submeshs["quad"].BaseVertexLocation;
+		renderer = new ModelRenderer();
+		renderer->material = loader.GetMaterials(L"seamless").get();
+		renderer->AddModel(genModels[L"quad"]);
+		renderer->SetMeshMaterial(0, loader.GetMaterials(L"seamless"));
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 		gameObjects.push_back(std::move(quadRitem));
@@ -1697,190 +1181,19 @@ namespace DXLib
 		sun3->AddComponent(light);
 		gameObjects.push_back(std::move(sun3));
 
-		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-		auto cmdList = commandQueue->GetCommandList();
-
-		auto man = std::make_unique<GameObject>(dxDevice.Get());
-		man->GetTransform()->SetPosition(Vector3::Forward * 10 + (Vector3::Right * 5));
-		man->GetTransform()->SetScale(Vector3::One * 0.25);
-		man->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
-		auto modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj"))
+		for (int i = 0; i < models.size(); ++i)
 		{
-			if (modelRenderer->GetMeshesCount() > 0)
-			{
-				std::vector<std::wstring> names =
-				{
-
-					L"Nanoglass",
-					L"Nanoleg",
-					L"Nanohand",
-					L"Nanoleg",
-					L"Nanoarm",
-					L"Nanohelm",
-					L"Nanobody",
-				};
-				for (UINT i = 0; i < names.size(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[names[i]].get());
-				}
-			}
-			man->AddComponent(modelRenderer);
-		}
-		typedGameObjects[PsoType::Opaque].push_back(man.get());
-		gameObjects.push_back(std::move(man));
-
-		auto doomMan = std::make_unique<GameObject>(dxDevice.Get());
-		doomMan->GetTransform()->SetPosition(Vector3::Forward * -10 + (Vector3::Right * 5));
-		doomMan->GetTransform()->SetScale(Vector3::One * 0.02);
-		doomMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
-		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\DoomSlayer\\doommarine.obj"))
-		{
-			if (modelRenderer->GetMeshesCount() > 0)
-			{
-				for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[L"seamless"].get());
-				}
-
-				std::vector<std::wstring> doomNames =
-				{
-					L"Doomlegs",
-					L"Doomtorso",
-					L"Doomcowl",
-					L"Doomarms",
-					L"Doomvisor",
-					L"Doomhelmet",
-				};
-				for (UINT i = 0; i < doomNames.size(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[doomNames[i]].get());
-				}
-			}
-
-
-			doomMan->AddComponent(modelRenderer);
-		}
-
-
-		typedGameObjects[PsoType::Opaque].push_back(doomMan.get());
-		gameObjects.push_back(std::move(doomMan));
-
-
-		auto AtlasMan = std::make_unique<GameObject>(dxDevice.Get());
-		AtlasMan->GetTransform()->SetPosition((Vector3::Right * 5) + (Vector3::Up * 2.4) + (Vector3::Forward * 5));
-		AtlasMan->GetTransform()->SetScale(Vector3::One * 0.2);
-		AtlasMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
-		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\Atlas\\Atlas.obj"))
-		{
-			if (modelRenderer->GetMeshesCount() > 0)
-			{
-				for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[L"seamless"].get());
-				}
-
-				std::vector<std::wstring> AtlasNames =
-				{
-
-					L"Atlasshell",
-					L"Atlasframe",
-					L"Atlaseye",
-				};
-
-				for (UINT i = 0; i < AtlasNames.size(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[AtlasNames[i]].get());
-				}
-			}
-
-
-			AtlasMan->AddComponent(modelRenderer);
-		}
-
-
-		typedGameObjects[PsoType::Opaque].push_back(AtlasMan.get());
-		gameObjects.push_back(std::move(AtlasMan));
-
-
-		auto PBodyMan = std::make_unique<GameObject>(dxDevice.Get());
-		PBodyMan->GetTransform()->SetPosition((Vector3::Right * 5) + (Vector3::Up * 2.4));
-		PBodyMan->GetTransform()->SetScale(Vector3::One * 0.2);
-		PBodyMan->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
-		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\P-Body\\P-Body.obj"))
-		{
-			if (modelRenderer->GetMeshesCount() > 0)
-			{
-				for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[L"seamless"].get());
-				}
-
-				std::vector<std::wstring> PBodyNames =
-				{
-
-					L"PBodyshell",
-					L"PBodyframe",
-					L"PBodyorange",
-					L"PBodyeye",
-					L"PBodyframe",
-				};
-
-				for (UINT i = 0; i < PBodyNames.size(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[PBodyNames[i]].get());
-				}
-			}
-
-
-			PBodyMan->AddComponent(modelRenderer);
-		}
-
-
-		typedGameObjects[PsoType::Opaque].push_back(PBodyMan.get());
-		gameObjects.push_back(std::move(PBodyMan));
-
-		auto golem = std::make_unique<GameObject>(dxDevice.Get());
-		golem->GetTransform()->SetPosition(Vector3::Forward * -5 + (Vector3::Right * 5));
-		golem->GetTransform()->SetScale(Vector3::One * 0.5);
-		golem->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
-		modelRenderer = new ModelRenderer();
-		if (modelRenderer->AddModel(cmdList, "Data\\Objects\\StoneGolem\\Stone.obj"))
-		{
-			if (modelRenderer->GetMeshesCount() > 0)
-			{
-				for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
-				{
-					modelRenderer->SetMeshMaterial(i, materials[L"golemColor"].get());
-				}
-			}
-			golem->AddComponent(modelRenderer);
-		}
-		typedGameObjects[PsoType::Opaque].push_back(golem.get());
-		gameObjects.push_back(std::move(golem));
-		
-		for (auto && model : models)
-		{			
-			auto modelGO = std::make_unique<GameObject>(dxDevice.Get());
-			modelGO->GetTransform()->SetScale(Vector3::One * 0.01);
-			modelRenderer = new ModelRenderer();
-			modelRenderer->AddModel(model.second);
-
-			for (UINT i = 0; i < modelRenderer->GetMeshesCount(); ++i)
-			{
-				modelRenderer->SetMeshMaterial(i, materials[model.second->GetName()].get());
-			}
-			
-			modelGO->AddComponent(modelRenderer);
-			typedGameObjects[PsoType::Opaque].push_back(modelGO.get());
-			gameObjects.push_back(std::move(modelGO));
-		}
-						
-		
-		commandQueue->ExecuteCommandList(cmdList);
+			auto mod = models[i];			
+			auto man = std::make_unique<GameObject>(dxDevice.Get());
+			man->GetTransform()->SetPosition(Vector3::Forward * ( -30 + (10 * i)) );
+			man->GetTransform()->SetScale(Vector3::One * 0.25);
+			man->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
+			renderer = new ModelRenderer();
+			renderer->AddModel(mod);
+			man->AddComponent(renderer);
+			typedGameObjects[PsoType::Opaque].push_back(man.get());
+			gameObjects.push_back(std::move(man));
+		}									
 	}
 
 	void SampleApp::DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems)

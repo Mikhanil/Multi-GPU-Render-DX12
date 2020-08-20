@@ -6,6 +6,7 @@
 #include "GBuffer.h"
 #include "ShaderBuffersData.h"
 
+class Material;
 class Model;
 class GCommandList;
 
@@ -29,20 +30,11 @@ class Mesh
 
 	void Draw(std::shared_ptr<GCommandList> cmdList, UINT constantDataSlot) const;
 	
-	static void CalculateTangent(UINT i1, UINT i2, UINT i3, Vertex* vertices);
-
-	
+	std::shared_ptr<Material> material = nullptr;
 
 public:
 
-	static bool isDebug;
-	
-	bool isTest = false;
-	UINT baseVertex = 0;
-	UINT indexCount = 0;
-	UINT indexStart = 0;
-	
-	static void RecalculateTangent(DWORD* indices, size_t indexesCount, Vertex* vertices);
+	std::shared_ptr<Material> GetMaterial() const;
 
 	Mesh(const std::wstring name = L"");
 
@@ -57,7 +49,7 @@ public:
 
 	void SetName(const std::wstring& name);
 
-	void SetMaterialIndex(UINT index);
+	void SetMaterial(const std::shared_ptr<Material> material);
 
 	std::wstring_view GetName() const;
 

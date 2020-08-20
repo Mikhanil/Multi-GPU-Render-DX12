@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AssetsLoader.h"
 #include "Camera.h"
 #include "d3dApp.h"
 #include "FrameResource.h"
@@ -56,14 +57,8 @@ namespace DXLib
 		void UpdateShadowTransform(const GameTimer& gt);
 		void UpdateShadowPassCB(const GameTimer& gt);
 		void UpdateSsaoCB(const GameTimer& gt);
-		void LoadDoomSlayerTexture(std::shared_ptr<GCommandList> cmdList);
 		void LoadStudyTexture(std::shared_ptr<GCommandList> cmdList);
-		void LoadNanosuitTexture(std::shared_ptr<GCommandList> cmdList);
-		void LoadAtlasTexture(std::shared_ptr<GCommandList> cmdList);
-		void LoadPBodyTexture(std::shared_ptr<GCommandList> cmdList);
-		void LoadGolemTexture(std::shared_ptr<GCommandList> cmdList);
-		void LoadBinTextures(std::shared_ptr<GCommandList> cmdList, const UINT8* assetData);
-		void LoadSquidModels(std::shared_ptr<GCommandList> cmdLit);
+		void LoadModels();
 		void BuildTexturesHeap();
 		void Update(const GameTimer& gt) override;
 		void UpdateMaterial(const GameTimer& gt);
@@ -110,15 +105,19 @@ namespace DXLib
 
 		GMemory srvHeap;
 
-		custom_unordered_map<std::string, std::unique_ptr<MeshGeometry>> meshes = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<MeshGeometry>>();
-		custom_unordered_map<std::wstring, std::unique_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::wstring, std::unique_ptr<Material>>();
-		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
-		custom_unordered_map<std::wstring, std::shared_ptr<GTexture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GTexture>>();
-		custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
-		custom_vector<std::shared_ptr<Mesh>> meshesModel = DXAllocator::CreateVector<std::shared_ptr<Mesh>>();
-		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
-		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();
+		AssetsLoader loader;
+
+		custom_vector<std::shared_ptr<Model>> models = DXAllocator::CreateVector<std::shared_ptr<Model>>();
+
+
+
+		custom_unordered_map<std::wstring, std::shared_ptr<Model>> genModels = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
 		
+		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
+				
+		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
+		
+		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();		
 
 		custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 		custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();

@@ -10,6 +10,8 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 2
+map_Kd golemDiff.png
+map_Ns golemRough.png
 
 newmtl STONE
 Ns 54.223116
@@ -20,6 +22,5 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Bump normal.png
-map_Kd diffuso.tif
-map_Ns rough.tif
+map_Kd golemDiff.png
+map_Ns golemRough.png

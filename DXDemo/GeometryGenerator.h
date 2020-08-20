@@ -2,10 +2,51 @@
 
 #include <cstdint>
 #include <DirectXMath.h>
+#include <DirectXMesh.h>
 #include <vector>
 
 #include "ShaderBuffersData.h"
 #include "DXAllocator.h"
+
+static void CalculateTangent(UINT i1, UINT i2, UINT i3, Vertex* vertices)
+{
+	UINT idx[3];
+	idx[0] = i1;
+	idx[1] = i2;
+	idx[2] = i3;
+
+	DirectX::XMFLOAT3 pos[3];
+	pos[0] = vertices[i1].Position;
+	pos[1] = vertices[i2].Position;
+	pos[2] = vertices[i3].Position;
+
+	DirectX::XMFLOAT3 normals[3];
+	normals[0] = vertices[i1].Normal;
+	normals[1] = vertices[i2].Normal;
+	normals[2] = vertices[i3].Normal;
+
+	DirectX::XMFLOAT2 t[3];
+	t[0] = vertices[i1].TexCord;
+	t[1] = vertices[i2].TexCord;
+	t[2] = vertices[i3].TexCord;
+
+	DirectX::XMFLOAT4 tangent[3];
+
+	ComputeTangentFrame(idx, 1, pos, normals, t, 3, tangent);
+
+	vertices[i1].TangentU = Vector3(tangent[0].x, tangent[0].y, tangent[0].z);
+	vertices[i2].TangentU = Vector3(tangent[1].x, tangent[1].y, tangent[1].z);
+	vertices[i3].TangentU = Vector3(tangent[2].x, tangent[2].y, tangent[2].z);
+}
+
+static void RecalculateTangent(DWORD* indices, size_t indexesCount, Vertex* vertices)
+{
+	for (UINT i = 0; i < indexesCount - 3; i += 3)
+	{
+		CalculateTangent(indices[i], indices[i + 1], indices[i + 2], vertices);
+	}
+}
+
 
 class GeometryGenerator
 {
@@ -18,7 +59,7 @@ public:
 	struct MeshData
 	{
 		custom_vector<Vertex> Vertices = DXAllocator::CreateVector<Vertex>();
-		custom_vector<uint32> Indices32 = DXAllocator::CreateVector<uint32>();
+		custom_vector<DWORD> Indices32 = DXAllocator::CreateVector<DWORD>();
 
 		custom_vector<uint16>& GetIndices16()
 		{

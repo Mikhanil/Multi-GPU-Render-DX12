@@ -23,29 +23,29 @@ void Material::SetDirty()
 	NumFramesDirty = globalCountFrameResources;
 }
 
-void Material::SetNormalMap(GTexture* texture)
+void Material::SetNormalMap(std::shared_ptr<GTexture> texture)
 {
 	normalMap = texture;
 	NormalMapIndex = texture->GetTextureIndex();
 }
 
-void Material::SetPSO(GraphicPSO* pso)
+void Material::SetType(PsoType::Type pso)
 {
-	this->pso = pso;
+	this->type = pso;
 }
 
-GraphicPSO* Material::GetPSO() const
+PsoType::Type Material::GetPSO() const
 {
-	return pso;
+	return type;
 }
 
-void Material::SetDiffuseTexture(GTexture* texture)
+void Material::SetDiffuseTexture(std::shared_ptr<GTexture> texture)
 {
-	textures.push_back(texture);
+	diffuseMap = texture;
 	DiffuseMapIndex = texture->GetTextureIndex();
 }
 
-Material::Material(std::wstring name, GraphicPSO* pso): Name(std::move(name)), pso(pso)
+Material::Material(std::wstring name, PsoType::Type pso): Name(std::move(name)), type(pso)
 {
 	materialIndex = materialIndexGlobal++;
 }
@@ -61,11 +61,11 @@ void Material::InitMaterial(GMemory& textureHeap)
 
 	
 	//TODO: Подумать как можно от этого избавиться, и работать всегда только с индексами
-	if (textures[0])
+	if (diffuseMap)
 	{
-		auto desc = textures[0]->GetD3D12Resource()->GetDesc();
+		auto desc = diffuseMap->GetD3D12Resource()->GetDesc();
 
-		if (textures[0])
+		if (diffuseMap)
 		{
 			srvDesc.Format = GetSRGBFormat(desc.Format);
 		}
@@ -75,7 +75,8 @@ void Material::InitMaterial(GMemory& textureHeap)
 		}
 
 
-		switch (pso->GetType())
+		
+		switch (type)
 		{
 		case PsoType::SkyBox:
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
@@ -97,7 +98,7 @@ void Material::InitMaterial(GMemory& textureHeap)
 				srvDesc.Texture2D.MipLevels = desc.MipLevels;
 			}
 		}
-		textures[0]->CreateShaderResourceView(&srvDesc, &textureHeap, DiffuseMapIndex);
+		diffuseMap->CreateShaderResourceView(&srvDesc, &textureHeap, DiffuseMapIndex);
 	}
 
 	if (normalMap)
@@ -115,8 +116,7 @@ void Material::InitMaterial(GMemory& textureHeap)
 void Material::Draw(std::shared_ptr<GCommandList> cmdList) const
 {
 	//TODO: Спросить у Павла, можно ли как-то это обойти, как получилось с билбордами деревьев, через привязку одного большого массива текстур, а дальше в зависимости от индекса и шейдера работать с текстурой как с текстурой нужного мне типа (Texture2DArray, TextureCube)
-	const auto psoType = pso->GetType();
-	if (psoType == PsoType::SkyBox)
+	if (type == PsoType::SkyBox)
 	{
 		cmdList->GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
 	}

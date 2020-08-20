@@ -2,6 +2,7 @@
 
 #include "d3dUtil.h"
 #include "DirectXBuffers.h"
+#include "GraphicPSO.h"
 #include "ShaderBuffersData.h"
 #include "GTexture.h"
 
@@ -17,15 +18,16 @@ class Material
 	UINT materialIndex = -1;
 
 	std::wstring Name;
-	GraphicPSO* pso = nullptr;
+	
+	PsoType::Type type = PsoType::Opaque;
 
 	MaterialConstants matConstants{};
 
 	UINT NumFramesDirty = globalCountFrameResources;
 
-	custom_vector<GTexture*> textures = DXAllocator::CreateVector<GTexture*>();
-
-	GTexture* normalMap = nullptr;
+	std::shared_ptr<GTexture> diffuseMap = nullptr;
+	std::shared_ptr<GTexture> normalMap = nullptr;
+	
 
 	UINT DiffuseMapIndex = -1;
 	UINT NormalMapIndex = -1;
@@ -41,15 +43,15 @@ public:
 
 	void SetDirty();
 
-	GraphicPSO* GetPSO() const;
+	PsoType::Type GetPSO() const;
 
-	void SetNormalMap(GTexture* texture);
+	void SetNormalMap(std::shared_ptr<GTexture> texture);
 
-	void SetPSO(GraphicPSO* pso);
+	void SetType(PsoType::Type pso);
 
-	void SetDiffuseTexture(GTexture* texture);
+	void SetDiffuseTexture(std::shared_ptr<GTexture> texture);
 
-	Material(std::wstring name, GraphicPSO* pso);
+	Material(std::wstring name, PsoType::Type pso = PsoType::Opaque);
 
 	void InitMaterial(GMemory& textureHeap);
 
