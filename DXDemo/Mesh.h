@@ -20,8 +20,8 @@ class Mesh
 	
 	D3D12_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
-	custom_vector<Vertex> vertices = DXAllocator::CreateVector<Vertex>();
-	custom_vector<DWORD> indexes = DXAllocator::CreateVector<DWORD>();
+	std::vector<Vertex> vertices;
+	std::vector<DWORD> indexes;
 	
 	std::shared_ptr<GBuffer> vertexBuffer = nullptr;
 	std::shared_ptr<GBuffer> indexBuffer = nullptr;

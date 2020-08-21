@@ -23,7 +23,8 @@ void ModelRenderer::Update()
 	if (transform->IsDirty())
 	{
 		bufferConstant.TextureTransform = transform->TextureTransform;
-		bufferConstant.World = transform->GetWorldMatrix();		
+		bufferConstant.World = transform->GetWorldMatrix();
+		bufferConstant.gObjPad0 = transform->GetPosition().z;
 	}
 
 	if(model!=nullptr)

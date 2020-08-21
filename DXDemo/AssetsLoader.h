@@ -55,6 +55,7 @@ public:
 	
 	std::shared_ptr<GTexture> GetTexture(std::wstring name);
 	std::shared_ptr<Material> GetMaterials(std::wstring name);
+	std::shared_ptr<Model> GetModelByName(std::wstring name);
 
 	std::shared_ptr<Model> GenerateSphere( std::shared_ptr<GCommandList> cmdList, float radius = 1.0f, UINT sliceCount = 20, UINT stackCount = 20);
 

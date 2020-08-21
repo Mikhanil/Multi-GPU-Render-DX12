@@ -4,6 +4,7 @@
 #include "Renderer.h"
 
 class GCommandList;
+class ModelRenderer;
 
 class GameObject
 {
@@ -21,7 +22,7 @@ public:
 
 	Transform* GetTransform() const;
 
-	Renderer* GetRenderer();
+	ModelRenderer* GetRenderer();
 
 	template <class T = Component>
 	void AddComponent(T* component);
@@ -29,12 +30,16 @@ public:
 	template <class T = Component>
 	T* GetComponent();
 
+	void SetScale(float scale) const;
+
+	void SetScale(Vector3& scale) const;
+
 protected:
 
 
 	custom_vector<Component*> components = DXAllocator::CreateVector<Component*>();
 	std::unique_ptr<Transform> transform = nullptr;
-	Renderer* renderer = nullptr;
+	ModelRenderer* renderer = nullptr;
 	std::string name;
 };
 

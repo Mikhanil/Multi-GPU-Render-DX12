@@ -78,12 +78,36 @@ namespace DXLib
 		void BuildFrameResources();
 		void BuildMaterials();
 		void BuildGameObjects();
+		std::unique_ptr<GameObject> CreateGOWithRenderer(std::shared_ptr<Model> model) const;
 		static void DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems);
 		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();
 		
 	private:
 
+
+		custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
+		
+		/*std::shared_ptr<Model> nano;
+		std::shared_ptr<Model> doom;
+		std::shared_ptr<Model> atlas;
+		std::shared_ptr<Model> pbody;
+		std::shared_ptr<Model> golem;
+		std::shared_ptr<Model> griffon;
+		std::shared_ptr<Model> mountDragon;
+		std::shared_ptr<Model> desertDragon;
+
+		std::shared_ptr<Model> stair;
+		std::shared_ptr<Model> columns;
+		std::shared_ptr<Model> fountain;
+		std::shared_ptr<Model> platform;
+
+		
+		std::shared_ptr<Model> quad;
+		std::shared_ptr<Model> sphere;*/
+
+
+		
 		Keyboard keyboard;
 		Mouse mouse;
 		std::unique_ptr<Camera> camera = nullptr;
@@ -93,25 +117,14 @@ namespace DXLib
 		FrameResource* currentFrameResource = nullptr;
 		int currentFrameResourceIndex = 0;
 
-
-		std::shared_ptr<GBuffer> squidVertexBuffer;
-		std::shared_ptr<GBuffer> squidIndexBuffer;
 		
 		std::unique_ptr<GRootSignature> rootSignature = nullptr;
 		std::unique_ptr<GRootSignature> ssaoRootSignature = nullptr;
 		std::unique_ptr<Ssao> mSsao;
 
-		D2D1_RECT_F fpsRect = D2D1::RectF(0.0f, 0, 800, 300);
-
 		GMemory srvHeap;
-
 		AssetsLoader loader;
-
-		custom_vector<std::shared_ptr<Model>> models = DXAllocator::CreateVector<std::shared_ptr<Model>>();
-
-
-
-		custom_unordered_map<std::wstring, std::shared_ptr<Model>> genModels = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
+				
 		
 		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
 				
@@ -127,7 +140,6 @@ namespace DXLib
 		custom_vector<custom_vector<GameObject*>> typedGameObjects = DXAllocator::CreateVector<custom_vector<GameObject*>>();
 
 		GameObject* player;
-
 		PassConstants mainPassCB;
 		PassConstants mShadowPassCB;
 
@@ -138,7 +150,6 @@ namespace DXLib
 		Matrix mLightProj = Matrix::Identity;
 		Matrix mShadowTransform = Matrix::Identity;
 
-
 		float mLightRotationAngle = 0.0f;
 		Vector3 mBaseLightDirections[3] = {
 			Vector3(0.57735f, -0.57735f, 0.57735f),
@@ -146,7 +157,6 @@ namespace DXLib
 			Vector3(0.0f, -0.707f, -0.707f)
 		};
 		Vector3 mRotatedLightDirections[3];
-
 
 		std::unique_ptr<ShadowMap> mShadowMap;
 

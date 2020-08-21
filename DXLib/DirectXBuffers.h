@@ -39,7 +39,13 @@ public:
 		return elementByteSize;
 	}
 
+	UINT GetElementCount()
+	{
+		return elementCount;
+	}
+	
 protected:
+	UINT elementCount;
 	bool isDispose = false;
 	ComPtr<ID3D12Resource> buffer;
 	BYTE* mappedData = nullptr;

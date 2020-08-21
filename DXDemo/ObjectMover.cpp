@@ -14,31 +14,38 @@ void ObjectMover::Update()
 {
 	const float dt = DXLib::D3DApp::GetApp().GetTimer()->DeltaTime();
 
+	float speed = 1.0f;
+
+	if (keyboard->KeyIsPressed(VK_SHIFT))
+	{
+		speed = 100;
+	}
+	
 	Vector3 offset = Vector3::Zero;
 	if (keyboard->KeyIsPressed(VK_UP))
 	{
-		offset.z += 1.0f * dt;
+		offset.z += speed * dt;
 	}
 	if (keyboard->KeyIsPressed(VK_DOWN))
 	{
-		offset.z -= 1.0f * dt;
+		offset.z -= speed * dt;
 	}
 	if (keyboard->KeyIsPressed(VK_LEFT))
 	{
-		offset.x -= 1.0f * dt;
+		offset.x -= speed * dt;
 	}
 	if (keyboard->KeyIsPressed(VK_RIGHT))
 	{
-		offset.x += 1.0f * dt;
+		offset.x += speed * dt;
 	}
 
 	if (keyboard->KeyIsPressed(VK_NEXT))
 	{
-		offset.y -= 1.0f * dt;
+		offset.y -= speed * dt;
 	}
 	if (keyboard->KeyIsPressed(VK_PRIOR))
 	{
-		offset.y += 1.0f * dt;
+		offset.y += speed * dt;
 	}
 
 	

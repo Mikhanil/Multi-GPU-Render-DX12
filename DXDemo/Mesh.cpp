@@ -5,11 +5,8 @@
 #include "Material.h"
 void Mesh::UpdateGraphicConstantData(ObjectConstants data)
 {
-
+	constantData = data;
 	constantData.MaterialIndex = material->GetIndex();
-	constantData.TextureTransform = data.TextureTransform;
-	constantData.World = data.World;
-
 	
 	objectConstantBuffer->CopyData(0, constantData);
 }
@@ -37,10 +34,10 @@ Mesh::Mesh(const std::wstring name): meshName(std::move(name)), primitiveTopolog
 	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
 }
 
-Mesh::Mesh(const Mesh& copy) : constantData(copy.constantData), objectConstantBuffer(copy.objectConstantBuffer), meshName(copy.meshName), primitiveTopology(copy.primitiveTopology),
+Mesh::Mesh(const Mesh& copy) : constantData(copy.constantData), meshName(copy.meshName), primitiveTopology(copy.primitiveTopology),
 vertices(copy.vertices), indexes(copy.indexes), vertexBuffer(copy.vertexBuffer), indexBuffer(copy.indexBuffer), material( copy.material)
 {
-
+	this->objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
 }
 
 void Mesh::SetVertexBuffer(std::shared_ptr<GBuffer>& vbuffer)

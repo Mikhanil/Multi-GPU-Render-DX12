@@ -294,17 +294,18 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 
 	UINT resFlags = D3D12_RESOURCE_FLAG_NONE;
 
-	if (filePath.extension() == ".dds")
+	if (filePath.extension() == ".dds" || filePath.extension() == ".DDS")
 	{
 		ThrowIfFailed(DirectX::LoadFromDDSFile(filepath.c_str(), DirectX::DDS_FLAGS_NONE , &metadata, scratchImage));
 	}
-	else if (filePath.extension() == ".hdr")
+	else if (filePath.extension() == ".hdr" || filePath.extension() == ".HDR")
 	{
 		ThrowIfFailed(DirectX::LoadFromHDRFile(filepath.c_str(), &metadata, scratchImage));
 	}
-	else if (filePath.extension() == ".tga")
+	else if (filePath.extension() == ".tga" || filePath.extension() == ".TGA")
 	{
 		ThrowIfFailed(DirectX::LoadFromTGAFile(filepath.c_str(), &metadata, scratchImage));
+		resFlags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 	}
 	else
 	{

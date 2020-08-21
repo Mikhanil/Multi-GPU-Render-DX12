@@ -60,7 +60,7 @@ float4 PS(VertexOut pin) : SV_Target
 	diffuseAlbedo *= texturesMaps[diffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 
 #ifdef ALPHA_TEST
-	clip(diffuseAlbedo.a - 0.1f);
+	clip(diffuseAlbedo.a - 0.3f);
 #endif
 
 	pin.NormalW = normalize(pin.NormalW);

@@ -10,7 +10,7 @@ class Model
 {
 	friend class ModelRenderer;
 	
-	custom_vector<std::shared_ptr<Mesh>> meshes = DXAllocator::CreateVector<std::shared_ptr<Mesh>>();
+	std::vector<std::shared_ptr<Mesh>> meshes;
 
 	
 
@@ -35,13 +35,12 @@ public:
 	
 	Model(const std::wstring modelName = L"");
 
+	Model(const Model& copy);
+	
 	~Model() {};
 
-	std::shared_ptr<Mesh> GetMesh(const UINT submesh)
-	{
-		return meshes[submesh];
-	}
-	
+	std::shared_ptr<Mesh> GetMesh(const UINT submesh);
+
 	void SetMeshMaterial(const UINT submesh, const std::shared_ptr<Material> material);
 
 	void AddMesh(const std::shared_ptr<Mesh> mesh);

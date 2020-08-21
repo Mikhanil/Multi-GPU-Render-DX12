@@ -43,6 +43,6 @@ void PS(VertexOut pin)
 
 #ifdef ALPHA_TEST
    
-    clip(diffuseAlbedo.a - 0.1f);
+    clip(diffuseAlbedo.a - 0.3f);
 #endif
 }

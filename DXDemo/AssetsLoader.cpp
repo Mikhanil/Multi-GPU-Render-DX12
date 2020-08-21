@@ -120,7 +120,16 @@ std::shared_ptr<GTexture> AssetsLoader::LoadOrGetTexture(const aiMaterial* mater
 	aiString str;
 	auto result = material->GetTexture(type, 0, &str);	
 
-	std::wstring textureName = AnsiToWString(str.C_Str());
+	std::wstring modelTexturePath(AnsiToWString(str.C_Str()));
+
+	if(modelTexturePath.find(L"\\") != std::wstring::npos)
+	{
+		auto fileName = modelTexturePath.substr(modelTexturePath.find_last_of('\\'), modelTexturePath.size() - modelTexturePath.find_last_of('\\'));
+
+		modelTexturePath = fileName.replace(fileName.find(L"\\"), 1, L"");
+	}
+	
+	std::wstring textureName = modelTexturePath;
 	std::wstring texturePath = directory + L"\\" + textureName;
 
 	const auto it = textures.find(textureName);
@@ -162,7 +171,22 @@ void  AssetsLoader::CreateMaterialForModel(std::shared_ptr<Model> model, const a
 	}
 	else
 	{
-		diffuse = nullptr;
+
+		const auto textureIt = textures.find(L"seamless");
+		if (textureIt != textures.end())
+		{
+			diffuse = textureIt->second;
+		}
+		else
+		{
+			auto defaultNormal = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList,
+				TextureUsage::Diffuse);
+			defaultNormal->SetName(L"seamless");
+
+			textures[defaultNormal->GetName()] = std::move(defaultNormal);
+
+			diffuse = textures[L"seamless"];
+		}		
 	}
 
 	count = material->GetTextureCount(aiTextureType_HEIGHT);
@@ -269,6 +293,19 @@ std::shared_ptr<Material> AssetsLoader::GetMaterials(std::wstring name)
 	return nullptr;
 }
 
+std::shared_ptr<Model> AssetsLoader::GetModelByName(const std::wstring name)
+{
+	auto it = models.find((name));
+	if (it != models.end())
+	{
+		std::shared_ptr<Model> model = std::make_shared<Model>(*it->second.get());
+		return model;
+	}
+
+	return nullptr;
+}
+
+
 std::shared_ptr<Model> AssetsLoader::GetOrCreateModelFromFile(std::shared_ptr<GCommandQueue> queue,
                                                               const std::string filePath)
 {
@@ -277,7 +314,7 @@ std::shared_ptr<Model> AssetsLoader::GetOrCreateModelFromFile(std::shared_ptr<GC
 
 
 	const aiScene* sceneModel = importer.ReadFile(filePath,
-		 aiProcess_Triangulate  |
+		 aiProcess_Triangulate   | aiProcess_GenNormals |
 	                                          aiProcess_ConvertToLeftHanded);
 
 

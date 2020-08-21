@@ -1,6 +1,7 @@
 #include "GameObject.h"
 #include <utility>
 #include "Component.h"
+#include "ModelRenderer.h"
 #include "Transform.h"
 
 GameObject::GameObject(ID3D12Device* device) : GameObject(device, "Game Object")
@@ -43,13 +44,13 @@ Transform* GameObject::GetTransform() const
 	return transform.get();
 }
 
-Renderer* GameObject::GetRenderer()
+ModelRenderer* GameObject::GetRenderer()
 {
 	if (renderer == nullptr)
 	{
 		for (auto&& component : components)
 		{
-			const auto comp = dynamic_cast<Renderer*>(component);
+			const auto comp = dynamic_cast<ModelRenderer*>(component);
 			if (comp)
 			{
 				renderer = (comp);
@@ -59,4 +60,14 @@ Renderer* GameObject::GetRenderer()
 	}
 
 	return renderer;
+}
+
+void GameObject::SetScale(float scale) const
+{
+	transform->SetScale(Vector3(scale, scale, scale));
+}
+
+void GameObject::SetScale(Vector3& scale) const
+{
+	transform->SetScale(scale);
 }

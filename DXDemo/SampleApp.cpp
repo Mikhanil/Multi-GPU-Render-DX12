@@ -14,6 +14,7 @@
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
 #include "ModelRenderer.h"
+#include "ObjectMover.h"
 #include "pix3.h"
 #include "Renderer.h"
 #include "SquidRoom.h"
@@ -25,7 +26,7 @@ namespace DXLib
 		: D3DApp(hInstance)
 	{
 		mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-		mSceneBounds.Radius = sqrtf(15 * 15.0f + 15.0f * 15.0f);
+		mSceneBounds.Radius = 175;
 
 		for (int i = 0; i < PsoType::Count; ++i)
 		{
@@ -681,26 +682,57 @@ namespace DXLib
 	
 	void SampleApp::LoadModels()
 	{
-		std::string modelPath[] = {
-			"Data\\Objects\\Nanosuit\\Nanosuit.obj",
-			"Data\\Objects\\DoomSlayer\\doommarine.obj",
-			"Data\\Objects\\Atlas\\Atlas.obj",
-			"Data\\Objects\\P-Body\\P-Body.obj",
-			"Data\\Objects\\StoneGolem\\Stone.obj",
-		};
-		
-		
 		auto queue = GetCommandQueue();
 
-		for (auto && path : modelPath)
-		{
-			auto model = loader.GetOrCreateModelFromFile(queue, path);			
-			models.push_back(model);
-		}
+		auto nano = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 
-		queue->Flush();
+		models[L"nano"] = std::move(nano);
+
 
 		
+		auto doom = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\DoomSlayer\\doommarine.obj");
+		doom->scaleMatrix = Matrix::CreateScale(0.1);
+		models[L"doom"] = std::move(doom);
+		
+		auto atlas = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Atlas\\Atlas.obj");
+		models[L"atlas"] = std::move(atlas);
+		
+		auto pbody = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\P-Body\\P-Body.obj");
+		models[L"pbody"] = std::move(pbody);
+		
+		auto golem = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\StoneGolem\\Stone.obj");
+		models[L"golem"] = std::move(golem);
+		
+		auto griffon = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Griffon\\Griffon.FBX");
+		griffon->scaleMatrix = Matrix::CreateScale(0.1);
+		models[L"griffon"] = std::move(griffon);
+
+		auto griffonOld = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\GriffonOld\\Griffon.FBX");
+		griffonOld->scaleMatrix = Matrix::CreateScale(0.1);
+		models[L"griffonOld"] = std::move(griffonOld);
+		
+		auto mountDragon = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
+		mountDragon->scaleMatrix = Matrix::CreateScale(0.1);
+		models[L"mountDragon"] = std::move(mountDragon);
+		
+		auto desertDragon = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
+		desertDragon->scaleMatrix = Matrix::CreateScale(0.1);
+		models[L"desertDragon"] = std::move(desertDragon);
+		
+		auto stair = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_AsianCastle_A.FBX");
+		models[L"stair"] = std::move(stair);
+		
+		auto columns = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_AsianCastle_E.FBX");
+		models[L"columns"] = std::move(columns);
+		
+		auto fountain = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_Fountain.FBX");
+		models[L"fountain"] = std::move(fountain);
+		
+		auto platform = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
+		models[L"platform"] = std::move(platform);
+		
+		
+		queue->Flush();	
 	}
 	
 	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
@@ -927,12 +959,12 @@ namespace DXLib
 		auto queue = GetCommandQueue();
 		auto cmdList = queue->GetCommandList();
 
-		const auto sphereModel = loader.GenerateSphere(cmdList);		
-		genModels[L"sphere"] = (sphereModel);
-
-		const auto quadModel = loader.GenerateQuad(cmdList);
-		genModels[L"quad"] = (quadModel);
-
+		auto sphere = loader.GenerateSphere(cmdList);	
+		models[L"sphere"] = std::move(sphere);
+		
+		auto quad = loader.GenerateQuad(cmdList);
+		models[L"quad"] = std::move(quad);
+		
 		queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));	
 	}
 
@@ -1135,17 +1167,18 @@ namespace DXLib
 	void SampleApp::BuildGameObjects()
 	{
 		auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
-		camera->GetTransform()->SetPosition({-3.667396, 3.027442, -12.024042});
+		camera->GetTransform()->SetPosition({-9, 102, -240});
 		camera->GetTransform()->SetRadianRotate({-0.100110, -2.716100, 0.000000});
 		camera->AddComponent(new Camera(AspectRatio()));
 		camera->AddComponent(new CameraController());
+		camera->AddComponent(new ObjectMover());
 		gameObjects.push_back(std::move(camera));
 
 		auto skySphere = std::make_unique<GameObject>(dxDevice.Get(), "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
 		auto renderer = new ModelRenderer();
 		renderer->material = loader.GetMaterials(L"sky").get();
-		renderer->AddModel(genModels[L"sphere"]);
+		renderer->AddModel(models[L"sphere"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(L"sky"));
 		skySphere->AddComponent(renderer);
 		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
@@ -1154,7 +1187,7 @@ namespace DXLib
 		auto quadRitem = std::make_unique<GameObject>(dxDevice.Get(), "Quad");
 		renderer = new ModelRenderer();
 		renderer->material = loader.GetMaterials(L"seamless").get();
-		renderer->AddModel(genModels[L"quad"]);
+		renderer->AddModel(models[L"quad"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(L"seamless"));
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
@@ -1181,21 +1214,121 @@ namespace DXLib
 		sun3->AddComponent(light);
 		gameObjects.push_back(std::move(sun3));
 
-		for (int i = 0; i < models.size(); ++i)
+
+		for (int i = 0; i < 11; ++i)
 		{
-			auto mod = models[i];			
-			auto man = std::make_unique<GameObject>(dxDevice.Get());
-			man->GetTransform()->SetPosition(Vector3::Forward * ( -30 + (10 * i)) );
-			man->GetTransform()->SetScale(Vector3::One * 0.25);
-			man->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
-			renderer = new ModelRenderer();
-			renderer->AddModel(mod);
-			man->AddComponent(renderer);
-			typedGameObjects[PsoType::Opaque].push_back(man.get());
-			gameObjects.push_back(std::move(man));
-		}									
+
+			auto nano = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\Nanosuit\\Nanosuit.obj"));
+			nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
+			nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
+			
+			typedGameObjects[PsoType::Opaque].push_back(nano.get());
+			gameObjects.push_back(std::move(nano));
+
+			
+			auto doom = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\DoomSlayer\\doommarine.obj"));
+			doom->SetScale(0.08);
+			doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
+			doom->GetTransform()->SetEulerRotate(Vector3(0,90,0));
+			
+			typedGameObjects[PsoType::Opaque].push_back(doom.get());
+			gameObjects.push_back(std::move(doom));
+		}
+
+		for(int i = 0; i< 12; ++i)
+		{
+			for (int j = 0; j < 3; ++j)
+			{
+				auto atlas = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\Atlas\\Atlas.obj"));
+				atlas->GetTransform()->SetPosition(Vector3::Right * -60 + Vector3::Right * -30 * j +  Vector3::Up * 11 + Vector3::Forward * 10 * i);
+				typedGameObjects[PsoType::Opaque].push_back(atlas.get());
+				gameObjects.push_back(std::move(atlas));
+
+
+				auto pbody = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\P-Body\\P-Body.obj"));
+				pbody->GetTransform()->SetPosition(Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+				typedGameObjects[PsoType::Opaque].push_back(pbody.get());
+				gameObjects.push_back(std::move(pbody));
+			}			
+		}
+		
+
+		
+
+		auto platform = CreateGOWithRenderer(models[L"platform"]);
+		platform->SetScale(0.2);
+		platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
+		platform->GetTransform()->SetPosition(Vector3::Backward * -130);
+		typedGameObjects[PsoType::Opaque].push_back(platform.get());
+
+		auto stair = CreateGOWithRenderer(models[L"stair"]);
+		stair->GetTransform()->SetParent(platform->GetTransform());
+		stair->SetScale(0.2);
+		stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
+		stair->GetTransform()->SetPosition(Vector3::Right * -675 );
+		typedGameObjects[PsoType::Opaque].push_back(stair.get());
+
+
+		auto columns = CreateGOWithRenderer(models[L"columns"]);
+		columns->GetTransform()->SetParent(stair->GetTransform());
+		columns->SetScale(0.8);
+		columns->GetTransform()->SetEulerRotate(Vector3(0,0,90));
+		columns->GetTransform()->SetPosition(Vector3::Up * 1800 + Vector3::Backward * -925);		
+		typedGameObjects[PsoType::Opaque].push_back(columns.get());
+		gameObjects.push_back(std::move(columns));
+		gameObjects.push_back(std::move(stair));
+		gameObjects.push_back(std::move(platform));
+
+		auto fountain = CreateGOWithRenderer(models[L"fountain"]);
+		fountain->SetScale(0.005);
+		fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+		fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
+		typedGameObjects[PsoType::Opaque].push_back(fountain.get());		
+		gameObjects.push_back(std::move(fountain));
+
+		auto mountDragon = CreateGOWithRenderer(models[L"mountDragon"]);
+		mountDragon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+		mountDragon->GetTransform()->SetPosition(Vector3::Right*-960 + Vector3::Up * 45 + Vector3::Backward * 775);
+		
+		
+		typedGameObjects[PsoType::Opaque].push_back(mountDragon.get());
+		gameObjects.push_back(std::move(mountDragon));
+
+
+		auto desertDragon = CreateGOWithRenderer(models[L"desertDragon"]);
+		desertDragon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+		desertDragon->GetTransform()->SetPosition(Vector3::Right * 960 + Vector3::Up * -5 + Vector3::Backward * 775);
+
+
+		typedGameObjects[PsoType::Opaque].push_back(desertDragon.get());
+		gameObjects.push_back(std::move(desertDragon));
+
+		auto griffon = CreateGOWithRenderer(models[L"griffon"]);
+		griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+		griffon->SetScale(0.8);
+		griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
+
+
+		typedGameObjects[PsoType::OpaqueAlphaDrop].push_back(griffon.get());
+		gameObjects.push_back(std::move(griffon));
+
+		auto griffon1 = CreateGOWithRenderer(models[L"griffonOld"]);
+		griffon1->SetScale(0.8);
+		griffon1->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+		griffon1->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
+
+		typedGameObjects[PsoType::OpaqueAlphaDrop].push_back(griffon1.get());
+		gameObjects.push_back(std::move(griffon1));
 	}
 
+	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<Model> model) const
+	{
+		auto man = std::make_unique<GameObject>(dxDevice.Get());
+		man->AddComponent(new ModelRenderer());
+		man->GetRenderer()->AddModel(model);
+		return man;
+	}
+	
 	void SampleApp::DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems)
 	{
 		// For each render item...

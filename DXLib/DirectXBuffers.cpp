@@ -2,7 +2,7 @@
 #include "d3dApp.h"
 
 
-ShaderBuffer::ShaderBuffer(UINT elementCount, UINT elementByteSize): elementByteSize(elementByteSize)
+ShaderBuffer::ShaderBuffer(UINT elementCount, UINT elementByteSize): elementByteSize(elementByteSize), elementCount(elementCount)
 {
 	auto& device = DXLib::D3DApp::GetApp().GetDevice();
 	ThrowIfFailed(device.CreateCommittedResource(
