@@ -75,9 +75,6 @@
     <ClCompile Include="ModelRenderer.cpp">
       <Filter>Source Files\GameObjectComponents</Filter>
     </ClCompile>
-    <ClCompile Include="Renderer.cpp">
-      <Filter>Source Files\GameObjectComponents</Filter>
-    </ClCompile>
     <ClCompile Include="Reflected.cpp">
       <Filter>Source Files\GameObjectComponents</Filter>
     </ClCompile>

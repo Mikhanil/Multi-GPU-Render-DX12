@@ -8,22 +8,9 @@ class GCommandList;
 
 class Model
 {
-	friend class ModelRenderer;
-	
+	friend class ModelRenderer;	
 	std::vector<std::shared_ptr<Mesh>> meshes;
-
-	
-
-	void Draw(std::shared_ptr<GCommandList> cmdList);
-
-	void UpdateGraphicConstantData(ObjectConstants constantData);
-
-
 	std::wstring name;
-
-	
-	
-
 
 public:
 
@@ -31,8 +18,8 @@ public:
 	
 	UINT GetMeshesCount() const;
 
-	std::wstring GetName() const { return name; }
-	
+	std::wstring GetName() const;
+
 	Model(const std::wstring modelName = L"");
 
 	Model(const Model& copy);
@@ -40,8 +27,6 @@ public:
 	~Model() {};
 
 	std::shared_ptr<Mesh> GetMesh(const UINT submesh);
-
-	void SetMeshMaterial(const UINT submesh, const std::shared_ptr<Material> material);
 
 	void AddMesh(const std::shared_ptr<Mesh> mesh);
 };

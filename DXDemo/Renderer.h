@@ -6,20 +6,12 @@ class GCommandList;
 
 class Renderer : public Component
 {
-protected:
-	ObjectConstants bufferConstant{};
-	std::unique_ptr<ConstantBuffer<ObjectConstants>> objectConstantBuffer = nullptr;
-	void SendDataToConstantBuffer();
-
 public:
 
-	Renderer();
-
+	Renderer(): Component() {} ;
 
 	Material* material = nullptr;
-	
 
-
-	void Update() override;
+	void Update() override = 0;
 	virtual void Draw(std::shared_ptr<GCommandList> cmdList) = 0;
 };

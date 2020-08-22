@@ -5,6 +5,7 @@
 
 class GCommandList;
 class ModelRenderer;
+class Component;
 
 class GameObject
 {

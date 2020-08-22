@@ -3,57 +3,47 @@
 #include "GBuffer.h"
 #include "GCommandList.h"
 #include "Material.h"
-void Mesh::UpdateGraphicConstantData(ObjectConstants data)
+
+
+D3D12_PRIMITIVE_TOPOLOGY Mesh::GetPrimitiveType() const
 {
-	constantData = data;
-	constantData.MaterialIndex = material->GetIndex();
-	
-	objectConstantBuffer->CopyData(0, constantData);
+	return primitiveTopology;
 }
 
-void Mesh::Draw(std::shared_ptr<GCommandList> cmdList, UINT constantDataSlot) const
-{	
-	cmdList->SetRootConstantBufferView(constantDataSlot,
-		objectConstantBuffer->Resource()->GetGPUVirtualAddress());
-
-	cmdList->SetVBuffer(0, 1, &vertexBuffer->VertexBufferView());
-	cmdList->SetIBuffer(&indexBuffer->IndexBufferView());
-	cmdList->SetPrimitiveTopology(primitiveTopology);
-
-	cmdList->DrawIndexed( indexBuffer->GetElementsCount());	
+D3D12_VERTEX_BUFFER_VIEW* Mesh::GetVertexView() const
+{
+	if(vertexView == nullptr)
+	{
+		vertexView = std::make_shared<D3D12_VERTEX_BUFFER_VIEW>((vertexBuffer->VertexBufferView()));
+	}
 	
+	return vertexView.get();
 }
 
-std::shared_ptr<Material> Mesh::GetMaterial() const
+D3D12_INDEX_BUFFER_VIEW* Mesh::GetIndexView() const
 {
-	return material;
+	if (indexView == nullptr)
+	{
+		indexView = std::make_shared<D3D12_INDEX_BUFFER_VIEW>(indexBuffer->IndexBufferView());
+	}
+
+	return indexView.get();
+}
+
+UINT Mesh::GetIndexCount() const
+{
+	return indexBuffer->GetElementsCount();
 }
 
 Mesh::Mesh(const std::wstring name): meshName(std::move(name)), primitiveTopology(D3D_PRIMITIVE_TOPOLOGY_UNDEFINED)
 {
-	objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
+	
 }
 
-Mesh::Mesh(const Mesh& copy) : constantData(copy.constantData), meshName(copy.meshName), primitiveTopology(copy.primitiveTopology),
-vertices(copy.vertices), indexes(copy.indexes), vertexBuffer(copy.vertexBuffer), indexBuffer(copy.indexBuffer), material( copy.material)
-{
-	this->objectConstantBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(1);
-}
-
-void Mesh::SetVertexBuffer(std::shared_ptr<GBuffer>& vbuffer)
-{
-	if (vertexBuffer) vertexBuffer.reset();
-
-	vertexBuffer = vbuffer;
-}
-
-void Mesh::SetIndexBuffer(std::shared_ptr<GBuffer>& ibuffer)
-{
-	if (indexBuffer) indexBuffer.reset();
-
-	indexBuffer = ibuffer;
-}
-
+Mesh::Mesh(const Mesh& copy) : meshName(copy.meshName), primitiveTopology(copy.primitiveTopology),
+vertices(copy.vertices), indexes(copy.indexes), vertexBuffer(copy.vertexBuffer), indexBuffer(copy.indexBuffer), vertexView(copy.vertexView), indexView((copy.indexView))
+{}
+	
 
 void Mesh::ChangeIndexes(std::shared_ptr<GCommandList> cmdList, const DWORD* indices, size_t indexesCount)
 {
@@ -89,12 +79,7 @@ void Mesh::SetName(const std::wstring& name)
 	meshName = name;
 }
 
-void Mesh::SetMaterial(const std::shared_ptr<Material> mat)
-{
-	material = mat;
-}
-
-std::wstring_view Mesh::GetName() const
+std::wstring Mesh::GetName() const
 {
 	return meshName;
 }

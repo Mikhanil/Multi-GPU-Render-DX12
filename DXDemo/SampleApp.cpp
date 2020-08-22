@@ -617,7 +617,6 @@ namespace DXLib
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 
-
 	void SampleApp::LoadStudyTexture(std::shared_ptr<GCommandList> cmdList)
 	{
 		auto bricksTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\bricks2.dds", cmdList);
@@ -679,6 +678,14 @@ namespace DXLib
 		}
 	}
 		
+	void SampleApp::SetDefaultMaterialForModel(ModelRenderer* renderer) 
+	{
+		for (int i = 0; i < renderer->model->GetMeshesCount(); ++i)
+		{
+			renderer->SetMeshMaterial(i, loader.GetDefaultMaterial(renderer->model->GetMesh(i)));
+		}
+	}
+
 	
 	void SampleApp::LoadModels()
 	{
@@ -686,12 +693,13 @@ namespace DXLib
 
 		auto nano = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 
+
+		
 		models[L"nano"] = std::move(nano);
 
 
 		
 		auto doom = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\DoomSlayer\\doommarine.obj");
-		doom->scaleMatrix = Matrix::CreateScale(0.1);
 		models[L"doom"] = std::move(doom);
 		
 		auto atlas = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Atlas\\Atlas.obj");
@@ -1178,7 +1186,7 @@ namespace DXLib
 		skySphere->GetTransform()->SetScale({500, 500, 500});
 		auto renderer = new ModelRenderer();
 		renderer->material = loader.GetMaterials(L"sky").get();
-		renderer->AddModel(models[L"sphere"]);
+		renderer->SetModel(models[L"sphere"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(L"sky"));
 		skySphere->AddComponent(renderer);
 		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
@@ -1187,7 +1195,7 @@ namespace DXLib
 		auto quadRitem = std::make_unique<GameObject>(dxDevice.Get(), "Quad");
 		renderer = new ModelRenderer();
 		renderer->material = loader.GetMaterials(L"seamless").get();
-		renderer->AddModel(models[L"quad"]);
+		renderer->SetModel(models[L"quad"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(L"seamless"));
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
@@ -1319,11 +1327,13 @@ namespace DXLib
 		gameObjects.push_back(std::move(griffon1));
 	}
 
-	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<Model> model) const
+	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<Model> model) 
 	{
 		auto man = std::make_unique<GameObject>(dxDevice.Get());
-		man->AddComponent(new ModelRenderer());
-		man->GetRenderer()->AddModel(model);
+		auto renderer = new ModelRenderer();
+		man->AddComponent(renderer);
+		renderer->SetModel(model);				
+		SetDefaultMaterialForModel(renderer);
 		return man;
 	}
 	

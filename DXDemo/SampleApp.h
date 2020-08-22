@@ -58,6 +58,7 @@ namespace DXLib
 		void UpdateShadowPassCB(const GameTimer& gt);
 		void UpdateSsaoCB(const GameTimer& gt);
 		void LoadStudyTexture(std::shared_ptr<GCommandList> cmdList);
+		void SetDefaultMaterialForModel(ModelRenderer* renderer);
 		void LoadModels();
 		void BuildTexturesHeap();
 		void Update(const GameTimer& gt) override;
@@ -78,7 +79,7 @@ namespace DXLib
 		void BuildFrameResources();
 		void BuildMaterials();
 		void BuildGameObjects();
-		std::unique_ptr<GameObject> CreateGOWithRenderer(std::shared_ptr<Model> model) const;
+		std::unique_ptr<GameObject> CreateGOWithRenderer(std::shared_ptr<Model> model);
 		static void DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems);
 		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();

@@ -144,22 +144,22 @@ std::shared_ptr<GTexture> AssetsLoader::LoadOrGetTexture(const aiMaterial* mater
 	return textures[textureName];
 }
 
-void  AssetsLoader::CreateMaterialForModel(std::shared_ptr<Model> model, const aiMaterial* material, const std::shared_ptr<GCommandList> cmdList)
+void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMaterial* material, const std::shared_ptr<GCommandList> cmdList)
 {
 	aiString name;
 	material->Get(AI_MATKEY_NAME, name);
-	auto materialName = model->GetName() + L" " + AnsiToWString(name.C_Str());
+	auto materialName = mesh->GetName() + L" " + AnsiToWString(name.C_Str());
 
 	const auto it = materials.find(materialName);
 	if (it != materials.end())
 	{
-		model->SetMeshMaterial(model->GetMeshesCount() - 1, GetMaterials(materialName));
+		defaultMaterialForMeshFromFile[mesh] = it->second;		
 		return;
 	}
 
 
 	
-	auto directory = model->GetName().substr(0, model->GetName().find_last_of('\\'));
+	auto directory = mesh->GetName().substr(0, mesh->GetName().find_last_of('\\'));
 
 	auto count = material->GetTextureCount(aiTextureType_DIFFUSE);
 
@@ -234,8 +234,7 @@ void  AssetsLoader::CreateMaterialForModel(std::shared_ptr<Model> model, const a
 	mat->Roughness = 0.95;
 
 	AddMaterial(mat);
-	
-	model->SetMeshMaterial(model->GetMeshesCount() - 1, GetMaterials(materialName));	
+	defaultMaterialForMeshFromFile[mesh] = mat;
 }
 
 
@@ -246,10 +245,9 @@ void  AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<Model> model, aiNode* n
 		aiMesh* aMesh = scene->mMeshes[node->mMeshes[i]];				
 		
 		auto mesh = CreateSubMesh(aMesh, model->GetName(), cmdList);
+		CreateMaterialForMesh(mesh, scene->mMaterials[aMesh->mMaterialIndex], cmdList);
 		meshes.push_back(std::move(mesh));
 		model->AddMesh(meshes.back());
-
-		CreateMaterialForModel(model, scene->mMaterials[aMesh->mMaterialIndex], cmdList);
 		
 	}
 
@@ -304,13 +302,17 @@ std::shared_ptr<Material> AssetsLoader::GetMaterials(std::wstring name)
 	return nullptr;
 }
 
+std::shared_ptr<Material> AssetsLoader::GetDefaultMaterial(std::shared_ptr<Mesh> mesh)
+{
+	return defaultMaterialForMeshFromFile[mesh];
+}
+
 std::shared_ptr<Model> AssetsLoader::GetModelByName(const std::wstring name)
 {
 	auto it = models.find((name));
 	if (it != models.end())
 	{
-		std::shared_ptr<Model> model = std::make_shared<Model>(*it->second.get());
-		return model;
+		return it->second;
 	}
 
 	return nullptr;

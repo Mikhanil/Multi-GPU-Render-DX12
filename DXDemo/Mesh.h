@@ -5,6 +5,8 @@
 #include "DXAllocator.h"
 #include "GBuffer.h"
 #include "ShaderBuffersData.h"
+#include "Lazy.h"
+
 
 class Material;
 class Model;
@@ -14,8 +16,6 @@ class Mesh
 {
 	friend Model;
 	
-	ObjectConstants constantData{};
-	std::shared_ptr<ConstantBuffer<ObjectConstants>> objectConstantBuffer = nullptr;
 	std::wstring meshName;
 	
 	D3D12_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
@@ -26,22 +26,22 @@ class Mesh
 	std::shared_ptr<GBuffer> vertexBuffer = nullptr;
 	std::shared_ptr<GBuffer> indexBuffer = nullptr;
 
-	void UpdateGraphicConstantData(ObjectConstants data);
 
-	void Draw(std::shared_ptr<GCommandList> cmdList, UINT constantDataSlot) const;
+	mutable std::shared_ptr<D3D12_VERTEX_BUFFER_VIEW> vertexView = nullptr;
+	mutable std::shared_ptr<D3D12_INDEX_BUFFER_VIEW> indexView = nullptr;
+
+
 	
-	std::shared_ptr<Material> material = nullptr;
-
 public:
+	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveType() const;;
+	D3D12_VERTEX_BUFFER_VIEW* GetVertexView() const;
+	D3D12_INDEX_BUFFER_VIEW* GetIndexView() const;
 
-	std::shared_ptr<Material> GetMaterial() const;
+	UINT GetIndexCount() const;
 
 	Mesh(const std::wstring name = L"");
 
 	Mesh(const Mesh& copy);
-
-	void SetVertexBuffer(std::shared_ptr<GBuffer>& vbuffer);
-	void SetIndexBuffer(std::shared_ptr<GBuffer>& ibuffer);
 
 	void ChangeIndexes(std::shared_ptr<GCommandList> cmdList,const DWORD* indices, size_t indexesCount);
 	
@@ -51,7 +51,7 @@ public:
 
 	void SetMaterial(const std::shared_ptr<Material> material);
 
-	std::wstring_view GetName() const;
+	std::wstring GetName() const;
 
 	void SetTopology(D3D12_PRIMITIVE_TOPOLOGY topology);	
 };
