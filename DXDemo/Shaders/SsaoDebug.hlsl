@@ -31,6 +31,9 @@ float4 PS(VertexOut pin) : SV_Target
     if (worldBuffer.debugMap >= 1)	
         return float4(shadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
 	
-    discard;	
+    discard;
+
+	//Шейдер не компилируется если нету тут return, который все равно никогда не будет достигнут
+    return float4(0, 0, 0, 0);
 }
 
