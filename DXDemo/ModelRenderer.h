@@ -7,16 +7,11 @@ class Transform;
 class GCommandList;
 
 class ModelRenderer : public Renderer
-{
-	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
-	
-	
+{	
 
 	ObjectConstants constantData{};
 	
 	std::unique_ptr<ConstantBuffer<ObjectConstants>> modelDataBuffer = nullptr;
-	void SendDataToConstantBuffer(UINT index, ObjectConstants data) const;
-	D3D12_GPU_VIRTUAL_ADDRESS GetMeshConstantData(UINT index = 0) const;
 	
 	custom_vector<std::shared_ptr<Material>> meshesMaterials = DXAllocator::CreateVector< std::shared_ptr<Material>>();
 	

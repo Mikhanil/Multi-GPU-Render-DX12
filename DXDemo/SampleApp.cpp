@@ -340,9 +340,8 @@ namespace DXLib
 		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Prepare Render 3D");
 
 
-		/*Bind all materials*/
-		auto matBuffer = currentFrameResource->MaterialBuffer->Resource();
-		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, matBuffer->GetGPUVirtualAddress());
+		/*Bind all materials*/		
+		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffer);
 
 
 		/*Bind all Diffuse Textures*/
@@ -384,10 +383,9 @@ namespace DXLib
 		                          MainWindow->GetDSVMemory());
 
 
-		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-
+		//Main Path Data
 		cmdList->
-			SetRootConstantBufferView(StandardShaderSlot::CameraData, passCB->GetGPUVirtualAddress());
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, mShadowMap->GetSrvMemory());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, mSsao->AmbientMapSrv(), 0);
@@ -1179,7 +1177,6 @@ namespace DXLib
 		camera->GetTransform()->SetRadianRotate({-0.100110, -2.716100, 0.000000});
 		camera->AddComponent(new Camera(AspectRatio()));
 		camera->AddComponent(new CameraController());
-		camera->AddComponent(new ObjectMover());
 		gameObjects.push_back(std::move(camera));
 
 		auto skySphere = std::make_unique<GameObject>(dxDevice.Get(), "Sky");
@@ -1360,10 +1357,8 @@ namespace DXLib
 
 		list->SetRenderTargets(0, nullptr, false, mShadowMap->GetDsvMemory());
 
-		UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
-		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-		D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + 1 * passCBByteSize;
-		list->SetRootConstantBufferView(StandardShaderSlot::CameraData, passCBAddress);
+		//Shadow Path Data
+		list->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer,1);
 
 		list->SetPipelineState(*psos[PsoType::ShadowMapOpaque]);
 
@@ -1394,8 +1389,8 @@ namespace DXLib
 
 		list->SetRenderTargets(1, normalMapRtv, 0, MainWindow->GetDSVMemory());
 
-		auto passCB = currentFrameResource->PassConstantBuffer->Resource();
-		list->SetRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+		//Main Path Data
+		list->SetRootConstantBufferView(1, *currentFrameResource->PassConstantBuffer);
 
 		list->SetPipelineState(*psos[PsoType::DrawNormalsOpaque]);
 		DrawGameObjects(list, typedGameObjects[PsoType::Opaque]);

@@ -5,6 +5,8 @@
 #include <string>
 #include <memory>
 
+#include "d3dx12.h"
+
 struct DescriptorHandle
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
@@ -14,14 +16,14 @@ struct DescriptorHandle
 class GResource
 {
 	static uint64_t  resourceId;
-
+	
 	
 public:
 	
 	GResource(const std::wstring& name = L"");
 	GResource(const D3D12_RESOURCE_DESC& resourceDesc,
 				const std::wstring& name = L"",
-	         const D3D12_CLEAR_VALUE* clearValue = nullptr);
+	         const D3D12_CLEAR_VALUE* clearValue = nullptr, D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_PROPERTIES heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT));
 	GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std::wstring& name = L"");
 	GResource(const GResource& copy);
 	GResource(GResource&& move);
@@ -52,7 +54,6 @@ public:
 	virtual void Reset();
 
 protected:
-
 	uint64_t id = 0;
 	Microsoft::WRL::ComPtr<ID3D12Resource> dxResource;
 	std::unique_ptr<D3D12_CLEAR_VALUE> clearValue;

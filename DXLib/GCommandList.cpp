@@ -1,7 +1,4 @@
 #include "GCommandList.h"
-
-
-
 #include "ComputePSO.h"
 #include "d3dApp.h"
 #include "d3dUtil.h"
@@ -11,9 +8,6 @@
 #include "GMemory.h"
 #include "GraphicPSO.h"
 #include "GRootSignature.h"
-
-custom_map<std::wstring, ID3D12Resource* > GCommandList::ms_TextureCache = DXAllocator::CreateMap<std::wstring, ID3D12Resource* >();
-std::mutex GCommandList::ms_TextureCacheMutex;
 
 void GCommandList::TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> object)
 {
@@ -114,75 +108,71 @@ void GCommandList::SetRootSignature(GRootSignature* signature)
     TrackResource(setedRootSignature);
 }
 
-void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource)
+void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset)
 {
     if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
 
     if (!resource.IsValid()) assert("Resource is invalid");
-	
-    auto res = resource.GetD3D12Resource();   
+
+    const auto res = resource.GetElementResourceAddress(offset);
 	
 	if(type == D3D12_COMMAND_LIST_TYPE_DIRECT)
 	{		
-        cmdList->SetGraphicsRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootShaderResourceView(rootSignatureSlot, res);
 	}
 
 	if(type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
-        cmdList->SetComputeRootShaderResourceView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetComputeRootShaderResourceView(rootSignatureSlot, res);
 	}
 
-    TrackResource(resource);
+   TrackResource(resource);
 }
 
-void GCommandList::SetRootShaderResourceView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address) const
-{
 
-    if (type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-    {
-        cmdList->SetGraphicsRootShaderResourceView(rootSignatureSlot, address);
-    }
-
-    if (type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-    {
-        cmdList->SetComputeRootShaderResourceView(rootSignatureSlot, address);
-    }
-}
-
-void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource)
+void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset )
 {
     if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
 
     if (!resource.IsValid()) assert("Resource is invalid");
 
-    auto res = resource.GetD3D12Resource();
+    auto res = resource.GetElementResourceAddress(offset);
 	
     if (type == D3D12_COMMAND_LIST_TYPE_DIRECT)
     {
-        cmdList->SetGraphicsRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetGraphicsRootConstantBufferView(rootSignatureSlot, res);
     }
 
     if (type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
     {
-        cmdList->SetComputeRootConstantBufferView(rootSignatureSlot, res->GetGPUVirtualAddress());
+        cmdList->SetComputeRootConstantBufferView(rootSignatureSlot, res);
     }
 
     TrackResource(resource);
 }
 
-void GCommandList::SetRootConstantBufferView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address) const
+
+void GCommandList::SetRootUnorderedAccessView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset)
 {
+    if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
+
+    if (!resource.IsValid()) assert("Resource is invalid");
+
+    auto res = resource.GetElementResourceAddress(offset);
 
     if (type == D3D12_COMMAND_LIST_TYPE_DIRECT)
     {
-        cmdList->SetGraphicsRootConstantBufferView(rootSignatureSlot, address);
+        cmdList->SetGraphicsRootUnorderedAccessView(rootSignatureSlot, res);
     }
 
     if (type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
     {
-        cmdList->SetComputeRootConstantBufferView(rootSignatureSlot, address);
+        cmdList->SetComputeRootUnorderedAccessView(rootSignatureSlot, res);
     }
+
+    TrackResource(resource);
 }
+
 
 void GCommandList::SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data, UINT DestOffsetIn32BitValueToSet ) const
 {
@@ -212,27 +202,6 @@ void GCommandList::SetRoot32BitConstant(UINT shaderRegister, UINT value, UINT of
     }	
 }
 
-
-void GCommandList::SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource)
-{
-    if (setedRootSignature == nullptr) assert("Root Signature not set into the CommandList");
-
-    if (!resource.IsValid()) assert("Resource is invalid");
-
-    auto res = resource.GetD3D12Resource();
-
-    if (type == D3D12_COMMAND_LIST_TYPE_DIRECT)
-    {
-        cmdList->SetGraphicsRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
-    }
-
-    if (type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-    {
-        cmdList->SetComputeRootUnorderedAccessView(rootSignatureSlot, res->GetGPUVirtualAddress());
-    }
-
-    TrackResource(resource);
-}
 
 void GCommandList::SetRootDescriptorTable(UINT rootSignatureSlot,const GMemory* memory, UINT offset) const
 {

@@ -180,10 +180,9 @@ void Ssao::ComputeSsao(
 
 	cmdList->SetRenderTargets(1, &ambientMapRtvMemory, 0);
 
-	auto ssaoCBAddress = currFrame->SsaoConstantBuffer->Resource()->GetGPUVirtualAddress();
 	cmdList->SetPipelineState(mSsaoPso);
 
-	cmdList->SetRootConstantBufferView(0, ssaoCBAddress);
+	cmdList->SetRootConstantBufferView(0, *currFrame->SsaoConstantBuffer);
 	cmdList->SetRoot32BitConstant(1, 0, 0);
 
 	cmdList->SetRootDescriptorTable(2, &normalMapSrvMemory);
@@ -220,9 +219,8 @@ void Ssao::ClearAmbiantMap(
 void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, FrameResource* currFrame, int blurCount)
 {
 	cmdList->SetPipelineState(mBlurPso);
-
-	auto ssaoCBAddress = currFrame->SsaoConstantBuffer->Resource()->GetGPUVirtualAddress();
-	cmdList->SetRootConstantBufferView(0, ssaoCBAddress);
+	
+	cmdList->SetRootConstantBufferView(0, *currFrame->SsaoConstantBuffer);
 
 	for (int i = 0; i < blurCount; ++i)
 	{

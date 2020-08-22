@@ -15,7 +15,7 @@ GResource::GResource(const std::wstring& name)
 	id = ++resourceId;
 }
 
-GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, const D3D12_CLEAR_VALUE* clearValue)
+GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, const D3D12_CLEAR_VALUE* clearValue, D3D12_RESOURCE_STATES initState, D3D12_HEAP_PROPERTIES heapProp)
 {
 	id = ++resourceId;
 	
@@ -27,24 +27,24 @@ GResource::GResource(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring
 	}
 
 	ThrowIfFailed(device.CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		&heapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
-		D3D12_RESOURCE_STATE_COMMON,
+		initState,
 		this->clearValue.get(),
 		IID_PPV_ARGS(&dxResource)
 	));
 
-	GResourceStateTracker::AddCurrentState(dxResource.Get(), D3D12_RESOURCE_STATE_COMMON);
+	GResourceStateTracker::AddCurrentState(dxResource.Get(), initState);
 	
 	SetName(name);
+
 }
 
 GResource::GResource(Microsoft::WRL::ComPtr<ID3D12Resource>& resource, const std::wstring& name)
 	: dxResource(std::move(resource))
 {
-	id = ++resourceId;
-	
+	id = ++resourceId;	
 	SetName(name);
 }
 
@@ -58,6 +58,7 @@ GResource::GResource(const GResource& copy)
 		clearValue = (std::make_unique<D3D12_CLEAR_VALUE>(*copy.clearValue.get()));
 	else
 		clearValue = nullptr;
+
 }
 
 GResource::GResource(GResource&& move)
@@ -79,8 +80,8 @@ GResource& GResource::operator=(const GResource& other)
 		{
 			clearValue = std::make_unique<D3D12_CLEAR_VALUE>(*other.clearValue);
 		}
-	}
 
+	}
 	return *this;
 }
 
@@ -92,11 +93,10 @@ GResource& GResource::operator=(GResource&& other) noexcept
 		dxResource = other.dxResource;
 		resourceName = other.resourceName;
 		clearValue = std::move(other.clearValue);
-
 		other.dxResource.Reset();
 		other.resourceName.clear();
-	}
 
+	}
 	return *this;
 }
 
@@ -114,6 +114,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> GResource::GetD3D12Resource() const
 {
 	return dxResource;
 }
+
 
 D3D12_RESOURCE_DESC GResource::GetD3D12ResourceDesc() const
 {
@@ -156,7 +157,6 @@ void GResource::Reset()
 	if (dxResource)
 	{
 		dxResource.Reset();
-		
 	}
 
 	

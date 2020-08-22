@@ -1,53 +1,32 @@
 #pragma once
 
 #include "d3dUtil.h"
+#include "GResource.h"
 using namespace Microsoft::WRL;
-class ShaderBuffer
+
+class ShaderBuffer : public GResource
 {
 public:
-	ShaderBuffer(UINT elementCount, UINT elementByteSize);
+	ShaderBuffer(UINT elementCount, UINT elementByteSize, std::wstring name = L"");
 
 	ShaderBuffer(const ShaderBuffer& rhs) = delete;
 	ShaderBuffer& operator=(const ShaderBuffer& rhs) = delete;
 
-	~ShaderBuffer()
-	{
-		if (isDispose)
-		{
-			return;
-		}
+	~ShaderBuffer();
 
-		if (buffer != nullptr)
-			buffer->Unmap(0, nullptr);
+	void CopyData(int elementIndex, const void* data, size_t size) const;
 
-		mappedData = nullptr;
-		isDispose = true;
-	}
+	D3D12_GPU_VIRTUAL_ADDRESS GetElementResourceAddress(UINT index = 0) const;
 
-	ID3D12Resource* Resource() const
-	{
-		return buffer.Get();
-	}
+	UINT GetElementByteSize() const;
 
-	void CopyData(int elementIndex, const void* data, size_t size) const
-	{
-		memcpy(&mappedData[elementIndex * elementByteSize], data, size);
-	}
+	UINT GetElementCount() const;
 
-	UINT GetElementByteSize() const
-	{
-		return elementByteSize;
-	}
-
-	UINT GetElementCount()
-	{
-		return elementCount;
-	}
+	void Reset() override;;
 	
 protected:
-	UINT elementCount;
-	bool isDispose = false;
-	ComPtr<ID3D12Resource> buffer;
+	D3D12_GPU_VIRTUAL_ADDRESS address;
+	UINT elementCount = 0;
 	BYTE* mappedData = nullptr;
 	UINT elementByteSize = 0;
 };
@@ -63,7 +42,7 @@ public:
 	//  UINT64 OffsetInBytes; // multiple of 256
 	//  UINT  SizeInBytes;  // multiple of 256
 	// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
-	ConstantBuffer(UINT elementCount) : ShaderBuffer(elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)))
+	ConstantBuffer(UINT elementCount, std::wstring name = L"") : ShaderBuffer(elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)), name = L"")
 	{
 	}
 
@@ -77,7 +56,7 @@ template <typename T>
 class UploadBuffer : public virtual ShaderBuffer
 {
 public:
-	UploadBuffer(UINT elementCount) : ShaderBuffer(elementCount, (sizeof(T)))
+	UploadBuffer(UINT elementCount ,std::wstring name = L"") : ShaderBuffer(elementCount, (sizeof(T)), name)
 	{
 	}
 

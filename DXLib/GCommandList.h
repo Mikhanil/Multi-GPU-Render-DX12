@@ -7,6 +7,7 @@
 #include "DXAllocator.h"
 #include "GDataUploader.h"
 
+class ShaderBuffer;
 using namespace Microsoft::WRL;
 
 class GResource;
@@ -21,9 +22,6 @@ struct UploadAllocation;
 class GCommandList
 {
 private:
-
-	static custom_map<std::wstring, ID3D12Resource*> ms_TextureCache;
-	static std::mutex ms_TextureCacheMutex;
 
 	using TrackedObjects = custom_vector<ComPtr<ID3D12Object>>;
 	TrackedObjects trackedObject = DXAllocator::CreateVector<ComPtr<ID3D12Object>>();
@@ -65,21 +63,18 @@ public:
 
 	void SetRootSignature(GRootSignature* signature);
 
-	void SetRootShaderResourceView(UINT rootSignatureSlot, GResource& resource);
-	void SetRootShaderResourceView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address) const;
+	void SetRootShaderResourceView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset = 0);
 
-	void SetRootConstantBufferView(UINT rootSignatureSlot, GResource& resource);
-	void SetRootConstantBufferView(UINT rootSignatureSlot, D3D12_GPU_VIRTUAL_ADDRESS address) const;
+	void SetRootConstantBufferView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset = 0);
+
+	void SetRootUnorderedAccessView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset = 0);
+	
 	void SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data,
 	                           UINT DestOffsetIn32BitValueToSet) const;
-
+	
 	void SetRoot32BitConstant(UINT shaderRegister, UINT value, UINT offset) const;
 
-	void SetRootUnorderedAccessView(UINT rootSignatureSlot, GResource& resource);
-
-	void SetRootDescriptorTable(UINT rootSignatureSlot, const GMemory* memory, UINT offset = 0) const;
-	
-	
+	void SetRootDescriptorTable(UINT rootSignatureSlot, const GMemory* memory, UINT offset = 0) const;	
 
 	void UpdateSubresource(GResource& destResource, D3D12_SUBRESOURCE_DATA* subresources, size_t countSubresources);
 
