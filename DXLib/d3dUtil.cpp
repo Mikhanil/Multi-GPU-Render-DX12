@@ -94,7 +94,7 @@ ComPtr<ID3DBlob> d3dUtil::CompileShader(
 	const std::string& entrypoint,
 	const std::string& target)
 {
-	UINT compileFlags = D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES;
+	UINT compileFlags = D3DCOMPILE_ENABLE_UNBOUNDED_DESCRIPTOR_TABLES | D3DCOMPILE_ALL_RESOURCES_BOUND;
 
 #if defined(DEBUG) || defined(_DEBUG)
 	compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
