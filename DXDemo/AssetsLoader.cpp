@@ -199,23 +199,34 @@ void  AssetsLoader::CreateMaterialForModel(std::shared_ptr<Model> model, const a
 	}
 	else
 	{
-		const auto textureIt = textures.find(L"defaultNormalMap");
-		if (textureIt != textures.end())
+		count = material->GetTextureCount(aiTextureType_NORMALS);
+
+		if(count > 0)
 		{
-			normal = textureIt->second;			
+			normal = LoadOrGetTexture(material, aiTextureType_NORMALS, directory, cmdList);
 		}
-		else
-		{
-			auto defaultNormal = GTexture::LoadTextureFromFile(L"Data\\Textures\\default_nmap.dds", cmdList,
-				TextureUsage::Normalmap);
-			defaultNormal->SetName(L"defaultNormalMap");
+		else {
 
-			textures[defaultNormal->GetName()] = std::move(defaultNormal);
+			const auto textureIt = textures.find(L"defaultNormalMap");
+			if (textureIt != textures.end())
+			{
+				normal = textureIt->second;
+			}
+			else
+			{
+				auto defaultNormal = GTexture::LoadTextureFromFile(L"Data\\Textures\\default_nmap.dds", cmdList,
+					TextureUsage::Normalmap);
+				defaultNormal->SetName(L"defaultNormalMap");
 
-			normal = textures[L"defaultNormalMap"];
+				textures[defaultNormal->GetName()] = std::move(defaultNormal);
+
+				normal = textures[L"defaultNormalMap"];
+			}
 		}
 	}	 
-			
+
+
+	
 	auto mat = std::make_shared<Material>(materialName);
 	mat->SetDiffuseTexture(diffuse);
 	mat->SetNormalMap(normal);

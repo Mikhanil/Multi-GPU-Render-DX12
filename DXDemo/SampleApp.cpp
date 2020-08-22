@@ -1251,9 +1251,7 @@ namespace DXLib
 				gameObjects.push_back(std::move(pbody));
 			}			
 		}
-		
-
-		
+				
 
 		auto platform = CreateGOWithRenderer(models[L"platform"]);
 		platform->SetScale(0.2);

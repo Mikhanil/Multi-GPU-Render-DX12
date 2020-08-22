@@ -30,7 +30,9 @@ float4 PS(VertexOut pin) : SV_Target
 
     if (worldBuffer.debugMap >= 1)	
         return float4(shadowMap.Sample(gsamLinearWrap, pin.TexC).rrr, 1.0f);
-
+	
+    discard;
+	
     clip(0.1f - 0.1f);
     return float4(1, 1, 1, 1);
 }
