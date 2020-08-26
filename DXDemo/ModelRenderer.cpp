@@ -53,7 +53,7 @@ void ModelRenderer::SetModel(std::shared_ptr<Model> asset)
 	if(modelDataBuffer == nullptr || modelDataBuffer->GetElementCount() < asset->GetMeshesCount() )
 	{
 		modelDataBuffer.reset();
-		modelDataBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(asset->GetMeshesCount(), model->GetName());
+		modelDataBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(asset->GetMeshesCount(), asset->GetName());
 	}
 	
 	model = asset;
