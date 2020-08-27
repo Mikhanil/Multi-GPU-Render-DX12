@@ -120,6 +120,9 @@
     <ClCompile Include="AssetsLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SSAA.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Default.hlsl">
@@ -143,10 +146,10 @@
     <FxCompile Include="Shaders\SsaoBlur.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\SsaoDebug.hlsl">
+    <FxCompile Include="Shaders\TreeSprite.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\TreeSprite.hlsl">
+    <FxCompile Include="Shaders\Quad.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
@@ -224,6 +227,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AssetsLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SSAA.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

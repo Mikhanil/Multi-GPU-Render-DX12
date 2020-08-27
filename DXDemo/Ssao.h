@@ -19,6 +19,7 @@ public:
 
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	static const DXGI_FORMAT DepthMapFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	static const int MaxBlurRadius = 5;
 
@@ -31,15 +32,16 @@ public:
 
 	GTexture& NormalMap();
 	GTexture& AmbientMap();
+	GTexture& NormalDepthMap();
 
-	GMemory* NormalMapRtv();;
-	GMemory* NormalMapSrv();;
-	GMemory* AmbientMapSrv();;
+	GMemory* NormalMapDSV();
+	GMemory* NormalMapRtv();
+	GMemory* NormalMapSrv();
+	GMemory* AmbientMapSrv();
 
-	void BuildDescriptors(
-		GTexture& depthStencilBuffer);
+	void BuildDescriptors();
 
-	void RebuildDescriptors(GTexture& depthStencilBuffer);
+	void RebuildDescriptors();
 
 	void SetPSOs(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso);
 
@@ -59,6 +61,7 @@ private:
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur);
 	GTexture CreateNormalMap() const;
 	GTexture CreateAmbientMap() const;
+	GTexture CreateDepthMap() const;
 
 	void BuildResources();
 	void BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList);
@@ -72,15 +75,18 @@ private:
 	GraphicPSO mSsaoPso;
 	GraphicPSO mBlurPso;
 
-	GTexture mRandomVectorMap;
-	GTexture mNormalMap;
-	GTexture mAmbientMap0;
-	GTexture mAmbientMap1;
+	GTexture randomVectorMap;
+	GTexture normalMap;
+	GTexture ambientMap0;
+	GTexture ambientMap1;
+	GTexture depthMap;
 
+	
 	GMemory normalMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,1);
 	GMemory normalMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
 	
 	GMemory depthMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	GMemory depthMapDSVMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 	
 	GMemory randomVectorSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 	

@@ -42,11 +42,6 @@ namespace DXLib
 		backBuffers.clear();
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE Window::GetDepthStencilView() const
-	{
-		return depthStencilViewHeap.GetCPUHandle();
-	}
-
 
 	const std::wstring& Window::GetWindowName() const
 	{
@@ -154,11 +149,6 @@ namespace DXLib
 		return backBuffers[currentBackBufferIndex];
 	}
 
-	GTexture& Window::GetDepthStencilBuffer() 
-	{
-		return depthStencilBuffer;
-	}
-
 	void Window::SetHeight(int height)
 	{
 		this->height = height;
@@ -203,7 +193,6 @@ namespace DXLib
 
 		swapChain = CreateSwapChain();
 
-		depthStencilBuffer = GTexture(L"Depth " + windowName, TextureUsage::Depth);
 
 		for (int i = 0; i < BufferCount; ++i)
 		{
@@ -319,8 +308,6 @@ namespace DXLib
 
 		queue->Flush();
 
-		auto cmdList = queue->GetCommandList();
-
 		for (int i = 0; i < BufferCount; ++i)
 		{
 			GResourceStateTracker::RemoveGlobalResourceState(backBuffers[i].GetD3D12Resource().Get());
@@ -339,49 +326,9 @@ namespace DXLib
 			isTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
-
+		
 		UpdateRenderTargets();
-
-		if (depthStencilBuffer.GetD3D12Resource() == nullptr)
-		{
-			D3D12_RESOURCE_DESC depthStencilDesc;
-			depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-			depthStencilDesc.Alignment = 0;
-			depthStencilDesc.Width = width;
-			depthStencilDesc.Height = height;
-			depthStencilDesc.DepthOrArraySize = 1;
-			depthStencilDesc.MipLevels = 1;
-			depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-			depthStencilDesc.SampleDesc.Count = 1;
-			depthStencilDesc.SampleDesc.Quality = 0;
-			depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-			depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-			D3D12_CLEAR_VALUE optClear;
-			optClear.Format = depthStencilFormat;
-			optClear.DepthStencil.Depth = 1.0f;
-			optClear.DepthStencil.Stencil = 0;
-
-			depthStencilBuffer = GTexture(depthStencilDesc, windowName + L" DepthStencil", TextureUsage::Depth, &optClear);
-		}
-		else
-		{
-			GTexture::Resize(depthStencilBuffer, width, height, 1);
-		}
 		
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Format = depthStencilFormat;
-		dsvDesc.Texture2D.MipSlice = 0;
-		depthStencilBuffer.CreateDepthStencilView(&dsvDesc, &depthStencilViewHeap);		
-
-		cmdList->TransitionBarrier(depthStencilBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		cmdList->FlushResourceBarriers();
-		
-
-		queue->ExecuteCommandList(cmdList);
-		queue->Flush();
 
 		screenViewport.TopLeftX = 0;
 		screenViewport.TopLeftY = 0;
@@ -469,8 +416,8 @@ namespace DXLib
 		{
 			ComPtr<ID3D12Resource> backBuffer;
 			ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
-
 			GResourceStateTracker::AddGlobalResourceState(backBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
+			
 			backBuffers[i].SetD3D12Resource(backBuffer);
 			backBuffers[i].CreateRenderTargetView(&rtvDesc, &rtvDescriptorHeap, i);
 		}

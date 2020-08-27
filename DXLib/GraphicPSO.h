@@ -25,6 +25,7 @@ public:
 		Ssao,
 		SsaoBlur,
 		Debug,
+		Quad,
 		Count
 	};
 };

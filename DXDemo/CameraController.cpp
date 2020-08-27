@@ -22,16 +22,10 @@ void CameraController::Update()
 		KeyboardEvent kbe = keyboard->ReadKey();
 		unsigned char keycode = kbe.GetKeyCode();
 
-		if (keycode == (VK_F1) && keyboard->KeyIsPressed(VK_F1))
-		{
-			DXLib::SampleApp& app = (DXLib::SampleApp&)DXLib::SampleApp::GetApp();
-			app.isDebug = !app.isDebug;
-		}
-
 		if (keycode == (VK_F2) && keyboard->KeyIsPressed(VK_F2))
 		{
 			DXLib::SampleApp& app = (DXLib::SampleApp&)DXLib::SampleApp::GetApp();
-			app.showPathMap = (app.showPathMap+1) % app.maxPathMap;
+			app.pathMapShow = (app.pathMapShow+1) % app.maxPathMap;
 		}
 	}
 

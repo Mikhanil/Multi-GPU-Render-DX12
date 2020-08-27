@@ -25,7 +25,6 @@ namespace DXLib
 		HWND GetWindowHandle() const;
 
 		void Destroy();
-		D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const;
 
 		const std::wstring& GetWindowName() const;
 
@@ -57,14 +56,9 @@ namespace DXLib
 			return &rtvDescriptorHeap;
 		}
 
-		GMemory* GetDSVMemory()
-		{
-			return &depthStencilViewHeap;
-		}
 
 		GTexture& GetCurrentBackBuffer();
 
-		GTexture& GetDepthStencilBuffer() ;
 
 		void SetHeight(int height);
 
@@ -125,14 +119,9 @@ namespace DXLib
 		// Number of swapchain back buffers.
 		static const UINT BufferCount = 3;
 		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		ComPtr<IDXGISwapChain4> CreateSwapChain();
-		ComPtr<IDXGISwapChain4> swapChain;
-
-		
-		
-		GMemory depthStencilViewHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-		GTexture depthStencilBuffer;
+		ComPtr<IDXGISwapChain4> swapChain;		
+	
 		
 		std::vector<GTexture> backBuffers;
 		GMemory rtvDescriptorHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);

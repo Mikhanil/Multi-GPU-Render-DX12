@@ -15,6 +15,7 @@
 #include "Keyboard.h"
 #include "Model.h"
 #include "Mouse.h"
+#include "SSAA.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -43,9 +44,7 @@ namespace DXLib
 		Camera* GetMainCamera() const;
 
 
-
-		bool isDebug = false;
-		UINT showPathMap = 0;
+		UINT pathMapShow = 0;
 		//off, shadowMap, ssaoMap
 		const UINT maxPathMap = 3;
 
@@ -62,6 +61,8 @@ namespace DXLib
 		void LoadModels();
 		void BuildTexturesHeap();
 		void Update(const GameTimer& gt) override;
+		void DrawSSAAMap(std::shared_ptr<GCommandList> cmdList);
+		void DrawToWindowBackBuffer(std::shared_ptr<GCommandList> cmdList);
 		void UpdateMaterial(const GameTimer& gt);
 		void DrawSceneToShadowMap(std::shared_ptr<GCommandList> cmdList);
 		void DrawNormalsAndDepth(std::shared_ptr<GCommandList> cmdList);
@@ -121,8 +122,9 @@ namespace DXLib
 		
 		std::unique_ptr<GRootSignature> rootSignature = nullptr;
 		std::unique_ptr<GRootSignature> ssaoRootSignature = nullptr;
-		std::unique_ptr<Ssao> mSsao;
-
+		std::unique_ptr<Ssao> ssao;
+		std::unique_ptr<SSAA> ssaa;
+		
 		GMemory srvHeap;
 		AssetsLoader loader;
 				

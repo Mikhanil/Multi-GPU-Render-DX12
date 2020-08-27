@@ -643,36 +643,36 @@ GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, floa
 
 	// Position coordinates specified in NDC space.
 	meshData.Vertices[0] = Vertex(
-		x, y - h, depth,
+		-1, -1, depth,
 		0.0f, 0.0f, -1.0f,
 		1.0f, 0.0f, 0.0f,
 		0.0f, 1.0f);
 
 	meshData.Vertices[1] = Vertex(
-		x, y, depth,
+		-1, 1, depth,
 		0.0f, 0.0f, -1.0f,
 		1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f);
 
 	meshData.Vertices[2] = Vertex(
-		x + w, y, depth,
-		0.0f, 0.0f, -1.0f,
-		1.0f, 0.0f, 0.0f,
-		1.0f, 0.0f);
-
-	meshData.Vertices[3] = Vertex(
-		x + w, y - h, depth,
+		1, -1, depth,
 		0.0f, 0.0f, -1.0f,
 		1.0f, 0.0f, 0.0f,
 		1.0f, 1.0f);
+
+	meshData.Vertices[3] = Vertex(
+		1, 1, depth,
+		0.0f, 0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f);
 
 	meshData.Indices32[0] = 0;
 	meshData.Indices32[1] = 1;
 	meshData.Indices32[2] = 2;
 
-	meshData.Indices32[3] = 0;
-	meshData.Indices32[4] = 2;
-	meshData.Indices32[5] = 3;
+	meshData.Indices32[3] = 1;
+	meshData.Indices32[4] = 3;
+	meshData.Indices32[5] = 2;
 
 	return meshData;
 }
