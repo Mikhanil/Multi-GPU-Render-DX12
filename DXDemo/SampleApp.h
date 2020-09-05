@@ -65,7 +65,7 @@ namespace DXLib
 		void DrawToWindowBackBuffer(std::shared_ptr<GCommandList> cmdList);
 		void UpdateMaterial(const GameTimer& gt);
 		void DrawSceneToShadowMap(std::shared_ptr<GCommandList> cmdList);
-		void DrawNormalsAndDepth(std::shared_ptr<GCommandList> cmdList);
+		void DrawNormals(std::shared_ptr<GCommandList> cmdList);
 		void Draw(const GameTimer& gt) override;
 
 		void UpdateGameObjects(const GameTimer& gt);
@@ -89,24 +89,7 @@ namespace DXLib
 
 
 		custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
-		
-		/*std::shared_ptr<Model> nano;
-		std::shared_ptr<Model> doom;
-		std::shared_ptr<Model> atlas;
-		std::shared_ptr<Model> pbody;
-		std::shared_ptr<Model> golem;
-		std::shared_ptr<Model> griffon;
-		std::shared_ptr<Model> mountDragon;
-		std::shared_ptr<Model> desertDragon;
-
-		std::shared_ptr<Model> stair;
-		std::shared_ptr<Model> columns;
-		std::shared_ptr<Model> fountain;
-		std::shared_ptr<Model> platform;
-
-		
-		std::shared_ptr<Model> quad;
-		std::shared_ptr<Model> sphere;*/
+	
 
 
 		
@@ -161,7 +144,7 @@ namespace DXLib
 		};
 		Vector3 mRotatedLightDirections[3];
 
-		std::unique_ptr<ShadowMap> mShadowMap;
+		std::unique_ptr<ShadowMap> shadowMap;
 
 		BoundingSphere mSceneBounds;
 	};

@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <condition_variable> 
+
 #include "ThreadSafeQueue.h"
 
 class GCommandList;
@@ -38,6 +39,9 @@ namespace DXLib
 		
 		ComPtr<ID3D12CommandQueue> GetD3D12CommandQueue() const;
 
+		void StartPixEvent(std::wstring message) const;
+
+		void EndPixEvent() const;
 
 	private:
 

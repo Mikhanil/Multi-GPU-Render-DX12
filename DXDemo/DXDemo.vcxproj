@@ -195,6 +195,7 @@
     <ClCompile Include="Mouse.cpp" />
     <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="Reflected.cpp" />
+    <ClCompile Include="Rotater.cpp" />
     <ClCompile Include="SampleApp.cpp" />
     <ClCompile Include="Shadow.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
@@ -356,6 +357,7 @@
     <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="Reflected.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Rotater.h" />
     <ClInclude Include="SampleApp.h" />
     <ClInclude Include="ShaderBuffersData.h" />
     <ClInclude Include="Shadow.h" />

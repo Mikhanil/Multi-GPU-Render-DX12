@@ -39,7 +39,7 @@ GMemory* SSAA::GetDSV()
 
 void SSAA::OnResize(UINT newWidth, UINT newHeight)
 {
-	if (viewport.Width == newWidth * 2 && viewport.Height == newHeight * 2)
+	if (viewport.Width == newWidth * ResolutionMultiplier && viewport.Height == newHeight * ResolutionMultiplier)
 	{
 		return;	
 	}
@@ -53,8 +53,6 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 	viewport.MaxDepth = 1.0f;
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
-
-
 	
 	scissorRect = { 0,0, width , height };
 	

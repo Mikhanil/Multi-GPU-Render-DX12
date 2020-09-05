@@ -2,6 +2,7 @@
 #include "d3dUtil.h"
 #include "GCommandList.h"
 #include "GResourceStateTracker.h"
+#include "pix3.h"
 
 namespace DXLib
 {
@@ -155,6 +156,16 @@ namespace DXLib
 	ComPtr<ID3D12CommandQueue> GCommandQueue::GetD3D12CommandQueue() const
 	{
 		return commandQueue;
+	}
+
+	void GCommandQueue::StartPixEvent(const std::wstring message) const
+	{
+		PIXBeginEvent(commandQueue.Get(), 0, message.c_str());
+	}
+
+	void GCommandQueue::EndPixEvent() const
+	{
+		PIXEndEvent(commandQueue.Get());
 	}
 
 

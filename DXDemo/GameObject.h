@@ -35,6 +35,8 @@ public:
 
 	void SetScale(Vector3& scale) const;
 
+	std::string& GetName() { return  name; }
+	
 protected:
 
 

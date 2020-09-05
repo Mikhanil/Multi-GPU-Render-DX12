@@ -52,7 +52,7 @@ void ObjectMover::Update()
 	if (offset != Vector3::Zero)
 		gameObject->GetTransform()->AdjustPosition(offset);
 
-	auto position = gameObject->GetTransform()->GetPosition();
+	auto position = gameObject->GetTransform()->GetWorldPosition();
 	
 	OutputDebugStringW((std::to_wstring(position.x) + L" " + std::to_wstring(position.y) + L" "+ std::to_wstring(position.z) + L" " + L"\n").c_str());
 }

@@ -7,7 +7,7 @@ void Light::Update()
 		lightData.Strength = strength;
 		lightData.FalloffEnd = falloffEnd;
 		lightData.FalloffStart = falloffStart;
-		lightData.Position = gameObject->GetTransform()->GetPosition();
+		lightData.Position = gameObject->GetTransform()->GetWorldPosition();
 		lightData.SpotPower = spotPower;
 		lightData.Direction = direction;
 

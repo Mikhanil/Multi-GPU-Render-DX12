@@ -10,13 +10,12 @@
 #include "GameObject.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
-#include "GeometryGenerator.h"
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
 #include "ModelRenderer.h"
 #include "ObjectMover.h"
-#include "pix3.h"
 #include "Renderer.h"
+#include "Rotater.h"
 #include "SquidRoom.h"
 #include "Window.h"
 
@@ -99,7 +98,7 @@ namespace DXLib
 		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto cmdList = commandQueue->GetCommandList();
 
-		mShadowMap = std::make_unique<ShadowMap>(4096, 4096);
+		shadowMap = std::make_unique<ShadowMap>(4096, 4096);
 
 		ssao = std::make_unique<Ssao>(
 			dxDevice.Get(),
@@ -354,7 +353,7 @@ namespace DXLib
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer);
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, mShadowMap->GetSrvMemory());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrvMemory());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, ssao->AmbientMapSrv(), 0);
 
 		/*Bind all Diffuse Textures*/
@@ -378,7 +377,7 @@ namespace DXLib
 		{
 		case 1:
 			{
-				cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, mShadowMap->GetSrvMemory());
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, shadowMap->GetSrvMemory());
 				cmdList->SetPipelineState(*psos[PsoType::Debug]);
 				DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Debug)]);
 				break;
@@ -426,54 +425,41 @@ namespace DXLib
 
 		auto cmdList = commandQueue->GetCommandList();
 
+
+		commandQueue->StartPixEvent(L"Prepare Render 3D");
 		cmdList->SetGMemory(&srvHeap);
 		cmdList->SetRootSignature(rootSignature.get());
-
-		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Prepare Render 3D");
-
-
 		/*Bind all materials*/		
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffer);
-
-
 		/*Bind all Diffuse Textures*/
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvHeap);
-		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
+		commandQueue->EndPixEvent();
 
 
-		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Render 3D");
+		commandQueue->StartPixEvent(L"Render 3D");
 
-		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Shadow Map Pass");
+		commandQueue->StartPixEvent(L"Shadow Map Pass");
 		DrawSceneToShadowMap(cmdList);
-		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
+		commandQueue->EndPixEvent();
 
-		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Normal and Depth Pass");
-		DrawNormalsAndDepth(cmdList);
-		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
+		commandQueue->StartPixEvent(L"Normal and Depth Pass");
+		DrawNormals(cmdList);
+		commandQueue->EndPixEvent();
 
-		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Compute SSAO");
-
+		commandQueue->StartPixEvent(L"Compute SSAO");
 		cmdList->SetRootSignature(ssaoRootSignature.get());
-		ssao->ComputeSsao(cmdList, currentFrameResource, 3);
-		
-		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
+		ssao->ComputeSsao(cmdList, currentFrameResource, 3);		
+		commandQueue->EndPixEvent();
 
-		PIXBeginEvent(commandQueue->GetD3D12CommandQueue().Get(), 0, L"Main Pass");		
-
-		
+		commandQueue->StartPixEvent(L"Main Pass");		
 		cmdList->SetRootSignature(rootSignature.get());		
-		
-		DrawSSAAMap(cmdList);
-		
+		DrawSSAAMap(cmdList);		
 		DrawToWindowBackBuffer(cmdList);		
-		
 		currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
-
-		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
-		PIXEndEvent(commandQueue->GetD3D12CommandQueue().Get());
+		commandQueue->EndPixEvent();
+		commandQueue->EndPixEvent();
 
 		currBackBufferIndex = MainWindow->Present();
-
 	}
 	
 	void SampleApp::UpdateGameObjects(const GameTimer& gt)
@@ -549,8 +535,8 @@ namespace DXLib
 		auto invProj = proj.Invert();
 		auto invViewProj = viewProj.Invert();
 
-		UINT w = mShadowMap->Width();
-		UINT h = mShadowMap->Height();
+		UINT w = shadowMap->Width();
+		UINT h = shadowMap->Height();
 
 		mShadowPassCB.View = view.Transpose();
 		mShadowPassCB.InvView = invView.Transpose();
@@ -595,7 +581,7 @@ namespace DXLib
 		mainPassCB.InvViewProj = invViewProj.Transpose();
 		mainPassCB.ViewProjTex = viewProjTex.Transpose();
 		mainPassCB.ShadowTransform = shadowTransform.Transpose();
-		mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetPosition();
+		mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetWorldPosition();
 		mainPassCB.RenderTargetSize = XMFLOAT2(static_cast<float>(MainWindow->GetClientWidth()),
 		                                       static_cast<float>(MainWindow->GetClientHeight()));
 		mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mainPassCB.RenderTargetSize.x,
@@ -904,7 +890,7 @@ namespace DXLib
 		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,  loader.GetLoadTexturesCount()));
 
 
-		mShadowMap->BuildDescriptors();
+		shadowMap->BuildDescriptors();
 
 		ssao->BuildDescriptors();
 	}
@@ -1237,13 +1223,9 @@ namespace DXLib
 
 	void SampleApp::BuildGameObjects()
 	{
-		auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
-		camera->GetTransform()->SetPosition({-9, 102, -240});
-		camera->GetTransform()->SetRadianRotate({-0.100110, -2.716100, 0.000000});
-		camera->AddComponent(new Camera(AspectRatio()));
-		camera->AddComponent(new CameraController());
-		gameObjects.push_back(std::move(camera));
+		
 
+		
 		auto skySphere = std::make_unique<GameObject>(dxDevice.Get(), "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
 		auto renderer = new ModelRenderer();
@@ -1329,12 +1311,30 @@ namespace DXLib
 		platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
 		platform->GetTransform()->SetPosition(Vector3::Backward * -130);
 		typedGameObjects[PsoType::Opaque].push_back(platform.get());
+				
+		auto rotater = std::make_unique<GameObject>(dxDevice.Get());
+		rotater->GetTransform()->SetParent(platform->GetTransform());
+		rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
+		rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
+		rotater->AddComponent(new Rotater(10));	
+		
 
+		auto camera = std::make_unique<GameObject>(dxDevice.Get(), "MainCamera");
+		camera->GetTransform()->SetParent(rotater->GetTransform());
+		camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
+		camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
+		camera->AddComponent(new Camera(AspectRatio()));
+		camera->AddComponent(new CameraController());
+		
+		gameObjects.push_back(std::move(camera));
+		gameObjects.push_back(std::move(rotater));
+
+		
 		auto stair = CreateGOWithRenderer(models[L"stair"]);
 		stair->GetTransform()->SetParent(platform->GetTransform());
 		stair->SetScale(0.2);
 		stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
-		stair->GetTransform()->SetPosition(Vector3::Right * -675 );
+		stair->GetTransform()->SetPosition(Vector3::Left * 700 );
 		typedGameObjects[PsoType::Opaque].push_back(stair.get());
 
 
@@ -1342,8 +1342,9 @@ namespace DXLib
 		columns->GetTransform()->SetParent(stair->GetTransform());
 		columns->SetScale(0.8);
 		columns->GetTransform()->SetEulerRotate(Vector3(0,0,90));
-		columns->GetTransform()->SetPosition(Vector3::Up * 1800 + Vector3::Backward * -925);		
+		columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900 );
 		typedGameObjects[PsoType::Opaque].push_back(columns.get());
+		
 		gameObjects.push_back(std::move(columns));
 		gameObjects.push_back(std::move(stair));
 		gameObjects.push_back(std::move(platform));
@@ -1411,17 +1412,17 @@ namespace DXLib
 
 	void SampleApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> list)
 	{
-		list->SetViewports(&mShadowMap->Viewport(), 1);
-		list->SetScissorRects(&mShadowMap->ScissorRect(), 1);
+		list->SetViewports(&shadowMap->Viewport(), 1);
+		list->SetScissorRects(&shadowMap->ScissorRect(), 1);
 
-		list->TransitionBarrier(mShadowMap->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		list->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		list->FlushResourceBarriers();
 
 
-		list->ClearDepthStencil(mShadowMap->GetDsvMemory(), 0,
+		list->ClearDepthStencil(shadowMap->GetDsvMemory(), 0,
 		                        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
-		list->SetRenderTargets(0, nullptr, false, mShadowMap->GetDsvMemory());
+		list->SetRenderTargets(0, nullptr, false, shadowMap->GetDsvMemory());
 
 		//Shadow Path Data
 		list->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer,1);
@@ -1433,11 +1434,11 @@ namespace DXLib
 		list->SetPipelineState(*psos[PsoType::ShadowMapOpaqueDrop]);
 		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
-		list->TransitionBarrier(mShadowMap->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
+		list->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
 		list->FlushResourceBarriers();
 	}
 
-	void SampleApp::DrawNormalsAndDepth(std::shared_ptr<GCommandList> list)
+	void SampleApp::DrawNormals(std::shared_ptr<GCommandList> list)
 	{
 		list->SetViewports(&MainWindow->GetViewPort(), 1);
 		list->SetScissorRects(&MainWindow->GetRect(), 1);

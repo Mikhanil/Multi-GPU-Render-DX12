@@ -35,7 +35,7 @@ class GraphicPSO
 	ComPtr<ID3D12PipelineState> pipelineStateObject;
 	ComPtr<ID3D12PipelineState> debugPso;
 	PsoType::Type type;
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
 
 	bool isInitial = false;
 
@@ -43,15 +43,9 @@ public:
 
 	GraphicPSO(PsoType::Type type = PsoType::Opaque);
 
-	ComPtr<ID3D12PipelineState> GetPSO() const
-	{
-		return pipelineStateObject;
-	}
+	ComPtr<ID3D12PipelineState> GetPSO() const;
 
-	void SetPsoDesc(D3D12_GRAPHICS_PIPELINE_STATE_DESC desc)
-	{
-		psoDesc = desc;
-	}
+	void SetPsoDesc(D3D12_GRAPHICS_PIPELINE_STATE_DESC desc);
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC GetPsoDescription() const;
 
@@ -61,10 +55,7 @@ public:
 
 	void SetRasterizationState(D3D12_RASTERIZER_DESC rastState);
 
-	void SetRenderTargetBlendState(UINT index, D3D12_RENDER_TARGET_BLEND_DESC desc)
-	{
-		psoDesc.BlendState.RenderTarget[index] = desc;
-	}
+	void SetRenderTargetBlendState(UINT index, D3D12_RENDER_TARGET_BLEND_DESC desc);
 
 	void SetBlendState(D3D12_BLEND_DESC blendDesc);
 

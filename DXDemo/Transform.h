@@ -27,7 +27,7 @@ public:
 
 	void AdjustEulerRotation(float roll, float pitch, float yaw);
 
-	[[nodiscard]] Vector3 GetPosition() const;
+	[[nodiscard]] Vector3 GetWorldPosition() const;
 
 	[[nodiscard]] Vector3 GetScale() const;
 
@@ -60,6 +60,7 @@ public:
 	Vector3 GetDownVector() const;
 
 	Matrix GetWorldMatrix() const;
+	Matrix MakeLocalToParent() const;
 
 	void SetWorldMatrix(const Matrix& mat);
 
@@ -68,6 +69,7 @@ private:
 	Matrix world = Matrix::Identity;
 
 
+	Matrix MakeParentToLocal() const;
 	Matrix CalculateWorldMatrix() const;
 
 	static UINT gConstantBufferIndex;
@@ -77,10 +79,10 @@ private:
 	UINT bufferIndex = -1;
 	int NumFramesDirty = globalCountFrameResources;
 
-	Vector3 position = Vector3::Zero;
+	Vector3 localPosition = Vector3::Zero;
 
-	Vector3 eulerAngles = Vector3::Zero;
+	Vector3 localEulerAngles = Vector3::Zero;
 
-	Quaternion rotate = Quaternion::Identity;
-	Vector3 scale = Vector3::One;
+	Quaternion localRotate = Quaternion::Identity;
+	Vector3 localScale = Vector3::One;
 };

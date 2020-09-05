@@ -123,6 +123,9 @@
     <ClCompile Include="SSAA.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Rotater.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\Default.hlsl">
@@ -230,6 +233,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SSAA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Rotater.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

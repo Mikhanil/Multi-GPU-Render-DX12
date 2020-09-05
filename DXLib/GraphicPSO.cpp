@@ -11,6 +11,16 @@ GraphicPSO::GraphicPSO(PsoType::Type type): type(type)
 	psoDesc.NumRenderTargets = 1;
 }
 
+ComPtr<ID3D12PipelineState> GraphicPSO::GetPSO() const
+{
+	return pipelineStateObject;
+}
+
+void GraphicPSO::SetPsoDesc(D3D12_GRAPHICS_PIPELINE_STATE_DESC desc)
+{
+	psoDesc = desc;
+}
+
 D3D12_GRAPHICS_PIPELINE_STATE_DESC GraphicPSO::GetPsoDescription() const
 {
 	return psoDesc;
@@ -29,6 +39,11 @@ void GraphicPSO::SetInputLayout(D3D12_INPUT_LAYOUT_DESC layoutDesc)
 void GraphicPSO::SetRasterizationState(D3D12_RASTERIZER_DESC rastState)
 {
 	psoDesc.RasterizerState = rastState;
+}
+
+void GraphicPSO::SetRenderTargetBlendState(UINT index, D3D12_RENDER_TARGET_BLEND_DESC desc)
+{
+	psoDesc.BlendState.RenderTarget[index] = desc;
 }
 
 void GraphicPSO::SetBlendState(D3D12_BLEND_DESC blendDesc)
