@@ -11,11 +11,11 @@ class GameObject
 {
 public:
 
-	GameObject(ID3D12Device* device);
+	GameObject();
 
-	GameObject(ID3D12Device* device, std::string name);
+	GameObject(std::string name);
 
-	GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 scale, Quaternion rotate);
+	GameObject(std::string name, Vector3 position, Vector3 scale, Quaternion rotate);
 
 	void virtual Update();
 

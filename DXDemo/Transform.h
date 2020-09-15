@@ -8,9 +8,9 @@ using namespace DirectX::SimpleMath;
 class Transform : public Component
 {
 public:
-	Transform(ID3D12Device* device, Vector3 pos, Quaternion rot, Vector3 scale);
+	Transform(Vector3 pos, Quaternion rot, Vector3 scale);
 
-	Transform(ID3D12Device* device);
+	Transform();
 
 	void SetPosition(const Vector3& pos);
 

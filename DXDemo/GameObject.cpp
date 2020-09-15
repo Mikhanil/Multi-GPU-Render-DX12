@@ -4,21 +4,21 @@
 #include "ModelRenderer.h"
 #include "Transform.h"
 
-GameObject::GameObject(ID3D12Device* device) : GameObject(device, "Game Object")
+GameObject::GameObject() : GameObject( "Game Object")
 {
 };
 
-GameObject::GameObject(ID3D12Device* device, std::string name)
-	: GameObject(device, std::move(name), Vector3::Zero,
+GameObject::GameObject(std::string name)
+	: GameObject( std::move(name), Vector3::Zero,
 	             Vector3::One, Quaternion::Identity)
 {
 }
 
 GameObject::
-GameObject(ID3D12Device* device, std::string name, Vector3 position, Vector3 scale, Quaternion rotate): name(
+GameObject(std::string name, Vector3 position, Vector3 scale, Quaternion rotate): name(
 	std::move(name))
 {
-	transform = std::make_unique<Transform>(device, position, rotate, scale);
+	transform = std::make_unique<Transform>( position, rotate, scale);
 
 	AddComponent(transform.get());
 }

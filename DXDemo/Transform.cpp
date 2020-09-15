@@ -3,13 +3,13 @@
 
 UINT Transform::gConstantBufferIndex = 0;
 
-Transform::Transform(ID3D12Device* device, Vector3 pos, Quaternion rot, Vector3 scale): Component(), localPosition(pos),
+Transform::Transform(Vector3 pos, Quaternion rot, Vector3 scale): Component(), localPosition(pos),
                                                                                         localRotate(rot), localScale(scale)
 {
 	bufferIndex = gConstantBufferIndex++;
 }
 
-Transform::Transform(ID3D12Device* device) : Transform(device, Vector3::Zero, Quaternion::Identity, Vector3::One)
+Transform::Transform() : Transform(Vector3::Zero, Quaternion::Identity, Vector3::One)
 {
 }
 
