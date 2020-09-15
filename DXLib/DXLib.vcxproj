@@ -170,6 +170,7 @@
     <ClInclude Include="DirectXBuffers.h" />
     <ClInclude Include="DXAllocator.h" />
     <ClInclude Include="ComputePSO.h" />
+    <ClInclude Include="GDevice.h" />
     <ClInclude Include="GMemory.h" />
     <ClInclude Include="GAllocator.h" />
     <ClInclude Include="GHeap.h" />
@@ -195,6 +196,7 @@
     <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="DXAllocator.cpp" />
     <ClCompile Include="ComputePSO.cpp" />
+    <ClCompile Include="GDevice.cpp" />
     <ClCompile Include="GMemory.cpp" />
     <ClCompile Include="GAllocator.cpp" />
     <ClCompile Include="GHeap.cpp" />

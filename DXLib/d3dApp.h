@@ -26,8 +26,11 @@
 #include <dxgi1_6.h>
 #include "d3d11on12.h"
 #include "d3d11.h"
-
+#include "Lazy.h"
+#include "DXAllocator.h"
 using Microsoft::WRL::ComPtr;
+
+class GDevice;
 
 namespace DXLib
 {
@@ -43,23 +46,21 @@ namespace DXLib
 		D3DApp& operator=(const D3DApp& rhs) = delete;
 		virtual ~D3DApp();
 
-	public:		
+	public:
 
-		
 
-		
-		void Destroy() const;
+		static void Destroy();
 
 		bool IsTearingSupported() const;
 
 		std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight,
 		                                           bool vSync = true);
 
-		void DestroyWindow(const std::wstring& windowName);
-		
-		void DestroyWindow(std::shared_ptr<Window> window);
+		void DestroyWindow(const std::wstring& windowName) const;
 
-		std::shared_ptr<Window> GetWindowByName(const std::wstring& windowName);
+		static void DestroyWindow(std::shared_ptr<Window> window);
+
+		static std::shared_ptr<Window> GetWindowByName(const std::wstring& windowName);
 		
 
 		static void Quit(int exitCode = 0);
@@ -72,6 +73,7 @@ namespace DXLib
 
 
 		UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
+		
 
 		GameTimer* GetTimer();
 
@@ -98,11 +100,7 @@ namespace DXLib
 
 	protected:
 
-	
-		
-		ComPtr<IDXGIAdapter4> GetAdapter(bool bUseWarp);
-		ComPtr<ID3D12Device2> GetOrCreateDevice();
-		bool CheckTearingSupport();
+		bool CheckTearingSupport() const;
 
 		virtual void OnResize();
 		virtual void Update(const GameTimer& gt) = 0;
@@ -111,20 +109,10 @@ namespace DXLib
 	protected:
 		WNDCLASS windowClass;
 		std::shared_ptr<Window> MainWindow;
-
-
-		std::shared_ptr<GCommandQueue> directCommandQueue;
-		std::shared_ptr<GCommandQueue> computeCommandQueue;
-		std::shared_ptr<GCommandQueue> copyCommandQueue;
-
 		bool m_TearingSupported;
 
 		std::wstring fpsStr;
-		std::wstring mainWindowCaption = L"d3d App";
-		D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_HARDWARE;
-		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-		DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		
+		std::wstring mainWindowCaption = L"d3d App";			
 
 
 		static D3DApp* instance;
@@ -146,20 +134,22 @@ namespace DXLib
 
 		bool InitMainWindow();
 
+		void InitialAdaptersAndDevices();
+		
+		custom_vector<ComPtr<IDXGIAdapter3>> adapters = DXAllocator::CreateVector<ComPtr<IDXGIAdapter3>>();
+		
+		custom_vector<Lazy<std::shared_ptr<GDevice>>> gdevices = DXAllocator::CreateVector<Lazy<std::shared_ptr<GDevice>>>();
+
+		ComPtr<ID3D12Device2> GetMainDevice() const;
+
+
 		ComPtr<IDXGIFactory4> dxgiFactory;
-		ComPtr<ID3D12Device2> dxDevice;
 		bool InitDirect3D();
 
-		int currBackBufferIndex = 0;
-		UINT rtvDescriptorSize = 0;
-		UINT dsvDescriptorSize = 0;
-		UINT cbvSrvUavDescriptorSize = 0;
 
 
-		void CalculateFrameStats();
+		void CalculateFrameStats() const;
 
 		void LogAdapters();
-		void LogAdapterOutputs(IDXGIAdapter* adapter);
-		void LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format);
 	};
 }

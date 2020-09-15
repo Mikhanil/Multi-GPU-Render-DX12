@@ -5,6 +5,7 @@
 #include "GCommandQueue.h"
 #include "Window.h"
 #include "DXAllocator.h"
+#include "GDevice.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std;
@@ -37,6 +38,8 @@ namespace DXLib
 	D3DApp::D3DApp(HINSTANCE hInstance)
 		: appInstance(hInstance)
 	{
+		InitialAdaptersAndDevices();		
+		
 		// Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
 		// Using this awareness context allows the client area of the window 
 		// to achieve 100% scaling while still allowing non-client window content to 
@@ -62,14 +65,15 @@ namespace DXLib
 		
 
 		{
-			directCommandQueue = std::make_shared<GCommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_DIRECT);
-			computeCommandQueue = std::make_shared<GCommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COMPUTE);
-			copyCommandQueue = std::make_shared<GCommandQueue>(GetOrCreateDevice(), D3D12_COMMAND_LIST_TYPE_COPY);
+			
 
 			m_TearingSupported = CheckTearingSupport();
 		}
 
 
+
+
+		
 		// Only one D3DApp can be constructed.
 		assert(instance == nullptr);
 		instance = this;
@@ -80,7 +84,7 @@ namespace DXLib
 		Flush();		
 	}
 
-	void D3DApp::Destroy() const
+	void D3DApp::Destroy()
 	{
 		for (auto&& gs_window : gs_Windows)
 		{
@@ -124,7 +128,7 @@ namespace DXLib
 		return pWindow;
 	}
 
-	void D3DApp::DestroyWindow(const std::wstring& windowName)
+	void D3DApp::DestroyWindow(const std::wstring& windowName) const
 	{
 		WindowPtr pWindow = GetWindowByName(windowName);
 		if (pWindow)
@@ -150,7 +154,6 @@ namespace DXLib
 		return window;
 	}
 
-
 	void D3DApp::Quit(int exitCode)
 	{
 		PostQuitMessage(exitCode);
@@ -158,90 +161,21 @@ namespace DXLib
 
 	std::shared_ptr<GCommandQueue> D3DApp::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
 	{
-		std::shared_ptr<GCommandQueue> commandQueue;
-		switch (type)
-		{
-		case D3D12_COMMAND_LIST_TYPE_DIRECT:
-			commandQueue = directCommandQueue;
-			break;
-		case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-			commandQueue = computeCommandQueue;
-			break;
-		case D3D12_COMMAND_LIST_TYPE_COPY:
-			commandQueue = copyCommandQueue;
-			break;
-		default:
-			assert(false && "Invalid command queue type.");
-		}
-
-		return commandQueue;
+		return gdevices[0].value()->GetCommandQueue(type);
 	}
 
 	void D3DApp::Flush()
 	{
-		directCommandQueue->Signal();
-		directCommandQueue->Flush();
-		
-		computeCommandQueue->Signal();
-		computeCommandQueue->Flush();
-
-		copyCommandQueue->Signal();
-		copyCommandQueue->Flush();
+		gdevices[0].value()->Flush();
 	}
-
 	
-
 	UINT D3DApp::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
 	{
-		return dxDevice->GetDescriptorHandleIncrementSize(type);
+		return gdevices[0].value()->GetDescriptorHandleIncrementSize(type);
 	}
-
-	ComPtr<IDXGIAdapter4> D3DApp::GetAdapter(bool bUseWarp)
-	{
-		ComPtr<IDXGIFactory4> dxgiFactory;
-		UINT createFactoryFlags = 0;
-#if defined(_DEBUG)
-		createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-		ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
-
-		ComPtr<IDXGIAdapter1> dxgiAdapter1;
-		ComPtr<IDXGIAdapter4> dxgiAdapter4;
-
-		if (bUseWarp)
-		{
-			ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&dxgiAdapter1)));
-			ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
-		}
-		else
-		{
-			SIZE_T maxDedicatedVideoMemory = 0;
-			for (UINT i = 0; dxgiFactory->EnumAdapters1(i, &dxgiAdapter1) != DXGI_ERROR_NOT_FOUND; ++i)
-			{
-				DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
-				dxgiAdapter1->GetDesc1(&dxgiAdapterDesc1);
-
-				// Check to see if the adapter can create a D3D12 device without actually 
-				// creating it. The adapter with the largest dedicated video memory
-				// is favored.
-				if ((dxgiAdapterDesc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0 &&
-					SUCCEEDED(D3D12CreateDevice(dxgiAdapter1.Get(),
-						D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr)) &&
-					dxgiAdapterDesc1.DedicatedVideoMemory > maxDedicatedVideoMemory)
-				{
-					maxDedicatedVideoMemory = dxgiAdapterDesc1.DedicatedVideoMemory;
-					ThrowIfFailed(dxgiAdapter1.As(&dxgiAdapter4));
-				}
-			}
-		}
-
-		return dxgiAdapter4;
-	}
-
-	ComPtr<ID3D12Device2> D3DApp::GetOrCreateDevice()
-	{
-		if (dxDevice == nullptr)
+	
+	void D3DApp::InitialAdaptersAndDevices()
+	{		
 		{
 #if defined(DEBUG) || defined(_DEBUG)
 			{
@@ -256,67 +190,26 @@ namespace DXLib
 #if defined(DEBUG) || defined(_DEBUG)
 			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
 #endif
-
+						
 
 			ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
 
-			HRESULT hardwareResult = D3D12CreateDevice(
-				nullptr, // default adapter
-				D3D_FEATURE_LEVEL_11_0,
-				IID_PPV_ARGS(&dxDevice));
+			UINT adapterindex = 0;
 
-			if (FAILED(hardwareResult))
+			ComPtr<IDXGIAdapter1> adapter;
+			while (dxgiFactory->EnumAdapters1(adapterindex++, &adapter) != DXGI_ERROR_NOT_FOUND)
 			{
-				ComPtr<IDXGIAdapter> pWarpAdapter;
-				ThrowIfFailed(dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pWarpAdapter)));
+				ComPtr<IDXGIAdapter3>  adapter3;
+				ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
+				adapters.push_back((adapter3));
 
-				ThrowIfFailed(D3D12CreateDevice(
-					pWarpAdapter.Get(),
-					D3D_FEATURE_LEVEL_11_0,
-					IID_PPV_ARGS(&dxDevice)));
-			}
-
-#if defined(DEBUG) || defined(_DEBUG)
-
-			ComPtr<ID3D12InfoQueue> pInfoQueue;
-			if (SUCCEEDED(dxDevice.As(&pInfoQueue)))
-			{
-				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-				pInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-
-
-				// Suppress messages based on their severity level
-				D3D12_MESSAGE_SEVERITY Severities[] =
-				{
-					D3D12_MESSAGE_SEVERITY_INFO
-				};
-
-				// Suppress individual messages by their ID
-				D3D12_MESSAGE_ID DenyIds[] = {
-					D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
-					// I'm really not sure how to avoid this message.
-					D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
-					// This warning occurs when using capture frame while graphics debugging.
-					D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
-					// This warning occurs when using capture frame while graphics debugging.
-				};
-
-				D3D12_INFO_QUEUE_FILTER NewFilter = {};
-				NewFilter.DenyList.NumSeverities = _countof(Severities);
-				NewFilter.DenyList.pSeverityList = Severities;
-				NewFilter.DenyList.NumIDs = _countof(DenyIds);
-				NewFilter.DenyList.pIDList = DenyIds;
-
-				ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
-			}
-#endif
+				gdevices.push_back(std::move(Lazy< std::shared_ptr<GDevice >>([adapter3] { return std::make_shared<GDevice>(adapter3);    })));
+				
+			}			
 		}
-
-		return dxDevice;
 	}
 
-	bool D3DApp::CheckTearingSupport()
+	bool D3DApp::CheckTearingSupport() const
 	{
 		BOOL allowTearing = FALSE;
 
@@ -345,7 +238,7 @@ namespace DXLib
 
 	ID3D12Device& D3DApp::GetDevice()
 	{
-		return *(GetApp().dxDevice.Get());
+		return *(GetApp().GetMainDevice().Get());
 	}
 
 	HINSTANCE D3DApp::AppInst() const
@@ -435,8 +328,6 @@ namespace DXLib
 
 	void D3DApp::OnResize()
 	{
-		assert(dxDevice);
-
 		MainWindow->OnResize();
 	}
 
@@ -496,7 +387,7 @@ namespace DXLib
 				pWindow->SetWidth(width);
 				pWindow->SetHeight(height);
 
-				if (dxDevice)
+				if (GetMainDevice())
 				{
 					if (wParam == SIZE_MINIMIZED)
 					{
@@ -607,21 +498,19 @@ namespace DXLib
 		return true;
 	}
 
+	ComPtr<ID3D12Device2> D3DApp::GetMainDevice() const
+	{
+		return gdevices[0].value()->GetDevice();
+	}
+
 	bool D3DApp::InitDirect3D()
 	{
-		GetOrCreateDevice();
-
-
-		rtvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		dsvDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-		cbvSrvUavDescriptorSize = dxDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
 		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
-		msQualityLevels.Format = backBufferFormat;
+		msQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		msQualityLevels.SampleCount = 4;
 		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 		msQualityLevels.NumQualityLevels = 0;
-		ThrowIfFailed(dxDevice->CheckFeatureSupport(
+		ThrowIfFailed(GetMainDevice()->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
 			&msQualityLevels,
 			sizeof(msQualityLevels)));
@@ -637,7 +526,7 @@ namespace DXLib
 		return true;
 	}
 
-	void D3DApp::CalculateFrameStats()
+	void D3DApp::CalculateFrameStats() const
 	{
 		MainWindow->OnRender();
 	}
@@ -665,55 +554,9 @@ namespace DXLib
 
 		for (size_t i = 0; i < adapterList.size(); ++i)
 		{
-			LogAdapterOutputs(adapterList[i]);
 			ReleaseCom(adapterList[i]);
 		}
 	}
 
-	void D3DApp::LogAdapterOutputs(IDXGIAdapter* adapter)
-	{
-		UINT i = 0;
-		IDXGIOutput* output = nullptr;
-		while (adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND)
-		{
-			DXGI_OUTPUT_DESC desc;
-			output->GetDesc(&desc);
-
-			std::wstring text = L"***Output: ";
-			text += desc.DeviceName;
-			text += L"\n";
-			OutputDebugString(text.c_str());
-
-			LogOutputDisplayModes(output, backBufferFormat);
-
-			ReleaseCom(output);
-
-			++i;
-		}
-	}
-
-	void D3DApp::LogOutputDisplayModes(IDXGIOutput* output, DXGI_FORMAT format)
-	{
-		UINT count = 0;
-		UINT flags = 0;
-
-		// Call with nullptr to get list count.
-		output->GetDisplayModeList(format, flags, &count, nullptr);
-
-		std::vector<DXGI_MODE_DESC> modeList(count);
-		output->GetDisplayModeList(format, flags, &count, &modeList[0]);
-
-		for (auto& x : modeList)
-		{
-			UINT n = x.RefreshRate.Numerator;
-			UINT d = x.RefreshRate.Denominator;
-			std::wstring text =
-				L"Width = " + std::to_wstring(x.Width) + L" " +
-				L"Height = " + std::to_wstring(x.Height) + L" " +
-				L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
-				L"\n";
-
-			::OutputDebugString(text.c_str());
-		}
-	}
+	
 }

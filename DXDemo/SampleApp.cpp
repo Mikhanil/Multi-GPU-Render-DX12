@@ -101,7 +101,7 @@ namespace DXLib
 		shadowMap = std::make_unique<ShadowMap>(4096, 4096);
 
 		ssao = std::make_unique<Ssao>(
-			dxDevice.Get(),
+			GetMainDevice().Get(),
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -459,7 +459,7 @@ namespace DXLib
 		commandQueue->EndPixEvent();
 		commandQueue->EndPixEvent();
 
-		currBackBufferIndex = MainWindow->Present();
+		backBufferIndex = MainWindow->Present();
 	}
 	
 	void SampleApp::UpdateGameObjects(const GameTimer& gt)
@@ -1180,7 +1180,7 @@ namespace DXLib
 
 		for (auto& pso : psos)
 		{
-			pso.second->Initialize(dxDevice.Get());
+			pso.second->Initialize(GetMainDevice().Get());
 		}
 	}
 
