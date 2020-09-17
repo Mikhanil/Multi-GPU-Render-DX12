@@ -8,13 +8,16 @@ GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter) : adapter(adapter)
 		assert("Cant create device. Null Adapter");
 	}
 
-	DXGI_ADAPTER_DESC desc;
-	ThrowIfFailed(adapter->GetDesc(&desc));
+	DXGI_ADAPTER_DESC2 desc;
+	ThrowIfFailed(adapter->GetDesc2(&desc));
+	
+
 	
 	ThrowIfFailed(D3D12CreateDevice(
 		adapter.Get(), // default adapter
 		D3D_FEATURE_LEVEL_11_0,
 		IID_PPV_ARGS(&device)));	
+
 	
 	ThrowIfFailed(device->SetName(desc.Description));
 	

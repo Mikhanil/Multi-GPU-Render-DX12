@@ -159,14 +159,17 @@ namespace DXLib
 		PostQuitMessage(exitCode);
 	}
 
-	std::shared_ptr<GCommandQueue> D3DApp::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
-	{
-		return gdevices[0].value()->GetCommandQueue(type);
-	}
 
 	void D3DApp::Flush()
 	{
-		gdevices[0].value()->Flush();
+		/*for (auto && device : gdevices)
+		{
+			device.value()->Flush();
+		}*/
+
+		
+		gdevices[0].value()->Flush();		
+		//gdevices[1].value()->Flush();		
 	}
 	
 	UINT D3DApp::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
@@ -194,18 +197,41 @@ namespace DXLib
 
 			ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
 
-			UINT adapterindex = 0;
 
+			
+			UINT adapterindex = 0;
 			ComPtr<IDXGIAdapter1> adapter;
 			while (dxgiFactory->EnumAdapters1(adapterindex++, &adapter) != DXGI_ERROR_NOT_FOUND)
 			{
+				DXGI_ADAPTER_DESC1 desc;
+				adapter->GetDesc1(&desc);
+
+				wstring name(desc.Description);
+
+				//Skip warp adapter
+				if(name.find(L"Microsoft") != std::wstring::npos)
+				{
+					continue;
+				}
+				
+				
 				ComPtr<IDXGIAdapter3>  adapter3;
 				ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
 				adapters.push_back((adapter3));
-
+								
+				
 				gdevices.push_back(std::move(Lazy< std::shared_ptr<GDevice >>([adapter3] { return std::make_shared<GDevice>(adapter3);    })));
 				
-			}			
+			}
+
+			if(gdevices.size() <= 1)
+			{
+				dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
+				ComPtr<IDXGIAdapter3>  adapter3;
+				ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
+				adapters.push_back((adapter3));
+				gdevices.push_back(std::move(Lazy< std::shared_ptr<GDevice >>([adapter3] { return std::make_shared<GDevice>(adapter3);    })));				
+			}
 		}
 	}
 
@@ -238,7 +264,7 @@ namespace DXLib
 
 	ID3D12Device& D3DApp::GetDevice()
 	{
-		return *(GetApp().GetMainDevice().Get());
+		return *(GetApp().GetMainDevice()->GetDevice().Get());
 	}
 
 	HINSTANCE D3DApp::AppInst() const
@@ -498,9 +524,9 @@ namespace DXLib
 		return true;
 	}
 
-	ComPtr<ID3D12Device2> D3DApp::GetMainDevice() const
+	std::shared_ptr<GDevice> D3DApp::GetMainDevice() const
 	{
-		return gdevices[0].value()->GetDevice();
+		return gdevices[0].value();
 	}
 
 	bool D3DApp::InitDirect3D()
@@ -510,7 +536,7 @@ namespace DXLib
 		msQualityLevels.SampleCount = 4;
 		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 		msQualityLevels.NumQualityLevels = 0;
-		ThrowIfFailed(GetMainDevice()->CheckFeatureSupport(
+		ThrowIfFailed(GetMainDevice()->GetDevice()->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
 			&msQualityLevels,
 			sizeof(msQualityLevels)));

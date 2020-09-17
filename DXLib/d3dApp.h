@@ -65,10 +65,6 @@ namespace DXLib
 
 		static void Quit(int exitCode = 0);
 
-
-		std::shared_ptr<GCommandQueue> GetCommandQueue(
-			D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
-
 		void Flush();
 
 
@@ -98,6 +94,7 @@ namespace DXLib
 			return frameCount;
 		}
 
+		std::shared_ptr<GDevice> GetMainDevice() const;
 	protected:
 
 		bool CheckTearingSupport() const;
@@ -140,7 +137,7 @@ namespace DXLib
 		
 		custom_vector<Lazy<std::shared_ptr<GDevice>>> gdevices = DXAllocator::CreateVector<Lazy<std::shared_ptr<GDevice>>>();
 
-		ComPtr<ID3D12Device2> GetMainDevice() const;
+		
 
 
 		ComPtr<IDXGIFactory4> dxgiFactory;

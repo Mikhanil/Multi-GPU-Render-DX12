@@ -18,13 +18,14 @@
 #include "Rotater.h"
 #include "SquidRoom.h"
 #include "Window.h"
+#include "GDevice.h"
 
 namespace DXLib
 {
 	SampleApp::SampleApp(HINSTANCE hInstance)
 		: D3DApp(hInstance)
 	{
-		mSceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
 		mSceneBounds.Radius = 175;
 
 		for (int i = 0; i < PsoType::Count; ++i)
@@ -59,7 +60,7 @@ namespace DXLib
 		}
 
 
-		auto graphicQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto graphicQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto graphicList = graphicQueue->GetCommandList();
 
 		for (auto&& texture : generatedMipTextures)
@@ -69,7 +70,7 @@ namespace DXLib
 		graphicQueue->WaitForFenceValue( graphicQueue->ExecuteCommandList(graphicList));
 
 		
-		const auto computeQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		const auto computeQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 		auto computeList = computeQueue->GetCommandList();		
 		GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
 		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -95,13 +96,13 @@ namespace DXLib
 		if (!D3DApp::Initialize())
 			return false;
 
-		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto cmdList = commandQueue->GetCommandList();
 
 		shadowMap = std::make_unique<ShadowMap>(4096, 4096);
 
 		ssao = std::make_unique<Ssao>(
-			GetMainDevice().Get(),
+			GetMainDevice()->GetDevice().Get(),
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -301,7 +302,7 @@ namespace DXLib
 
 	void SampleApp::Update(const GameTimer& gt)
 	{
-		auto commandQueue = this->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		// Cycle through the circular frame resource array.
 		currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
@@ -421,7 +422,7 @@ namespace DXLib
 	{
 		if (isResizing) return;
 
-		auto commandQueue = GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		auto cmdList = commandQueue->GetCommandList();
 
@@ -566,7 +567,7 @@ namespace DXLib
 		auto shadowTransform = mShadowTransform;
 
 		// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-		XMMATRIX T(
+		Matrix T(
 			0.5f, 0.0f, 0.0f, 0.0f,
 			0.0f, -0.5f, 0.0f, 0.0f,
 			0.0f, 0.0f, 1.0f, 0.0f,
@@ -582,15 +583,15 @@ namespace DXLib
 		mainPassCB.ViewProjTex = viewProjTex.Transpose();
 		mainPassCB.ShadowTransform = shadowTransform.Transpose();
 		mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetWorldPosition();
-		mainPassCB.RenderTargetSize = XMFLOAT2(static_cast<float>(MainWindow->GetClientWidth()),
+		mainPassCB.RenderTargetSize = Vector2(static_cast<float>(MainWindow->GetClientWidth()),
 		                                       static_cast<float>(MainWindow->GetClientHeight()));
-		mainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / mainPassCB.RenderTargetSize.x,
+		mainPassCB.InvRenderTargetSize = Vector2(1.0f / mainPassCB.RenderTargetSize.x,
 		                                          1.0f / mainPassCB.RenderTargetSize.y);
 		mainPassCB.NearZ = 1.0f;
 		mainPassCB.FarZ = 1000.0f;
 		mainPassCB.TotalTime = gt.TotalTime();
 		mainPassCB.DeltaTime = gt.DeltaTime();
-		mainPassCB.AmbientLight = {0.25f, 0.25f, 0.35f, 1.0f};
+		mainPassCB.AmbientLight = Vector4{0.25f, 0.25f, 0.35f, 1.0f};
 
 		for (int i = 0; i < MaxLights; ++i)
 		{
@@ -605,11 +606,11 @@ namespace DXLib
 		}
 
 		mainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
-		mainPassCB.Lights[0].Strength = {0.9f, 0.8f, 0.7f};
+		mainPassCB.Lights[0].Strength = Vector3{0.9f, 0.8f, 0.7f};
 		mainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-		mainPassCB.Lights[1].Strength = {0.4f, 0.4f, 0.4f};
+		mainPassCB.Lights[1].Strength = Vector3{0.4f, 0.4f, 0.4f};
 		mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
-		mainPassCB.Lights[2].Strength = {0.2f, 0.2f, 0.2f};
+		mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
 
 
 		auto currentPassCB = currentFrameResource->PassConstantBuffer.get();
@@ -623,7 +624,7 @@ namespace DXLib
 		auto P = camera->GetProjectionMatrix();
 
 		// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-		XMMATRIX T(
+		Matrix T(
 			0.5f, 0.0f, 0.0f, 0.0f,
 			0.0f, -0.5f, 0.0f, 0.0f,
 			0.0f, 0.0f, 1.0f, 0.0f,
@@ -636,11 +637,11 @@ namespace DXLib
 		ssao->GetOffsetVectors(ssaoCB.OffsetVectors);
 
 		auto blurWeights = ssao->CalcGaussWeights(2.5f);
-		ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
-		ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
-		ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+		ssaoCB.BlurWeights[0] = Vector4(&blurWeights[0]);
+		ssaoCB.BlurWeights[1] = Vector4(&blurWeights[4]);
+		ssaoCB.BlurWeights[2] = Vector4(&blurWeights[8]);
 
-		ssaoCB.InvRenderTargetSize = XMFLOAT2(1.0f / ssao->SsaoMapWidth(), 1.0f / ssao->SsaoMapHeight());
+		ssaoCB.InvRenderTargetSize = Vector2(1.0f / ssao->SsaoMapWidth(), 1.0f / ssao->SsaoMapHeight());
 
 		// Coordinates given in view space.
 		ssaoCB.OcclusionRadius = 0.5f;
@@ -724,7 +725,7 @@ namespace DXLib
 	
 	void SampleApp::LoadModels()
 	{
-		auto queue = GetCommandQueue();
+		auto queue = GetMainDevice()->GetCommandQueue();
 
 		auto nano = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 
@@ -780,9 +781,9 @@ namespace DXLib
 	
 	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
 	{
-		auto queue = GetCommandQueue();
+		auto queue = GetMainDevice()->GetCommandQueue();
 		
-		auto graphicCmdList = GetCommandQueue()->GetCommandList();		
+		auto graphicCmdList = queue->GetCommandList();
 		LoadStudyTexture(graphicCmdList);		;		
 		queue->WaitForFenceValue(queue->ExecuteCommandList(graphicCmdList));
 
@@ -999,7 +1000,7 @@ namespace DXLib
 
 	void SampleApp::BuildShapeGeometry()
 	{
-		auto queue = GetCommandQueue();
+		auto queue = GetMainDevice()->GetCommandQueue();
 		auto cmdList = queue->GetCommandList();
 
 		auto sphere = loader.GenerateSphere(cmdList);	
@@ -1180,7 +1181,7 @@ namespace DXLib
 
 		for (auto& pso : psos)
 		{
-			pso.second->Initialize(GetMainDevice().Get());
+			pso.second->Initialize(GetMainDevice()->GetDevice().Get());
 		}
 	}
 
@@ -1196,7 +1197,7 @@ namespace DXLib
 	void SampleApp::BuildMaterials()
 	{		
 		auto seamless = std::make_shared<Material>(L"seamless", PsoType::Opaque);
-		seamless->FresnelR0 = XMFLOAT3(0.02f, 0.02f, 0.02f);
+		seamless->FresnelR0 = Vector3(0.02f, 0.02f, 0.02f);
 		seamless->Roughness = 0.1f;
 		seamless->SetDiffuseTexture(loader.GetTexture(L"seamless"));
 		seamless->SetNormalMap(loader.GetTexture(L"defaultNormalMap"));
@@ -1205,8 +1206,8 @@ namespace DXLib
 	
 
 		auto skyBox = std::make_shared<Material>(L"sky", PsoType::SkyBox);
-		skyBox->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-		skyBox->FresnelR0 = XMFLOAT3(0.1f, 0.1f, 0.1f);
+		skyBox->DiffuseAlbedo = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+		skyBox->FresnelR0 = Vector3(0.1f, 0.1f, 0.1f);
 		skyBox->Roughness = 1.0f;
 		skyBox->SetDiffuseTexture(loader.GetTexture(L"skyTex"));
 		skyBox->SetNormalMap(loader.GetTexture(L"defaultNormalMap"));
