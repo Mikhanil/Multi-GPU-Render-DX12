@@ -209,39 +209,6 @@ GTexture& GTexture::operator=(GTexture&& other)
 	return *this;
 }
 
-void GTexture::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, GMemory* memory, size_t offset) const
-{
-	auto& app = DXLib::D3DApp::GetApp();
-	auto& device = app.GetDevice();
-	device.CreateShaderResourceView(dxResource.Get(), srvDesc, memory->GetCPUHandle(offset));
-	
-}
-
-void GTexture::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, GMemory* memory, size_t offset) const
-{
-	auto& app = DXLib::D3DApp::GetApp();
-	auto& device = app.GetDevice();
-
-	device.CreateUnorderedAccessView(dxResource.Get(), nullptr, uavDesc, memory->GetCPUHandle(offset));
-
-}
-
-void GTexture::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, GMemory* memory, size_t offset ) const
-{
-	auto& app = DXLib::D3DApp::GetApp();
-	auto& device = app.GetDevice();
-
-	device.CreateRenderTargetView(dxResource.Get(), rtvDesc, memory->GetCPUHandle(offset));
-
-}
-
-void GTexture::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, GMemory* memory, size_t offset) const
-{
-	auto& app = DXLib::D3DApp::GetApp();
-	auto& device = app.GetDevice();
-	device.CreateDepthStencilView(dxResource.Get(), dsvDesc, memory->GetCPUHandle(offset));
-}
-
 
 GTexture::~GTexture()
 {

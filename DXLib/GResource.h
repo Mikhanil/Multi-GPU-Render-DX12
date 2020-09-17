@@ -7,6 +7,8 @@
 
 #include "d3dx12.h"
 
+class GMemory;
+
 struct DescriptorHandle
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
@@ -44,7 +46,10 @@ public:
 	                              const D3D12_CLEAR_VALUE* clearValue = nullptr);
 
 	
-
+	void CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, GMemory* memory, size_t offset = 0) const;
+	void CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, GMemory* memory, size_t offset = 0) const;
+	void CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, GMemory* memory, size_t offset = 0) const;
+	void CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, GMemory* memory, size_t offset = 0) const;
 
 	
 	void SetName(const std::wstring& name);

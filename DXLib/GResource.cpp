@@ -1,7 +1,7 @@
 #include "GResource.h"
 
 #include <utility>
-
+#include "GMemory.h"
 
 #include "d3dApp.h"
 #include "d3dUtil.h"
@@ -139,6 +139,40 @@ void GResource::SetD3D12Resource(ComPtr<ID3D12Resource> d3d12Resource,
 	}
 	
 	SetName(resourceName);
+}
+
+
+void GResource::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, GMemory* memory, size_t offset) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+	device.CreateShaderResourceView(dxResource.Get(), srvDesc, memory->GetCPUHandle(offset));
+
+}
+
+void GResource::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, GMemory* memory, size_t offset) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+
+	device.CreateUnorderedAccessView(dxResource.Get(), nullptr, uavDesc, memory->GetCPUHandle(offset));
+
+}
+
+void GResource::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, GMemory* memory, size_t offset) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+
+	device.CreateRenderTargetView(dxResource.Get(), rtvDesc, memory->GetCPUHandle(offset));
+
+}
+
+void GResource::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, GMemory* memory, size_t offset) const
+{
+	auto& app = DXLib::D3DApp::GetApp();
+	auto& device = app.GetDevice();
+	device.CreateDepthStencilView(dxResource.Get(), dsvDesc, memory->GetCPUHandle(offset));
 }
 
 void GResource::SetName(const std::wstring& name)

@@ -53,7 +53,7 @@ public:
 
 	Material(std::wstring name, PsoType::Type pso = PsoType::Opaque);
 
-	void InitMaterial(GMemory& textureHeap);
+	void InitMaterial(GMemory* textureHeap);
 
 	void Draw(std::shared_ptr<GCommandList> cmdList) const;
 
