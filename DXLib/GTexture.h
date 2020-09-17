@@ -22,9 +22,6 @@ enum class TextureUsage
 
 class GTexture : public GResource
 {
-	static UINT textureIndexGlobal;
-	UINT textureIndex = -1;
-
 	TextureUsage usage;
 
 	custom_vector<ComPtr<ID3D12Resource>> track = DXAllocator::CreateVector<ComPtr<ID3D12Resource>>();

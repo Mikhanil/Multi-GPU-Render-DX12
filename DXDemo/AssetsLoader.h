@@ -25,11 +25,15 @@ class AssetsLoader
 	
 	custom_vector<std::shared_ptr<Mesh>> meshes = DXAllocator::CreateVector<std::shared_ptr<Mesh>>();
 
-	custom_unordered_map<std::wstring, std::shared_ptr<GTexture>> textures = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GTexture>>();
+	custom_vector<std::shared_ptr<GTexture>> textures = DXAllocator::CreateVector<std::shared_ptr<GTexture>>();
+	custom_vector<std::shared_ptr<GShader>> shaders = DXAllocator::CreateVector<std::shared_ptr<GShader>>();
+	custom_vector<std::shared_ptr<Material>> materials = DXAllocator::CreateVector<std::shared_ptr<Material>>();
+	
+	custom_unordered_map<std::wstring, UINT> texturesMap = DXAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
-	custom_unordered_map<std::wstring, std::shared_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GShader>>();
+	custom_unordered_map<std::wstring, UINT> shadersMap = DXAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
-	custom_unordered_map<std::wstring, std::shared_ptr<Material>> materials = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Material>>();
+	custom_unordered_map<std::wstring, UINT> materialsMap = DXAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
 	custom_unordered_map<std::shared_ptr<Mesh>, std::shared_ptr<Material>> defaultMaterialForMeshFromFile = DXAllocator::CreateUnorderedMap<std::shared_ptr<Mesh>, std::shared_ptr<Material>>();
 
@@ -46,18 +50,45 @@ class AssetsLoader
 	
 public:
 
+	UINT GetTextureIndex(std::wstring name) {
+		auto it = texturesMap.find(name);
+		if(it == texturesMap.end())
+		{
+			return  -1;
+		}
+		return it->second;
+	}
+
+	UINT GetShaderIndex(std::wstring name) {
+		auto it = shadersMap.find(name);
+		if (it == shadersMap.end())
+		{
+			return  -1;
+		}
+		return it->second;
+	}
+
+	UINT GetMaterialIndex(std::wstring name) {
+		auto it = materialsMap.find(name);
+		if (it == materialsMap.end())
+		{
+			return  -1;
+		}
+		return it->second;
+	}
+	
 	size_t GetLoadTexturesCount() const;
 
 	void AddMaterial(std::shared_ptr<Material> material);
 	
 	void AddTexture(std::shared_ptr<GTexture> texture);
 
-	custom_unordered_map<std::wstring, std::shared_ptr<Material>>& GetMaterials();
+	custom_vector<std::shared_ptr<Material>>& GetMaterials();
 
-	custom_unordered_map<std::wstring, std::shared_ptr<GTexture>>& GetTextures();
+	custom_vector<std::shared_ptr<GTexture>>& GetTextures();
 	
-	std::shared_ptr<GTexture> GetTexture(std::wstring name);
-	std::shared_ptr<Material> GetMaterials(std::wstring name);
+	std::shared_ptr<GTexture> GetTexture(UINT index);
+	std::shared_ptr<Material> GetMaterials(UINT index);
 	std::shared_ptr<Material> GetDefaultMaterial(std::shared_ptr<Mesh> mesh);
 	std::shared_ptr<Model> GetModelByName(std::wstring name);
 

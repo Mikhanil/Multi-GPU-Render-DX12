@@ -13,7 +13,6 @@
 #include "GCommandList.h"
 #include "GShader.h"
 
-UINT GTexture::textureIndexGlobal = 0;
 
 void GTexture::Resize(GTexture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
 {
@@ -158,34 +157,27 @@ TextureUsage GTexture::GetTextureType() const
 	return usage;
 }
 
-UINT GTexture::GetTextureIndex() const
-{
-	return textureIndex;
-}
 
 GTexture::GTexture(std::wstring name, TextureUsage use): GResource( name),
                                                                               usage(use)
 {
-	textureIndex = textureIndexGlobal++;
 }
 
 GTexture::GTexture(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, TextureUsage textureUsage, const D3D12_CLEAR_VALUE* clearValue) : GResource(resourceDesc, name, clearValue),
                                                                         usage(textureUsage)
 {
-	textureIndex = textureIndexGlobal++;
 }
 
 GTexture::GTexture(ComPtr<ID3D12Resource> resource, TextureUsage textureUsage,
                  const std::wstring& name) : GResource(resource, name), usage(textureUsage)
 {
-	textureIndex = textureIndexGlobal++;
 }
 
-GTexture::GTexture(const GTexture& copy) : GResource(copy), textureIndex(copy.textureIndex)
+GTexture::GTexture(const GTexture& copy) : GResource(copy)
 {
 }
 
-GTexture::GTexture(GTexture&& copy) : GResource(copy), textureIndex(std::move(copy.textureIndex))
+GTexture::GTexture(GTexture&& copy) : GResource(copy)
 {
 }
 
@@ -193,18 +185,12 @@ GTexture& GTexture::operator=(const GTexture& other)
 {
 	GResource::operator=(other);
 
-	textureIndex = other.textureIndex;
-
-
 	return *this;
 }
 
 GTexture& GTexture::operator=(GTexture&& other)
 {
 	GResource::operator=(other);
-
-	textureIndex = other.textureIndex;
-
 
 	return *this;
 }

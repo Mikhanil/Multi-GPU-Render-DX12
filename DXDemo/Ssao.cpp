@@ -213,7 +213,7 @@ void Ssao::ComputeSsao(
 	cmdList->Draw(6, 1, 0, 0);
 
 
-	cmdList->TransitionBarrier(ambientMap0, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->TransitionBarrier(ambientMap0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	cmdList->FlushResourceBarriers();
 	
 	BlurAmbientMap(cmdList, currFrame, blurCount);
@@ -229,7 +229,7 @@ void Ssao::ClearAmbiantMap(
 	cmdList->ClearRenderTarget(&ambientMapRtvMemory,0, clearValue);
 
 
-	cmdList->TransitionBarrier(ambientMap0, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->TransitionBarrier(ambientMap0, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	cmdList->FlushResourceBarriers();
 }
 
@@ -285,7 +285,7 @@ void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur)
 	cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->Draw(6, 1, 0, 0);
 
-	cmdList->TransitionBarrier(output, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->TransitionBarrier(output, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	cmdList->FlushResourceBarriers();
 }
 

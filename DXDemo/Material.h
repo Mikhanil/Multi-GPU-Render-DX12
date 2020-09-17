@@ -45,11 +45,11 @@ public:
 
 	PsoType::Type GetPSO() const;
 
-	void SetNormalMap(std::shared_ptr<GTexture> texture);
+	void SetNormalMap(std::shared_ptr<GTexture> texture, UINT index);
 
 	void SetType(PsoType::Type pso);
 
-	void SetDiffuseTexture(std::shared_ptr<GTexture> texture);
+	void SetDiffuseTexture(std::shared_ptr<GTexture> texture, UINT index);
 
 	Material(std::wstring name, PsoType::Type pso = PsoType::Opaque);
 

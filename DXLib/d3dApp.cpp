@@ -185,6 +185,10 @@ namespace DXLib
 				ComPtr<ID3D12Debug> debugController;
 				ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
 				debugController->EnableDebugLayer();
+
+				ComPtr<ID3D12Debug1> spDebugController1;				
+				ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&spDebugController1)));
+				//spDebugController1->SetEnableGPUBasedValidation(true);
 			}
 #endif
 

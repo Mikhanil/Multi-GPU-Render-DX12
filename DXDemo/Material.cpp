@@ -23,10 +23,10 @@ void Material::SetDirty()
 	NumFramesDirty = globalCountFrameResources;
 }
 
-void Material::SetNormalMap(std::shared_ptr<GTexture> texture)
+void Material::SetNormalMap(std::shared_ptr<GTexture> texture, UINT index)
 {
 	normalMap = texture;
-	NormalMapIndex = texture->GetTextureIndex();
+	NormalMapIndex = index;
 }
 
 void Material::SetType(PsoType::Type pso)
@@ -39,10 +39,10 @@ PsoType::Type Material::GetPSO() const
 	return type;
 }
 
-void Material::SetDiffuseTexture(std::shared_ptr<GTexture> texture)
+void Material::SetDiffuseTexture(std::shared_ptr<GTexture> texture, UINT index)
 {
 	diffuseMap = texture;
-	DiffuseMapIndex = texture->GetTextureIndex();
+	DiffuseMapIndex = index;
 }
 
 Material::Material(std::wstring name, PsoType::Type pso): Name(std::move(name)), type(pso)

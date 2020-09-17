@@ -47,15 +47,15 @@ namespace DXLib
 		
 		for (auto&& texture : textures)
 		{
-			texture.second->ClearTrack();
+			texture->ClearTrack();
 
 			/*ТОлько те что можно использовать как UAV*/
-			if (texture.second->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+			if (texture->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
 				continue;
 
-			if (!texture.second->HasMipMap)
+			if (!texture->HasMipMap)
 			{
-				generatedMipTextures.push_back(texture.second.get());
+				generatedMipTextures.push_back(texture.get());
 			}
 		}
 
@@ -86,7 +86,7 @@ namespace DXLib
 
 		for (auto&& pair : textures)
 		{
-			pair.second->ClearTrack();
+			pair->ClearTrack();
 		}
 
 	}
@@ -479,9 +479,9 @@ namespace DXLib
 
 		for (auto&& material : loader.GetMaterials())
 		{
-			material.second->Update();
-			auto constantData = material.second->GetMaterialConstantData();
-			currentMaterialBuffer->CopyData(material.second->GetIndex(), constantData);
+			material->Update();
+			auto constantData = material->GetMaterialConstantData();
+			currentMaterialBuffer->CopyData(material->GetIndex(), constantData);
 		}
 	}
 
@@ -1199,8 +1199,13 @@ namespace DXLib
 		auto seamless = std::make_shared<Material>(L"seamless", PsoType::Opaque);
 		seamless->FresnelR0 = Vector3(0.02f, 0.02f, 0.02f);
 		seamless->Roughness = 0.1f;
-		seamless->SetDiffuseTexture(loader.GetTexture(L"seamless"));
-		seamless->SetNormalMap(loader.GetTexture(L"defaultNormalMap"));
+
+		auto tex = loader.GetTextureIndex(L"seamless");		
+		seamless->SetDiffuseTexture(loader.GetTexture(tex), tex);
+
+		tex = loader.GetTextureIndex(L"defaultNormalMap");
+		
+		seamless->SetNormalMap(loader.GetTexture(tex), tex);
 		loader.AddMaterial(seamless);
 
 	
@@ -1209,8 +1214,11 @@ namespace DXLib
 		skyBox->DiffuseAlbedo = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 		skyBox->FresnelR0 = Vector3(0.1f, 0.1f, 0.1f);
 		skyBox->Roughness = 1.0f;
-		skyBox->SetDiffuseTexture(loader.GetTexture(L"skyTex"));
-		skyBox->SetNormalMap(loader.GetTexture(L"defaultNormalMap"));
+		skyBox->SetNormalMap(loader.GetTexture(tex), tex);
+
+		tex = loader.GetTextureIndex(L"skyTex");
+		
+		skyBox->SetDiffuseTexture(loader.GetTexture(tex), tex);
 		loader.AddMaterial(skyBox);
 		
 
@@ -1218,7 +1226,7 @@ namespace DXLib
 		
 		for (auto pair : materials)
 		{
-			pair.second->InitMaterial(srvHeap);
+			pair->InitMaterial(&srvHeap);
 		}
 	}
 
@@ -1230,18 +1238,18 @@ namespace DXLib
 		auto skySphere = std::make_unique<GameObject>( "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
 		auto renderer = new ModelRenderer();
-		renderer->material = loader.GetMaterials(L"sky").get();
+		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"sky")).get();
 		renderer->SetModel(models[L"sphere"]);
-		renderer->SetMeshMaterial(0, loader.GetMaterials(L"sky"));
+		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"sky")));
 		skySphere->AddComponent(renderer);
 		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 		gameObjects.push_back(std::move(skySphere));
 
 		auto quadRitem = std::make_unique<GameObject>( "Quad");
 		renderer = new ModelRenderer();
-		renderer->material = loader.GetMaterials(L"seamless").get();
+		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"seamless")).get();
 		renderer->SetModel(models[L"quad"]);
-		renderer->SetMeshMaterial(0, loader.GetMaterials(L"seamless"));
+		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"seamless")));
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 		typedGameObjects[PsoType::Quad].push_back(quadRitem.get());
@@ -1317,7 +1325,7 @@ namespace DXLib
 		rotater->GetTransform()->SetParent(platform->GetTransform());
 		rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 		rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
-		rotater->AddComponent(new Rotater(10));	
+		//rotater->AddComponent(new Rotater(10));	
 		
 
 		auto camera = std::make_unique<GameObject>( "MainCamera");

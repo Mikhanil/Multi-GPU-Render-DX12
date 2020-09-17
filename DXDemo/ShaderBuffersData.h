@@ -117,7 +117,7 @@ struct SsaoConstants
 	float SurfaceEpsilon = 0.05f;
 };
 
-struct MaterialConstants
+struct alignas(sizeof(Vector4)) MaterialConstants
 {
 	Vector4 DiffuseAlbedo = Vector4{1.0f, 1.0f, 1.0f, 1.0f};
 	Vector3 FresnelR0 = Vector3{0.01f, 0.01f, 0.01f};

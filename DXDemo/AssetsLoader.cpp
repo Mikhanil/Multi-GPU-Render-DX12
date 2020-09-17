@@ -1,4 +1,15 @@
 #include "AssetsLoader.h"
+
+
+
+#include "ComputePSO.h"
+#include "ComputePSO.h"
+#include "ComputePSO.h"
+#include "ComputePSO.h"
+#include "ComputePSO.h"
+#include "ComputePSO.h"
+#include "ComputePSO.h"
+#include "ComputePSO.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
 #include "GeometryGenerator.h"
@@ -132,16 +143,18 @@ std::shared_ptr<GTexture> AssetsLoader::LoadOrGetTexture(const aiMaterial* mater
 	std::wstring textureName = modelTexturePath;
 	std::wstring texturePath = directory + L"\\" + textureName;
 
-	const auto it = textures.find(textureName);
-	if (it != textures.end()) return it->second;
+	const auto it = texturesMap.find(textureName);
+	if (it != texturesMap.end()) return textures[ it->second];
 	
 	OutputDebugStringW((texturePath + L"\n").c_str());
 
 	auto texture = GTexture::LoadTextureFromFile(texturePath, cmdList, type == aiTextureType_DIFFUSE ? TextureUsage::Albedo : TextureUsage::Normalmap);
 	texture->SetName(textureName);
+
+	textures.push_back(std::move(texture));
 	
-	textures[textureName] = std::move(texture);
-	return textures[textureName];
+	texturesMap[textureName] = textures.size() - 1;
+	return textures[texturesMap[textureName]];
 }
 
 void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMaterial* material, const std::shared_ptr<GCommandList> cmdList)
@@ -150,10 +163,10 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMa
 	material->Get(AI_MATKEY_NAME, name);
 	auto materialName = mesh->GetName() + L" " + AnsiToWString(name.C_Str());
 
-	const auto it = materials.find(materialName);
-	if (it != materials.end())
+	const auto it = materialsMap.find(materialName);
+	if (it != materialsMap.end())
 	{
-		defaultMaterialForMeshFromFile[mesh] = it->second;		
+		defaultMaterialForMeshFromFile[mesh] = materials[it->second];		
 		return;
 	}
 
@@ -172,20 +185,21 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMa
 	else
 	{
 
-		const auto textureIt = textures.find(L"seamless");
-		if (textureIt != textures.end())
+		const auto textureIt = texturesMap.find(L"seamless");
+		if (textureIt != texturesMap.end())
 		{
-			diffuse = textureIt->second;
+			diffuse = textures[textureIt->second];
 		}
 		else
 		{
-			auto defaultNormal = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList,
+			auto defauldAlbedo = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList,
 				TextureUsage::Diffuse);
-			defaultNormal->SetName(L"seamless");
+			defauldAlbedo->SetName(L"seamless");
 
-			textures[defaultNormal->GetName()] = std::move(defaultNormal);
+			textures.push_back((defauldAlbedo));			
+			texturesMap[defauldAlbedo->GetName()] = textures.size() - 1;
 
-			diffuse = textures[L"seamless"];
+			diffuse = textures.back();
 		}		
 	}
 
@@ -207,10 +221,10 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMa
 		}
 		else {
 
-			const auto textureIt = textures.find(L"defaultNormalMap");
-			if (textureIt != textures.end())
+			const auto textureIt = texturesMap.find(L"defaultNormalMap");
+			if (textureIt != texturesMap.end())
 			{
-				normal = textureIt->second;
+				normal = textures[textureIt->second];
 			}
 			else
 			{
@@ -218,9 +232,11 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMa
 					TextureUsage::Normalmap);
 				defaultNormal->SetName(L"defaultNormalMap");
 
-				textures[defaultNormal->GetName()] = std::move(defaultNormal);
+				textures.push_back((defaultNormal));
+				
+				texturesMap[defaultNormal->GetName()] = textures.size() - 1;
 
-				normal = textures[L"defaultNormalMap"];
+				normal = textures.back();
 			}
 		}
 	}	 
@@ -228,8 +244,8 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<Mesh> mesh, const aiMa
 
 	
 	auto mat = std::make_shared<Material>(materialName);
-	mat->SetDiffuseTexture(diffuse);
-	mat->SetNormalMap(normal);
+	mat->SetDiffuseTexture(diffuse, texturesMap[diffuse->GetName()]);
+	mat->SetNormalMap(normal, texturesMap[normal->GetName()]);
 	mat->FresnelR0 = Vector3::One * 0.05;
 	mat->Roughness = 0.95;
 
@@ -259,47 +275,42 @@ void  AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<Model> model, aiNode* n
 
 size_t AssetsLoader::GetLoadTexturesCount() const
 {
-	return textures.size();
+	return texturesMap.size();
 }
 
 void AssetsLoader::AddMaterial(std::shared_ptr<Material> material)
-{
-	materials[material->GetName()] = std::move( material);
+{	
+	materialsMap[material->GetName()] = materials.size();
+	materials.push_back(std::move(material));
 }
 
 void AssetsLoader::AddTexture(std::shared_ptr<GTexture> texture)
 {
-	textures[texture->GetName()] = std::move(texture);
+	
+	texturesMap[texture->GetName()] = textures.size();
+	textures.push_back(std::move(texture));
 }
 
-custom_unordered_map<std::wstring, std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
+custom_vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
 {
 	return materials;
 }
 
 
-custom_unordered_map<std::wstring, std::shared_ptr<GTexture>>& AssetsLoader::GetTextures()
+custom_vector<std::shared_ptr<GTexture>>& AssetsLoader::GetTextures()
 {
 	return textures;
 }
 
 
-std::shared_ptr<GTexture> AssetsLoader::GetTexture(std::wstring name)
+std::shared_ptr<GTexture> AssetsLoader::GetTexture(UINT index)
 {
-	const auto it = textures.find(name);
-
-	if (it != textures.end()) return it->second;
-
-	return nullptr;
+	return textures[index];
 }
 
-std::shared_ptr<Material> AssetsLoader::GetMaterials(std::wstring name)
+std::shared_ptr<Material> AssetsLoader::GetMaterials(UINT index)
 {
-	const auto it = materials.find(name);
-
-	if (it != materials.end()) return it->second;
-
-	return nullptr;
+	return materials[index];
 }
 
 std::shared_ptr<Material> AssetsLoader::GetDefaultMaterial(std::shared_ptr<Mesh> mesh)
