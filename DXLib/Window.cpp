@@ -378,7 +378,7 @@ namespace DXLib
 		swapChainDesc.Flags = isTearingSupported
 			                      ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
 			                      : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-		ID3D12CommandQueue* pCommandQueue = app.GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetD3D12CommandQueue().
+		ID3D12CommandQueue* pCommandQueue = app.GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetD3D12CommandQueue().
 		                                        Get();
 
 		ComPtr<IDXGISwapChain1> swapChain1;
@@ -410,13 +410,15 @@ namespace DXLib
 		rtvDesc.Format = GetSRGBFormat(backBufferFormat);
 		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
+		auto device = D3DApp::GetApp().GetDevice();
+		
 		for (int i = 0; i < BufferCount; ++i)
 		{
 			ComPtr<ID3D12Resource> backBuffer;
 			ThrowIfFailed(swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
 			GResourceStateTracker::AddGlobalResourceState(backBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
 			
-			backBuffers[i].SetD3D12Resource(backBuffer);
+			backBuffers[i].SetD3D12Resource(device, backBuffer);
 			backBuffers[i].CreateRenderTargetView(&rtvDesc, &rtvDescriptorHeap, i);
 		}
 	}

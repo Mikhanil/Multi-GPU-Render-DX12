@@ -162,10 +162,9 @@ void GRootSignature::AddStaticSampler(const D3D12_STATIC_SAMPLER_DESC sampler)
 }
 
 
-void GRootSignature::Initialize()
+void GRootSignature::Initialize(const std::shared_ptr<GDevice> device)
 {
-	auto& device = DXLib::D3DApp::GetApp().GetDevice();
-	
+		
 	if (!staticSampler.empty())
 	{
 		rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
@@ -228,7 +227,7 @@ void GRootSignature::Initialize()
 	}
 	ThrowIfFailed(hr);
 
-	ThrowIfFailed(device.CreateRootSignature(
+	ThrowIfFailed(device->GetDXDevice()->CreateRootSignature(
 		0,
 		serializedRootSig->GetBufferPointer(),
 		serializedRootSig->GetBufferSize(),

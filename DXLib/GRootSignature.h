@@ -5,6 +5,7 @@
 #include <array>
 
 using namespace Microsoft::WRL;
+class GDevice;
 
 class GRootSignature
 {
@@ -56,7 +57,7 @@ public:
 	void AddStaticSampler(CD3DX12_STATIC_SAMPLER_DESC sampler);
 	void AddStaticSampler(D3D12_STATIC_SAMPLER_DESC sampler);;
 
-	void Initialize();
+	void Initialize(const std::shared_ptr<GDevice> device);
 
 	ComPtr<ID3D12RootSignature> GetRootSignature() const;
 };

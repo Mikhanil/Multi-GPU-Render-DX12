@@ -10,7 +10,7 @@ struct FrameResource
 {
 public:
 
-	FrameResource(UINT passCount, UINT objectCount, UINT materialCount);
+	FrameResource(std::shared_ptr<GDevice> device, UINT passCount, UINT objectCount, UINT materialCount);
 	FrameResource(const FrameResource& rhs) = delete;
 	FrameResource& operator=(const FrameResource& rhs) = delete;
 	~FrameResource();

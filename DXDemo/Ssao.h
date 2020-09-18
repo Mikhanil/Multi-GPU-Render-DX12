@@ -10,7 +10,7 @@ class Ssao
 {
 public:
 
-	Ssao(ID3D12Device* device,
+	Ssao(const std::shared_ptr<GDevice> device,
 	     std::shared_ptr<GCommandList> cmdList,
 	     UINT width, UINT height);
 	Ssao(const Ssao& rhs) = delete;
@@ -56,7 +56,8 @@ public:
 
 
 private:
-		
+	std::shared_ptr<GDevice> device;
+	
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, FrameResource* currFrame, int blurCount);
 	void BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur);
 	GTexture CreateNormalMap() const;
@@ -70,7 +71,6 @@ private:
 
 
 private:
-	ID3D12Device* md3dDevice;
 
 	GraphicPSO mSsaoPso;
 	GraphicPSO mBlurPso;

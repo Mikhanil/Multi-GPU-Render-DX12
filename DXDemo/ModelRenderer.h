@@ -15,6 +15,7 @@ class ModelRenderer : public Renderer
 	
 	custom_vector<std::shared_ptr<Material>> meshesMaterials = DXAllocator::CreateVector< std::shared_ptr<Material>>();
 	
+	std::shared_ptr<GDevice> device;
 	
 protected:
 		
@@ -24,6 +25,8 @@ protected:
 
 public:
 
+	ModelRenderer(const std::shared_ptr<GDevice> device) : Renderer(), device(device) {  };
+	
 	std::shared_ptr<Model> model = nullptr;
 
 	void SetModel(std::shared_ptr<Model> asset);

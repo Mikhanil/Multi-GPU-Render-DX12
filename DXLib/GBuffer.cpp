@@ -43,7 +43,7 @@ D3D12_VERTEX_BUFFER_VIEW GBuffer::VertexBufferView() const
 GBuffer GBuffer::CreateBuffer(std::shared_ptr<GCommandList> cmdList, void* data, UINT elementSize, UINT count, const std::wstring& name)
 {
 	const auto desc = CD3DX12_RESOURCE_DESC::Buffer(elementSize * count);
-	GBuffer buffer(name, desc, elementSize, count, data);
+	GBuffer buffer(cmdList->GetDevice(),name, desc, elementSize, count, data);
 
 	D3D12_SUBRESOURCE_DATA subResourceData = {};
 	subResourceData.pData = data;
@@ -57,8 +57,8 @@ GBuffer GBuffer::CreateBuffer(std::shared_ptr<GCommandList> cmdList, void* data,
 	return buffer;
 }
 
-GBuffer::GBuffer(const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
-                 void* data): GResource(resourceDesc, name), stride(elementSize), count(elementCount)
+GBuffer::GBuffer(const std::shared_ptr<GDevice> device, const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
+                 void* data): GResource(device,resourceDesc, name), stride(elementSize), count(elementCount)
 {
 	bufferSize = stride * count;
 	ThrowIfFailed(D3DCreateBlob(bufferSize, bufferCPU.GetAddressOf()));

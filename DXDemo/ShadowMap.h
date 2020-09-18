@@ -7,7 +7,7 @@ using namespace Microsoft::WRL;
 class ShadowMap
 {
 public:
-	ShadowMap(UINT width, UINT height);
+	ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height);
 
 	ShadowMap(const ShadowMap& rhs) = delete;
 	ShadowMap& operator=(const ShadowMap& rhs) = delete;
@@ -39,7 +39,7 @@ private:
 	void BuildResource();
 
 private:
-
+	std::shared_ptr<GDevice> device;
 
 	D3D12_VIEWPORT mViewport;
 	D3D12_RECT mScissorRect;

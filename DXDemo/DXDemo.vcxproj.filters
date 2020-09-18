@@ -87,9 +87,6 @@
     <ClCompile Include="SkyBox.cpp">
       <Filter>Source Files\GameObjectComponents</Filter>
     </ClCompile>
-    <ClCompile Include="Shadow.cpp">
-      <Filter>Source Files\GameObjectComponents</Filter>
-    </ClCompile>
     <ClCompile Include="Keyboard.cpp">
       <Filter>Source Files\Input</Filter>
     </ClCompile>
@@ -185,9 +182,6 @@
       <Filter>Header Files\GameObjectComponents</Filter>
     </ClInclude>
     <ClInclude Include="Reflected.h">
-      <Filter>Header Files\GameObjectComponents</Filter>
-    </ClInclude>
-    <ClInclude Include="Shadow.h">
       <Filter>Header Files\GameObjectComponents</Filter>
     </ClInclude>
     <ClInclude Include="Transform.h">

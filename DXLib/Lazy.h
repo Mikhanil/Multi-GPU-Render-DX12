@@ -16,6 +16,7 @@ namespace DXLib
 			std::function<T()> createValue;
 			std::once_flag initialized;
 			std::unique_ptr<T> value;
+			bool isInit = false;
 		};
 
 	public:
@@ -65,12 +66,18 @@ namespace DXLib
 			return value();
 		}
 
+		bool IsInit() const
+		{
+			return state->isInit;
+		}
+		
 	private:
 		void init() const
 		{
-			std::call_once(state->initialized, [&] { state->value = std::make_unique<T>(state->createValue()); });
+			std::call_once(state->initialized, [&] { state->value = std::make_unique<T>(state->createValue()); state->isInit = true; });
 		}
 
+		
 		std::shared_ptr<State> state = std::make_shared<State>();
 	};
 }

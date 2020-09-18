@@ -3,8 +3,8 @@
 #include "d3dApp.h"
 #include "d3dUtil.h"
 
-GDataUploader::GDataUploader(size_t pageSize)
-    : PageSize(pageSize)
+GDataUploader::GDataUploader(const std::shared_ptr<GDevice> device, size_t pageSize)
+    : PageSize(pageSize), device(device)
 {}
 
 GDataUploader::~GDataUploader()
@@ -47,7 +47,7 @@ UploadAllocation GDataUploader::Allocate(size_t sizeInBytes, size_t alignment = 
 
 std::shared_ptr<GDataUploader::UploadMemoryPage> GDataUploader::CreatePage(uint32_t pageSize) const
 {
-    return  std::make_shared<UploadMemoryPage>(pageSize);
+    return  std::make_shared<UploadMemoryPage>(device,pageSize);
 }
 
 void GDataUploader::Reset()
@@ -69,15 +69,13 @@ void GDataUploader::Clear()
 }
 
 
-GDataUploader::UploadMemoryPage::UploadMemoryPage(size_t sizeInBytes)
+GDataUploader::UploadMemoryPage::UploadMemoryPage(const std::shared_ptr<GDevice> device, size_t sizeInBytes)
     : CPUPtr(nullptr)
     , GPUPtr(D3D12_GPU_VIRTUAL_ADDRESS(0))
     , PageSize(sizeInBytes)
     , Offset(0)
 {
-    auto& device = DXLib::D3DApp::GetApp().GetDevice();
-
-    ThrowIfFailed(device.CreateCommittedResource(
+    ThrowIfFailed(device->GetDXDevice()->CreateCommittedResource(
         &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
         D3D12_HEAP_FLAG_NONE,
         &CD3DX12_RESOURCE_DESC::Buffer(PageSize),

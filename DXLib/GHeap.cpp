@@ -1,23 +1,21 @@
 #include "GHeap.h"
 #include "d3dApp.h"
 
-GHeap::GHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
+GHeap::GHeap(const std::shared_ptr<GDevice> device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
     : heapType(type)
     , numDescriptorsInHeap(numDescriptors)
 {
-    auto& device = DXLib::D3DApp::GetApp().GetDevice();
-
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
     heapDesc.Type = heapType;
     heapDesc.NumDescriptors = numDescriptorsInHeap;
     heapDesc.Flags = heapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-    ThrowIfFailed(device.CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&d3d12DescriptorHeap)));
+    ThrowIfFailed(device->GetDXDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&d3d12DescriptorHeap)));
 
     startCPUDescriptor = d3d12DescriptorHeap->GetCPUDescriptorHandleForHeapStart();
     startGPUDescriptor = d3d12DescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 	
-    descriptorHandleIncrementSize = device.GetDescriptorHandleIncrementSize(heapType);
+    descriptorHandleIncrementSize = device->GetDescriptorHandleIncrementSize(heapType);
     freeHandlesCount = numDescriptorsInHeap;
 
     AddNewBlock(0, freeHandlesCount);

@@ -72,7 +72,7 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 		renderTargetDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		renderTargetDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-		renderTarget = GTexture(renderTargetDesc, L"SSAA RTV", TextureUsage::RenderTarget);
+		renderTarget = GTexture(device,renderTargetDesc, L"SSAA RTV", TextureUsage::RenderTarget);
 	}
 	else
 	{
@@ -99,7 +99,7 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 		optClear.DepthStencil.Depth = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
 
-		depthMap = GTexture(depthStencilDesc, L"SSAA DSV", TextureUsage::Depth, &optClear);
+		depthMap = GTexture(device, depthStencilDesc, L"SSAA DSV", TextureUsage::Depth, &optClear);
 	}
 	else
 	{
@@ -132,7 +132,7 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 	depthMap.CreateDepthStencilView(&dsvDesc, &dsvMemory);
 }
 
-SSAA::SSAA(UINT multiplier, UINT width, UINT height): ResolutionMultiplier(multiplier)
+SSAA::SSAA(const std::shared_ptr<GDevice> device, UINT multiplier, UINT width, UINT height): ResolutionMultiplier(multiplier), device(device)
 {
 	OnResize(width, height);
 }

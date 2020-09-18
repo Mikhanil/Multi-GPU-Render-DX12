@@ -8,11 +8,9 @@ ComputePSO::ComputePSO()
 }
 
 
-void ComputePSO::Initialize()
+void ComputePSO::Initialize(const std::shared_ptr<GDevice> device)
 {
-	auto& device = DXLib::D3DApp::GetApp().GetDevice();
-	ThrowIfFailed(device.CreateComputePipelineState(&computePSOdesc, IID_PPV_ARGS(&m_PipelineState)));
-
+	ThrowIfFailed(device->GetDXDevice()->CreateComputePipelineState(&computePSOdesc, IID_PPV_ARGS(&m_PipelineState)));
 }
 
 ComPtr<ID3D12PipelineState> ComputePSO::GetPSO() const

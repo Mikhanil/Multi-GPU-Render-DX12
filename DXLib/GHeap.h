@@ -7,10 +7,12 @@
 #include "d3dx12.h"
 #include <mutex>
 
+class GDevice;
+
 class GHeap : public std::enable_shared_from_this<GHeap>
 {
 public:
-    GHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
+    GHeap(class std::shared_ptr<GDevice> device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors);
 
     D3D12_DESCRIPTOR_HEAP_TYPE GetType() const;
    
@@ -73,10 +75,10 @@ private:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap;
 	
     D3D12_DESCRIPTOR_HEAP_TYPE heapType;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE startCPUDescriptor;    	
-    CD3DX12_GPU_DESCRIPTOR_HANDLE startGPUDescriptor;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE startCPUDescriptor{};    	
+    CD3DX12_GPU_DESCRIPTOR_HANDLE startGPUDescriptor{};
 	
-    uint32_t descriptorHandleIncrementSize;
+    uint32_t descriptorHandleIncrementSize{};
     uint32_t numDescriptorsInHeap;
     uint32_t freeHandlesCount;
 

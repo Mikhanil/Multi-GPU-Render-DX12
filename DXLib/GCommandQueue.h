@@ -10,6 +10,7 @@
 #include "ThreadSafeQueue.h"
 
 class GCommandList;
+class GDevice;
 
 namespace DXLib
 {
@@ -20,7 +21,7 @@ namespace DXLib
 	class GCommandQueue
 	{
 	public:
-		GCommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type);
+		GCommandQueue(const std::shared_ptr<GDevice> device, D3D12_COMMAND_LIST_TYPE type);
 		virtual ~GCommandQueue();
 
 		
@@ -56,8 +57,10 @@ namespace DXLib
 		};
 
 
-		D3D12_COMMAND_LIST_TYPE CommandListType;
-		ComPtr<ID3D12Device2> device;
+		UINT64 queueTimestampFrequencies = 0;
+		
+		D3D12_COMMAND_LIST_TYPE type;
+		std::shared_ptr<GDevice> device;
 		ComPtr<ID3D12CommandQueue> commandQueue;
 		ComPtr<ID3D12Fence> fence;
 		std::atomic_uint64_t    FenceValue;

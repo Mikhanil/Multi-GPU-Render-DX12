@@ -7,7 +7,7 @@ using namespace Microsoft::WRL;
 class ShaderBuffer : public GResource
 {
 public:
-	ShaderBuffer(UINT elementCount, UINT elementByteSize, std::wstring name = L"");
+	ShaderBuffer(const std::shared_ptr<GDevice> device, UINT elementCount, UINT elementByteSize, std::wstring name = L"");
 
 	ShaderBuffer(const ShaderBuffer& rhs) = delete;
 	ShaderBuffer& operator=(const ShaderBuffer& rhs) = delete;
@@ -42,7 +42,7 @@ public:
 	//  UINT64 OffsetInBytes; // multiple of 256
 	//  UINT  SizeInBytes;  // multiple of 256
 	// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
-	ConstantBuffer(UINT elementCount, std::wstring name = L"") : ShaderBuffer(elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)), name = L"")
+	ConstantBuffer(const std::shared_ptr<GDevice> device, UINT elementCount, std::wstring name = L"") : ShaderBuffer(device, elementCount, d3dUtil::CalcConstantBufferByteSize(sizeof(T)), name = L"")
 	{
 	}
 
@@ -56,7 +56,7 @@ template <typename T>
 class UploadBuffer : public virtual ShaderBuffer
 {
 public:
-	UploadBuffer(UINT elementCount ,std::wstring name = L"") : ShaderBuffer(elementCount, (sizeof(T)), name)
+	UploadBuffer(const std::shared_ptr<GDevice> device, UINT elementCount ,std::wstring name = L"") : ShaderBuffer(device, elementCount, (sizeof(T)), name)
 	{
 	}
 

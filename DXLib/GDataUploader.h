@@ -17,15 +17,13 @@ struct UploadAllocation
     size_t Offset;
 };
 
+class GDevice;
 
 class GDataUploader
 {
 public:
-
     
-   
-
-    explicit GDataUploader(size_t pageSize = 1024);
+    explicit GDataUploader(const std::shared_ptr<GDevice> device ,size_t pageSize = 1024);
 
     virtual ~GDataUploader();
 
@@ -37,10 +35,12 @@ public:
     void Clear();
 
 private:
-   
+
+    std::shared_ptr<GDevice> device;
+	
     struct UploadMemoryPage
     {
-        UploadMemoryPage(size_t sizeInBytes);
+        UploadMemoryPage(const std::shared_ptr<GDevice> device, size_t sizeInBytes);
         ~UploadMemoryPage();
 
         bool HasSpace(size_t sizeInBytes, size_t alignment) const;

@@ -53,7 +53,7 @@ public:
 
 public:
 
-	GBuffer(const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
+	GBuffer(const std::shared_ptr<GDevice> device, const std::wstring& name, const D3D12_RESOURCE_DESC& resourceDesc, UINT elementSize, UINT elementCount,
 	        void* data);
 
 private:

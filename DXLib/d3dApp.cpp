@@ -38,7 +38,6 @@ namespace DXLib
 	D3DApp::D3DApp(HINSTANCE hInstance)
 		: appInstance(hInstance)
 	{
-		InitialAdaptersAndDevices();		
 		
 		// Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
 		// Using this awareness context allows the client area of the window 
@@ -162,82 +161,15 @@ namespace DXLib
 
 	void D3DApp::Flush()
 	{
-		/*for (auto && device : gdevices)
-		{
-			device.value()->Flush();
-		}*/
-
-		
-		gdevices[0].value()->Flush();		
-		//gdevices[1].value()->Flush();		
+		GDevice::GetDevice()->Flush();
 	}
 	
 	UINT D3DApp::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
 	{
-		return gdevices[0].value()->GetDescriptorHandleIncrementSize(type);
+		return GDevice::GetDevice()->GetDescriptorHandleIncrementSize(type);
 	}
 	
-	void D3DApp::InitialAdaptersAndDevices()
-	{		
-		{
-#if defined(DEBUG) || defined(_DEBUG)
-			{
-				ComPtr<ID3D12Debug> debugController;
-				ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-				debugController->EnableDebugLayer();
-
-				ComPtr<ID3D12Debug1> spDebugController1;				
-				ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&spDebugController1)));
-				//spDebugController1->SetEnableGPUBasedValidation(true);
-			}
-#endif
-
-			dxgiFactory.Reset();
-			UINT createFactoryFlags = 0;
-#if defined(DEBUG) || defined(_DEBUG)
-			createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-						
-
-			ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory)));
-
-
-			
-			UINT adapterindex = 0;
-			ComPtr<IDXGIAdapter1> adapter;
-			while (dxgiFactory->EnumAdapters1(adapterindex++, &adapter) != DXGI_ERROR_NOT_FOUND)
-			{
-				DXGI_ADAPTER_DESC1 desc;
-				adapter->GetDesc1(&desc);
-
-				wstring name(desc.Description);
-
-				//Skip warp adapter
-				if(name.find(L"Microsoft") != std::wstring::npos)
-				{
-					continue;
-				}
-				
-				
-				ComPtr<IDXGIAdapter3>  adapter3;
-				ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
-				adapters.push_back((adapter3));
-								
-				
-				gdevices.push_back(std::move(Lazy< std::shared_ptr<GDevice >>([adapter3] { return std::make_shared<GDevice>(adapter3);    })));
-				
-			}
-
-			if(gdevices.size() <= 1)
-			{
-				dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
-				ComPtr<IDXGIAdapter3>  adapter3;
-				ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
-				adapters.push_back((adapter3));
-				gdevices.push_back(std::move(Lazy< std::shared_ptr<GDevice >>([adapter3] { return std::make_shared<GDevice>(adapter3);    })));				
-			}
-		}
-	}
+	
 
 	bool D3DApp::CheckTearingSupport() const
 	{
@@ -266,11 +198,7 @@ namespace DXLib
 		return &timer;
 	}
 
-	ID3D12Device& D3DApp::GetDevice()
-	{
-		return *(GetApp().GetMainDevice()->GetDevice().Get());
-	}
-
+	
 	HINSTANCE D3DApp::AppInst() const
 	{
 		return appInstance;
@@ -417,7 +345,7 @@ namespace DXLib
 				pWindow->SetWidth(width);
 				pWindow->SetHeight(height);
 
-				if (GetMainDevice())
+				if (GetDevice())
 				{
 					if (wParam == SIZE_MINIMIZED)
 					{
@@ -528,19 +456,19 @@ namespace DXLib
 		return true;
 	}
 
-	std::shared_ptr<GDevice> D3DApp::GetMainDevice() const
+	std::shared_ptr<GDevice> D3DApp::GetDevice(GraphicsAdapter adapter) const
 	{
-		return gdevices[0].value();
+		return GDevice::GetDevice(adapter);
 	}
 
 	bool D3DApp::InitDirect3D()
-	{
+	{		
 		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLevels;
 		msQualityLevels.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		msQualityLevels.SampleCount = 4;
 		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 		msQualityLevels.NumQualityLevels = 0;
-		ThrowIfFailed(GetMainDevice()->GetDevice()->CheckFeatureSupport(
+		ThrowIfFailed(GetDevice()->GetDXDevice()->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
 			&msQualityLevels,
 			sizeof(msQualityLevels)));
@@ -563,6 +491,8 @@ namespace DXLib
 
 	void D3DApp::LogAdapters()
 	{
+		auto dxgiFactory = GDevice::GetFactory();
+		
 		UINT i = 0;
 		IDXGIAdapter* adapter = nullptr;
 		std::vector<IDXGIAdapter*> adapterList;

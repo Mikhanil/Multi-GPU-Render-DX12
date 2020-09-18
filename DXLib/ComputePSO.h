@@ -23,7 +23,7 @@ public:
 
 	void SetShader(GShader* shader);
 
-	void Initialize();
+	void Initialize(const std::shared_ptr<GDevice> device);
 private:
 
 

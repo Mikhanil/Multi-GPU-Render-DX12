@@ -28,6 +28,7 @@
 #include "d3d11.h"
 #include "Lazy.h"
 #include "DXAllocator.h"
+#include "GDevice.h"
 using Microsoft::WRL::ComPtr;
 
 class GDevice;
@@ -73,8 +74,6 @@ namespace DXLib
 
 		GameTimer* GetTimer();
 
-		static ID3D12Device& GetDevice();
-
 		static D3DApp& GetApp();
 
 		HINSTANCE AppInst() const;
@@ -94,7 +93,7 @@ namespace DXLib
 			return frameCount;
 		}
 
-		std::shared_ptr<GDevice> GetMainDevice() const;
+		std::shared_ptr<GDevice> GetDevice(GraphicsAdapter adapter = Primary) const;
 	protected:
 
 		bool CheckTearingSupport() const;
@@ -130,17 +129,10 @@ namespace DXLib
 		GameTimer timer;		
 
 		bool InitMainWindow();
-
-		void InitialAdaptersAndDevices();
+						
 		
-		custom_vector<ComPtr<IDXGIAdapter3>> adapters = DXAllocator::CreateVector<ComPtr<IDXGIAdapter3>>();
-		
-		custom_vector<Lazy<std::shared_ptr<GDevice>>> gdevices = DXAllocator::CreateVector<Lazy<std::shared_ptr<GDevice>>>();
-
 		
 
-
-		ComPtr<IDXGIFactory4> dxgiFactory;
 		bool InitDirect3D();
 
 

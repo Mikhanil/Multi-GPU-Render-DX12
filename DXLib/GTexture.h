@@ -44,10 +44,10 @@ public:
 
 	GTexture(std::wstring name = L"", TextureUsage use = TextureUsage::Diffuse);
 
-	GTexture(const D3D12_RESOURCE_DESC& resourceDesc,
+	GTexture(const std::shared_ptr<GDevice> device, const D3D12_RESOURCE_DESC& resourceDesc,
 		const std::wstring& name = L"", TextureUsage textureUsage = TextureUsage::Albedo,
 		const D3D12_CLEAR_VALUE* clearValue = nullptr);
-	GTexture(ComPtr<ID3D12Resource> resource,
+	GTexture(const std::shared_ptr<GDevice> device, ComPtr<ID3D12Resource> resource,
 	                 TextureUsage textureUsage = TextureUsage::Albedo,
 	                 const std::wstring& name = L"");
 

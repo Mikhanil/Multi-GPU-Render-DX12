@@ -10,12 +10,12 @@
 using namespace Microsoft::WRL;
 
 Ssao::Ssao(
-	ID3D12Device* device,
+	const std::shared_ptr<GDevice> device,
 	std::shared_ptr<GCommandList> cmdList,
 	UINT width, UINT height)
 
 {
-	md3dDevice = device;
+	this->device = device;
 
 	OnResize(width, height);
 
@@ -309,7 +309,7 @@ GTexture Ssao::CreateNormalMap() const
 	float normalClearColor[] = { 0.0f, 0.0f, 1.0f, 0.0f };
 	CD3DX12_CLEAR_VALUE optClear(NormalMapFormat, normalClearColor);
 
-	return  GTexture(texDesc, L"SSAO NormalMap", TextureUsage::Normalmap, &optClear);
+	return  GTexture(device,texDesc, L"SSAO NormalMap", TextureUsage::Normalmap, &optClear);
 }
 
 GTexture Ssao::CreateAmbientMap() const
@@ -331,7 +331,7 @@ GTexture Ssao::CreateAmbientMap() const
 	float ambientClearColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	auto optClear = CD3DX12_CLEAR_VALUE(AmbientMapFormat, ambientClearColor);
 
-	return GTexture(texDesc, L"SSAO AmbientMap", TextureUsage::Normalmap, &optClear);
+	return GTexture(device,texDesc, L"SSAO AmbientMap", TextureUsage::Normalmap, &optClear);
 }
 
 
@@ -355,7 +355,7 @@ GTexture Ssao::CreateDepthMap() const
 	optClear.DepthStencil.Depth = 1.0f;
 	optClear.DepthStencil.Stencil = 0;
 
-	return GTexture(depthStencilDesc, L"SSAO Depth Normal Map", TextureUsage::Depth, &optClear);
+	return GTexture(device, depthStencilDesc, L"SSAO Depth Normal Map", TextureUsage::Depth, &optClear);
 }
 
 
@@ -414,7 +414,7 @@ void Ssao::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
 	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-	randomVectorMap = GTexture(texDesc, L"SSAO Random Vector Map", TextureUsage::Normalmap);
+	randomVectorMap = GTexture(device, texDesc, L"SSAO Random Vector Map", TextureUsage::Normalmap);
 	
 	std::vector<Vector4> data;
 	data.resize(256 * 256);

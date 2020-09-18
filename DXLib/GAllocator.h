@@ -7,12 +7,13 @@
 #include <memory>
 
 class GHeap;
+class GDevice;
 
 class GAllocator
 {
 public:
 	
-    GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorsPerPage = 1024);
+    GAllocator(const std::shared_ptr<GDevice> device,D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorsPerPage = 1024);
 	
     virtual ~GAllocator();
         
@@ -34,5 +35,7 @@ private:
     custom_set<size_t> availablePages = DXAllocator::CreateSet<size_t>();
 
     std::mutex allocationMutex;
+
+    std::shared_ptr<GDevice> device;
 };
 

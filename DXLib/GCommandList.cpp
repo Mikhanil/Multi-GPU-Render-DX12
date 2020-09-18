@@ -8,6 +8,7 @@
 #include "GMemory.h"
 #include "GraphicPSO.h"
 #include "GRootSignature.h"
+#include "GDevice.h"
 
 void GCommandList::TrackResource(Microsoft::WRL::ComPtr<ID3D12Object> object)
 {
@@ -19,16 +20,20 @@ void GCommandList::TrackResource(const GResource& res)
     TrackResource(res.GetD3D12Resource());
 }
 
-GCommandList::GCommandList(ComPtr<ID3D12Device> device,D3D12_COMMAND_LIST_TYPE type)
+std::shared_ptr<GDevice> GCommandList::GetDevice() const
+{
+	return device;
+}
+
+GCommandList::GCommandList(const std::shared_ptr<GDevice> device, D3D12_COMMAND_LIST_TYPE type)
     : type(type), device(device)
 {
+    ThrowIfFailed(device->GetDXDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&cmdAllocator)));
 
-    ThrowIfFailed(device->CreateCommandAllocator(type, IID_PPV_ARGS(&cmdAllocator)));
-
-    ThrowIfFailed(device->CreateCommandList(0, type, cmdAllocator.Get(),
+    ThrowIfFailed(device->GetDXDevice()->CreateCommandList(0, type, cmdAllocator.Get(),
         nullptr, IID_PPV_ARGS(&cmdList)));
 
-    uploadBuffer = std::make_unique<GDataUploader>();
+    uploadBuffer = std::make_unique<GDataUploader>(device);
 
     tracker = std::make_unique<GResourceStateTracker>();
 

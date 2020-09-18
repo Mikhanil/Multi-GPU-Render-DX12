@@ -1,13 +1,14 @@
 #include "GCommandQueue.h"
 #include "d3dUtil.h"
 #include "GCommandList.h"
+#include "GDevice.h"
 #include "GResourceStateTracker.h"
 #include "pix3.h"
 
 namespace DXLib
 {
-	GCommandQueue::GCommandQueue(const ComPtr<ID3D12Device2>& device, D3D12_COMMAND_LIST_TYPE type) :
-		CommandListType(type)
+	GCommandQueue::GCommandQueue(const std::shared_ptr<GDevice> device, D3D12_COMMAND_LIST_TYPE type) :
+		type(type)
 		, device(device)
 		, FenceValue(0), IsExecutorAlive(true)
 	{
@@ -17,10 +18,12 @@ namespace DXLib
 		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 		desc.NodeMask = 0;
 
-		ThrowIfFailed(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));
-		ThrowIfFailed(device->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+		ThrowIfFailed(device->GetDXDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));
+		ThrowIfFailed(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		
+		ThrowIfFailed(device->GetDXDevice()->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
-		switch (type)
+		switch (this->type)
 		{
 		case D3D12_COMMAND_LIST_TYPE_COPY:
 			commandQueue->SetName(L"Copy Command Queue");
@@ -30,7 +33,7 @@ namespace DXLib
 			break;
 		case D3D12_COMMAND_LIST_TYPE_DIRECT:
 			commandQueue->SetName(L"Direct Command Queue");
-			break;
+			break;		
 		}
 
 
@@ -83,7 +86,7 @@ namespace DXLib
 
 		if (m_AvailableCommandLists.Empty())
 		{
-			commandList = std::make_shared<GCommandList>(this->device ,this->CommandListType);
+			commandList = std::make_shared<GCommandList>(this->device ,this->type);
 			return commandList;
 		}
 		

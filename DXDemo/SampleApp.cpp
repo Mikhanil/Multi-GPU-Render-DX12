@@ -60,7 +60,7 @@ namespace DXLib
 		}
 
 
-		auto graphicQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto graphicQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto graphicList = graphicQueue->GetCommandList();
 
 		for (auto&& texture : generatedMipTextures)
@@ -70,7 +70,7 @@ namespace DXLib
 		graphicQueue->WaitForFenceValue( graphicQueue->ExecuteCommandList(graphicList));
 
 		
-		const auto computeQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		const auto computeQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 		auto computeList = computeQueue->GetCommandList();		
 		GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
 		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -96,17 +96,17 @@ namespace DXLib
 		if (!D3DApp::Initialize())
 			return false;
 
-		auto commandQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto cmdList = commandQueue->GetCommandList();
 
-		shadowMap = std::make_unique<ShadowMap>(4096, 4096);
+		shadowMap = std::make_unique<ShadowMap>(GetDevice(),4096, 4096);
 
 		ssao = std::make_unique<Ssao>(
-			GetMainDevice()->GetDevice().Get(),
+			GetDevice(),
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-		ssaa = std::make_unique<SSAA>(8, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+		ssaa = std::make_unique<SSAA>(GetDevice(), 1, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 		ssaa->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 		
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
@@ -302,7 +302,7 @@ namespace DXLib
 
 	void SampleApp::Update(const GameTimer& gt)
 	{
-		auto commandQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		// Cycle through the circular frame resource array.
 		currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
@@ -422,7 +422,7 @@ namespace DXLib
 	{
 		if (isResizing) return;
 
-		auto commandQueue = GetMainDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		auto cmdList = commandQueue->GetCommandList();
 
@@ -725,7 +725,7 @@ namespace DXLib
 	
 	void SampleApp::LoadModels()
 	{
-		auto queue = GetMainDevice()->GetCommandQueue();
+		auto queue = GetDevice()->GetCommandQueue();
 
 		auto nano = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 
@@ -781,7 +781,7 @@ namespace DXLib
 	
 	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
 	{
-		auto queue = GetMainDevice()->GetCommandQueue();
+		auto queue = GetDevice()->GetCommandQueue();
 		
 		auto graphicCmdList = queue->GetCommandList();
 		LoadStudyTexture(graphicCmdList);		;		
@@ -808,7 +808,7 @@ namespace DXLib
 		rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 		rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
-		rootSignature->Initialize();
+		rootSignature->Initialize(GetDevice());
 	}
 		
 	Keyboard* SampleApp::GetKeyboard()
@@ -883,7 +883,7 @@ namespace DXLib
 			ssaoRootSignature->AddStaticSampler(sampler);
 		}
 
-		ssaoRootSignature->Initialize();
+		ssaoRootSignature->Initialize(GetDevice());
 	}
 
 	void SampleApp::BuildTexturesHeap()
@@ -1000,7 +1000,7 @@ namespace DXLib
 
 	void SampleApp::BuildShapeGeometry()
 	{
-		auto queue = GetMainDevice()->GetCommandQueue();
+		auto queue = GetDevice()->GetCommandQueue();
 		auto cmdList = queue->GetCommandList();
 
 		auto sphere = loader.GenerateSphere(cmdList);	
@@ -1181,7 +1181,7 @@ namespace DXLib
 
 		for (auto& pso : psos)
 		{
-			pso.second->Initialize(GetMainDevice()->GetDevice().Get());
+			pso.second->Initialize(GetDevice()->GetDXDevice().Get());
 		}
 	}
 
@@ -1190,7 +1190,7 @@ namespace DXLib
 		for (int i = 0; i < globalCountFrameResources; ++i)
 		{
 			frameResources.push_back(
-				std::make_unique<FrameResource>(2, gameObjects.size(), loader.GetMaterials().size() ));
+				std::make_unique<FrameResource>(GetDevice(),2, gameObjects.size(), loader.GetMaterials().size() ));
 		}
 	}
 
@@ -1237,7 +1237,7 @@ namespace DXLib
 		
 		auto skySphere = std::make_unique<GameObject>( "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
-		auto renderer = new ModelRenderer();
+		auto renderer = new ModelRenderer(GetDevice());
 		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"sky")).get();
 		renderer->SetModel(models[L"sphere"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"sky")));
@@ -1246,7 +1246,7 @@ namespace DXLib
 		gameObjects.push_back(std::move(skySphere));
 
 		auto quadRitem = std::make_unique<GameObject>( "Quad");
-		renderer = new ModelRenderer();
+		renderer = new ModelRenderer(GetDevice());
 		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"seamless")).get();
 		renderer->SetModel(models[L"quad"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"seamless")));
@@ -1403,7 +1403,7 @@ namespace DXLib
 	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<Model> model) 
 	{
 		auto man = std::make_unique<GameObject>();
-		auto renderer = new ModelRenderer();
+		auto renderer = new ModelRenderer(GetDevice());
 		man->AddComponent(renderer);
 		renderer->SetModel(model);				
 		SetDefaultMaterialForModel(renderer);

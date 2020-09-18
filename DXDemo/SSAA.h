@@ -18,8 +18,10 @@ class SSAA
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};
 
+	std::shared_ptr<GDevice> device;
+	
 public:
-
+		
 	D3D12_VIEWPORT GetViewPort() const;
 
 	D3D12_RECT GetRect() const;
@@ -37,6 +39,6 @@ public:
 
 	void OnResize(UINT newWidth, UINT newHeight);
 
-	SSAA(UINT multiplier, UINT width, UINT height);
+	SSAA(const std::shared_ptr<GDevice> device, UINT multiplier, UINT width, UINT height);
 };
 

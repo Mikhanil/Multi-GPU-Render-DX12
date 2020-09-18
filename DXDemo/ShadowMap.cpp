@@ -5,8 +5,9 @@
 #include "DXAllocator.h"
 #include "GResourceStateTracker.h"
 
-ShadowMap::ShadowMap(UINT width, UINT height)
+ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height)
 {
+	this->device = device;
 	mWidth = width;
 	mHeight = height;
 
@@ -100,7 +101,7 @@ void ShadowMap::BuildResource()
 		optClear.DepthStencil.Depth = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
 
-		mShadowMap = GTexture(texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
+		mShadowMap = GTexture(device, texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
 	}
 	else
 	{

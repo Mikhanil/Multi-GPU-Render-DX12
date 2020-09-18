@@ -21,12 +21,13 @@
 using namespace Microsoft::WRL;
 const int globalCountFrameResources = 3;
 
-struct GlobalVariable
+enum GraphicsAdapter : UINT
 {
-	bool globalIsDebug = false;
+    Primary = 0, // Note: Not necessarily the OS's primary adapter (adapter enumerated at index 0).
+    Second = Primary + 1,
+    GraphicsAdaptersCount = Second + 1
 };
 
-static GlobalVariable* globalVar = new GlobalVariable();
 
 template <typename T>
 T DivideByMultiple(T value, size_t alignment)

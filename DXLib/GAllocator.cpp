@@ -2,9 +2,9 @@
 #include "GHeap.h"
 
 
-GAllocator::GAllocator(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorsPerPage)
+GAllocator::GAllocator(const std::shared_ptr<GDevice> device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorsPerPage)
     : allocatorType(type)
-    , numDescriptorsPerPage(descriptorsPerPage)
+    , numDescriptorsPerPage(descriptorsPerPage), device(device)
 {
 }
 
@@ -16,7 +16,7 @@ GAllocator::~GAllocator()
 
 std::shared_ptr<GHeap> GAllocator::CreateAllocatorPage()
 {
-    auto newPage = std::make_shared<GHeap>(allocatorType, numDescriptorsPerPage);
+    auto newPage = std::make_shared<GHeap>(device, allocatorType, numDescriptorsPerPage);
 
     pages.emplace_back(newPage);
     availablePages.insert(pages.size() - 1);

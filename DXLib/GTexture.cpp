@@ -25,9 +25,9 @@ void GTexture::Resize(GTexture& texture, uint32_t width, uint32_t height, uint32
 		resDesc.Height = std::max(height, 1u);
 		resDesc.DepthOrArraySize = depthOrArraySize;
 
-		auto& device = DXLib::D3DApp::GetApp().GetDevice();
+		auto device = texture.device->GetDXDevice();
 
-		ThrowIfFailed(device.CreateCommittedResource(
+		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE,
 			&resDesc,
@@ -85,7 +85,7 @@ void GTexture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture**
 	signature.AddDescriptorParameter(&srvCbvRanges[0], 1);
 	signature.AddDescriptorParameter(&srvCbvRanges[1], 1);
 	signature.AddStaticSampler(samplerDesc);
-	signature.Initialize();
+	signature.Initialize(textures[0]->device);
 
 	auto shader = std::make_unique<GShader>(L"Shaders\\MipMapCS.hlsl", ComputeShader, nullptr, "GenerateMipMaps",
 		"cs_5_1");
@@ -95,7 +95,7 @@ void GTexture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture**
 	ComputePSO genMipMapPSO;
 	genMipMapPSO.SetShader(shader.get());
 	genMipMapPSO.SetRootSignature(signature);
-	genMipMapPSO.Initialize();
+	genMipMapPSO.Initialize(textures[0]->device);
 	
 	cmdList->SetRootSignature(&signature);
 	cmdList->SetPipelineState(genMipMapPSO);
@@ -163,13 +163,13 @@ GTexture::GTexture(std::wstring name, TextureUsage use): GResource( name),
 {
 }
 
-GTexture::GTexture(const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, TextureUsage textureUsage, const D3D12_CLEAR_VALUE* clearValue) : GResource(resourceDesc, name, clearValue),
+GTexture::GTexture(const std::shared_ptr<GDevice> device, const D3D12_RESOURCE_DESC& resourceDesc, const std::wstring& name, TextureUsage textureUsage, const D3D12_CLEAR_VALUE* clearValue) : GResource(device, resourceDesc, name, clearValue),
                                                                         usage(textureUsage)
 {
 }
 
-GTexture::GTexture(ComPtr<ID3D12Resource> resource, TextureUsage textureUsage,
-                 const std::wstring& name) : GResource(resource, name), usage(textureUsage)
+GTexture::GTexture(const std::shared_ptr<GDevice> device, ComPtr<ID3D12Resource> resource, TextureUsage textureUsage,
+                 const std::wstring& name) : GResource(device, resource, name), usage(textureUsage)
 {
 }
 
@@ -295,15 +295,15 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 	desc.SampleDesc.Count = 1;
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
-	auto& device = DXLib::D3DApp::GetApp().GetDevice();
+	auto device = DXLib::D3DApp::GetApp().GetDevice();
 	
-	auto tex = std::make_shared<GTexture>(desc, filepath, usage);
+	auto tex = std::make_shared<GTexture>(device, desc, filepath, usage);
 	
 	if (tex->GetD3D12Resource())
 	{
 		std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
 		ThrowIfFailed(
-			PrepareUpload(&device, scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
+			PrepareUpload(device->GetDXDevice().Get(), scratchImage.GetImages(), scratchImage.GetImageCount(), scratchImage.GetMetadata(),
 				subresources));
 		
 		commandList->TransitionBarrier(tex->GetD3D12Resource(), D3D12_RESOURCE_STATE_COPY_DEST);
