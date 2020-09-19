@@ -7,9 +7,9 @@ class SSAA
 	GTexture renderTarget;
 	GTexture depthMap;
 	
-	GMemory srvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-	GMemory rtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
-	GMemory dsvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+	GMemory srvMemory;
+	GMemory rtvMemory;
+	GMemory dsvMemory;
 
 	UINT ResolutionMultiplier = 1;
 	const DXGI_FORMAT rtvFormat = GetSRGBFormat(DXGI_FORMAT_R8G8B8A8_UNORM);

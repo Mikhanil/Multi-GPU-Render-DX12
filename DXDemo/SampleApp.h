@@ -91,16 +91,20 @@ namespace DXLib
 		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-		custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
+		custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Model>>();
 	
 
-
+		
 		
 		Keyboard keyboard;
 		Mouse mouse;
 		std::unique_ptr<Camera> camera = nullptr;
 
-		custom_vector<std::unique_ptr<FrameResource>> frameResources = DXAllocator::CreateVector<std::unique_ptr<FrameResource>>();
+
+		ComPtr<ID3D12Heap> m_crossAdapterResourceHeaps[GraphicsAdaptersCount];
+		ComPtr<ID3D12Resource> m_secondaryAdapterTextures[globalCountFrameResources];
+		
+		custom_vector<std::unique_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::unique_ptr<FrameResource>>();
 		
 		FrameResource* currentFrameResource = nullptr;
 		int currentFrameResourceIndex = 0;
@@ -115,18 +119,18 @@ namespace DXLib
 		AssetsLoader loader;
 				
 		
-		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = DXAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
+		custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = MemoryAllocator::CreateUnorderedMap<std::string, std::unique_ptr<GShader>>();
 				
-		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = DXAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
+		custom_unordered_map<PsoType::Type, std::unique_ptr<GraphicPSO>> psos = MemoryAllocator::CreateUnorderedMap<PsoType::Type, std::unique_ptr<GraphicPSO>>();
 		
-		custom_vector<Light*> lights = DXAllocator::CreateVector<Light*>();		
+		custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();		
 
-		custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
-		custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = DXAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
+		custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = MemoryAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
+		custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = MemoryAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 
-		custom_vector<std::unique_ptr<GameObject>> gameObjects = DXAllocator::CreateVector<std::unique_ptr<GameObject>>();
+		custom_vector<std::unique_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::unique_ptr<GameObject>>();
 		
-		custom_vector<custom_vector<GameObject*>> typedGameObjects = DXAllocator::CreateVector<custom_vector<GameObject*>>();
+		custom_vector<custom_vector<GameObject*>> typedGameObjects = MemoryAllocator::CreateVector<custom_vector<GameObject*>>();
 
 		GameObject* player;
 		PassConstants mainPassCB;

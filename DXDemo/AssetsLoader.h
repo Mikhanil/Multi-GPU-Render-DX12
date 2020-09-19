@@ -4,7 +4,7 @@
 #include <vector>
 #include "assimp/scene.h"
 
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GCommandQueue.h"
 #include "GeometryGenerator.h"
 #include "Windows.h"
@@ -20,22 +20,22 @@ class Material;
 class AssetsLoader
 {
 	GeometryGenerator geoGen;
-	custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = DXAllocator::CreateUnorderedMap<
+	custom_unordered_map<std::wstring, std::shared_ptr<Model>> models = MemoryAllocator::CreateUnorderedMap<
 		std::wstring, std::shared_ptr<Model>>();
 	
-	custom_vector<std::shared_ptr<Mesh>> meshes = DXAllocator::CreateVector<std::shared_ptr<Mesh>>();
+	custom_vector<std::shared_ptr<Mesh>> meshes = MemoryAllocator::CreateVector<std::shared_ptr<Mesh>>();
 
-	custom_vector<std::shared_ptr<GTexture>> textures = DXAllocator::CreateVector<std::shared_ptr<GTexture>>();
-	custom_vector<std::shared_ptr<GShader>> shaders = DXAllocator::CreateVector<std::shared_ptr<GShader>>();
-	custom_vector<std::shared_ptr<Material>> materials = DXAllocator::CreateVector<std::shared_ptr<Material>>();
+	custom_vector<std::shared_ptr<GTexture>> textures = MemoryAllocator::CreateVector<std::shared_ptr<GTexture>>();
+	custom_vector<std::shared_ptr<GShader>> shaders = MemoryAllocator::CreateVector<std::shared_ptr<GShader>>();
+	custom_vector<std::shared_ptr<Material>> materials = MemoryAllocator::CreateVector<std::shared_ptr<Material>>();
 	
-	custom_unordered_map<std::wstring, UINT> texturesMap = DXAllocator::CreateUnorderedMap<std::wstring, UINT>();
+	custom_unordered_map<std::wstring, UINT> texturesMap = MemoryAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
-	custom_unordered_map<std::wstring, UINT> shadersMap = DXAllocator::CreateUnorderedMap<std::wstring, UINT>();
+	custom_unordered_map<std::wstring, UINT> shadersMap = MemoryAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
-	custom_unordered_map<std::wstring, UINT> materialsMap = DXAllocator::CreateUnorderedMap<std::wstring, UINT>();
+	custom_unordered_map<std::wstring, UINT> materialsMap = MemoryAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
-	custom_unordered_map<std::shared_ptr<Mesh>, std::shared_ptr<Material>> defaultMaterialForMeshFromFile = DXAllocator::CreateUnorderedMap<std::shared_ptr<Mesh>, std::shared_ptr<Material>>();
+	custom_unordered_map<std::shared_ptr<Mesh>, std::shared_ptr<Material>> defaultMaterialForMeshFromFile = MemoryAllocator::CreateUnorderedMap<std::shared_ptr<Mesh>, std::shared_ptr<Material>>();
 
 	
 	std::vector<GeometryGenerator::MeshData> trackGeneratedData;

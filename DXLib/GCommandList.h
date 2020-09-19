@@ -1,10 +1,9 @@
 #pragma once
-#include <wrl.h>
 #include <d3d12.h>
 #include <DirectXColors.h>
-#include <map>
 #include <mutex>
-#include "DXAllocator.h"
+#include <wrl.h>
+#include "MemoryAllocator.h"
 #include "GDataUploader.h"
 
 class ShaderBuffer;
@@ -25,7 +24,7 @@ class GCommandList
 private:
 
 	using TrackedObjects = custom_vector<ComPtr<ID3D12Object>>;
-	TrackedObjects trackedObject = DXAllocator::CreateVector<ComPtr<ID3D12Object>>();
+	TrackedObjects trackedObject = MemoryAllocator::CreateVector<ComPtr<ID3D12Object>>();
 
 	std::unique_ptr<GDataUploader> uploadBuffer;
 	UploadAllocation UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment) const;

@@ -1,5 +1,6 @@
 #include "SSAA.h"
 #include "GCommandList.h"
+#include "GDevice.h"
 
 
 D3D12_VIEWPORT SSAA::GetViewPort() const
@@ -134,5 +135,9 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 
 SSAA::SSAA(const std::shared_ptr<GDevice> device, UINT multiplier, UINT width, UINT height): ResolutionMultiplier(multiplier), device(device)
 {
+	srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	rtvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+	dsvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+	
 	OnResize(width, height);
 }

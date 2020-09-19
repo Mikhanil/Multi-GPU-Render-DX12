@@ -39,9 +39,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DXAllocator.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
     <ClInclude Include="GAllocator.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
@@ -114,6 +111,15 @@
     <ClInclude Include="GDevice.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GFence.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GCrossAdapterResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryAllocator.h">
+      <Filter>Header Files\Allocators</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dApp.cpp">
@@ -130,9 +136,6 @@
     </ClCompile>
     <ClCompile Include="d3dUtil.cpp">
       <Filter>Source Files\Helpers</Filter>
-    </ClCompile>
-    <ClCompile Include="DXAllocator.cpp">
-      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
     <ClCompile Include="GAllocator.cpp">
       <Filter>Source Files\Allocators</Filter>
@@ -187,6 +190,15 @@
     </ClCompile>
     <ClCompile Include="GDevice.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GFence.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GCrossAdapterResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryAllocator.cpp">
+      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -5,6 +5,7 @@
 
 #include "GCommandList.h"
 #include "GDataUploader.h"
+#include "GDevice.h"
 #include "GResourceStateTracker.h"
 
 using namespace Microsoft::WRL;
@@ -12,10 +13,21 @@ using namespace Microsoft::WRL;
 Ssao::Ssao(
 	const std::shared_ptr<GDevice> device,
 	std::shared_ptr<GCommandList> cmdList,
-	UINT width, UINT height)
+	UINT width, UINT height): device(device)
 
 {
-	this->device = device;
+	normalMapSrvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	normalMapRtvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+
+	depthMapSrvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	depthMapDSVMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+
+	randomVectorSrvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+
+	ambientMapMapSrvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
+	ambientMapRtvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2);
+
+	
 
 	OnResize(width, height);
 

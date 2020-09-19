@@ -1,5 +1,5 @@
 #pragma once
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "assimp/scene.h"
 #include "ShaderBuffersData.h"
 #include "Mesh.h"

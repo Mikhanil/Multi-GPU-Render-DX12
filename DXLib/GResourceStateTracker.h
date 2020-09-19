@@ -5,7 +5,7 @@
 #include <wrl/client.h>
 
 
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 
 class GCommandList;
 class GResource;
@@ -105,7 +105,7 @@ private:
         }
 
         D3D12_RESOURCE_STATES State;
-        custom_map<UINT, D3D12_RESOURCE_STATES> SubresourceState = DXAllocator::CreateMap<UINT, D3D12_RESOURCE_STATES>();
+        custom_map<UINT, D3D12_RESOURCE_STATES> SubresourceState = MemoryAllocator::CreateMap<UINT, D3D12_RESOURCE_STATES>();
     };
 
     using ResourceStateMap = custom_unordered_map<ID3D12Resource*, ResourceState>;
@@ -113,7 +113,7 @@ private:
     // The final (last known state) of the resources within a command list.
     // The final resource state is committed to the global resource state when the 
     // command list is closed but before it is executed on the command queue.
-    ResourceStateMap finalResourceState = DXAllocator::CreateUnorderedMap<ID3D12Resource*, ResourceState>();
+    ResourceStateMap finalResourceState = MemoryAllocator::CreateUnorderedMap<ID3D12Resource*, ResourceState>();
 
     // The global resource state array (map) stores the state of a resource
     // between command list execution.

@@ -9,7 +9,7 @@
 // Static definitions.
 std::mutex GResourceStateTracker::globalMutex;
 bool GResourceStateTracker::isLocked = false;
-GResourceStateTracker::ResourceStateMap GResourceStateTracker::globalResourceState = DXAllocator::CreateUnorderedMap<ID3D12Resource*, ResourceState>();
+GResourceStateTracker::ResourceStateMap GResourceStateTracker::globalResourceState = MemoryAllocator::CreateUnorderedMap<ID3D12Resource*, ResourceState>();
 
 
 GResourceStateTracker::GResourceStateTracker()

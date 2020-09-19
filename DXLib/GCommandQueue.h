@@ -32,7 +32,7 @@ namespace DXLib
 
 		uint64_t Signal();
 
-		bool IsFenceComplete(uint64_t fenceValue) const;
+		bool IsFinish(uint64_t fenceValue) const;
 		void WaitForFenceValue(uint64_t fenceValue) const;
 		void Flush();
 

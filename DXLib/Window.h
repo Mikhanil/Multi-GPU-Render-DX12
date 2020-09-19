@@ -53,9 +53,8 @@ namespace DXLib
 
 		GMemory* GetRTVMemory()
 		{
-			return &rtvDescriptorHeap;
+			return &rtvPrimeDescriptorHeap;
 		}
-
 
 		GTexture& GetCurrentBackBuffer();
 
@@ -72,7 +71,11 @@ namespace DXLib
 		{
 			return static_cast<float>(width) / height;
 		}
-
+		GTexture& GetBackBuffer(UINT i)
+		{
+			return backBuffers[i];
+		}
+		
 	protected:
 
 		friend class D3DApp;
@@ -98,7 +101,7 @@ namespace DXLib
 
 		int frameCnt = 0;
 		float timeElapsed = 0.0f;
-		HANDLE m_SwapChainEvent;
+		HANDLE swapChainEvent;
 
 
 		Window(const Window& copy) = delete;
@@ -124,7 +127,7 @@ namespace DXLib
 	
 		
 		std::vector<GTexture> backBuffers;
-		GMemory rtvDescriptorHeap = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
+		GMemory rtvPrimeDescriptorHeap;
 		
 		D3D12_VIEWPORT screenViewport;
 		D3D12_RECT scissorRect;
@@ -132,6 +135,5 @@ namespace DXLib
 		UINT currentBackBufferIndex;
 
 		RECT windowRect;
-		bool isTearingSupported;
 	};
 }

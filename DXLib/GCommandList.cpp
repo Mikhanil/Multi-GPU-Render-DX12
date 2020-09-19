@@ -30,7 +30,7 @@ GCommandList::GCommandList(const std::shared_ptr<GDevice> device, D3D12_COMMAND_
 {
     ThrowIfFailed(device->GetDXDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&cmdAllocator)));
 
-    ThrowIfFailed(device->GetDXDevice()->CreateCommandList(0, type, cmdAllocator.Get(),
+    ThrowIfFailed(device->GetDXDevice()->CreateCommandList(device->GetNodeMask(), type, cmdAllocator.Get(),
         nullptr, IID_PPV_ARGS(&cmdList)));
 
     uploadBuffer = std::make_unique<GDataUploader>(device);

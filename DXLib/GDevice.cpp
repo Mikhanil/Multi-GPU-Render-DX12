@@ -1,7 +1,11 @@
 #include "d3dUtil.h"
 #include "GDevice.h"
+
+#include <dxgi1_5.h>
+
 #include "GCommandQueue.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
+#include "GAllocator.h"
 
 ComPtr<IDXGIFactory4> GDevice::CreateFactory()
 {
@@ -31,9 +35,9 @@ ComPtr<IDXGIFactory4> GDevice::CreateFactory()
 
 custom_vector<ComPtr<IDXGIAdapter3>> GDevice::CreateAdapters()
 {
-	auto adapters = DXAllocator::CreateVector<ComPtr<IDXGIAdapter3>>();
+	auto adapters = MemoryAllocator::CreateVector<ComPtr<IDXGIAdapter3>>();
 
-	auto factory = GDevice::GetFactory();
+	auto factory = GetFactory();
 
 	UINT adapterindex = 0;
 	ComPtr<IDXGIAdapter1> adapter;
@@ -47,7 +51,7 @@ custom_vector<ComPtr<IDXGIAdapter3>> GDevice::CreateAdapters()
 			continue;
 		}
 
-		ComPtr<IDXGIAdapter3>  adapter3;
+		ComPtr<IDXGIAdapter3> adapter3;
 		ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
 		adapters.push_back((adapter3));
 	}
@@ -57,14 +61,17 @@ custom_vector<ComPtr<IDXGIAdapter3>> GDevice::CreateAdapters()
 
 custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::CreateDevices()
 {
-	auto devices = DXAllocator::CreateVector<DXLib::Lazy<std::shared_ptr<GDevice>>>();
+	auto devices = MemoryAllocator::CreateVector<DXLib::Lazy<std::shared_ptr<GDevice>>>();
 
-	for (auto && adapter : adapters)
+	for (UINT i = 0; i < adapters.size(); ++i)
 	{
-		devices.push_back((DXLib::Lazy<std::shared_ptr<GDevice>>([adapter]
-			{
-				return std::make_shared<GDevice>(adapter);
-			})));
+		auto index = i;
+		auto adapter = adapters[i];
+
+		devices.push_back(DXLib::Lazy<std::shared_ptr<GDevice>>([adapter, index]
+		{
+			return std::make_shared<GDevice>(adapter, index);
+		}));
 	}
 
 	ComPtr<IDXGIAdapter1> adapter;
@@ -74,24 +81,56 @@ custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::CreateDevices()
 		ComPtr<IDXGIAdapter3> adapter3;
 		ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
 		adapters.push_back((adapter3));
-		gdevices.push_back((DXLib::Lazy<std::shared_ptr<GDevice>>([adapter3]
-			{
-				return std::make_shared<GDevice>(adapter3);
-			})));
+		devices.push_back((DXLib::Lazy<std::shared_ptr<GDevice>>([adapter3]
+		{
+			return std::make_shared<GDevice>(adapter3, 1);
+		})));
 	}
-	
+
 	return devices;
 }
 
+bool GDevice::CheckTearingSupport()
+{
+	BOOL allowTearing = FALSE;
+	ComPtr<IDXGIFactory5> factory5;
+	if (SUCCEEDED(dxgiFactory.As(&factory5)))
+	{
+		factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
+		                              &allowTearing, sizeof(allowTearing));
+	}
+
+	return allowTearing == TRUE;
+}
+
 ComPtr<IDXGIFactory4> GDevice::dxgiFactory = CreateFactory();
-
+DXLib::Lazy<bool> GDevice::isTearingSupport = DXLib::Lazy<bool>(CheckTearingSupport);
 custom_vector<ComPtr<IDXGIAdapter3>> GDevice::adapters = CreateAdapters();
+custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::devices = CreateDevices();
 
-custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::gdevices = CreateDevices();
+UINT GDevice::GetNodeMask() const
+{
+	return nodeMask;
+}
 
 bool GDevice::IsCrossAdapterTextureSupported()
 {
 	return crossAdapterTextureSupport.value();
+}
+
+void GDevice::SharedFence(ComPtr<ID3D12Fence> primaryFence, const std::shared_ptr<GDevice> sharedDevice,
+                          ComPtr<ID3D12Fence> sharedFence, UINT64 fenceValue, const SECURITY_ATTRIBUTES* attributes,
+                          const DWORD access, const LPCWSTR name) const
+{
+	// Create fence for cross adapter resources
+	ThrowIfFailed(device->CreateFence(fenceValue,
+		D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,
+		IID_PPV_ARGS(&primaryFence)));
+
+	const auto handle = SharedHandle(primaryFence, attributes, access, name);
+
+	// Open shared handle to fence on secondaryDevice GPU
+	ThrowIfFailed(sharedDevice->device->OpenSharedHandle(handle, IID_PPV_ARGS(&sharedFence)));
 }
 
 ComPtr<IDXGIFactory4> GDevice::GetFactory()
@@ -101,30 +140,103 @@ ComPtr<IDXGIFactory4> GDevice::GetFactory()
 
 std::shared_ptr<GDevice> GDevice::GetDevice(GraphicsAdapter adapter)
 {
-	return gdevices[adapter].value();
+	return devices[adapter].value();
 }
 
-void GDevice::InitialQueue()
+bool GDevice::IsTearingSupport()
 {
-	
-	directCommandQueue = DXLib::Lazy< std::shared_ptr<DXLib::GCommandQueue>>([this]
+	return isTearingSupport.value();
+}
+
+void GDevice::InitialCommandQueue()
+{
+	queues = DXLib::Lazy<custom_vector<DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>>>([this]
 	{
 		auto shared = std::shared_ptr<GDevice>(this);
-		return std::make_shared<DXLib::GCommandQueue>(shared, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	});
-	computeCommandQueue = DXLib::Lazy< std::shared_ptr<DXLib::GCommandQueue>>([this]
-	{
-			auto shared = std::shared_ptr<GDevice>(this);
-		return std::make_shared<DXLib::GCommandQueue>(shared, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-	});
-	copyCommandQueue = DXLib::Lazy< std::shared_ptr<DXLib::GCommandQueue>>([this]
-	{
-			auto shared = std::shared_ptr<GDevice>(this);
-		return std::make_shared<DXLib::GCommandQueue>(shared, D3D12_COMMAND_LIST_TYPE_COPY);
+		auto queues = MemoryAllocator::CreateVector<DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>>();
+
+		for (UINT i = 0; i != D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE; ++i)
+		{
+			D3D12_COMMAND_LIST_TYPE type = static_cast<D3D12_COMMAND_LIST_TYPE>(i);
+
+			queues.push_back(DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>([type, shared]
+			{
+				return std::make_shared<DXLib::GCommandQueue>(shared, type);
+			}));
+		}
+		return queues;
 	});
 }
 
-GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter) : adapter(adapter)
+void GDevice::InitialQueryTimeStamp()
+{
+	// Two timestamps for each frame.
+	const UINT resultCount = 2 * globalCountFrameResources;
+	const UINT resultBufferSize = resultCount * sizeof(UINT64);
+
+	timestampResultBuffer = DXLib::Lazy<GResource>([resultBufferSize, this]
+	{
+		return GResource(std::shared_ptr<GDevice>(this), CD3DX12_RESOURCE_DESC::Buffer(resultBufferSize),
+		                 name + L" TimestampBuffer", nullptr, D3D12_RESOURCE_STATE_COPY_DEST,
+		                 CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK));
+	});
+
+	timestampQueryHeap = DXLib::Lazy<ComPtr<ID3D12QueryHeap>>([this, resultCount]
+	{
+		D3D12_QUERY_HEAP_DESC timestampHeapDesc = {};
+		timestampHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+		timestampHeapDesc.Count = resultCount;
+		timestampHeapDesc.NodeMask = GetNodeMask();
+
+		ComPtr<ID3D12QueryHeap> heap;
+		ThrowIfFailed(device->CreateQueryHeap(&timestampHeapDesc, IID_PPV_ARGS(&heap)));
+		return heap;
+	});
+}
+
+HANDLE GDevice::SharedHandle(ComPtr<ID3D12DeviceChild> deviceObject, const SECURITY_ATTRIBUTES* attributes = nullptr,
+                             const DWORD access = GENERIC_ALL, const LPCWSTR name = L"") const
+{
+	HANDLE sharedHandle = nullptr;
+	ThrowIfFailed(
+		device->CreateSharedHandle(deviceObject.Get(), attributes, access, name, &sharedHandle));
+	return sharedHandle;
+}
+
+
+void GDevice::ShareResource(GResource& resource, const std::shared_ptr<GDevice> destDevice, GResource& destResource,
+                            const SECURITY_ATTRIBUTES* attributes, const DWORD access, const LPCWSTR name) const
+{
+	const HANDLE handle = SharedHandle(resource.GetD3D12Resource(), attributes, access, name);
+
+	ComPtr<ID3D12Resource> sharedResource;
+	ThrowIfFailed(destDevice->device->OpenSharedHandle(handle, IID_PPV_ARGS(&sharedResource)));
+
+	destResource.SetD3D12Resource(destDevice, sharedResource);
+
+	CloseHandle(handle);
+}
+
+void GDevice::InitialDescriptorAllocator()
+{
+	graphicAllocators = DXLib::Lazy<custom_vector<DXLib::Lazy<std::unique_ptr<GAllocator>>>>([this]
+	{
+		auto device = std::shared_ptr<GDevice>(this);
+		auto adapterAllocators = MemoryAllocator::CreateVector<DXLib::Lazy<std::unique_ptr<GAllocator>>>();
+		for (uint8_t i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+		{
+			auto type = i;
+			adapterAllocators.push_back(DXLib::Lazy<std::unique_ptr<GAllocator>>([type, device]
+			{
+				return std::make_unique<GAllocator>(device, static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(type));
+			}));
+		}
+
+		return adapterAllocators;
+	});
+}
+
+void GDevice::InitialDevice()
 {
 	if (adapter == nullptr)
 	{
@@ -133,14 +245,16 @@ GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter) : adapter(adapter)
 
 	DXGI_ADAPTER_DESC2 desc;
 	ThrowIfFailed(adapter->GetDesc2(&desc));
-	
+
 	ThrowIfFailed(D3D12CreateDevice(
-		adapter.Get(), // default adapter
+		adapter.Get(),
 		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(&device)));	
-	
+		IID_PPV_ARGS(&device)));
+
 	ThrowIfFailed(device->SetName(desc.Description));
-	
+
+	name = std::wstring(desc.Description);
+
 #if defined(DEBUG) || defined(_DEBUG)
 
 	ComPtr<ID3D12InfoQueue> pInfoQueue;
@@ -176,38 +290,52 @@ GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter) : adapter(adapter)
 		ThrowIfFailed(pInfoQueue->PushStorageFilter(&NewFilter));
 	}
 #endif
+}
 
-	InitialQueue();
+GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter, UINT nodeMask) : adapter(adapter), nodeMask(nodeMask)
+{
+	InitialDevice();
 
-	// Two timestamps for each frame.
-	const UINT resultCount = 2 * globalCountFrameResources ;
-	const UINT resultBufferSize = resultCount * sizeof(UINT64);
-		
+	InitialCommandQueue();
 
-	timestampResultBuffer = DXLib::Lazy<GResource>([resultBufferSize, desc, this] 
-		{return GResource(std::shared_ptr<GDevice>(this),CD3DX12_RESOURCE_DESC::Buffer(resultBufferSize), std::wstring(desc.Description) + L" TimestampBuffer", nullptr, D3D12_RESOURCE_STATE_COPY_DEST, CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK));	});
+	InitialQueryTimeStamp();
 
-	timestampQueryHeap = DXLib::Lazy<ComPtr<ID3D12QueryHeap>>([this, resultCount]
-	{
-			D3D12_QUERY_HEAP_DESC timestampHeapDesc = {};
-			timestampHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
-			timestampHeapDesc.Count = resultCount;
-		
-			ComPtr<ID3D12QueryHeap> heap;
-			ThrowIfFailed(device->CreateQueryHeap(&timestampHeapDesc, IID_PPV_ARGS(&heap)));
-			return heap;
-	});
-	
-	
+	InitialDescriptorAllocator();
 
 	crossAdapterTextureSupport = DXLib::Lazy<bool>([this]
 	{
-			D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
-			ThrowIfFailed(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, reinterpret_cast<void*>(&options), sizeof(options)));
-			return options.CrossAdapterRowMajorTextureSupported;
+		D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
+		ThrowIfFailed(
+			device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, reinterpret_cast<void*>(&options), sizeof(options)
+			));
+		return options.CrossAdapterRowMajorTextureSupported;
 	});
+}
 
-	auto temp = crossAdapterTextureSupport.value();
+ComPtr<IDXGISwapChain4> GDevice::CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& desc, const HWND hwnd) const
+{
+	ComPtr<IDXGISwapChain4> swapChain;
+
+	desc.Flags = IsTearingSupport()
+		             ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+		             : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	ComPtr<IDXGISwapChain1> swapChain1;
+	ThrowIfFailed(dxgiFactory->CreateSwapChainForHwnd(
+		GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetD3D12CommandQueue().Get(),
+		hwnd,
+		&desc,
+		nullptr,
+		nullptr,
+		&swapChain1));
+
+	// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
+	// will be handled manually.
+	ThrowIfFailed(dxgiFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
+
+	ThrowIfFailed(swapChain1.As(&swapChain));
+
+	return swapChain;
 }
 
 ComPtr<ID3D12Device2> GDevice::GetDXDevice() const
@@ -218,40 +346,46 @@ ComPtr<ID3D12Device2> GDevice::GetDXDevice() const
 GDevice::~GDevice()
 {
 	Flush();
+	if (queues.IsInit())
+	{
+		for (auto&& queue : queues.value())
+		{
+			if (queue.IsInit())
+			{
+				queue.value().reset();
+			}
+		}
+	}
 
-	if(directCommandQueue.IsInit())
-	{
-		directCommandQueue.value().reset();
-	}
-	if (copyCommandQueue.IsInit())
-	{
-		copyCommandQueue.value().reset();
-	}
-	if (computeCommandQueue.IsInit())
-	{
-		computeCommandQueue.value().reset();
-	}
-	
 	device->Release();
 }
 
-custom_unordered_map<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> descriptorHandlerSize = DXAllocator::CreateUnorderedMap<
+void GDevice::ResetAllocator(uint64_t frameCount)
+{
+	if (graphicAllocators.IsInit())
+	{
+		for (auto&& allocator : graphicAllocators.value())
+		{
+			if (allocator.IsInit())
+			{
+				allocator.value()->ReleaseStaleDescriptors(frameCount);
+			}
+		}
+	}
+}
+
+GMemory GDevice::AllocateDescriptors(const D3D12_DESCRIPTOR_HEAP_TYPE type, const uint32_t descriptorCount)
+{
+	auto allocator = graphicAllocators.value()[type];
+	return allocator.value()->Allocate(descriptorCount);
+}
+
+custom_unordered_map<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> descriptorHandlerSize = MemoryAllocator::CreateUnorderedMap<
 	D3D12_DESCRIPTOR_HEAP_TYPE, UINT>();
 
-std::shared_ptr<DXLib::GCommandQueue> GDevice::GetCommandQueue(D3D12_COMMAND_LIST_TYPE type) const
+std::shared_ptr<DXLib::GCommandQueue> GDevice::GetCommandQueue(const D3D12_COMMAND_LIST_TYPE type) const
 {
-	std::shared_ptr<DXLib::GCommandQueue> queue;
-
-	switch (type)
-	{
-	case D3D12_COMMAND_LIST_TYPE_DIRECT: queue = directCommandQueue.value();
-		break;
-	case D3D12_COMMAND_LIST_TYPE_COMPUTE: queue = computeCommandQueue.value();
-		break;
-	case D3D12_COMMAND_LIST_TYPE_COPY: queue = copyCommandQueue.value();
-		break;
-	default:;
-	}
+	auto queue = queues.value()[type].value();
 
 	return queue;
 }
@@ -272,22 +406,15 @@ UINT GDevice::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) 
 
 void GDevice::Flush() const
 {
-	if(directCommandQueue.IsInit())
+	if (queues.IsInit())
 	{
-		directCommandQueue.value()->Signal();
-		directCommandQueue.value()->Flush();
+		for (auto&& queue : queues.value())
+		{
+			if (queue.IsInit())
+			{
+				queue.value()->Signal();
+				queue.value()->Flush();
+			}
+		}
 	}
-
-	if (computeCommandQueue.IsInit())
-	{
-		computeCommandQueue.value()->Signal();
-		computeCommandQueue.value()->Flush();
-	}
-
-	if (copyCommandQueue.IsInit())
-	{
-		copyCommandQueue.value()->Signal();
-		copyCommandQueue.value()->Flush();
-	}
-	
 }

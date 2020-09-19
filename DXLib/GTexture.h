@@ -24,7 +24,7 @@ class GTexture : public GResource
 {
 	TextureUsage usage;
 
-	custom_vector<ComPtr<ID3D12Resource>> track = DXAllocator::CreateVector<ComPtr<ID3D12Resource>>();
+	custom_vector<ComPtr<ID3D12Resource>> track = MemoryAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
 
 	mutable std::mutex shaderResourceViewsMutex;

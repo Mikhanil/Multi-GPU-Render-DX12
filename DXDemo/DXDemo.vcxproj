@@ -193,6 +193,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelRenderer.cpp" />
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="MultiAdapter.cpp" />
     <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="Reflected.cpp" />
     <ClCompile Include="Rotater.cpp" />
@@ -353,6 +354,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelRenderer.h" />
     <ClInclude Include="Mouse.h" />
+    <ClInclude Include="MultiAdapter.h" />
     <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="Reflected.h" />
     <ClInclude Include="Renderer.h" />

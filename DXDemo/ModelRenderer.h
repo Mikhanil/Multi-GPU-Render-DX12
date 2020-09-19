@@ -1,7 +1,7 @@
 #pragma once
 #include "Model.h"
 #include "Renderer.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 
 class Transform;
 class GCommandList;
@@ -13,7 +13,7 @@ class ModelRenderer : public Renderer
 	
 	std::unique_ptr<ConstantBuffer<ObjectConstants>> modelDataBuffer = nullptr;
 	
-	custom_vector<std::shared_ptr<Material>> meshesMaterials = DXAllocator::CreateVector< std::shared_ptr<Material>>();
+	custom_vector<std::shared_ptr<Material>> meshesMaterials = MemoryAllocator::CreateVector< std::shared_ptr<Material>>();
 	
 	std::shared_ptr<GDevice> device;
 	

@@ -1,5 +1,6 @@
 #include "Windows.h"
 #include "d3dApp.h"
+#include "MultiAdapter.h"
 #include "SampleApp.h"
 
 using namespace DXLib;

@@ -142,7 +142,7 @@ namespace DXLib
 
 	D3D12_CPU_DESCRIPTOR_HANDLE Window::GetCurrentBackBufferView() const
 	{
-		return rtvDescriptorHeap.GetCPUHandle(currentBackBufferIndex);
+		return rtvPrimeDescriptorHeap.GetCPUHandle(currentBackBufferIndex);
 	}
 
 	GTexture& Window::GetCurrentBackBuffer() 
@@ -178,7 +178,7 @@ namespace DXLib
 	UINT Window::Present()
 	{
 		UINT syncInterval = vSync ? 1 : 0;
-		UINT presentFlags = isTearingSupported && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+		UINT presentFlags = GDevice::GetDevice()->IsTearingSupport() && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 		ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -188,10 +188,8 @@ namespace DXLib
 
 	void Window::Initialize()
 	{
-		D3DApp& app = D3DApp::GetApp();
-
-		isTearingSupported = app.IsTearingSupported();
-
+		rtvPrimeDescriptorHeap = GDevice::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
+		
 		swapChain = CreateSwapChain();
 
 
@@ -199,8 +197,7 @@ namespace DXLib
 		{
 			backBuffers.push_back(GTexture(windowName + L" Backbuffer[" + std::to_wstring(i) + L"]", TextureUsage::RenderTarget));
 		}
-
-		D3DApp::GetApp().Flush();		
+	
 	}
 
 	Window::Window(WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
@@ -252,7 +249,7 @@ namespace DXLib
 	{	
 		Destroy();
 		assert(!hWnd && "Use Application::DestroyWindow before destruction.");
-		::CloseHandle(m_SwapChainEvent);
+		::CloseHandle(swapChainEvent);
 	}
 
 	void Window::OnUpdate()
@@ -317,11 +314,15 @@ namespace DXLib
 			backBuffers[i].Reset();
 		}
 
+		DXGI_SWAP_CHAIN_DESC desc;
+		
+		swapChain->GetDesc(&desc);
+		
 		ThrowIfFailed(swapChain->ResizeBuffers(
-			BufferCount,
+			desc.BufferCount,
 			width, height,
-			backBufferFormat,
-			isTearingSupported ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+			desc.BufferDesc.Format,
+			desc.Flags));
 
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 		
@@ -349,54 +350,21 @@ namespace DXLib
 
 	ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
 	{
-		ComPtr<IDXGISwapChain4> swapChain;
-
-
-		auto& app = (D3DApp::GetApp());
-
-		ComPtr<IDXGISwapChain4> dxgiSwapChain4;
-		ComPtr<IDXGIFactory4> dxgiFactory4;
-		UINT createFactoryFlags = 0;
-#if defined(_DEBUG)
-		createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-		ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&dxgiFactory4)));
-
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
 		swapChainDesc.Width = width;
 		swapChainDesc.Height = height;
 		swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		swapChainDesc.Stereo = FALSE;
-		swapChainDesc.SampleDesc = {1, 0};
+		swapChainDesc.SampleDesc = { 1, 0 };
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swapChainDesc.BufferCount = BufferCount;
 		swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-		// It is recommended to always allow tearing if tearing support is available.
-		swapChainDesc.Flags = isTearingSupported
-			                      ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-			                      : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-		ID3D12CommandQueue* pCommandQueue = app.GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetD3D12CommandQueue().
-		                                        Get();
+		
+		swapChain = GDevice::GetDevice()->CreateSwapChain(swapChainDesc, hWnd);		
 
-		ComPtr<IDXGISwapChain1> swapChain1;
-		ThrowIfFailed(dxgiFactory4->CreateSwapChainForHwnd(
-			pCommandQueue,
-			hWnd,
-			&swapChainDesc,
-			nullptr,
-			nullptr,
-			&swapChain1));
-
-		// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
-		// will be handled manually.
-		ThrowIfFailed(dxgiFactory4->MakeWindowAssociation(hWnd, DXGI_MWA_NO_ALT_ENTER));
-
-		ThrowIfFailed(swapChain1.As(&swapChain));
-
-		m_SwapChainEvent = swapChain->GetFrameLatencyWaitableObject();
+		swapChainEvent = swapChain->GetFrameLatencyWaitableObject();
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
 		return swapChain;
@@ -410,7 +378,7 @@ namespace DXLib
 		rtvDesc.Format = GetSRGBFormat(backBufferFormat);
 		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-		auto device = D3DApp::GetApp().GetDevice();
+		auto device = GDevice::GetDevice();
 		
 		for (int i = 0; i < BufferCount; ++i)
 		{
@@ -419,7 +387,7 @@ namespace DXLib
 			GResourceStateTracker::AddGlobalResourceState(backBuffer.Get(), D3D12_RESOURCE_STATE_COMMON);
 			
 			backBuffers[i].SetD3D12Resource(device, backBuffer);
-			backBuffers[i].CreateRenderTargetView(&rtvDesc, &rtvDescriptorHeap, i);
+			backBuffers[i].CreateRenderTargetView(&rtvDesc, &rtvPrimeDescriptorHeap, i);
 		}
 	}
 }

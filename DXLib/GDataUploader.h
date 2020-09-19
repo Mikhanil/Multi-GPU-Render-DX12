@@ -3,7 +3,7 @@
 #include <deque>
 #include <memory>
 #include <wrl.h>
-#include <DXAllocator.h>
+#include <MemoryAllocator.h>
 #include <d3d12.h>
 
 using namespace Microsoft::WRL;
@@ -61,7 +61,7 @@ private:
     };
 
 
-    custom_list<std::shared_ptr<UploadMemoryPage>> pages = DXAllocator::CreateList<std::shared_ptr<UploadMemoryPage>>();
+    custom_list<std::shared_ptr<UploadMemoryPage>> pages = MemoryAllocator::CreateList<std::shared_ptr<UploadMemoryPage>>();
 	
    
     std::shared_ptr<UploadMemoryPage> CreatePage(uint32_t pageSize) const;

@@ -27,7 +27,7 @@
 #include "d3d11on12.h"
 #include "d3d11.h"
 #include "Lazy.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GDevice.h"
 using Microsoft::WRL::ComPtr;
 
@@ -52,8 +52,6 @@ namespace DXLib
 
 		static void Destroy();
 
-		bool IsTearingSupported() const;
-
 		std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight,
 		                                           bool vSync = true);
 
@@ -67,11 +65,7 @@ namespace DXLib
 		static void Quit(int exitCode = 0);
 
 		void Flush();
-
-
-		UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 		
-
 		GameTimer* GetTimer();
 
 		static D3DApp& GetApp();
@@ -92,20 +86,21 @@ namespace DXLib
 		{
 			return frameCount;
 		}
-
-		std::shared_ptr<GDevice> GetDevice(GraphicsAdapter adapter = Primary) const;
+		
 	protected:
-
-		bool CheckTearingSupport() const;
 
 		virtual void OnResize();
 		virtual void Update(const GameTimer& gt) = 0;
 		virtual void Draw(const GameTimer& gt) = 0;
 
 	protected:
+
+	
+
+
+		
 		WNDCLASS windowClass;
 		std::shared_ptr<Window> MainWindow;
-		bool m_TearingSupported;
 
 		std::wstring fpsStr;
 		std::wstring mainWindowCaption = L"d3d App";			

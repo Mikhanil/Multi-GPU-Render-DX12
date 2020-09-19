@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "ShaderBuffersData.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 
 static void CalculateTangent(UINT i1, UINT i2, UINT i3, Vertex* vertices)
 {
@@ -58,8 +58,8 @@ public:
 
 	struct MeshData
 	{
-		custom_vector<Vertex> Vertices = DXAllocator::CreateVector<Vertex>();
-		custom_vector<DWORD> Indices32 = DXAllocator::CreateVector<DWORD>();
+		custom_vector<Vertex> Vertices = MemoryAllocator::CreateVector<Vertex>();
+		custom_vector<DWORD> Indices32 = MemoryAllocator::CreateVector<DWORD>();
 
 		custom_vector<uint16>& GetIndices16()
 		{
@@ -74,7 +74,7 @@ public:
 		}
 
 	private:
-		custom_vector<uint16> mIndices16 = DXAllocator::CreateVector<uint16>();
+		custom_vector<uint16> mIndices16 = MemoryAllocator::CreateVector<uint16>();
 	};
 
 	///<summary>

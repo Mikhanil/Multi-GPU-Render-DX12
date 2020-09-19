@@ -30,7 +30,7 @@ namespace DXLib
 
 		for (int i = 0; i < PsoType::Count; ++i)
 		{
-			typedGameObjects.push_back(DXAllocator::CreateVector<GameObject*>());
+			typedGameObjects.push_back(MemoryAllocator::CreateVector<GameObject*>());
 		}
 	}
 
@@ -60,7 +60,7 @@ namespace DXLib
 		}
 
 
-		auto graphicQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto graphicQueue = GDevice::GDevice::GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto graphicList = graphicQueue->GetCommandList();
 
 		for (auto&& texture : generatedMipTextures)
@@ -70,7 +70,7 @@ namespace DXLib
 		graphicQueue->WaitForFenceValue( graphicQueue->ExecuteCommandList(graphicList));
 
 		
-		const auto computeQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		const auto computeQueue = GDevice::GDevice::GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 		auto computeList = computeQueue->GetCommandList();		
 		GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
 		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -96,17 +96,17 @@ namespace DXLib
 		if (!D3DApp::Initialize())
 			return false;
 
-		auto commandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GDevice::GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		auto cmdList = commandQueue->GetCommandList();
 
-		shadowMap = std::make_unique<ShadowMap>(GetDevice(),4096, 4096);
+		shadowMap = std::make_unique<ShadowMap>(GDevice::GetDevice(),4096, 4096);
 
 		ssao = std::make_unique<Ssao>(
-			GetDevice(),
+			GDevice::GetDevice(),
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-		ssaa = std::make_unique<SSAA>(GetDevice(), 1, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+		ssaa = std::make_unique<SSAA>(GDevice::GetDevice(), 1, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 		ssaa->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 		
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
@@ -302,7 +302,7 @@ namespace DXLib
 
 	void SampleApp::Update(const GameTimer& gt)
 	{
-		auto commandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GDevice::GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		// Cycle through the circular frame resource array.
 		currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
@@ -310,7 +310,7 @@ namespace DXLib
 
 		// Has the GPU finished processing the commands of the current frame resource?
 		// If not, wait until the GPU has completed commands up to this fence point.
-		if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFenceComplete(currentFrameResource->FenceValue))
+		if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->FenceValue))
 		{
 			commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);
 		}
@@ -422,7 +422,7 @@ namespace DXLib
 	{
 		if (isResizing) return;
 
-		auto commandQueue = GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+		auto commandQueue = GDevice::GetDevice()->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		auto cmdList = commandQueue->GetCommandList();
 
@@ -725,7 +725,7 @@ namespace DXLib
 	
 	void SampleApp::LoadModels()
 	{
-		auto queue = GetDevice()->GetCommandQueue();
+		auto queue = GDevice::GetDevice()->GetCommandQueue();
 
 		auto nano = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 
@@ -781,7 +781,7 @@ namespace DXLib
 	
 	void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
 	{
-		auto queue = GetDevice()->GetCommandQueue();
+		auto queue = GDevice::GetDevice()->GetCommandQueue();
 		
 		auto graphicCmdList = queue->GetCommandList();
 		LoadStudyTexture(graphicCmdList);		;		
@@ -808,7 +808,7 @@ namespace DXLib
 		rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 		rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
-		rootSignature->Initialize(GetDevice());
+		rootSignature->Initialize(GDevice::GetDevice());
 	}
 		
 	Keyboard* SampleApp::GetKeyboard()
@@ -883,12 +883,12 @@ namespace DXLib
 			ssaoRootSignature->AddStaticSampler(sampler);
 		}
 
-		ssaoRootSignature->Initialize(GetDevice());
+		ssaoRootSignature->Initialize(GDevice::GetDevice());
 	}
 
 	void SampleApp::BuildTexturesHeap()
 	{
-		srvHeap = std::move(DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,  loader.GetLoadTexturesCount()));
+		srvHeap = std::move(GDevice::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,  loader.GetLoadTexturesCount()));
 
 
 		shadowMap->BuildDescriptors();
@@ -1000,7 +1000,7 @@ namespace DXLib
 
 	void SampleApp::BuildShapeGeometry()
 	{
-		auto queue = GetDevice()->GetCommandQueue();
+		auto queue = GDevice::GetDevice()->GetCommandQueue();
 		auto cmdList = queue->GetCommandList();
 
 		auto sphere = loader.GenerateSphere(cmdList);	
@@ -1181,17 +1181,115 @@ namespace DXLib
 
 		for (auto& pso : psos)
 		{
-			pso.second->Initialize(GetDevice()->GetDXDevice().Get());
+			pso.second->Initialize(GDevice::GetDevice()->GetDXDevice().Get());
 		}
 	}
 
 	void SampleApp::BuildFrameResources()
 	{
+		auto primaryDevice = GDevice::GetDevice(GraphicAdapterPrimary);
+		auto secondDevice = GDevice::GetDevice(GraphicsAdapterSecond);
+
+		auto desc = MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc();
+
+		const CD3DX12_RESOURCE_DESC renderTargetDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+			desc.Format,
+			desc.Width,
+			desc.Height,
+			1u, 1u,
+			desc.SampleDesc.Count,
+			desc.SampleDesc.Quality,
+			D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+			D3D12_TEXTURE_LAYOUT_UNKNOWN, 0u);
+
+		const CD3DX12_CLEAR_VALUE clearValue(desc.Format, DirectX::Colors::Black);
+
+		UINT64 textureSize = 0;
+		D3D12_RESOURCE_DESC crossAdapterDesc;
+
+		if (secondDevice->IsCrossAdapterTextureSupported())
+		{
+			// If cross-adapter row-major textures are supported by the adapter,
+				// then they can be sampled directly.
+			crossAdapterDesc = renderTargetDesc;
+			crossAdapterDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER;
+			crossAdapterDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+			D3D12_RESOURCE_ALLOCATION_INFO textureInfo = primaryDevice->GetDXDevice()->GetResourceAllocationInfo(0, 1, &crossAdapterDesc);
+			textureSize = textureInfo.SizeInBytes;
+		}
+		else
+		{
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+			primaryDevice->GetDXDevice()->GetCopyableFootprints(&renderTargetDesc, 0, 1, 0, &layout, nullptr, nullptr, nullptr);
+			textureSize = Align(layout.Footprint.RowPitch * layout.Footprint.Height);
+
+			// Create a buffer with the same layout as the render target texture.
+			crossAdapterDesc = CD3DX12_RESOURCE_DESC::Buffer(textureSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
+		}
+
+		// Create a heap that will be shared by both adapters.
+		CD3DX12_HEAP_DESC heapDesc(
+			textureSize * globalCountFrameResources,
+			D3D12_HEAP_TYPE_DEFAULT,
+			0,
+			D3D12_HEAP_FLAG_SHARED | D3D12_HEAP_FLAG_SHARED_CROSS_ADAPTER);
+
+		ThrowIfFailed(primaryDevice->GetDXDevice()->CreateHeap(&heapDesc, IID_PPV_ARGS(&m_crossAdapterResourceHeaps[GraphicAdapterPrimary])));
+
+		HANDLE heapHandle = nullptr;
+		ThrowIfFailed(primaryDevice->GetDXDevice()->CreateSharedHandle(
+			m_crossAdapterResourceHeaps[GraphicAdapterPrimary].Get(),
+			nullptr,
+			GENERIC_ALL,
+			nullptr,
+			&heapHandle));
+
+		HRESULT openSharedHandleResult = secondDevice->GetDXDevice()->OpenSharedHandle(heapHandle, IID_PPV_ARGS(&m_crossAdapterResourceHeaps[GraphicsAdapterSecond]));
+
+		// We can close the handle after opening the cross-adapter shared resource.
+		CloseHandle(heapHandle);
+		ThrowIfFailed(openSharedHandleResult);
+
+
+		
 		for (int i = 0; i < globalCountFrameResources; ++i)
 		{
 			frameResources.push_back(
-				std::make_unique<FrameResource>(GetDevice(),2, gameObjects.size(), loader.GetMaterials().size() ));
+				std::make_unique<FrameResource>(GDevice::GetDevice(),2, gameObjects.size(), loader.GetMaterials().size() ));
+
+
+			ThrowIfFailed(primaryDevice->GetDXDevice()->CreatePlacedResource(
+				m_crossAdapterResourceHeaps[GraphicAdapterPrimary].Get(),
+				textureSize * i,
+				&crossAdapterDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS(&frameResources[i]->crossAdapterResources[GraphicAdapterPrimary][i])));
+
+			ThrowIfFailed(secondDevice->GetDXDevice()->CreatePlacedResource(
+				m_crossAdapterResourceHeaps[GraphicsAdapterSecond].Get(),
+				textureSize * i,
+				&crossAdapterDesc,
+				secondDevice->IsCrossAdapterTextureSupported() ? D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE : D3D12_RESOURCE_STATE_COPY_SOURCE,
+				nullptr,
+				IID_PPV_ARGS(&frameResources[i]->crossAdapterResources[GraphicsAdapterSecond][i])));
+
+			if(!secondDevice->IsCrossAdapterTextureSupported())
+			{
+				// If the primary adapter's render target must be shared as a buffer,
+					// create a texture resource to copy it into on the secondary adapter.
+				ThrowIfFailed(secondDevice->GetDXDevice()->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+					D3D12_HEAP_FLAG_NONE,
+					&renderTargetDesc,
+					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+					nullptr,
+					IID_PPV_ARGS(&m_secondaryAdapterTextures[i])));
+			}			
 		}
+
+		
 	}
 
 	void SampleApp::BuildMaterials()
@@ -1237,7 +1335,7 @@ namespace DXLib
 		
 		auto skySphere = std::make_unique<GameObject>( "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
-		auto renderer = new ModelRenderer(GetDevice());
+		auto renderer = new ModelRenderer(GDevice::GetDevice());
 		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"sky")).get();
 		renderer->SetModel(models[L"sphere"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"sky")));
@@ -1246,7 +1344,7 @@ namespace DXLib
 		gameObjects.push_back(std::move(skySphere));
 
 		auto quadRitem = std::make_unique<GameObject>( "Quad");
-		renderer = new ModelRenderer(GetDevice());
+		renderer = new ModelRenderer(GDevice::GetDevice());
 		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"seamless")).get();
 		renderer->SetModel(models[L"quad"]);
 		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"seamless")));
@@ -1403,7 +1501,7 @@ namespace DXLib
 	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<Model> model) 
 	{
 		auto man = std::make_unique<GameObject>();
-		auto renderer = new ModelRenderer(GetDevice());
+		auto renderer = new ModelRenderer(GDevice::GetDevice());
 		man->AddComponent(renderer);
 		renderer->SetModel(model);				
 		SetDefaultMaterialForModel(renderer);

@@ -16,7 +16,7 @@ namespace DXLib
 		desc.Type = type;
 		desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		desc.NodeMask = 0;
+		desc.NodeMask = device->GetNodeMask();
 
 		ThrowIfFailed(device->GetDXDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));
 		ThrowIfFailed(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
@@ -33,7 +33,19 @@ namespace DXLib
 			break;
 		case D3D12_COMMAND_LIST_TYPE_DIRECT:
 			commandQueue->SetName(L"Direct Command Queue");
-			break;		
+			break;
+		case D3D12_COMMAND_LIST_TYPE_BUNDLE:
+			commandQueue->SetName(L"Bundle Command Queue");
+			break;
+		case D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE:
+			commandQueue->SetName(L"VDecode Command Queue");
+			break;
+		case D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS:
+			commandQueue->SetName(L"VProcess Command Queue");
+			break;
+		case D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE:
+			commandQueue->SetName(L"VEncode Command Queue");
+			break;
 		}
 
 
@@ -55,14 +67,14 @@ namespace DXLib
 		return fenceValue;
 	}
 
-	bool GCommandQueue::IsFenceComplete(uint64_t fenceValue) const
+	bool GCommandQueue::IsFinish(uint64_t fenceValue) const
 	{
 		return fence->GetCompletedValue() >= fenceValue;
 	}
 
 	void GCommandQueue::WaitForFenceValue(uint64_t fenceValue) const
 	{
-		if (IsFenceComplete(fenceValue))
+		if (IsFinish(fenceValue))
 			return;
 
 		auto event = ::CreateEvent(NULL, FALSE, FALSE, NULL);

@@ -1,5 +1,5 @@
 #pragma once
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include <memory>
 #include <d3d12.h>
 #include "GMemory.h"
@@ -67,19 +67,19 @@ private:
         uint64_t FrameNumber;
     };
     
-    custom_map<OffsetType, FreeBlockInfo> freeListByOffset = DXAllocator::CreateMap<OffsetType, FreeBlockInfo>();
-    custom_multimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator> freeListBySize = DXAllocator::CreateMultimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator>();
+    custom_map<OffsetType, FreeBlockInfo> freeListByOffset = MemoryAllocator::CreateMap<OffsetType, FreeBlockInfo>();
+    custom_multimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator> freeListBySize = MemoryAllocator::CreateMultimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator>();
 	
-    custom_queue<DescriptorInfo> staleDescriptors = DXAllocator::CreateQueue<DescriptorInfo>();
+    custom_queue<DescriptorInfo> staleDescriptors = MemoryAllocator::CreateQueue<DescriptorInfo>();
 
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> d3d12DescriptorHeap;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 	
     D3D12_DESCRIPTOR_HEAP_TYPE heapType;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE startCPUDescriptor{};    	
-    CD3DX12_GPU_DESCRIPTOR_HANDLE startGPUDescriptor{};
+    CD3DX12_CPU_DESCRIPTOR_HANDLE startCPUPtr{};    	
+    CD3DX12_GPU_DESCRIPTOR_HANDLE startGPUPtr{};
 	
     uint32_t descriptorHandleIncrementSize{};
-    uint32_t numDescriptorsInHeap;
+    uint32_t descriptorCount;
     uint32_t freeHandlesCount;
 
     std::mutex allocationMutex;

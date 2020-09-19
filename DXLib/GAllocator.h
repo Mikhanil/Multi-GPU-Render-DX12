@@ -1,5 +1,5 @@
 #pragma once
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GMemory.h"
 #include "d3dx12.h"
 #include <cstdint>
@@ -30,9 +30,9 @@ private:
 	
     uint32_t numDescriptorsPerPage;
 
-    GraphicMemoryPage pages = DXAllocator::CreateVector<std::shared_ptr<GHeap>>();
+    GraphicMemoryPage pages = MemoryAllocator::CreateVector<std::shared_ptr<GHeap>>();
 	   
-    custom_set<size_t> availablePages = DXAllocator::CreateSet<size_t>();
+    custom_set<size_t> availablePages = MemoryAllocator::CreateSet<size_t>();
 
     std::mutex allocationMutex;
 

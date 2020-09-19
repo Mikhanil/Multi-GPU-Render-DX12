@@ -23,10 +23,15 @@ const int globalCountFrameResources = 3;
 
 enum GraphicsAdapter : UINT
 {
-    Primary = 0, // Note: Not necessarily the OS's primary adapter (adapter enumerated at index 0).
-    Second = Primary + 1,
-    GraphicsAdaptersCount = Second + 1
+    GraphicAdapterPrimary = 0, // Note: Not necessarily the OS's primary adapter (adapter enumerated at index 0).
+    GraphicsAdapterSecond = GraphicAdapterPrimary + 1,
+    GraphicsAdaptersCount = GraphicsAdapterSecond + 1
 };
+
+static inline UINT Align(UINT size, UINT alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
+{
+    return (size + alignment - 1) & ~(alignment - 1);
+}
 
 
 template <typename T>

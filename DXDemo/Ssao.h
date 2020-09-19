@@ -3,7 +3,7 @@
 #include "d3dUtil.h"
 #include "FrameResource.h"
 #include "GraphicPSO.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GMemory.h"
 
 class Ssao
@@ -82,16 +82,16 @@ private:
 	GTexture depthMap;
 
 	
-	GMemory normalMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,1);
-	GMemory normalMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+	GMemory normalMapSrvMemory;
+	GMemory normalMapRtvMemory;
 	
-	GMemory depthMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-	GMemory depthMapDSVMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+	GMemory depthMapSrvMemory;
+	GMemory depthMapDSVMemory;
 	
-	GMemory randomVectorSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	GMemory randomVectorSrvMemory;
 	
-	GMemory ambientMapMapSrvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
-	GMemory ambientMapRtvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2);
+	GMemory ambientMapMapSrvMemory;
+	GMemory ambientMapRtvMemory;
 	
 
 	UINT mRenderTargetWidth;

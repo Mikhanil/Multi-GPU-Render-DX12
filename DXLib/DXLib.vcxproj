@@ -168,9 +168,11 @@
     <ClInclude Include="d3dUtil.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DirectXBuffers.h" />
-    <ClInclude Include="DXAllocator.h" />
+    <ClInclude Include="MemoryAllocator.h" />
     <ClInclude Include="ComputePSO.h" />
+    <ClInclude Include="GCrossAdapterResource.h" />
     <ClInclude Include="GDevice.h" />
+    <ClInclude Include="GFence.h" />
     <ClInclude Include="GMemory.h" />
     <ClInclude Include="GAllocator.h" />
     <ClInclude Include="GHeap.h" />
@@ -194,9 +196,11 @@
     <ClCompile Include="GCommandList.cpp" />
     <ClCompile Include="GCommandQueue.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
-    <ClCompile Include="DXAllocator.cpp" />
+    <ClCompile Include="MemoryAllocator.cpp" />
     <ClCompile Include="ComputePSO.cpp" />
+    <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GDevice.cpp" />
+    <ClCompile Include="GFence.cpp" />
     <ClCompile Include="GMemory.cpp" />
     <ClCompile Include="GAllocator.cpp" />
     <ClCompile Include="GHeap.cpp" />

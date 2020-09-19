@@ -4,7 +4,7 @@
 
 #include "GCommandQueue.h"
 #include "Window.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GDevice.h"
 
 using Microsoft::WRL::ComPtr;
@@ -19,8 +19,8 @@ namespace DXLib
 	using WindowMap = custom_unordered_map< HWND, std::shared_ptr<Window> >;
 	using WindowNameMap = custom_unordered_map< std::wstring, std::shared_ptr<Window> >;
 
-	static WindowMap gs_Windows = DXAllocator::CreateUnorderedMap<HWND, std::shared_ptr<Window>>();
-	static WindowNameMap gs_WindowByName = DXAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Window>>();
+	static WindowMap gs_Windows = MemoryAllocator::CreateUnorderedMap<HWND, std::shared_ptr<Window>>();
+	static WindowNameMap gs_WindowByName = MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Window>>();
 	
 	LRESULT CALLBACK
 	MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -61,18 +61,7 @@ namespace DXLib
 			MessageBox(nullptr, L"RegisterClass Failed.", nullptr, 0);
 			assert(&windowClass);
 		}
-		
-
-		{
-			
-
-			m_TearingSupported = CheckTearingSupport();
-		}
-
-
-
-
-		
+				
 		// Only one D3DApp can be constructed.
 		assert(instance == nullptr);
 		instance = this;
@@ -97,11 +86,6 @@ namespace DXLib
 		}
 
 		
-	}
-
-	bool D3DApp::IsTearingSupported() const
-	{
-		return m_TearingSupported;
 	}
 
 	// A wrapper struct to allow shared pointers for the window class.
@@ -162,35 +146,6 @@ namespace DXLib
 	void D3DApp::Flush()
 	{
 		GDevice::GetDevice()->Flush();
-	}
-	
-	UINT D3DApp::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
-	{
-		return GDevice::GetDevice()->GetDescriptorHandleIncrementSize(type);
-	}
-	
-	
-
-	bool D3DApp::CheckTearingSupport() const
-	{
-		BOOL allowTearing = FALSE;
-
-		// Rather than create the DXGI 1.5 factory interface directly, we create the
-		// DXGI 1.4 interface and query for the 1.5 interface. This is to enable the 
-		// graphics debugging tools which will not support the 1.5 factory interface 
-		// until a future update.
-		ComPtr<IDXGIFactory4> factory4;
-		if (SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory4))))
-		{
-			ComPtr<IDXGIFactory5> factory5;
-			if (SUCCEEDED(factory4.As(&factory5)))
-			{
-				factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-				                              &allowTearing, sizeof(allowTearing));
-			}
-		}
-
-		return allowTearing == TRUE;
 	}
 
 	GameTimer* D3DApp::GetTimer()
@@ -263,7 +218,8 @@ namespace DXLib
 					//Sleep(100);
 				}
 
-				DXAllocator::ResetAllocator();
+				GDevice::GetDevice()->ResetAllocator(frameCount);
+				GDevice::GetDevice(GraphicsAdapterSecond)->ResetAllocator(frameCount);
 			}
 		}
 
@@ -280,6 +236,8 @@ namespace DXLib
 
 		OnResize();
 
+		
+		
 		return true;
 	}
 
@@ -344,8 +302,7 @@ namespace DXLib
 
 				pWindow->SetWidth(width);
 				pWindow->SetHeight(height);
-
-				if (GetDevice())
+								
 				{
 					if (wParam == SIZE_MINIMIZED)
 					{
@@ -456,10 +413,7 @@ namespace DXLib
 		return true;
 	}
 
-	std::shared_ptr<GDevice> D3DApp::GetDevice(GraphicsAdapter adapter) const
-	{
-		return GDevice::GetDevice(adapter);
-	}
+	
 
 	bool D3DApp::InitDirect3D()
 	{		
@@ -468,7 +422,7 @@ namespace DXLib
 		msQualityLevels.SampleCount = 4;
 		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 		msQualityLevels.NumQualityLevels = 0;
-		ThrowIfFailed(GetDevice()->GetDXDevice()->CheckFeatureSupport(
+		ThrowIfFailed(GDevice::GetDevice()->GetDXDevice()->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
 			&msQualityLevels,
 			sizeof(msQualityLevels)));
@@ -480,7 +434,7 @@ namespace DXLib
 		LogAdapters();
 #endif
 
-
+		
 		return true;
 	}
 

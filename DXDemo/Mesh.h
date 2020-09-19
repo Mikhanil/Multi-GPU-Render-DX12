@@ -2,7 +2,7 @@
 #include <string>
 
 #include "DirectXBuffers.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GBuffer.h"
 #include "ShaderBuffersData.h"
 #include "Lazy.h"

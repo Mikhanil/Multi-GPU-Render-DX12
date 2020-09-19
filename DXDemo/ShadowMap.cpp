@@ -1,8 +1,6 @@
 #include "ShadowMap.h"
-
-
 #include "d3dApp.h"
-#include "DXAllocator.h"
+#include "MemoryAllocator.h"
 #include "GResourceStateTracker.h"
 
 ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height)
@@ -14,8 +12,8 @@ ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height)
 	mViewport = {0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
 	mScissorRect = {0, 0, static_cast<int>(width), static_cast<int>(height)};
 		
-	srvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-	dsvMemory = DXAllocator::AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+	srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	dsvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 	
 	BuildResource();
 }

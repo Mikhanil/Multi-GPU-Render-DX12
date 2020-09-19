@@ -1,27 +1,14 @@
 #pragma once
-
-#include <d3d12.h>
 #include "STLCustomAllocator.h"
 #include "d3dUtil.h"
-#include "Lazy.h"
 
-class GAllocator;
-class GMemory;
 
-class DXAllocator
+class MemoryAllocator
 {
 	static LinearAllocationStrategy<> allocatorStrategy;
-
-	//Lazy массив аллокаторов с Lazy инициализацией для каждого устройства
-	static custom_unordered_map<GraphicsAdapter, DXLib::Lazy< custom_vector<DXLib::Lazy<std::unique_ptr<GAllocator>>>>> graphicAllocators;
-
-	
+		
 public:
-
-	static void ResetAllocator();
-
-	static GMemory AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount = 1, GraphicsAdapter adapter = GraphicsAdapter::Primary);
-	
+		
 	template<typename T>
 	CustomAllocator<T> static GetAllocator()
 	{

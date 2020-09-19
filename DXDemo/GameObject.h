@@ -40,7 +40,7 @@ public:
 protected:
 
 
-	custom_vector<Component*> components = DXAllocator::CreateVector<Component*>();
+	custom_vector<Component*> components = MemoryAllocator::CreateVector<Component*>();
 	std::unique_ptr<Transform> transform = nullptr;
 	ModelRenderer* renderer = nullptr;
 	std::string name;
