@@ -1,21 +1,32 @@
 #include "MultiAdapter.h"
 #include "GCommandList.h"
+#include "GCommandQueue.h"
 #include "Window.h"
-#include "GTexture.h"
+#include "GCrossAdapterResource.h"
+
+MultiAdapter::MultiAdapter(HINSTANCE hInstance): D3DApp(hInstance)
+{
+}
 
 bool MultiAdapter::Initialize()
 {
 	if (!D3DApp::Initialize())
 		return false;
 
+	primeDevice = GDevice::GetDevice(GraphicAdapterPrimary);
+	secondDevice = GDevice::GetDevice(GraphicsAdapterSecond);
+	
+	auto backBufferDesc = MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc();
+	
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
 		frameResources.push_back(
 			std::make_unique<FrameResource>(GDevice::GetDevice(), 1, 1, 1));
+
+		crossAdapterBackBuffers.push_back(std::make_unique<GCrossAdapterResource>(backBufferDesc, primeDevice, secondDevice, L"Shared back buffer"));
 	}
 
-	auto primeDevice = GDevice::GetDevice(GraphicAdapterPrimary);
-	auto secondDevice = GDevice::GetDevice(GraphicsAdapterSecond);
+	
 	
 	
 	return true;

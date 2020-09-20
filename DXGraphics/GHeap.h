@@ -7,6 +7,8 @@
 #include "d3dx12.h"
 #include <mutex>
 
+using namespace Microsoft::WRL;
+
 class GDevice;
 
 class GHeap : public std::enable_shared_from_this<GHeap>

@@ -14,7 +14,6 @@
 #include "ObjectMover.h"
 #include "Renderer.h"
 #include "Rotater.h"
-#include "SquidRoom.h"
 #include "Transform.h"
 #include "Window.h"
 

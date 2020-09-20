@@ -160,6 +160,7 @@
     <ClInclude Include="FreeListAllocator.h" />
     <ClInclude Include="LinearAllocationStrategy.h" />
     <ClInclude Include="LinearAllocator.h" />
+    <ClInclude Include="MemoryAllocator.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PoolAllocator.h" />
     <ClInclude Include="SinglyLinkedList.h" />
@@ -177,6 +178,7 @@
     <ClCompile Include="LinearAllocationStrategy.cpp" />
     <ClCompile Include="LinearAllocator.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MemoryAllocator.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

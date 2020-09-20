@@ -1,20 +1,18 @@
 #pragma once
 #include "STLCustomAllocator.h"
-#include "d3dUtil.h"
 
 
 class MemoryAllocator
 {
+	
 	static LinearAllocationStrategy<> allocatorStrategy;
-
+		
 public:
 
 	template <typename T>
 	CustomAllocator<T> static GetAllocator()
-	{
-		CustomAllocator<T> allocator(allocatorStrategy);
-
-		return allocator;
+	{		
+		return CustomAllocator<T>(allocatorStrategy);
 	}
 
 	template <typename T>

@@ -114,9 +114,6 @@
     <ClInclude Include="GFence.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MemoryAllocator.h">
-      <Filter>Header Files\Allocators</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3dApp.cpp">
@@ -190,9 +187,6 @@
     </ClCompile>
     <ClCompile Include="GFence.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MemoryAllocator.cpp">
-      <Filter>Source Files\Allocators</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

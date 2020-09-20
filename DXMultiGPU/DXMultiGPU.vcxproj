@@ -149,23 +149,36 @@
     <ClCompile Include="MultiAdapter.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
-      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\DXCommon\DXCommon.vcxproj">
-      <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\DXGraphics\DXGraphics.vcxproj">
-      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="GCrossAdapterResource.h" />
     <ClInclude Include="MultiAdapter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Quad.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS</EntryPointName>
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS</EntryPointName>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
+      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\DXGraphics\DXGraphics.vcxproj">
+      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

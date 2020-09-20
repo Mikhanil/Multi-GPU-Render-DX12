@@ -168,7 +168,6 @@
     <ClInclude Include="d3dUtil.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DirectXBuffers.h" />
-    <ClInclude Include="MemoryAllocator.h" />
     <ClInclude Include="ComputePSO.h" />
     <ClInclude Include="GDevice.h" />
     <ClInclude Include="GFence.h" />
@@ -195,7 +194,6 @@
     <ClCompile Include="GCommandList.cpp" />
     <ClCompile Include="GCommandQueue.cpp" />
     <ClCompile Include="d3dUtil.cpp" />
-    <ClCompile Include="MemoryAllocator.cpp" />
     <ClCompile Include="ComputePSO.cpp" />
     <ClCompile Include="GDevice.cpp" />
     <ClCompile Include="GFence.cpp" />
@@ -216,12 +214,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
-      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

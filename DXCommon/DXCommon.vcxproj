@@ -201,19 +201,6 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
-      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\DXGraphics\DXGraphics.vcxproj">
-      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
-    </ProjectReference>
-    <ProjectReference Include="..\DXLib\DXLib.vcxproj">
-      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

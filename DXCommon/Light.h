@@ -1,5 +1,6 @@
 #pragma once
 #include "Component.h"
+#include "d3dUtil.h"
 #include "ShaderBuffersData.h"
 
 class GCommandList;

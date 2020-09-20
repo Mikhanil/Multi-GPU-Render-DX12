@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{2AF6778B-2921-4079-B37E-4671349E8848}</ProjectGuid>
-    <RootNamespace>DXDermo</RootNamespace>
+    <RootNamespace>DXSingleGPU</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>DXSingleGPU</ProjectName>
   </PropertyGroup>
@@ -172,17 +172,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
-      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\DXCommon\DXCommon.vcxproj">
-      <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\DXGraphics\DXGraphics.vcxproj">
-      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CameraController.cpp" />
@@ -342,6 +331,17 @@
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="SSAA.h" />
     <ClInclude Include="Ssao.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
+      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\DXCommon\DXCommon.vcxproj">
+      <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\DXGraphics\DXGraphics.vcxproj">
+      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

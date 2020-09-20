@@ -20,7 +20,7 @@ private:
 	ComPtr<ID3D12Device2> device;
 	ComPtr<IDXGIAdapter3> adapter;
 
-	DXLib::Lazy<custom_vector<DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>>> queues{};
+	DXLib::Lazy<custom_vector<DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>>> queues;
 
 	static ComPtr<IDXGIFactory4> CreateFactory();
 	static ComPtr<IDXGIFactory4> dxgiFactory;

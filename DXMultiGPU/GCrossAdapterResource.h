@@ -1,7 +1,7 @@
 #pragma once
 #include <d3d12.h>
 #include <string>
-#include "memory"
+#include <memory>
 
 class GDevice;
 class GResource;
