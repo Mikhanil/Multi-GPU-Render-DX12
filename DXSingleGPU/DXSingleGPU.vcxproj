@@ -340,7 +340,6 @@
     <ClInclude Include="Rotater.h" />
     <ClInclude Include="SampleApp.h" />
     <ClInclude Include="ShadowMap.h" />
-    <ClInclude Include="SquidRoom.h" />
     <ClInclude Include="SSAA.h" />
     <ClInclude Include="Ssao.h" />
   </ItemGroup>

@@ -133,9 +133,6 @@
     <ClInclude Include="FrameResource.h">
       <Filter>Header Files\Render</Filter>
     </ClInclude>
-    <ClInclude Include="SquidRoom.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SSAA.h">
       <Filter>Header Files</Filter>
     </ClInclude>
