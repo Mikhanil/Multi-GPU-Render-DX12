@@ -125,7 +125,7 @@ AllocationStrategy* STLCustomAllocator<T, AllocationStrategy>::GetStrategy() con
 }
 
 
-template<typename T, std::size_t INIT_LINEAR_SIZE = 1024u * 1024u * 256u>
+template<typename T>
 using CustomAllocator = STLCustomAllocator<T, LinearAllocationStrategy<INIT_LINEAR_SIZE>>;
 
 template<typename T>

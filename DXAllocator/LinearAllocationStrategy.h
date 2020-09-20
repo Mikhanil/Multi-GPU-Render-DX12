@@ -6,8 +6,10 @@
 #include <vector>
 #include "LinearAllocator.h"
 
+constexpr std::size_t INIT_LINEAR_SIZE = 1024u * 1024u * 256u;
+
 //по 256 мб 
-template<std::size_t INIT_LINEAR_SIZE = 1024u * 1024u * 256u>
+template<std::size_t INIT_LINEAR_SIZE = INIT_LINEAR_SIZE>
 class LinearAllocationStrategy
 {
     static_assert(INIT_LINEAR_SIZE != 0u, "Linear size must be more, than zero");
