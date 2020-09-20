@@ -17,7 +17,7 @@ GResource::GResource(const std::wstring& name)
 
 GResource::GResource(const std::shared_ptr<GDevice> device, const D3D12_RESOURCE_DESC& resourceDesc,
                      const std::wstring& name, const D3D12_CLEAR_VALUE* clearValue, D3D12_RESOURCE_STATES initState,
-                     D3D12_HEAP_PROPERTIES heapProp): device(device)
+                     D3D12_HEAP_PROPERTIES heapProp, D3D12_HEAP_FLAGS heapFlags): device(device)
 {
 	id = ++resourceId;
 
@@ -29,7 +29,7 @@ GResource::GResource(const std::shared_ptr<GDevice> device, const D3D12_RESOURCE
 
 	ThrowIfFailed(device->GetDXDevice()->CreateCommittedResource(
 		&heapProp,
-		D3D12_HEAP_FLAG_NONE,
+		heapFlags,
 		&resourceDesc,
 		initState,
 		this->clearValue.get(),

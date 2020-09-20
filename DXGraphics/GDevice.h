@@ -17,7 +17,7 @@ class GAllocator;
 class GDevice
 {
 private:
-	ComPtr<ID3D12Device2> device;
+	ComPtr<ID3D12Device> device;
 	ComPtr<IDXGIAdapter3> adapter;
 
 	DXLib::Lazy<custom_vector<DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>>> queues;
@@ -74,10 +74,10 @@ public:
 
 	bool IsCrossAdapterTextureSupported();
 
-	void SharedFence(ComPtr<ID3D12Fence> primaryFence, std::shared_ptr<GDevice> sharedDevice,
-	                 ComPtr<ID3D12Fence> sharedFence, UINT64 fenceValue = 0,
+	void SharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_ptr<GDevice> sharedDevice,
+	                 ComPtr<ID3D12Fence>& sharedFence, UINT64 fenceValue = 0,
 	                 const SECURITY_ATTRIBUTES* attributes = nullptr,
-	                 DWORD access = GENERIC_ALL, LPCWSTR name = L"") const;
+	                 const DWORD access = GENERIC_ALL, const LPCWSTR name = L"") const;
 
 	ComPtr<IDXGISwapChain4> CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& desc, HWND hwnd) const;
 
@@ -88,7 +88,7 @@ public:
 
 	void Flush() const;
 
-	ComPtr<ID3D12Device2> GetDXDevice() const;
+	ComPtr<ID3D12Device> GetDXDevice() const;
 
 	static ComPtr<IDXGIFactory4> GetFactory();
 

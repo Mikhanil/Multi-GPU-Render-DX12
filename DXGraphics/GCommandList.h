@@ -11,6 +11,7 @@ using namespace Microsoft::WRL;
 
 class GDevice;
 class GResource;
+class GTexture;
 class GDataUploader;
 class GMemory;
 class GResourceStateTracker;
@@ -106,6 +107,14 @@ public:
 
 	void TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter,
 	                       UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false) const;
+	
+	void CopyTextureRegion(ComPtr<ID3D12Resource> dstRes, UINT DstX,
+		UINT DstY,
+		UINT DstZ, ComPtr<ID3D12Resource> srcRes, const D3D12_BOX* srcBox);
+	
+	void CopyTextureRegion(const GResource& dstRes, UINT DstX, UINT DstY, UINT DstZ, const GResource& srcRes,
+	                       const D3D12_BOX* srcBox);
+	
 	void TransitionBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter,
 	                       UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false) const;
 
@@ -119,7 +128,7 @@ public:
 
 	void FlushResourceBarriers() const;
 
-	void CopyResource(GResource& dstRes, const GResource& srcRes);
+	void CopyResource(const GResource& dstRes, const GResource& srcRes);
 	void CopyResource(ComPtr<ID3D12Resource> dstRes, ComPtr<ID3D12Resource> srcRes);
 
 	/**

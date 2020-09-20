@@ -88,7 +88,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Assimp\include;$(SolutionDir)\DXGraphics;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -103,7 +104,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Assimp\include;$(SolutionDir)\DXGraphics;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -118,7 +120,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Assimp\include;$(SolutionDir)\DXGraphics;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -133,7 +136,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Assimp\include;$(SolutionDir)\DXGraphics;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

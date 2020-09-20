@@ -2,6 +2,9 @@
 #include "d3dApp.h"
 #include "FrameResource.h"
 #include "GCrossAdapterResource.h"
+#include "GMemory.h"
+#include "GTexture.h"
+
 
 class MultiAdapter :
     public DXLib::D3DApp
@@ -16,6 +19,8 @@ protected:
 	void Draw(const GameTimer& gt) override;
 
 	void OnResize() override;
+
+	bool InitMainWindow() override;;
 	
 private:
 	UINT backBufferIndex = 0;
@@ -25,11 +30,20 @@ private:
 	D3D12_VIEWPORT primeViewport{};
 	D3D12_RECT primeRect{};
 	D3D12_RECT secondRect{};
+	D3D12_BOX copyRegionBox;
 
 	std::shared_ptr<GDevice> primeDevice;
 	std::shared_ptr<GDevice> secondDevice;
 
 	custom_vector<std::unique_ptr<GCrossAdapterResource>> crossAdapterBackBuffers = MemoryAllocator::CreateVector<std::unique_ptr<GCrossAdapterResource>>();
+
+	custom_vector<GTexture> primeDeviceBackBuffers = MemoryAllocator::CreateVector<GTexture>();
+	
+	GMemory primeRTV;
+
+	ComPtr<ID3D12Fence> primeFence;
+	ComPtr<ID3D12Fence> sharedFence;
+	UINT64 sharedFenceValue = 0;
 	
 	
 	custom_vector<std::unique_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::unique_ptr<FrameResource>>();

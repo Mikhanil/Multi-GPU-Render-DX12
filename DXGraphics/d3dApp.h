@@ -52,8 +52,8 @@ namespace DXLib
 
 		static void Destroy();
 
-		std::shared_ptr<Window> CreateRenderWindow(const std::wstring& windowName, int clientWidth, int clientHeight,
-		                                           bool vSync = true);
+		std::shared_ptr<Window> CreateRenderWindow(std::shared_ptr<GDevice> device, const std::wstring& windowName, int clientWidth,
+		                                           int clientHeight, bool vSync = true);
 
 		void DestroyWindow(const std::wstring& windowName) const;
 
@@ -120,7 +120,7 @@ namespace DXLib
 		uint64_t frameCount = 0;
 		GameTimer timer;
 
-		bool InitMainWindow();
+		bool virtual InitMainWindow();
 
 
 		bool InitDirect3D();

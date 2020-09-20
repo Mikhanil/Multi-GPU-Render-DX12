@@ -61,10 +61,15 @@ namespace DXLib
 	uint64_t GCommandQueue::Signal()
 	{
 		const auto fenceValue = ++FenceValue;
-		commandQueue->Signal(fence.Get(), fenceValue);
+		Signal(fence, fenceValue);
 		return fenceValue;
 	}
 
+	void GCommandQueue::Signal(ComPtr<ID3D12Fence> otherFence, UINT64 fenceValue) const
+	{
+		commandQueue->Signal(otherFence.Get(), fenceValue);
+	}
+	
 	bool GCommandQueue::IsFinish(uint64_t fenceValue) const
 	{
 		return fence->GetCompletedValue() >= fenceValue;
@@ -163,6 +168,11 @@ namespace DXLib
 	void GCommandQueue::Wait(const GCommandQueue& other) const
 	{
 		commandQueue->Wait(other.fence.Get(), other.FenceValue);
+	}
+
+	void GCommandQueue::Wait(const ComPtr<ID3D12Fence> otherFence, UINT64 otherFenceValue) const
+	{
+		commandQueue->Wait(otherFence.Get(), otherFenceValue);
 	}
 
 

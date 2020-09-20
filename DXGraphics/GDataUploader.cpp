@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "GDataUploader.h"
 #include "d3dApp.h"
 #include "d3dUtil.h"

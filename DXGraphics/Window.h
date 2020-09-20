@@ -81,7 +81,7 @@ namespace DXLib
 		friend class D3DApp;
 
 		Window() = delete;
-		Window(WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync);
+		Window(std::shared_ptr<GDevice> device,WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync);
 		virtual ~Window();
 
 
@@ -125,7 +125,7 @@ namespace DXLib
 		ComPtr<IDXGISwapChain4> CreateSwapChain();
 		ComPtr<IDXGISwapChain4> swapChain;		
 	
-		
+		std::shared_ptr<GDevice> device;
 		std::vector<GTexture> backBuffers;
 		GMemory rtvPrimeDescriptorHeap;
 		

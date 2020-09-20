@@ -110,7 +110,7 @@ custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::devices = CreateDe
 
 UINT GDevice::GetNodeMask() const
 {
-	return nodeMask;
+	return 0;
 }
 
 bool GDevice::IsCrossAdapterTextureSupported()
@@ -118,19 +118,21 @@ bool GDevice::IsCrossAdapterTextureSupported()
 	return crossAdapterTextureSupport.value();
 }
 
-void GDevice::SharedFence(ComPtr<ID3D12Fence> primaryFence, const std::shared_ptr<GDevice> sharedDevice,
-                          ComPtr<ID3D12Fence> sharedFence, UINT64 fenceValue, const SECURITY_ATTRIBUTES* attributes,
+void GDevice::SharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_ptr<GDevice> sharedDevice,
+                          ComPtr<ID3D12Fence>& sharedFence, UINT64 fenceValue, const SECURITY_ATTRIBUTES* attributes,
                           const DWORD access, const LPCWSTR name) const
 {
 	// Create fence for cross adapter resources
 	ThrowIfFailed(device->CreateFence(fenceValue,
 		D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,
-		IID_PPV_ARGS(&primaryFence)));
+		IID_PPV_ARGS(primaryFence.GetAddressOf())));
 
 	const auto handle = SharedHandle(primaryFence, attributes, access, name);
 
 	// Open shared handle to fence on secondaryDevice GPU
-	ThrowIfFailed(sharedDevice->device->OpenSharedHandle(handle, IID_PPV_ARGS(&sharedFence)));
+	ThrowIfFailed(sharedDevice->device->OpenSharedHandle(handle, IID_PPV_ARGS(sharedFence.GetAddressOf())));
+
+	CloseHandle(handle);
 }
 
 ComPtr<IDXGIFactory4> GDevice::GetFactory()
@@ -310,6 +312,8 @@ GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter, UINT nodeMask) : adapter(adapter
 			));
 		return options.CrossAdapterRowMajorTextureSupported;
 	});
+
+	crossAdapterTextureSupport.value();
 }
 
 ComPtr<IDXGISwapChain4> GDevice::CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& desc, const HWND hwnd) const
@@ -338,7 +342,7 @@ ComPtr<IDXGISwapChain4> GDevice::CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& desc, co
 	return swapChain;
 }
 
-ComPtr<ID3D12Device2> GDevice::GetDXDevice() const
+ComPtr<ID3D12Device> GDevice::GetDXDevice() const
 {
 	return device;
 }
@@ -380,9 +384,6 @@ GMemory GDevice::AllocateDescriptors(const D3D12_DESCRIPTOR_HEAP_TYPE type, cons
 	return allocator.value()->Allocate(descriptorCount);
 }
 
-custom_unordered_map<D3D12_DESCRIPTOR_HEAP_TYPE, UINT> descriptorHandlerSize = MemoryAllocator::CreateUnorderedMap<
-	D3D12_DESCRIPTOR_HEAP_TYPE, UINT>();
-
 std::shared_ptr<DXLib::GCommandQueue> GDevice::GetCommandQueue(const D3D12_COMMAND_LIST_TYPE type) const
 {
 	auto queue = queues.value()[type].value();
@@ -392,16 +393,8 @@ std::shared_ptr<DXLib::GCommandQueue> GDevice::GetCommandQueue(const D3D12_COMMA
 
 UINT GDevice::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const
 {
-	const auto it = descriptorHandlerSize.find(type);
-
-	if (it == descriptorHandlerSize.end())
-	{
-		const auto size = device->GetDescriptorHandleIncrementSize(type);
-		descriptorHandlerSize[type] = size;
-		return size;
-	}
-
-	return it->second;
+	const auto size = device->GetDescriptorHandleIncrementSize(type);
+	return size;
 }
 
 void GDevice::Flush() const

@@ -31,12 +31,14 @@ namespace DXLib
 		uint64_t ExecuteCommandLists( std::shared_ptr<GCommandList>* commandLists, size_t size );		
 
 		uint64_t Signal();
+		void Signal(ComPtr<ID3D12Fence> otherFence, UINT64 fenceValue) const;
 
 		bool IsFinish(uint64_t fenceValue) const;
 		void WaitForFenceValue(uint64_t fenceValue) const;
 		void Flush();
 
 		void Wait(const GCommandQueue& other) const;
+		void Wait(const ComPtr<ID3D12Fence> otherFence, UINT64 otherFenceValue) const;
 		
 		ComPtr<ID3D12CommandQueue> GetD3D12CommandQueue() const;
 

@@ -177,7 +177,7 @@ namespace DXLib
 	UINT Window::Present()
 	{
 		UINT syncInterval = vSync ? 1 : 0;
-		UINT presentFlags = GDevice::GetDevice()->IsTearingSupport() && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+		UINT presentFlags = device->IsTearingSupport() && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 		ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -187,7 +187,7 @@ namespace DXLib
 
 	void Window::Initialize()
 	{
-		rtvPrimeDescriptorHeap = GDevice::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
+		rtvPrimeDescriptorHeap = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, BufferCount);
 
 		swapChain = CreateSwapChain();
 
@@ -199,8 +199,8 @@ namespace DXLib
 		}
 	}
 
-	Window::Window(WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
-		: windowClass(hwnd)
+	Window::Window(std::shared_ptr<GDevice> device, WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
+		: device(device) ,windowClass(hwnd)
 		  , windowName(windowName)
 		  , width(clientWidth)
 		  , height(clientHeight)
@@ -295,7 +295,7 @@ namespace DXLib
 	{
 		assert(swapChain);
 
-		D3DApp::GetApp().Flush();
+		device->Flush();
 
 		for (int i = 0; i < BufferCount; ++i)
 		{
@@ -356,7 +356,7 @@ namespace DXLib
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
-		swapChain = GDevice::GetDevice()->CreateSwapChain(swapChainDesc, hWnd);
+		swapChain = device->CreateSwapChain(swapChainDesc, hWnd);
 
 		swapChainEvent = swapChain->GetFrameLatencyWaitableObject();
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
@@ -371,8 +371,6 @@ namespace DXLib
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 		rtvDesc.Format = GetSRGBFormat(backBufferFormat);
 		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-
-		auto device = GDevice::GetDevice();
 
 		for (int i = 0; i < BufferCount; ++i)
 		{

@@ -9,6 +9,7 @@
 #include "GraphicPSO.h"
 #include "GRootSignature.h"
 #include "GDevice.h"
+#include "GTexture.h"
 
 void GCommandList::TrackResource(ComPtr<ID3D12Object> object)
 {
@@ -375,20 +376,43 @@ void GCommandList::TransitionBarrier(const GResource& resource, D3D12_RESOURCE_S
 	TransitionBarrier(resource.GetD3D12Resource(), stateAfter, subresource, flushBarriers);
 }
 
+void GCommandList::CopyTextureRegion(ComPtr<ID3D12Resource> dstRes, UINT DstX,
+	UINT DstY,
+	UINT DstZ, ComPtr<ID3D12Resource> srcRes,const D3D12_BOX* srcBox)
+{
+	TransitionBarrier(dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
+	TransitionBarrier(srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	FlushResourceBarriers();
+
+	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(dstRes.Get()), DstX, DstY,DstZ, &CD3DX12_TEXTURE_COPY_LOCATION(srcRes.Get()), srcBox);
+
+	TrackResource(dstRes.Get());
+	TrackResource(srcRes.Get());
+}
+
+
+void GCommandList::CopyTextureRegion(const GResource& dstRes, UINT DstX,
+                                      UINT DstY,
+                                      UINT DstZ, const GResource& srcRes,const D3D12_BOX* srcBox)
+{
+	
+	CopyTextureRegion(dstRes.GetD3D12Resource(), DstX, DstY, DstZ, srcRes.GetD3D12Resource(), srcBox);
+}
+
 void GCommandList::CopyResource(ComPtr<ID3D12Resource> dstRes, ComPtr<ID3D12Resource> srcRes)
 {
 	TransitionBarrier(dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
 	TransitionBarrier(srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-	FlushResourceBarriers();
-
+	FlushResourceBarriers();	
+	
 	cmdList->CopyResource(dstRes.Get(), srcRes.Get());
 
 	TrackResource(dstRes.Get());
 	TrackResource(srcRes.Get());
 }
 
-void GCommandList::CopyResource(GResource& dstRes, const GResource& srcRes)
+void GCommandList::CopyResource(const GResource& dstRes, const GResource& srcRes)
 {
 	CopyResource(dstRes.GetD3D12Resource(), srcRes.GetD3D12Resource());
 }

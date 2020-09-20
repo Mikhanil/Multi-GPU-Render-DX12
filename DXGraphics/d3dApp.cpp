@@ -90,17 +90,17 @@ namespace DXLib
 	{
 		MakeWindow() = default;
 
-		MakeWindow(WNDCLASS classWindow, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
-			: Window(classWindow, windowName, clientWidth, clientHeight, vSync)
+		MakeWindow(std::shared_ptr<GDevice> device, WNDCLASS classWindow, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)
+			: Window(device,classWindow, windowName, clientWidth, clientHeight, vSync)
 		{
 		}
 	};
 
 
-	std::shared_ptr<Window> D3DApp::CreateRenderWindow(const std::wstring& windowName, int clientWidth,
+	std::shared_ptr<Window> D3DApp::CreateRenderWindow(std::shared_ptr<GDevice> device, const std::wstring& windowName, int clientWidth,
 	                                                   int clientHeight, bool vSync)
 	{
-		auto pWindow = std::make_shared<MakeWindow>(windowClass, windowName, clientWidth, clientHeight, vSync);
+		auto pWindow = std::make_shared<MakeWindow>(device, windowClass, windowName, clientWidth, clientHeight, vSync);
 		gs_Windows.insert(WindowMap::value_type(pWindow->GetWindowHandle(), pWindow));
 		gs_WindowByName.insert(WindowNameMap::value_type(windowName, pWindow));
 
@@ -399,7 +399,7 @@ namespace DXLib
 
 	bool D3DApp::InitMainWindow()
 	{
-		MainWindow = CreateRenderWindow(mainWindowCaption, 1920, 1080, false);
+		MainWindow = CreateRenderWindow(GDevice::GetDevice(), mainWindowCaption, 1920, 1080, false);
 
 		return true;
 	}
