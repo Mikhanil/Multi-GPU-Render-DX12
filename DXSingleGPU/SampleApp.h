@@ -101,8 +101,6 @@ namespace DXLib
 		std::unique_ptr<Camera> camera = nullptr;
 
 
-		ComPtr<ID3D12Heap> m_crossAdapterResourceHeaps[GraphicsAdaptersCount];
-		ComPtr<ID3D12Resource> m_secondaryAdapterTextures[globalCountFrameResources];
 		
 		custom_vector<std::unique_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::unique_ptr<FrameResource>>();
 		

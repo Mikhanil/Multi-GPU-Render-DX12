@@ -1,9 +1,11 @@
 #pragma once
-#include "d3dApp.h"
-#include "d3dUtil.h"
+#include <d3d12.h>
+#include <wrl/client.h>
+#include "dxgi1_6.h"
 #include "Lazy.h"
 #include "MemoryAllocator.h"
-#include "GResource.h"
+
+using namespace Microsoft::WRL;
 
 namespace DXLib
 {
@@ -13,6 +15,8 @@ namespace DXLib
 class GCrossAdapterResource;
 class GResource;
 class GAllocator;
+class GDeviceFactory;
+class GMemory;
 
 class GDevice
 {
@@ -20,28 +24,18 @@ private:
 	ComPtr<ID3D12Device> device;
 	ComPtr<IDXGIAdapter3> adapter;
 
+
+	DXLib::Lazy<custom_vector<DXLib::Lazy<std::unique_ptr<GAllocator>>>> graphicAllocators;
 	DXLib::Lazy<custom_vector<DXLib::Lazy<std::shared_ptr<DXLib::GCommandQueue>>>> queues;
-
-	static ComPtr<IDXGIFactory4> CreateFactory();
-	static ComPtr<IDXGIFactory4> dxgiFactory;
-
-	static bool CheckTearingSupport();
-	static DXLib::Lazy<bool> isTearingSupport;
-
-	static custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> CreateDevices();
-	static custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> devices;
-
-	static custom_vector<ComPtr<IDXGIAdapter3>> CreateAdapters();
-	static custom_vector<ComPtr<IDXGIAdapter3>> adapters;
 
 	DXLib::Lazy<bool> crossAdapterTextureSupport;
 	DXLib::Lazy<GResource> timestampResultBuffer;
 	DXLib::Lazy<ComPtr<ID3D12QueryHeap>> timestampQueryHeap;
 
 	std::wstring name;
-	UINT nodeMask = 0;
 
 	friend GCrossAdapterResource;
+	friend GDeviceFactory;
 
 	HANDLE SharedHandle(ComPtr<ID3D12DeviceChild> deviceObject, const SECURITY_ATTRIBUTES* attributes, DWORD access,
 	                    LPCWSTR name) const;
@@ -53,15 +47,15 @@ private:
 	void InitialDescriptorAllocator();
 	void InitialCommandQueue();
 	void InitialQueryTimeStamp();
-
-
 	void InitialDevice();
 
-	DXLib::Lazy<custom_vector<DXLib::Lazy<std::unique_ptr<GAllocator>>>> graphicAllocators;
+
+	
+
 public:
 
-	GDevice(ComPtr<IDXGIAdapter3> adapter, UINT nodeMask);
-
+	GDevice(ComPtr<IDXGIAdapter3> adapter);
+	
 	~GDevice();
 
 	void ResetAllocator(uint64_t frameCount);
@@ -70,16 +64,14 @@ public:
 
 	UINT GetNodeMask() const;
 
-	static bool IsTearingSupport();
 
 	bool IsCrossAdapterTextureSupported();
 
-	void SharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_ptr<GDevice> sharedDevice,
+	void SharedFence(ComPtr<ID3D12Fence>& primaryFence, std::shared_ptr<GDevice> sharedDevice,
 	                 ComPtr<ID3D12Fence>& sharedFence, UINT64 fenceValue = 0,
 	                 const SECURITY_ATTRIBUTES* attributes = nullptr,
-	                 const DWORD access = GENERIC_ALL, const LPCWSTR name = L"") const;
+	                 DWORD access = GENERIC_ALL, LPCWSTR name = L"") const;
 
-	ComPtr<IDXGISwapChain4> CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& desc, HWND hwnd) const;
 
 	std::shared_ptr<DXLib::GCommandQueue> GetCommandQueue(
 		D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT) const;
@@ -89,8 +81,4 @@ public:
 	void Flush() const;
 
 	ComPtr<ID3D12Device> GetDXDevice() const;
-
-	static ComPtr<IDXGIFactory4> GetFactory();
-
-	static std::shared_ptr<GDevice> GetDevice(GraphicsAdapter adapter = GraphicAdapterPrimary);
 };

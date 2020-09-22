@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "MemoryAllocator.h"
 #include "GDevice.h"
+#include "GDeviceFactory.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std;
@@ -141,7 +142,7 @@ namespace DXLib
 
 	void D3DApp::Flush()
 	{
-		GDevice::GetDevice()->Flush();
+	  GDeviceFactory::GetDevice()->Flush();
 	}
 
 	GameTimer* D3DApp::GetTimer()
@@ -214,8 +215,8 @@ namespace DXLib
 					//Sleep(100);
 				}
 
-				GDevice::GetDevice()->ResetAllocator(frameCount);
-				GDevice::GetDevice(GraphicsAdapterSecond)->ResetAllocator(frameCount);
+				GDeviceFactory::GetDevice()->ResetAllocator(frameCount);
+				GDeviceFactory::GetDevice(GraphicsAdapterSecond)->ResetAllocator(frameCount);
 			}
 		}
 
@@ -399,7 +400,7 @@ namespace DXLib
 
 	bool D3DApp::InitMainWindow()
 	{
-		MainWindow = CreateRenderWindow(GDevice::GetDevice(), mainWindowCaption, 1920, 1080, false);
+		MainWindow = CreateRenderWindow(GDeviceFactory::GetDevice(), mainWindowCaption, 1920, 1080, false);
 
 		return true;
 	}
@@ -412,7 +413,7 @@ namespace DXLib
 		msQualityLevels.SampleCount = 4;
 		msQualityLevels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
 		msQualityLevels.NumQualityLevels = 0;
-		ThrowIfFailed(GDevice::GetDevice()->GetDXDevice()->CheckFeatureSupport(
+		ThrowIfFailed(GDeviceFactory::GetDevice()->GetDXDevice()->CheckFeatureSupport(
 			D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
 			&msQualityLevels,
 			sizeof(msQualityLevels)));
@@ -435,7 +436,7 @@ namespace DXLib
 
 	void D3DApp::LogAdapters()
 	{
-		auto dxgiFactory = GDevice::GetFactory();
+		auto dxgiFactory = GDeviceFactory::GetFactory();
 
 		UINT i = 0;
 		IDXGIAdapter* adapter = nullptr;

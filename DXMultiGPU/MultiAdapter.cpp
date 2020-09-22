@@ -3,6 +3,7 @@
 #include "GCommandQueue.h"
 #include "Window.h"
 #include "GCrossAdapterResource.h"
+#include "GDeviceFactory.h"
 
 MultiAdapter::MultiAdapter(HINSTANCE hInstance): D3DApp(hInstance)
 {
@@ -10,13 +11,25 @@ MultiAdapter::MultiAdapter(HINSTANCE hInstance): D3DApp(hInstance)
 
 bool MultiAdapter::Initialize()
 {
-	primeDevice = GDevice::GetDevice(GraphicAdapterPrimary);
-	secondDevice = GDevice::GetDevice(GraphicsAdapterSecond);
+	auto firstDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+	auto otherDevice = GDeviceFactory::GetDevice(GraphicsAdapterSecond);
+
+	if (otherDevice->IsCrossAdapterTextureSupported())
+	{
+		primeDevice = otherDevice;
+		secondDevice = firstDevice;
+	}
+	else
+	{		
+		primeDevice = firstDevice;
+		secondDevice = otherDevice;
+	}
 	
 	if (!D3DApp::Initialize())
 		return false;
 
 	primeRTV = primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, globalCountFrameResources);
+	sharedRTV = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, globalCountFrameResources);
 	
 	
 
@@ -27,18 +40,23 @@ bool MultiAdapter::Initialize()
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
 		frameResources.push_back(
-			std::make_unique<FrameResource>(GDevice::GetDevice(), 1, 1, 1));
+			std::make_unique<FrameResource>(primeDevice, 1, 1, 1));
 
 		auto backBufferDesc = MainWindow->GetBackBuffer(i).GetD3D12ResourceDesc();
 
-		auto primeBB = GTexture(primeDevice, backBufferDesc, L"Prime device Back Buffer" + std::to_wstring(i), TextureUsage::RenderTarget);
-		primeBB.CreateRenderTargetView(&rtvDesc, &primeRTV, i);
-		
-		primeDeviceBackBuffers.push_back(std::move(primeBB));
-		
-		crossAdapterBackBuffers.push_back(std::make_unique<GCrossAdapterResource>(backBufferDesc, primeDevice, secondDevice, L"Shared back buffer", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));	
-		
+		crossAdapterBackBuffers.push_back(std::make_unique<GCrossAdapterResource>(backBufferDesc, primeDevice, secondDevice, L"Shared back buffer", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
+		if (primeDevice->IsCrossAdapterTextureSupported())
+		{
+			crossAdapterBackBuffers[i]->GetPrimeResource().CreateRenderTargetView(&rtvDesc, &primeRTV, i);						
+			primeDeviceBackBuffers.push_back(crossAdapterBackBuffers[i]->GetPrimeResource());
+		}
+		else
+		{
+			auto primeBB = GTexture(primeDevice, backBufferDesc, L"Prime device Back Buffer" + std::to_wstring(i), TextureUsage::RenderTarget);
+			primeBB.CreateRenderTargetView(&rtvDesc, &primeRTV, i);
+			primeDeviceBackBuffers.push_back(std::move(primeBB));
+		}
 	}
 
 	primeDevice->SharedFence(primeFence, secondDevice, sharedFence, sharedFenceValue);

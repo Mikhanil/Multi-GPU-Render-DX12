@@ -37,9 +37,10 @@ private:
 
 	custom_vector<std::unique_ptr<GCrossAdapterResource>> crossAdapterBackBuffers = MemoryAllocator::CreateVector<std::unique_ptr<GCrossAdapterResource>>();
 
-	custom_vector<GTexture> primeDeviceBackBuffers = MemoryAllocator::CreateVector<GTexture>();
+	custom_vector<GResource> primeDeviceBackBuffers = MemoryAllocator::CreateVector<GResource>();
 	
 	GMemory primeRTV;
+	GMemory sharedRTV;
 
 	ComPtr<ID3D12Fence> primeFence;
 	ComPtr<ID3D12Fence> sharedFence;

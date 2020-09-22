@@ -12,6 +12,7 @@
 #include "GResourceStateTracker.h"
 #include "GCommandList.h"
 #include "GShader.h"
+#include "GDeviceFactory.h"
 
 
 void GTexture::Resize(GTexture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
@@ -57,7 +58,7 @@ void GTexture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture**
 	}
 
 
-	auto mipMapsMemory = GDevice::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+	auto mipMapsMemory = GDeviceFactory::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 	                                                               2 * requiredHeapSize);
 
 
@@ -295,7 +296,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 	desc.SampleDesc.Count = 1;
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
-	auto device = GDevice::GetDevice();
+	auto device = GDeviceFactory::GetDevice();
 
 	auto tex = std::make_shared<GTexture>(device, desc, filepath, usage);
 

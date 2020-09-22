@@ -18,13 +18,7 @@
 using namespace Microsoft::WRL;
 const int globalCountFrameResources = 3;
 
-enum GraphicsAdapter : UINT
-{
-	GraphicAdapterPrimary = 0,
-	// Note: Not necessarily the OS's primary adapter (adapter enumerated at index 0).
-	GraphicsAdapterSecond = GraphicAdapterPrimary + 1,
-	GraphicsAdaptersCount = GraphicsAdapterSecond + 1
-};
+
 
 static inline UINT Align(UINT size, UINT alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
 {

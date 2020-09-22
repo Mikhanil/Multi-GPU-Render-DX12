@@ -10,6 +10,7 @@
 #include "Lazy.h"
 #include "GCommandList.h"
 #include "GDevice.h"
+#include "GDeviceFactory.h"
 
 namespace DXLib
 {
@@ -177,7 +178,7 @@ namespace DXLib
 	UINT Window::Present()
 	{
 		UINT syncInterval = vSync ? 1 : 0;
-		UINT presentFlags = device->IsTearingSupport() && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
+		UINT presentFlags =  GDeviceFactory::IsTearingSupport() && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
 		ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
@@ -356,7 +357,7 @@ namespace DXLib
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 
-		swapChain = device->CreateSwapChain(swapChainDesc, hWnd);
+		swapChain = GDeviceFactory::CreateSwapChain(device,swapChainDesc, hWnd);
 
 		swapChainEvent = swapChain->GetFrameLatencyWaitableObject();
 		currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();

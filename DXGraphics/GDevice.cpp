@@ -1,112 +1,10 @@
-#include "d3dUtil.h"
 #include "GDevice.h"
-
-#include <dxgi1_5.h>
-
-#include "GCommandQueue.h"
-#include "MemoryAllocator.h"
+#include "d3dUtil.h"
 #include "GAllocator.h"
+#include "GCommandQueue.h"
+#include "GResource.h"
+#include "MemoryAllocator.h"
 
-ComPtr<IDXGIFactory4> GDevice::CreateFactory()
-{
-#if defined(DEBUG) || defined(_DEBUG)
-	{
-		ComPtr<ID3D12Debug> debugController;
-		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
-		debugController->EnableDebugLayer();
-
-		ComPtr<ID3D12Debug1> spDebugController1;
-		ThrowIfFailed(debugController->QueryInterface(IID_PPV_ARGS(&spDebugController1)));
-		//spDebugController1->SetEnableGPUBasedValidation(true);
-	}
-#endif
-
-	ComPtr<IDXGIFactory4> factory;
-
-	UINT createFactoryFlags = 0;
-#if defined(DEBUG) || defined(_DEBUG)
-	createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
-#endif
-
-	ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
-
-	return factory;
-}
-
-custom_vector<ComPtr<IDXGIAdapter3>> GDevice::CreateAdapters()
-{
-	auto adapters = MemoryAllocator::CreateVector<ComPtr<IDXGIAdapter3>>();
-
-	auto factory = GetFactory();
-
-	UINT adapterindex = 0;
-	ComPtr<IDXGIAdapter1> adapter;
-	while (factory->EnumAdapters1(adapterindex++, &adapter) != DXGI_ERROR_NOT_FOUND)
-	{
-		DXGI_ADAPTER_DESC1 desc;
-		adapter->GetDesc1(&desc);
-
-		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-		{
-			continue;
-		}
-
-		ComPtr<IDXGIAdapter3> adapter3;
-		ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
-		adapters.push_back((adapter3));
-	}
-
-	return adapters;
-}
-
-custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::CreateDevices()
-{
-	auto devices = MemoryAllocator::CreateVector<DXLib::Lazy<std::shared_ptr<GDevice>>>();
-
-	for (UINT i = 0; i < adapters.size(); ++i)
-	{
-		auto index = i;
-		auto adapter = adapters[i];
-
-		devices.push_back(DXLib::Lazy<std::shared_ptr<GDevice>>([adapter, index]
-		{
-			return std::make_shared<GDevice>(adapter, index);
-		}));
-	}
-
-	ComPtr<IDXGIAdapter1> adapter;
-	if (devices.size() <= 1)
-	{
-		dxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
-		ComPtr<IDXGIAdapter3> adapter3;
-		ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
-		adapters.push_back((adapter3));
-		devices.push_back((DXLib::Lazy<std::shared_ptr<GDevice>>([adapter3]
-		{
-			return std::make_shared<GDevice>(adapter3, 1);
-		})));
-	}
-
-	return devices;
-}
-
-bool GDevice::CheckTearingSupport()
-{
-	BOOL allowTearing = FALSE;
-	ComPtr<IDXGIFactory5> factory5;
-	if (SUCCEEDED(dxgiFactory.As(&factory5)))
-	{
-		factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-		                              &allowTearing, sizeof(allowTearing));
-	}
-
-	return allowTearing == TRUE;
-}
-
-ComPtr<IDXGIFactory4> GDevice::dxgiFactory = CreateFactory();
-DXLib::Lazy<bool> GDevice::isTearingSupport = DXLib::Lazy<bool>(CheckTearingSupport);
-custom_vector<ComPtr<IDXGIAdapter3>> GDevice::adapters = CreateAdapters();
-custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDevice::devices = CreateDevices();
 
 UINT GDevice::GetNodeMask() const
 {
@@ -135,20 +33,6 @@ void GDevice::SharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_p
 	CloseHandle(handle);
 }
 
-ComPtr<IDXGIFactory4> GDevice::GetFactory()
-{
-	return dxgiFactory;
-}
-
-std::shared_ptr<GDevice> GDevice::GetDevice(GraphicsAdapter adapter)
-{
-	return devices[adapter].value();
-}
-
-bool GDevice::IsTearingSupport()
-{
-	return isTearingSupport.value();
-}
 
 void GDevice::InitialCommandQueue()
 {
@@ -294,7 +178,7 @@ void GDevice::InitialDevice()
 #endif
 }
 
-GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter, UINT nodeMask) : adapter(adapter), nodeMask(nodeMask)
+GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter) : adapter(adapter)
 {
 	InitialDevice();
 
@@ -314,32 +198,6 @@ GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter, UINT nodeMask) : adapter(adapter
 	});
 
 	crossAdapterTextureSupport.value();
-}
-
-ComPtr<IDXGISwapChain4> GDevice::CreateSwapChain(DXGI_SWAP_CHAIN_DESC1& desc, const HWND hwnd) const
-{
-	ComPtr<IDXGISwapChain4> swapChain;
-
-	desc.Flags = IsTearingSupport()
-		             ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-		             : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-	ComPtr<IDXGISwapChain1> swapChain1;
-	ThrowIfFailed(dxgiFactory->CreateSwapChainForHwnd(
-		GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT)->GetD3D12CommandQueue().Get(),
-		hwnd,
-		&desc,
-		nullptr,
-		nullptr,
-		&swapChain1));
-
-	// Disable the Alt+Enter fullscreen toggle feature. Switching to fullscreen
-	// will be handled manually.
-	ThrowIfFailed(dxgiFactory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
-
-	ThrowIfFailed(swapChain1.As(&swapChain));
-
-	return swapChain;
 }
 
 ComPtr<ID3D12Device> GDevice::GetDXDevice() const
