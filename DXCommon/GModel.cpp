@@ -40,3 +40,11 @@ void GModel::AddMesh(const std::shared_ptr<GMesh> mesh)
 	meshes.push_back(mesh);
 }
 
+void GModel::DublicateModelData(std::shared_ptr<GDevice> device)
+{
+	for (auto && mesh : meshes)
+	{
+		mesh->DublicateGraphicData(device);
+	}
+}
+

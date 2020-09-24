@@ -142,7 +142,7 @@ public:
 		MaterialData,
 		SkyMap,
 		ShadowMap,
-		SsaoMap,
+		AmbientMap,
 		TexturesMap,
 		Count
 	};

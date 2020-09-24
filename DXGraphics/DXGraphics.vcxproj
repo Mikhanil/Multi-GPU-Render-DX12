@@ -163,7 +163,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="d3dApp.h" />
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GCommandList.h" />
@@ -191,7 +190,6 @@
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="d3dApp.cpp" />
     <ClCompile Include="DirectXBuffers.cpp" />
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GBuffer.cpp" />
@@ -215,7 +213,6 @@
     <ClCompile Include="GShader.cpp" />
     <ClCompile Include="GTexture.cpp" />
     <ClCompile Include="ThreadSaveQueue.cpp" />
-    <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

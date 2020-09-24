@@ -10,8 +10,8 @@ class ModelRenderer : public Renderer
 {	
 
 	ObjectConstants constantData{};
-	
-	std::unique_ptr<ConstantBuffer<ObjectConstants>> modelDataBuffer = nullptr;
+
+	std::unordered_map<std::shared_ptr<GDevice>, std::shared_ptr<ConstantBuffer<ObjectConstants>>> modelDataBuffers;
 	
 	custom_vector<std::shared_ptr<Material>> meshesMaterials = MemoryAllocator::CreateVector< std::shared_ptr<Material>>();
 	

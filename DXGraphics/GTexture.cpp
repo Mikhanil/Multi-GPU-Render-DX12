@@ -5,12 +5,11 @@
 #include "WICTextureLoader.h"
 #include "ResourceUploadBatch.h"
 #include <winrt/base.h>
-
-#include "d3dApp.h"
 #include "GDataUploader.h"
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
 #include "GCommandList.h"
+#include "GDevice.h"
 #include "GShader.h"
 #include "GDeviceFactory.h"
 
@@ -58,7 +57,7 @@ void GTexture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture**
 	}
 
 
-	auto mipMapsMemory = GDeviceFactory::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+	auto mipMapsMemory = cmdList->GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 	                                                               2 * requiredHeapSize);
 
 
@@ -296,7 +295,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 	desc.SampleDesc.Count = 1;
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
-	auto device = GDeviceFactory::GetDevice();
+	auto device = commandList->GetDevice();
 
 	auto tex = std::make_shared<GTexture>(device, desc, filepath, usage);
 
@@ -314,7 +313,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 
 		commandList->UpdateSubresource(*tex.get(), subresources.data(), subresources.size());
 
-		commandList->TransitionBarrier(tex->GetD3D12Resource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		commandList->TransitionBarrier(tex->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
 		commandList->FlushResourceBarriers();
 
 		if (resFlags == D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)

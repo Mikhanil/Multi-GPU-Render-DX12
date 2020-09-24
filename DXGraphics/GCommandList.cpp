@@ -1,6 +1,5 @@
 #include "GCommandList.h"
 #include "ComputePSO.h"
-#include "d3dApp.h"
 #include "d3dUtil.h"
 #include "GDataUploader.h"
 #include "GResource.h"

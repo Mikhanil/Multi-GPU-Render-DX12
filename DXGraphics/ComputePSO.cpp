@@ -1,6 +1,5 @@
 #include "ComputePSO.h"
-
-#include "d3dApp.h"
+#include "GDevice.h"
 #include "GShader.h"
 
 ComputePSO::ComputePSO()

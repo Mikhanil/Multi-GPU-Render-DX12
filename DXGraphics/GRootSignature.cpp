@@ -1,6 +1,7 @@
 #include "GRootSignature.h"
 
-#include "d3dApp.h"
+#include "GDevice.h"
+
 
 std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GRootSignature::GetStaticSamplers()
 {

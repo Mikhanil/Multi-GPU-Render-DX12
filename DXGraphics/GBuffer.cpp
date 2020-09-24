@@ -52,7 +52,7 @@ GBuffer GBuffer::CreateBuffer(std::shared_ptr<GCommandList> cmdList, void* data,
 	subResourceData.SlicePitch = subResourceData.RowPitch;
 
 	cmdList->UpdateSubresource(buffer, &subResourceData, 1);
-	cmdList->TransitionBarrier(buffer, D3D12_RESOURCE_STATE_GENERIC_READ);
+	cmdList->TransitionBarrier(buffer, D3D12_RESOURCE_STATE_COMMON);
 	cmdList->FlushResourceBarriers();
 
 	return buffer;

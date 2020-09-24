@@ -13,13 +13,23 @@ void ModelRenderer::Draw(std::shared_ptr<GCommandList> cmdList)
 
 	if(model != nullptr)
 	{
+		auto modelBufferData = modelDataBuffers[cmdList->GetDevice()];
+
+		if(modelBufferData == nullptr)
+		{
+			modelBufferData = std::make_shared<ConstantBuffer<ObjectConstants>>(cmdList->GetDevice(), model->GetMeshesCount(), model->GetName());
+
+			modelDataBuffers[cmdList->GetDevice()] = (modelBufferData);
+		}
+
+		
 		for (int i = 0; i < model->GetMeshesCount(); ++i)
 		{
 			const auto mesh = model->GetMesh(i);
 			cmdList->SetRootConstantBufferView(StandardShaderSlot::ObjectData,
-				*modelDataBuffer, i);
-			cmdList->SetVBuffer(0, 1, mesh->GetVertexView());
-			cmdList->SetIBuffer(mesh->GetIndexView());
+				*modelBufferData, i);
+			cmdList->SetVBuffer(0, 1, mesh->GetVertexView(cmdList->GetDevice()));
+			cmdList->SetIBuffer(mesh->GetIndexView(cmdList->GetDevice()));
 			cmdList->SetPrimitiveTopology(mesh->GetPrimitiveType());
 			cmdList->DrawIndexed(mesh->GetIndexCount());
 		}		
@@ -39,7 +49,11 @@ void ModelRenderer::Update()
 		for (int i = 0; i < model->GetMeshesCount(); ++i)
 		{
 			constantData.MaterialIndex = meshesMaterials[i]->GetIndex();
-			modelDataBuffer->CopyData(i, constantData);
+
+			for (auto && pair : modelDataBuffers)
+			{
+				pair.second->CopyData(i, constantData);
+			}
 		}		
 	}
 }
@@ -50,12 +64,16 @@ void ModelRenderer::SetModel(std::shared_ptr<GModel> asset)
 	{
 		meshesMaterials.resize(asset->GetMeshesCount());
 	}
-	
-	if(modelDataBuffer == nullptr || modelDataBuffer->GetElementCount() < asset->GetMeshesCount() )
+
+	auto it = modelDataBuffers.find(device);
+	if(it == modelDataBuffers.end())
 	{
-		modelDataBuffer.reset();
-		modelDataBuffer = std::make_unique<ConstantBuffer<ObjectConstants>>(device,asset->GetMeshesCount(), asset->GetName());
+		auto modelDataBuffer = std::make_shared<ConstantBuffer<ObjectConstants>>(device, asset->GetMeshesCount(), asset->GetName());
+
+		modelDataBuffers[device] = std::move( modelDataBuffer);		
 	}
+	
+	
 	
 	model = asset;
 }

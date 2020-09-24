@@ -1,10 +1,9 @@
 #include "GResource.h"
 
 #include <utility>
-#include "GMemory.h"
-
-#include "d3dApp.h"
 #include "d3dUtil.h"
+#include "GDevice.h"
+#include "GMemory.h"
 #include "GResourceStateTracker.h"
 
 uint64_t GResource::resourceId = 0;

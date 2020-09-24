@@ -21,7 +21,7 @@
 namespace DXLib
 {
 	SampleApp::SampleApp(HINSTANCE hInstance)
-		: D3DApp(hInstance)
+		: D3DApp(hInstance), loader(AssetsLoader(GDeviceFactory::GetDevice()))
 	{
 		mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
 		mSceneBounds.Radius = 175;
@@ -229,11 +229,16 @@ namespace DXLib
 		case WM_KEYUP:
 
 		{
+
+			
+				
 			/*if ((int)wParam == VK_F2)
 				Set4xMsaaState(!isM4xMsaa);*/
 			unsigned char keycode = static_cast<unsigned char>(wParam);
 			keyboard.OnKeyReleased(keycode);
 
+			
+				
 			return 0;
 		}
 		case WM_KEYDOWN:
@@ -251,6 +256,11 @@ namespace DXLib
 					{
 						keyboard.OnKeyPressed(keycode);
 					}
+				}
+
+				if (keycode == (VK_F2) && keyboard.KeyIsPressed(VK_F2))
+				{
+					pathMapShow = (pathMapShow + 1) % maxPathMap;
 				}
 			}
 		}
@@ -281,6 +291,29 @@ namespace DXLib
 	{
 		D3DApp::OnResize();
 
+		viewport.Height = static_cast<float>(MainWindow->GetClientHeight());
+		viewport.Width = static_cast<float>(MainWindow->GetClientWidth());
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		rect = { 0,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
+
+		if(renderTargetMemory.IsNull())
+		{
+			renderTargetMemory = GDeviceFactory::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, globalCountFrameResources);
+		}
+
+		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+		rtvDesc.Format = GetSRGBFormat(backBufferFormat);
+		rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		
+		for (int i = 0; i < globalCountFrameResources; ++i)
+		{
+			MainWindow->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &renderTargetMemory, i);			
+		}
+		
+		
 		if (camera != nullptr)
 		{
 			camera->SetAspectRatio(AspectRatio());
@@ -353,7 +386,7 @@ namespace DXLib
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrvMemory());
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, ssao->AmbientMapSrv(), 0);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssao->AmbientMapSrv(), 0);
 
 		/*Bind all Diffuse Textures*/
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,
@@ -376,14 +409,14 @@ namespace DXLib
 		{
 		case 1:
 			{
-				cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, shadowMap->GetSrvMemory());
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowMap->GetSrvMemory());
 				cmdList->SetPipelineState(*psos[PsoType::Debug]);
 				DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Debug)]);
 				break;
 			}
 		case 2:
 			{
-				cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, ssao->AmbientMapSrv(), 0);
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssao->AmbientMapSrv(), 0);
 				cmdList->SetPipelineState(*psos[PsoType::Debug]);
 				DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Debug)]);
 				break;
@@ -397,17 +430,17 @@ namespace DXLib
 
 	void SampleApp::DrawToWindowBackBuffer(std::shared_ptr<GCommandList> cmdList)
 	{
-		cmdList->SetViewports(&MainWindow->GetViewPort(), 1);
-		cmdList->SetScissorRects(&MainWindow->GetRect(), 1);
+		cmdList->SetViewports(&viewport, 1);
+		cmdList->SetScissorRects(&rect, 1);
 
 		cmdList->TransitionBarrier((MainWindow->GetCurrentBackBuffer()), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		cmdList->FlushResourceBarriers();
 		
-		cmdList->ClearRenderTarget(MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex());
+		cmdList->ClearRenderTarget(&renderTargetMemory, MainWindow->GetCurrentBackBufferIndex());
 		
-		cmdList->SetRenderTargets(1, MainWindow->GetRTVMemory(), MainWindow->GetCurrentBackBufferIndex());
+		cmdList->SetRenderTargets(1, &renderTargetMemory, MainWindow->GetCurrentBackBufferIndex());
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::SsaoMap, ssaa->GetSRV());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssaa->GetSRV());
 		
 		cmdList->SetPipelineState(*psos[PsoType::Quad]);
 		DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(PsoType::Quad)]);
@@ -447,7 +480,7 @@ namespace DXLib
 
 		commandQueue->StartPixEvent(L"Compute SSAO");
 		cmdList->SetRootSignature(ssaoRootSignature.get());
-		ssao->ComputeSsao(cmdList, currentFrameResource, 3);		
+		ssao->ComputeSsao(cmdList, currentFrameResource->SsaoConstantBuffer, 3);		
 		commandQueue->EndPixEvent();
 
 		commandQueue->StartPixEvent(L"Main Pass");		
@@ -794,7 +827,7 @@ namespace DXLib
 		CD3DX12_DESCRIPTOR_RANGE texParam[4];
 		texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
 		texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
-		texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SsaoMap - 3, 0); //SsaoMap
+		texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
 		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, loader.GetLoadTexturesCount(), StandardShaderSlot::TexturesMap - 3, 0);
 
 
@@ -809,20 +842,7 @@ namespace DXLib
 		rootSignature->Initialize(GDeviceFactory::GetDevice());
 	}
 		
-	Keyboard* SampleApp::GetKeyboard()
-	{
-		return &keyboard;
-	}
-
-	Mouse* SampleApp::GetMouse()
-	{
-		return &mouse;
-	}
-
-	Camera* SampleApp::GetMainCamera() const
-	{
-		return camera.get();
-	}
+	
 	
 	void SampleApp::BuildSsaoRootSignature()
 	{
@@ -1179,7 +1199,7 @@ namespace DXLib
 
 		for (auto& pso : psos)
 		{
-			pso.second->Initialize(GDeviceFactory::GetDevice()->GetDXDevice().Get());
+			pso.second->Initialize(GDeviceFactory::GetDevice());
 		}
 	}
 
@@ -1450,8 +1470,8 @@ namespace DXLib
 
 	void SampleApp::DrawNormals(std::shared_ptr<GCommandList> list)
 	{
-		list->SetViewports(&MainWindow->GetViewPort(), 1);
-		list->SetScissorRects(&MainWindow->GetRect(), 1);
+		list->SetViewports(&viewport, 1);
+		list->SetScissorRects(&rect, 1);
 
 		auto normalMap = ssao->NormalMap();
 		auto normalDepthMap = ssao->NormalDepthMap();

@@ -174,17 +174,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="FrameResource.cpp" />
-    <ClCompile Include="Keyboard.cpp" />
-    <ClCompile Include="Mouse.cpp" />
-    <ClCompile Include="ObjectMover.cpp" />
-    <ClCompile Include="Rotater.cpp" />
     <ClCompile Include="SampleApp.cpp" />
-    <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="Source.cpp" />
-    <ClCompile Include="SSAA.cpp" />
-    <ClCompile Include="Ssao.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Common.hlsl">
@@ -321,16 +313,8 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CameraController.h" />
     <ClInclude Include="FrameResource.h" />
-    <ClInclude Include="Keyboard.h" />
-    <ClInclude Include="Mouse.h" />
-    <ClInclude Include="ObjectMover.h" />
-    <ClInclude Include="Rotater.h" />
     <ClInclude Include="SampleApp.h" />
-    <ClInclude Include="ShadowMap.h" />
-    <ClInclude Include="SSAA.h" />
-    <ClInclude Include="Ssao.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">

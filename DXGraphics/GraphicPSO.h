@@ -30,10 +30,11 @@ public:
 	};
 };
 
+class GDevice;
+
 class GraphicPSO
 {
 	ComPtr<ID3D12PipelineState> pipelineStateObject;
-	ComPtr<ID3D12PipelineState> debugPso;
 	PsoType::Type type;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
 
@@ -79,5 +80,5 @@ public:
 
 	PsoType::Type GetType() const;
 
-	void Initialize(ID3D12Device* device);
+	void Initialize(::std::shared_ptr<GDevice> device);
 };

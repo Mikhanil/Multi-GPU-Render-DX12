@@ -264,20 +264,14 @@ void  AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<GModel> model, aiNode* 
 	}
 }
 
+AssetsLoader::AssetsLoader(const std::shared_ptr<GDevice> device): device(device)
+{
+}
+
 UINT AssetsLoader::GetTextureIndex(std::wstring name)
 {
 	auto it = texturesMap.find(name);
 	if (it == texturesMap.end())
-	{
-		return -1;
-	}
-	return it->second;
-}
-
-UINT AssetsLoader::GetShaderIndex(std::wstring name)
-{
-	auto it = shadersMap.find(name);
-	if (it == shadersMap.end())
 	{
 		return -1;
 	}
@@ -299,17 +293,17 @@ size_t AssetsLoader::GetLoadTexturesCount() const
 	return texturesMap.size();
 }
 
-void AssetsLoader::AddMaterial(std::shared_ptr<Material> material)
+void AssetsLoader::AddMaterial(std::shared_ptr<Material>& material)
 {	
 	materialsMap[material->GetName()] = materials.size();
-	materials.push_back(std::move(material));
+	materials.push_back((material));
 }
 
-void AssetsLoader::AddTexture(std::shared_ptr<GTexture> texture)
+void AssetsLoader::AddTexture(std::shared_ptr<GTexture>& texture)
 {
 	
 	texturesMap[texture->GetName()] = textures.size();
-	textures.push_back(std::move(texture));
+	textures.push_back((texture));
 }
 
 custom_vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
@@ -388,6 +382,8 @@ std::shared_ptr<GModel> AssetsLoader::GetOrCreateModelFromFile(std::shared_ptr<G
 	
 	return models[AnsiToWString(filePath)];	
 }
+
+
 
 void AssetsLoader::ClearTrackedObjects()
 {

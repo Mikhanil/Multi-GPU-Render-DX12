@@ -18,6 +18,7 @@ class GMesh;
 class GShader;
 class GBuffer;
 class Material;
+class GDevice;
 
 class AssetsLoader
 {
@@ -28,13 +29,11 @@ class AssetsLoader
 	custom_vector<std::shared_ptr<GMesh>> meshes = MemoryAllocator::CreateVector<std::shared_ptr<GMesh>>();
 
 	custom_vector<std::shared_ptr<GTexture>> textures = MemoryAllocator::CreateVector<std::shared_ptr<GTexture>>();
-	custom_vector<std::shared_ptr<GShader>> shaders = MemoryAllocator::CreateVector<std::shared_ptr<GShader>>();
 	custom_vector<std::shared_ptr<Material>> materials = MemoryAllocator::CreateVector<std::shared_ptr<Material>>();
 	
 	custom_unordered_map<std::wstring, UINT> texturesMap = MemoryAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
-	custom_unordered_map<std::wstring, UINT> shadersMap = MemoryAllocator::CreateUnorderedMap<std::wstring, UINT>();
-
+	
 	custom_unordered_map<std::wstring, UINT> materialsMap = MemoryAllocator::CreateUnorderedMap<std::wstring, UINT>();
 
 	custom_unordered_map<std::shared_ptr<GMesh>, std::shared_ptr<Material>> defaultMaterialForMeshFromFile = MemoryAllocator::CreateUnorderedMap<std::shared_ptr<GMesh>, std::shared_ptr<Material>>();
@@ -49,20 +48,23 @@ class AssetsLoader
 	                           const aiMaterial* material, const std::shared_ptr<GCommandList> cmdList);
 	void RecursivlyLoadMeshes(std::shared_ptr<GModel> model, aiNode* node, const aiScene* scene,
 		std::shared_ptr<GCommandList> cmdList);
+
+	std::shared_ptr<GDevice> device;
 	
 public:
 
-	UINT GetTextureIndex(std::wstring name);
+	AssetsLoader(const
+		std::shared_ptr<GDevice> device);
 
-	UINT GetShaderIndex(std::wstring name);
+	UINT GetTextureIndex(std::wstring name);
 
 	UINT GetMaterialIndex(std::wstring name);
 
 	size_t GetLoadTexturesCount() const;
 
-	void AddMaterial(std::shared_ptr<Material> material);
+	void AddMaterial(std::shared_ptr<Material>& material);
 	
-	void AddTexture(std::shared_ptr<GTexture> texture);
+	void AddTexture(std::shared_ptr<GTexture>& texture);
 
 	custom_vector<std::shared_ptr<Material>>& GetMaterials();
 
@@ -78,6 +80,8 @@ public:
 	 std::shared_ptr<GModel> GenerateQuad(std::shared_ptr<GCommandList> cmdList, float x = 1.0f, float y = 1.0f, float w = 1.0f, float h = 1.0f, float depth = 0.0);	
 
 	std::shared_ptr<GModel> GetOrCreateModelFromFile(std::shared_ptr<DXLib::GCommandQueue> queue, const std::string filePath);
+
+
 
 	void ClearTrackedObjects();
 };

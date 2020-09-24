@@ -16,20 +16,8 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{bf4f95fe-0d2e-457c-974c-30fbc4363851}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\GameObjectComponents">
-      <UniqueIdentifier>{369de028-1c11-41b6-b6eb-febd0de585d6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\Input">
-      <UniqueIdentifier>{6400d918-f1f1-4230-b299-a4e88de96dd6}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Render">
       <UniqueIdentifier>{cb400439-fb8e-4a3b-ab07-494b65583aaf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\GameObjectComponents">
-      <UniqueIdentifier>{4e11fa79-ba39-4c91-88de-ff5a415c5d1b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Input">
-      <UniqueIdentifier>{4149a08a-774e-4002-a3f2-bc1ecbdc5f4f}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Render">
       <UniqueIdentifier>{7d81e884-5108-44c3-8c87-d5a555a8fae8}</UniqueIdentifier>
@@ -51,31 +39,7 @@
     <ClCompile Include="SampleApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CameraController.cpp">
-      <Filter>Source Files\GameObjectComponents</Filter>
-    </ClCompile>
-    <ClCompile Include="ObjectMover.cpp">
-      <Filter>Source Files\GameObjectComponents</Filter>
-    </ClCompile>
-    <ClCompile Include="Keyboard.cpp">
-      <Filter>Source Files\Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Mouse.cpp">
-      <Filter>Source Files\Input</Filter>
-    </ClCompile>
     <ClCompile Include="FrameResource.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="ShadowMap.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="Ssao.cpp">
-      <Filter>Source Files\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="Rotater.cpp">
-      <Filter>Source Files\GameObjectComponents</Filter>
-    </ClCompile>
-    <ClCompile Include="SSAA.cpp">
       <Filter>Source Files\Render</Filter>
     </ClCompile>
   </ItemGroup>
@@ -112,32 +76,8 @@
     <ClInclude Include="SampleApp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CameraController.h">
-      <Filter>Header Files\GameObjectComponents</Filter>
-    </ClInclude>
-    <ClInclude Include="ObjectMover.h">
-      <Filter>Header Files\GameObjectComponents</Filter>
-    </ClInclude>
-    <ClInclude Include="Keyboard.h">
-      <Filter>Header Files\Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Mouse.h">
-      <Filter>Header Files\Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Ssao.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMap.h">
-      <Filter>Header Files\Render</Filter>
-    </ClInclude>
     <ClInclude Include="FrameResource.h">
       <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="SSAA.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Rotater.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

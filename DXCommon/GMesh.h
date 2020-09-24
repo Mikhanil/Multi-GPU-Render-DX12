@@ -18,22 +18,22 @@ class GMesh
 	
 	D3D12_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY_UNDEFINED;
 
-	std::vector<Vertex> vertices;
-	std::vector<DWORD> indexes;
+	std::vector<Vertex> vertices{};
+	std::vector<DWORD> indexes{};
 	
-	std::shared_ptr<GBuffer> vertexBuffer = nullptr;
-	std::shared_ptr<GBuffer> indexBuffer = nullptr;
+	mutable std::unordered_map<std::shared_ptr<GDevice>, std::shared_ptr<GBuffer>> vertexBuffers{};
+	mutable std::unordered_map < std::shared_ptr<GDevice>, std::shared_ptr<GBuffer>> indexBuffers{};
 
 
-	mutable std::shared_ptr<D3D12_VERTEX_BUFFER_VIEW> vertexView = nullptr;
-	mutable std::shared_ptr<D3D12_INDEX_BUFFER_VIEW> indexView = nullptr;
+	mutable std::unordered_map < std::shared_ptr<GDevice>,std::shared_ptr<D3D12_VERTEX_BUFFER_VIEW>> vertexView{};
+	mutable std::unordered_map < std::shared_ptr<GDevice>,std::shared_ptr<D3D12_INDEX_BUFFER_VIEW>> indexView{};
 
 
 	
 public:
 	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveType() const;;
-	D3D12_VERTEX_BUFFER_VIEW* GetVertexView() const;
-	D3D12_INDEX_BUFFER_VIEW* GetIndexView() const;
+	D3D12_VERTEX_BUFFER_VIEW* GetVertexView(std::shared_ptr<GDevice> device) const;
+	D3D12_INDEX_BUFFER_VIEW* GetIndexView(std::shared_ptr<GDevice> device) const;
 
 	UINT GetIndexCount() const;
 
@@ -51,7 +51,9 @@ public:
 
 	std::wstring GetName() const;
 
-	void SetTopology(D3D12_PRIMITIVE_TOPOLOGY topology);	
+	void SetTopology(D3D12_PRIMITIVE_TOPOLOGY topology);
+
+	void DublicateGraphicData(std::shared_ptr<GDevice> device);
 };
 
 

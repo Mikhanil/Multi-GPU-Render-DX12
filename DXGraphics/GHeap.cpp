@@ -1,9 +1,10 @@
 #include "GHeap.h"
-#include "d3dApp.h"
+#include "d3dUtil.h"
+#include "GDevice.h"
 
 GHeap::GHeap(const std::shared_ptr<GDevice> device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t numDescriptors)
 	: heapType(type)
-	  , descriptorCount(numDescriptors)
+	  , descriptorCount(numDescriptors), device(device)
 {
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc;
 	heapDesc.Type = heapType;
@@ -159,4 +160,9 @@ void GHeap::ReleaseStaleDescriptors(uint64_t frameNumber)
 ID3D12DescriptorHeap* GHeap::GetDescriptorHeap()
 {
 	return descriptorHeap.Get();
+}
+
+std::shared_ptr<GDevice> GHeap::GetDevice() const
+{
+	return device;
 }

@@ -4,22 +4,24 @@
 #include "Camera.h"
 #include "d3dApp.h"
 #include "FrameResource.h"
+#include "GameTimer.h"
 #include "GMemory.h"
+#include "GModel.h"
 #include "GraphicPSO.h"
-#include "Light.h"
 #include "GRootSignature.h"
 #include "GShader.h"
+#include "KeyboardDevice.h"
+#include "Light.h"
+#include "Mousepad.h"
 #include "ShadowMap.h"
-#include "Ssao.h"
-#include "GameTimer.h"
-#include "Keyboard.h"
-#include "GModel.h"
-#include "Mouse.h"
 #include "SSAA.h"
+#include "Ssao.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace PackedVector;
+
+class ModelRenderer;
 
 namespace DXLib
 {
@@ -36,14 +38,7 @@ namespace DXLib
 		
 		bool Initialize() override;
 
-
-		Keyboard* GetKeyboard();
-
-		Mouse* GetMouse();
-
-		Camera* GetMainCamera() const;
-
-
+		
 		UINT pathMapShow = 0;
 		//off, shadowMap, ssaoMap
 		const UINT maxPathMap = 3;
@@ -91,17 +86,13 @@ namespace DXLib
 		DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
+		D3D12_VIEWPORT viewport;
+		D3D12_RECT rect;
+
+		GMemory renderTargetMemory;
+		
 		custom_unordered_map<std::wstring, std::shared_ptr<GModel>> models = MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GModel>>();
-	
-
-		
-		
-		Keyboard keyboard;
-		Mouse mouse;
-		std::unique_ptr<Camera> camera = nullptr;
-
-
-		
+			
 		custom_vector<std::unique_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::unique_ptr<FrameResource>>();
 		
 		FrameResource* currentFrameResource = nullptr;
@@ -110,6 +101,7 @@ namespace DXLib
 		
 		std::unique_ptr<GRootSignature> rootSignature = nullptr;
 		std::unique_ptr<GRootSignature> ssaoRootSignature = nullptr;
+		std::unique_ptr<ShadowMap> shadowMap;
 		std::unique_ptr<Ssao> ssao;
 		std::unique_ptr<SSAA> ssaa;
 		
@@ -130,7 +122,6 @@ namespace DXLib
 		
 		custom_vector<custom_vector<GameObject*>> typedGameObjects = MemoryAllocator::CreateVector<custom_vector<GameObject*>>();
 
-		GameObject* player;
 		PassConstants mainPassCB;
 		PassConstants mShadowPassCB;
 
@@ -149,7 +140,7 @@ namespace DXLib
 		};
 		Vector3 mRotatedLightDirections[3];
 
-		std::unique_ptr<ShadowMap> shadowMap;
+		
 
 		BoundingSphere mSceneBounds;
 	};

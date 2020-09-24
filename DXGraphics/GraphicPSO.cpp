@@ -1,5 +1,7 @@
 #include "GraphicPSO.h"
 
+#include "GDevice.h"
+
 GraphicPSO::GraphicPSO(PsoType::Type type): type(type)
 {
 	ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -133,14 +135,11 @@ PsoType::Type GraphicPSO::GetType() const
 	return type;
 }
 
-void GraphicPSO::Initialize(ID3D12Device* device)
+void GraphicPSO::Initialize(std::shared_ptr<GDevice> device)
 {
 	if (isInitial) return;
 
-	ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineStateObject)));
-
-	psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	ThrowIfFailed(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&debugPso)));
+	ThrowIfFailed(device->GetDXDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineStateObject)));
 
 	isInitial = true;
 }

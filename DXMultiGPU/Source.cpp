@@ -1,6 +1,6 @@
 #include "Windows.h"
 #include "d3dApp.h"
-#include "MultiAdapter.h"
+#include "MultiSplitGPU.h"
 
 using namespace DXLib;
 
@@ -14,7 +14,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 
 	try
 	{
-		MultiAdapter theApp(hInstance);
+		MultiSplitGPU theApp(hInstance);
 		if (!theApp.Initialize())
 			return 0;
 

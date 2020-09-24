@@ -147,15 +147,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="FrameResource.cpp" />
+    <ClCompile Include="SplitFrameResource.cpp" />
     <ClCompile Include="Source.cpp" />
-    <ClCompile Include="GCrossAdapterResource.cpp" />
-    <ClCompile Include="MultiAdapter.cpp" />
+    <ClCompile Include="MultiSplitGPU.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FrameResource.h" />
-    <ClInclude Include="GCrossAdapterResource.h" />
-    <ClInclude Include="MultiAdapter.h" />
+    <ClInclude Include="SplitFrameResource.h" />
+    <ClInclude Include="MultiSplitGPU.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -179,6 +177,9 @@
   <ItemGroup>
     <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
       <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\DXCommon\DXCommon.vcxproj">
+      <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
     </ProjectReference>
     <ProjectReference Include="..\DXGraphics\DXGraphics.vcxproj">
       <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>

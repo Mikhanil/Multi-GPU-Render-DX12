@@ -51,9 +51,6 @@
     <ClInclude Include="GMemory.h">
       <Filter>Header Files\Allocators</Filter>
     </ClInclude>
-    <ClInclude Include="d3dApp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ComputePSO.h">
       <Filter>Header Files\Objects</Filter>
     </ClInclude>
@@ -109,24 +106,18 @@
       <Filter>Header Files\Objects</Filter>
     </ClInclude>
     <ClInclude Include="GDevice.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GFence.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Objects</Filter>
     </ClInclude>
     <ClInclude Include="GDeviceFactory.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="GFence.h">
+      <Filter>Header Files\Render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="d3dApp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GameTimer.cpp">
       <Filter>Source Files\Helpers</Filter>
-    </ClCompile>
-    <ClCompile Include="Window.cpp">
-      <Filter>Source Files\Render</Filter>
     </ClCompile>
     <ClCompile Include="ComputePSO.cpp">
       <Filter>Source Files\Objects</Filter>
@@ -186,13 +177,13 @@
       <Filter>Source Files\Objects</Filter>
     </ClCompile>
     <ClCompile Include="GDevice.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GFence.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Objects</Filter>
     </ClCompile>
     <ClCompile Include="GDeviceFactory.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="GFence.cpp">
+      <Filter>Source Files\Render</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

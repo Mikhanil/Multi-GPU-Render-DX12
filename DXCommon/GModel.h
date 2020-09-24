@@ -26,6 +26,8 @@ public:
 	std::shared_ptr<GMesh> GetMesh(const UINT submesh);
 
 	void AddMesh(const std::shared_ptr<GMesh> mesh);
+
+	void DublicateModelData(std::shared_ptr<GDevice> device);
 };
 
 

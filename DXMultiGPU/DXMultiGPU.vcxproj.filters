@@ -18,27 +18,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GCrossAdapterResource.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="MultiAdapter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Source.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FrameResource.cpp">
+    <ClCompile Include="MultiSplitGPU.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SplitFrameResource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="GCrossAdapterResource.h">
+    <ClInclude Include="MultiSplitGPU.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MultiAdapter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FrameResource.h">
+    <ClInclude Include="SplitFrameResource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

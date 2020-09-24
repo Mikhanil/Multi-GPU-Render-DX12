@@ -65,7 +65,7 @@ public:
 	UINT GetNodeMask() const;
 
 
-	bool IsCrossAdapterTextureSupported();
+	bool IsCrossAdapterTextureSupported() const;
 
 	void SharedFence(ComPtr<ID3D12Fence>& primaryFence, std::shared_ptr<GDevice> sharedDevice,
 	                 ComPtr<ID3D12Fence>& sharedFence, UINT64 fenceValue = 0,
@@ -81,4 +81,9 @@ public:
 	void Flush() const;
 
 	ComPtr<ID3D12Device> GetDXDevice() const;
+
+	std::wstring GetName() const
+	{
+		return name;
+	}
 };

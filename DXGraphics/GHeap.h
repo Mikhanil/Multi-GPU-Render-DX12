@@ -29,6 +29,8 @@ public:
 	void ReleaseStaleDescriptors(uint64_t frameNumber);
 
 	ID3D12DescriptorHeap* GetDescriptorHeap();
+
+	std::shared_ptr<GDevice> GetDevice() const;
 protected:
 
 	uint32_t ComputeOffset(D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
@@ -87,4 +89,6 @@ private:
 	uint32_t freeHandlesCount;
 
 	std::mutex allocationMutex;
+
+	std::shared_ptr<GDevice> device;
 };

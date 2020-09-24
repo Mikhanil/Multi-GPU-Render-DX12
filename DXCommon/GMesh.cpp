@@ -4,36 +4,43 @@
 #include "GBuffer.h"
 #include "GCommandList.h"
 #include "Material.h"
-
+#include "GDevice.h"
+#include "GCommandQueue.h"
+#include "GCommandList.h"
 
 D3D12_PRIMITIVE_TOPOLOGY GMesh::GetPrimitiveType() const
 {
 	return primitiveTopology;
 }
 
-D3D12_VERTEX_BUFFER_VIEW* GMesh::GetVertexView() const
+D3D12_VERTEX_BUFFER_VIEW* GMesh::GetVertexView(std::shared_ptr<GDevice> device) const
 {
-	if(vertexView == nullptr)
-	{
-		vertexView = std::make_shared<D3D12_VERTEX_BUFFER_VIEW>((vertexBuffer->VertexBufferView()));
-	}
+	const auto it = vertexView.find(device);
+
+	if (it != vertexView.end()) return it->second.get();
+
+	vertexView[device] = std::make_shared<D3D12_VERTEX_BUFFER_VIEW>((vertexBuffers[device]->VertexBufferView()));
 	
-	return vertexView.get();
+	
+	return vertexView[device].get();
 }
 
-D3D12_INDEX_BUFFER_VIEW* GMesh::GetIndexView() const
+D3D12_INDEX_BUFFER_VIEW* GMesh::GetIndexView(std::shared_ptr<GDevice> device) const
 {
-	if (indexView == nullptr)
-	{
-		indexView = std::make_shared<D3D12_INDEX_BUFFER_VIEW>(indexBuffer->IndexBufferView());
-	}
 
-	return indexView.get();
+	const auto it = indexView.find(device);
+
+	if (it != indexView.end()) return it->second.get();
+
+	indexView[device] = std::make_shared<D3D12_INDEX_BUFFER_VIEW>(indexBuffers[device]->IndexBufferView());
+
+
+	return indexView[device].get();		
 }
 
 UINT GMesh::GetIndexCount() const
 {
-	return indexBuffer->GetElementsCount();
+	return indexes.size();
 }
 
 GMesh::GMesh(const std::wstring name): meshName(std::move(name)), primitiveTopology(D3D_PRIMITIVE_TOPOLOGY_UNDEFINED)
@@ -42,37 +49,59 @@ GMesh::GMesh(const std::wstring name): meshName(std::move(name)), primitiveTopol
 }
 
 GMesh::GMesh(const GMesh& copy) : meshName(copy.meshName), primitiveTopology(copy.primitiveTopology),
-vertices(copy.vertices), indexes(copy.indexes), vertexBuffer(copy.vertexBuffer), indexBuffer(copy.indexBuffer), vertexView(copy.vertexView), indexView((copy.indexView))
+vertices(copy.vertices), indexes(copy.indexes), vertexBuffers(copy.vertexBuffers), indexBuffers(copy.indexBuffers), vertexView(copy.vertexView), indexView((copy.indexView))
 {}
 	
 
 void GMesh::ChangeIndexes(std::shared_ptr<GCommandList> cmdList, const DWORD* indices, size_t indexesCount)
 {
-	if (indexBuffer != nullptr) indexBuffer.reset();
+	const auto it = indexBuffers.find(cmdList->GetDevice());
 
-	indexes.resize(indexesCount);
-
-	for (int i = 0; i < indexesCount; ++i)
+	if(it == indexBuffers.end())
 	{
-		indexes[i] = indices[i];
+		indexes.resize(indexesCount);
+
+		for (int i = 0; i < indexesCount; ++i)
+		{
+			indexes[i] = indices[i];
+		}
+
+		const auto indexBuffer = std::make_shared<GBuffer>(std::move(
+			GBuffer::CreateBuffer(cmdList, indexes.data(), sizeof(DWORD), indexes.size(), meshName + L" Indexes")));
+
+		indexBuffers[cmdList->GetDevice()] = std::move(indexBuffer);
 	}
-	
-	indexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, indexes.data(), sizeof(DWORD), indexes.size(),  meshName + L" Indexes")));
+	else
+	{
+		indexBuffers[cmdList->GetDevice()] = std::move( std::make_shared<GBuffer>(std::move(
+			GBuffer::CreateBuffer(cmdList, indexes.data(), sizeof(DWORD), indexes.size(), meshName + L" Indexes"))));
+		
+	}
 	
 }
 
 void GMesh::ChangeVertices(std::shared_ptr<GCommandList> cmdList, const Vertex* vertixes, size_t vertexesCount)
 {
-	if (vertexBuffer != nullptr) vertexBuffer.reset();
+	const auto it = vertexBuffers.find(cmdList->GetDevice());
 
-	vertices.resize(vertexesCount);
-
-	for (int i = 0; i < vertexesCount; ++i)
+	if (it == vertexBuffers.end())
 	{
-		vertices[i] = vertixes[i];
+		vertices.resize(vertexesCount);
+
+		for (int i = 0; i < vertexesCount; ++i)
+		{
+			vertices[i] = vertixes[i];
+		}
+
+		const auto vertexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, vertices.data(), sizeof(Vertex), vertices.size(), meshName + L" Vertexes")));
+
+		vertexBuffers[cmdList->GetDevice()] = std::move(vertexBuffer);
 	}
-		
-	vertexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, vertices.data(), sizeof(Vertex), vertices.size(), meshName + L" Vertexes")));
+	else
+	{
+		vertexBuffers[cmdList->GetDevice()] = std::move(std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, vertices.data(), sizeof(Vertex), vertices.size(), meshName + L" Vertexes"))));
+
+	}	
 }
 
 void GMesh::SetName(const std::wstring& name)
@@ -88,4 +117,15 @@ std::wstring GMesh::GetName() const
 void GMesh::SetTopology(D3D12_PRIMITIVE_TOPOLOGY topology)
 {
 	primitiveTopology = topology;
+}
+
+void GMesh::DublicateGraphicData(std::shared_ptr<GDevice> device)
+{
+	auto queue = device->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+	auto cmdList = queue->GetCommandList();
+
+	ChangeIndexes(cmdList, indexes.data(), indexes.size());
+	ChangeVertices(cmdList, vertices.data(), vertices.size());
+
+	queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 }

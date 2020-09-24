@@ -46,6 +46,8 @@ namespace DXLib
 
 		void EndPixEvent() const;
 
+		uint64_t GetFenceValue() const;
+
 	private:
 
 		// Free any command lists that are finished processing on the command queue.

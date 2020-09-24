@@ -99,6 +99,9 @@
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -120,6 +123,9 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -138,6 +144,9 @@
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -159,37 +168,58 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AssetsLoader.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="CameraController.h" />
     <ClInclude Include="Component.h" />
+    <ClInclude Include="d3dApp.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameObject.h" />
+    <ClInclude Include="GCrossAdapterResource.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="KeyboardDevice.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="GMesh.h" />
     <ClInclude Include="GModel.h" />
     <ClInclude Include="ModelRenderer.h" />
+    <ClInclude Include="Mousepad.h" />
+    <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Reflected.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Rotater.h" />
     <ClInclude Include="ShaderBuffersData.h" />
+    <ClInclude Include="ShaderFactory.h" />
+    <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="SkyBox.h" />
+    <ClInclude Include="SSAA.h" />
+    <ClInclude Include="Ssao.h" />
     <ClInclude Include="Transform.h" />
+    <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssetsLoader.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="Component.cpp" />
+    <ClCompile Include="d3dApp.cpp" />
     <ClCompile Include="GameObject.cpp" />
+    <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="KeyboardDevice.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="GMesh.cpp" />
     <ClCompile Include="GModel.cpp" />
     <ClCompile Include="ModelRenderer.cpp" />
+    <ClCompile Include="Mousepad.cpp" />
+    <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -197,8 +227,14 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Reflected.cpp" />
+    <ClCompile Include="Rotater.cpp" />
+    <ClCompile Include="ShaderFactory.cpp" />
+    <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="SkyBox.cpp" />
+    <ClCompile Include="SSAA.cpp" />
+    <ClCompile Include="Ssao.cpp" />
     <ClCompile Include="Transform.cpp" />
+    <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

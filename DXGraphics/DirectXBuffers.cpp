@@ -1,5 +1,4 @@
 #include "DirectXBuffers.h"
-#include "d3dApp.h"
 #include "GResourceStateTracker.h"
 
 

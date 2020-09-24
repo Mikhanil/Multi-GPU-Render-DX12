@@ -191,6 +191,11 @@ namespace DXLib
 		PIXEndEvent(commandQueue.Get());
 	}
 
+	uint64_t GCommandQueue::GetFenceValue() const
+	{
+		return FenceValue;
+	}
+
 
 	void GCommandQueue::ProccessInFlightCommandLists()
 	{

@@ -11,7 +11,7 @@ UINT GDevice::GetNodeMask() const
 	return 0;
 }
 
-bool GDevice::IsCrossAdapterTextureSupported()
+bool GDevice::IsCrossAdapterTextureSupported() const
 {
 	return crossAdapterTextureSupport.value();
 }
@@ -230,7 +230,17 @@ void GDevice::ResetAllocator(uint64_t frameCount)
 		{
 			if (allocator.IsInit())
 			{
-				allocator.value()->ReleaseStaleDescriptors(frameCount);
+				uint64_t fenceValue = 0;
+
+				for (auto&& queue : queues.value())
+				{
+					if(queue.IsInit())
+					{
+						fenceValue = std::max(fenceValue, queue.value()->GetFenceValue());
+					}
+				}
+				
+				allocator.value()->ReleaseStaleDescriptors(fenceValue);
 			}
 		}
 	}

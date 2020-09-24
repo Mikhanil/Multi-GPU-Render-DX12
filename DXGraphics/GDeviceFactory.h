@@ -10,8 +10,8 @@ enum GraphicsAdapter : UINT
 {
 	GraphicAdapterPrimary = 0,
 	// Note: Not necessarily the OS's primary adapter (adapter enumerated at index 0).
-	GraphicsAdapterSecond = GraphicAdapterPrimary + 1,
-	GraphicsAdaptersCount = GraphicsAdapterSecond + 1
+	GraphicAdapterSecond = GraphicAdapterPrimary + 1,
+	GraphicAdapterCount = GraphicAdapterSecond + 1
 };
 
 class GDevice;
