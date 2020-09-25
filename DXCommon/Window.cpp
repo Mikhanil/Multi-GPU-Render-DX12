@@ -191,6 +191,8 @@ namespace DXLib
 			backBuffers.push_back(GTexture(windowName + L" Backbuffer[" + std::to_wstring(i) + L"]",
 			                               TextureUsage::RenderTarget));
 		}
+
+		OnResize();
 	}
 
 	Window::Window(std::shared_ptr<GDevice> device, WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync)

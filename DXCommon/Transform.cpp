@@ -15,6 +15,11 @@ Transform::Transform() : Transform(Vector3::Zero, Quaternion::Identity, Vector3:
 }
 
 
+bool Transform::IsDirty() const
+{
+	return NumFramesDirty > 0;
+}
+
 void Transform::Update()
 {
 

@@ -52,6 +52,6 @@ private:
 	
 	GMemory dsvMemory;
 
-	GTexture mShadowMap;
+	GTexture shadowMap;
 
 };

@@ -40,11 +40,16 @@ void GModel::AddMesh(const std::shared_ptr<GMesh> mesh)
 	meshes.push_back(mesh);
 }
 
-void GModel::DublicateModelData(std::shared_ptr<GDevice> device)
+std::shared_ptr<GModel> GModel::Dublicate(std::shared_ptr<GCommandList> otherDeviceCmdList) const
 {
-	for (auto && mesh : meshes)
+	auto dublicateModel = std::make_shared<GModel>(name);
+
+	for (auto && originMesh : meshes)
 	{
-		mesh->DublicateGraphicData(device);
+		auto dublicateMesh = std::make_shared<GMesh>(originMesh->GetMeshData(), otherDeviceCmdList, originMesh->GetPrimitiveType());
+		dublicateModel->AddMesh(std::move(dublicateMesh));
 	}
+
+	return dublicateModel;
 }
 

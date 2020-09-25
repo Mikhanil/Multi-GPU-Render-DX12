@@ -26,21 +26,18 @@ class GTexture : public GResource
 
 	custom_vector<ComPtr<ID3D12Resource>> track = MemoryAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
-
-	mutable std::mutex shaderResourceViewsMutex;
-	mutable std::mutex unorderedAccessViewsMutex;
-
-
+	std::wstring filePath;
+	
 public:
 	bool HasMipMap;
+
+	std::wstring GetFilePath() const;
 
 	static void Resize(GTexture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize);
 
 
 	static void GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture** textures, size_t count);
 	TextureUsage GetTextureType() const;
-
-	UINT GetTextureIndex() const;
 
 	GTexture(std::wstring name = L"", TextureUsage use = TextureUsage::Diffuse);
 

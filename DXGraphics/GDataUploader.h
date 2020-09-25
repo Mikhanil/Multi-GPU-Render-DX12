@@ -23,7 +23,7 @@ class GDataUploader
 {
 public:
 
-	explicit GDataUploader(std::shared_ptr<GDevice> device, size_t pageSize = 1024);
+	explicit GDataUploader(std::shared_ptr<GDevice> device, size_t pageSize = 512);
 
 	virtual ~GDataUploader();
 

@@ -13,8 +13,8 @@ ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height)
 	mViewport = {0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
 	mScissorRect = {0, 0, static_cast<int>(width), static_cast<int>(height)};
 		
-	srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-	dsvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+	srvMemory = this->device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	dsvMemory = this->device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 	
 	BuildResource();
 }
@@ -31,7 +31,7 @@ UINT ShadowMap::Height() const
 
 GTexture& ShadowMap::GetTexture()
 {
-	return mShadowMap;
+	return shadowMap;
 }
 
 
@@ -67,19 +67,19 @@ void ShadowMap::BuildDescriptors()
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	srvDesc.Texture2D.PlaneSlice = 0;
-	mShadowMap.CreateShaderResourceView(&srvDesc, &srvMemory);
+	shadowMap.CreateShaderResourceView(&srvDesc, &srvMemory);
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	dsvDesc.Texture2D.MipSlice = 0;
-	mShadowMap.CreateDepthStencilView(&dsvDesc, &dsvMemory);
+	shadowMap.CreateDepthStencilView(&dsvDesc, &dsvMemory);
 }
 
 void ShadowMap::BuildResource()
 {
-	if(mShadowMap.GetD3D12Resource() == nullptr)
+	if(shadowMap.GetD3D12Resource() == nullptr)
 	{
 		D3D12_RESOURCE_DESC texDesc;
 		ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
@@ -100,10 +100,10 @@ void ShadowMap::BuildResource()
 		optClear.DepthStencil.Depth = 1.0f;
 		optClear.DepthStencil.Stencil = 0;
 
-		mShadowMap = GTexture(device, texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
+		shadowMap = GTexture(device, texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
 	}
 	else
 	{
-		GTexture::Resize(mShadowMap, mWidth, mHeight,1);
+		GTexture::Resize(shadowMap, mWidth, mHeight,1);
 	}	
 }

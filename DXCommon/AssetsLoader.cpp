@@ -21,18 +21,20 @@ std::shared_ptr<GModel> AssetsLoader::GenerateSphere(std::shared_ptr<GCommandLis
 {
 	auto it = models.find(L"sphere");
 	if (it != models.end()) return  it->second;
-		
-    GeometryGenerator::MeshData sphere = geoGen.CreateSphere(radius, sliceCount, stackCount);
 
-	auto sphereMesh = std::make_shared<GMesh>();
-	sphereMesh->ChangeVertices(cmdList, sphere.Vertices.data(), sphere.Vertices.size());
-	sphereMesh->ChangeIndexes(cmdList, sphere.Indices32.data(), sphere.Indices32.size());
-	sphereMesh->SetTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	const auto meshDataIt = meshesData.find(L"sphere");
+	if (meshDataIt == meshesData.end())
+	{
+		GeometryGenerator::MeshData sphere = geoGen.CreateSphere(radius, sliceCount, stackCount);
+		auto meshData = std::make_shared<MeshData>(sphere.Vertices.data(), sphere.Vertices.size(), sphere.Indices32.data(), sphere.Indices32.size(), L"sphere");
+		meshesData[meshData->GetName()] = meshData;
+	}
+	
+	const auto sphereMesh = std::make_shared<GMesh>(*meshesData[L"sphere"].get(), cmdList, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	auto sphereModel = std::make_shared<GModel>(L"sphere");
 	sphereModel->AddMesh(sphereMesh);
-	models[sphereModel->GetName()] = std::move(sphereModel);
-	trackGeneratedData.push_back(sphere);
-	
+	models[sphereModel->GetName()] = std::move(sphereModel);	
 	return models[L"sphere"];
 }
 
@@ -42,21 +44,24 @@ std::shared_ptr<GModel> AssetsLoader::GenerateQuad(std::shared_ptr<GCommandList>
 	auto it = models.find(L"quad");
 	if (it != models.end()) return  it->second;
 
-	GeometryGenerator::MeshData genMesh = geoGen.CreateQuad(x,y,w,h,depth);
 
-	auto mesh = std::make_shared<GMesh>();
-	mesh->ChangeVertices(cmdList, genMesh.Vertices.data(), genMesh.Vertices.size());
-	mesh->ChangeIndexes(cmdList, genMesh.Indices32.data(), genMesh.Indices32.size());
-	mesh->SetTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	const auto meshDataIt = meshesData.find(L"quad");
+	if (meshDataIt == meshesData.end())
+	{
+		GeometryGenerator::MeshData genMesh = geoGen.CreateQuad(x, y, w, h, depth);
+		auto meshData = std::make_shared<MeshData>(genMesh.Vertices.data(), genMesh.Vertices.size(), genMesh.Indices32.data(), genMesh.Indices32.size(), L"quad");
+		meshesData[meshData->GetName()] = meshData;
+	}
+
+	const auto mesh = std::make_shared<GMesh>(*meshesData[L"quad"].get(), cmdList, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);	
 	auto model = std::make_shared<GModel>(L"quad");
 	model->AddMesh(mesh);
 	models[model->GetName()] = std::move(model);
-	trackGeneratedData.push_back(genMesh);
 	return models[L"quad"];
 }
 
 
-std::shared_ptr<GMesh> CreateSubMesh(aiMesh* mesh, std::wstring name, std::shared_ptr<GCommandList> cmdList)
+std::shared_ptr<GMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring name, std::shared_ptr<GCommandList> cmdList)
 {
 	// Data to fill
 	std::vector<Vertex> vertices;
@@ -102,16 +107,18 @@ std::shared_ptr<GMesh> CreateSubMesh(aiMesh* mesh, std::wstring name, std::share
 		}
 	}
 
-	auto submesh = std::make_shared<GMesh>(name + L" " + AnsiToWString(mesh->mName.C_Str()));
-
-	submesh->SetTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);	
-
 	RecalculateTangent(indices.data(), indices.size(), vertices.data());
 
-	submesh->ChangeIndexes(cmdList, indices.data(), indices.size());
-	submesh->ChangeVertices(cmdList, vertices.data(), vertices.size());
-
-	return submesh;
+	auto meshName = name + L" " + AnsiToWString(mesh->mName.C_Str());
+	
+	auto meshDataIT = meshesData.find(meshName);
+	if(meshDataIT == meshesData.end())
+	{
+		const auto meshData = std::make_shared<MeshData>(vertices.data(), vertices.size(), indices.data(), indices.size(), name + L" " + AnsiToWString(mesh->mName.C_Str()));
+		meshesData[meshName] = std::move(meshData);
+	}
+	
+	return std::make_shared<GMesh>(*meshesData[meshName].get(), cmdList, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 std::shared_ptr<GTexture> AssetsLoader::LoadOrGetTexture(const aiMaterial* material, const aiTextureType type,
@@ -157,7 +164,7 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<GMesh> mesh, const aiM
 	const auto it = materialsMap.find(materialName);
 	if (it != materialsMap.end())
 	{
-		defaultMaterialForMeshFromFile[mesh] = materials[it->second];		
+		defaultMaterialForMeshFromFile[mesh->GetName()] = materials[it->second];		
 		return;
 	}
 
@@ -241,7 +248,7 @@ void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<GMesh> mesh, const aiM
 	mat->Roughness = 0.95;
 
 	AddMaterial(mat);
-	defaultMaterialForMeshFromFile[mesh] = mat;
+	defaultMaterialForMeshFromFile[mesh->GetName()] = mat;
 }
 
 
@@ -266,6 +273,23 @@ void  AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<GModel> model, aiNode* 
 
 AssetsLoader::AssetsLoader(const std::shared_ptr<GDevice> device): device(device)
 {
+}
+
+void AssetsLoader::SetModelDefaultMaterial(std::shared_ptr<GMesh> mesh, std::shared_ptr<Material> material)
+{
+	defaultMaterialForMeshFromFile[mesh->GetName()] = material;
+}
+
+std::shared_ptr<GMesh> AssetsLoader::GetMesh(std::wstring name)
+{
+	for (auto&& mesh : meshes)
+	{
+		if (mesh->GetName()._Equal(name))
+		{
+			return mesh;
+		}
+		
+	}
 }
 
 UINT AssetsLoader::GetTextureIndex(std::wstring name)
@@ -293,17 +317,22 @@ size_t AssetsLoader::GetLoadTexturesCount() const
 	return texturesMap.size();
 }
 
-void AssetsLoader::AddMaterial(std::shared_ptr<Material>& material)
+void AssetsLoader::AddMaterial(std::shared_ptr<Material> material)
 {	
 	materialsMap[material->GetName()] = materials.size();
 	materials.push_back((material));
 }
 
-void AssetsLoader::AddTexture(std::shared_ptr<GTexture>& texture)
+void AssetsLoader::AddTexture(std::shared_ptr<GTexture> texture)
 {
 	
 	texturesMap[texture->GetName()] = textures.size();
 	textures.push_back((texture));
+}
+
+void AssetsLoader::AddModel(std::shared_ptr<GModel> model)
+{
+	models[model->GetName()] = model;
 }
 
 custom_vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
@@ -330,7 +359,7 @@ std::shared_ptr<Material> AssetsLoader::GetMaterials(UINT index)
 
 std::shared_ptr<Material> AssetsLoader::GetDefaultMaterial(std::shared_ptr<GMesh> mesh)
 {
-	return defaultMaterialForMeshFromFile[mesh];
+	return defaultMaterialForMeshFromFile[mesh->GetName()];
 }
 
 std::shared_ptr<GModel> AssetsLoader::GetModelByName(const std::wstring name)

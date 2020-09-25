@@ -39,6 +39,36 @@ class Material
 
 public:
 
+	UINT GetMaterialIndex()
+	{
+		return materialIndex;
+	}
+	
+	void SetMaterialIndex(UINT index)
+	{
+		materialIndex = index;
+	}
+	
+	std::shared_ptr<GTexture> GetDiffuseTexture() const
+	{
+		return diffuseMap;
+	}
+
+	std::shared_ptr<GTexture> GetNormalTexture() const
+	{
+		return  normalMap;
+	}
+
+	UINT GetDiffuseMapIndex() const
+	{
+		return DiffuseMapIndex;
+	}
+
+	UINT GetNormalMapDiffuseIndex() const
+	{
+		return NormalMapIndex;
+	}
+	
 	MaterialConstants& GetMaterialConstantData();
 
 	UINT GetIndex() const;

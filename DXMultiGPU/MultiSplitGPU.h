@@ -6,11 +6,8 @@
 #include "SplitFrameResource.h"
 #include "GCrossAdapterResource.h"
 #include "GMemory.h"
-#include "GraphicPSO.h"
 #include "GTexture.h"
-#include "KeyboardDevice.h"
 #include "Light.h"
-#include "Mousepad.h"
 #include "ShaderFactory.h"
 #include "ShadowMap.h"
 #include "SSAA.h"
@@ -31,6 +28,10 @@ protected:
 	void UpdateShadowPassCB(const GameTimer& gt);
 	void UpdateMainPassCB(const GameTimer& gt);
 	void UpdateSsaoCB(const GameTimer& gt);
+	std::shared_ptr<GCommandList> PopulateMainPathCommands(GraphicsAdapter adapterIndex);
+	void PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, PsoType::Type type);
+	void PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory);
+	void PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource);
 	void Draw(const GameTimer& gt) override;
 
 	void OnResize() override;
@@ -45,11 +46,16 @@ private:
 	void InitFrameResource();
 	void InitRootSignature();
 	void InitPipeLineResource();
-	void BuildMaterials();
+	void CreateMaterials();
 	void InitSRVMemoryAndMaterials();
 	void InitRenderPaths();
 	void LoadStudyTexture();
 	void LoadModels();
+	void MipMasGenerate();
+	void DublicateResource();
+	void SortGO();
+	std::shared_ptr<Renderer> CreateRenderer(UINT deviceIndex, std::wstring modelPath);
+	void CreateGO();
 
 	UINT backBufferIndex = 0;
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -59,9 +65,9 @@ private:
 	static const DXGI_FORMAT DepthMapFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	
-	D3D12_VIEWPORT primeViewport{};
-	D3D12_RECT primeRect{};
-	D3D12_RECT secondRect{};
+	D3D12_VIEWPORT fullViewport{};
+	D3D12_RECT fullRect;
+	custom_vector< D3D12_RECT> adapterRects = MemoryAllocator::CreateVector<D3D12_RECT>();	
 	D3D12_BOX copyRegionBox;
 
 	
@@ -69,13 +75,14 @@ private:
 	custom_vector<GMemory> srvTexturesMemory = MemoryAllocator::CreateVector<GMemory>();
 	
 	custom_vector<AssetsLoader> assets = MemoryAllocator::CreateVector<AssetsLoader>();
+
+	custom_vector<custom_unordered_map<std::wstring,std::shared_ptr<GModel>>> models = MemoryAllocator::CreateVector<custom_unordered_map<std::wstring, std::shared_ptr<GModel>>>() ;
 	
 	custom_vector<std::shared_ptr<GRootSignature>> rootSignatures = MemoryAllocator::CreateVector<std::shared_ptr<GRootSignature>>();
 
 	custom_vector<std::shared_ptr<GRootSignature>> ssaoRootSignatures = MemoryAllocator::CreateVector<std::shared_ptr<GRootSignature>>();
 
 	custom_vector< ShaderFactory> defaultPipelineResources = MemoryAllocator::CreateVector<ShaderFactory>();	
-	
 
 	custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = MemoryAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 
@@ -85,7 +92,7 @@ private:
 	
 	custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<GameObject>>();
 
-	custom_vector<custom_vector<std::shared_ptr<GameObject>>> typedGameObjects = MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<GameObject>>>();
+	custom_vector<custom_vector<custom_vector<std::shared_ptr<Renderer>>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<custom_vector<std::shared_ptr<Renderer>>>>();
 
 	PassConstants mainPassCB;
 	PassConstants shadowPassCB;

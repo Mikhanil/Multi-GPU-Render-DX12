@@ -212,7 +212,7 @@ void Ssao::ComputeSsao(
 
 	cmdList->SetPipelineState(mSsaoPso);
 
-	cmdList->SetRootConstantBufferView(0, *currFrame);
+	cmdList->SetRootConstantBufferView(0, *currFrame.get());
 	cmdList->SetRoot32BitConstant(1, 0, 0);
 
 	cmdList->SetRootDescriptorTable(2, &normalMapSrvMemory);
@@ -250,7 +250,7 @@ void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, std::shared_ptr
 {
 	cmdList->SetPipelineState(mBlurPso);
 	
-	cmdList->SetRootConstantBufferView(0, *currFrame);
+	cmdList->SetRootConstantBufferView(0, *currFrame.get());
 
 	for (int i = 0; i < blurCount; ++i)
 	{

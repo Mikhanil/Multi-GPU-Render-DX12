@@ -1426,8 +1426,11 @@ namespace DXLib
 		auto man = std::make_unique<GameObject>();
 		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice());
 		man->AddComponent(renderer);
-		renderer->SetModel(model);				
-		SetDefaultMaterialForModel(renderer);
+		renderer->SetModel(model);
+		for (int i = 0; i < renderer->model->GetMeshesCount(); ++i)
+		{
+			renderer->SetMeshMaterial(i, loader.GetDefaultMaterial(renderer->model->GetMesh(i)));
+		}		
 		return man;
 	}
 	
@@ -1440,68 +1443,68 @@ namespace DXLib
 		}
 	}
 
-	void SampleApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> list)
+	void SampleApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> cmdList)
 	{
-		list->SetViewports(&shadowMap->Viewport(), 1);
-		list->SetScissorRects(&shadowMap->ScissorRect(), 1);
+		cmdList->SetViewports(&shadowMap->Viewport(), 1);
+		cmdList->SetScissorRects(&shadowMap->ScissorRect(), 1);
 
-		list->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		list->FlushResourceBarriers();
+		cmdList->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		cmdList->FlushResourceBarriers();
 
 
-		list->ClearDepthStencil(shadowMap->GetDsvMemory(), 0,
+		cmdList->ClearDepthStencil(shadowMap->GetDsvMemory(), 0,
 		                        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
-		list->SetRenderTargets(0, nullptr, false, shadowMap->GetDsvMemory());
+		cmdList->SetRenderTargets(0, nullptr, false, shadowMap->GetDsvMemory());
 
 		//Shadow Path Data
-		list->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer,1);
+		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer,1);
 
-		list->SetPipelineState(*psos[PsoType::ShadowMapOpaque]);
+		cmdList->SetPipelineState(*psos[PsoType::ShadowMapOpaque]);
 
-		DrawGameObjects(list, typedGameObjects[PsoType::Opaque]);
+		DrawGameObjects(cmdList, typedGameObjects[PsoType::Opaque]);
 
-		list->SetPipelineState(*psos[PsoType::ShadowMapOpaqueDrop]);
-		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
+		cmdList->SetPipelineState(*psos[PsoType::ShadowMapOpaqueDrop]);
+		DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
-		list->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
-		list->FlushResourceBarriers();
+		cmdList->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
+		cmdList->FlushResourceBarriers();
 	}
 
-	void SampleApp::DrawNormals(std::shared_ptr<GCommandList> list)
+	void SampleApp::DrawNormals(std::shared_ptr<GCommandList> cmdList)
 	{
-		list->SetViewports(&viewport, 1);
-		list->SetScissorRects(&rect, 1);
+		cmdList->SetViewports(&viewport, 1);
+		cmdList->SetScissorRects(&rect, 1);
 
 		auto normalMap = ssao->NormalMap();
 		auto normalDepthMap = ssao->NormalDepthMap();
 		auto normalMapRtv = ssao->NormalMapRtv();
 		auto normalMapDsv = ssao->NormalMapDSV();
 		
-		list->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		list->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+		cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		
-		list->FlushResourceBarriers();
+		cmdList->FlushResourceBarriers();
 
 		float clearValue[] = {0.0f, 0.0f, 1.0f, 0.0f};
-		list->ClearRenderTarget(normalMapRtv, 0, clearValue);
-		list->ClearDepthStencil(normalMapDsv, 0,
+		cmdList->ClearRenderTarget(normalMapRtv, 0, clearValue);
+		cmdList->ClearDepthStencil(normalMapDsv, 0,
 		                        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
-		list->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
+		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
 
 		//Main Path Data
-		list->SetRootConstantBufferView(1, *currentFrameResource->PassConstantBuffer);
+		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PassConstantBuffer);
 
-		list->SetPipelineState(*psos[PsoType::DrawNormalsOpaque]);
-		DrawGameObjects(list, typedGameObjects[PsoType::Opaque]);
-		list->SetPipelineState(*psos[PsoType::DrawNormalsOpaqueDrop]);
-		DrawGameObjects(list, typedGameObjects[PsoType::OpaqueAlphaDrop]);
+		cmdList->SetPipelineState(*psos[PsoType::DrawNormalsOpaque]);
+		DrawGameObjects(cmdList, typedGameObjects[PsoType::Opaque]);
+		cmdList->SetPipelineState(*psos[PsoType::DrawNormalsOpaqueDrop]);
+		DrawGameObjects(cmdList, typedGameObjects[PsoType::OpaqueAlphaDrop]);
 
 
-		list->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_COMMON);
-		list->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_COMMON);
-		list->FlushResourceBarriers();
+		cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_COMMON);
+		cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_COMMON);
+		cmdList->FlushResourceBarriers();
 	}
 
 	void SampleApp::SortGO()

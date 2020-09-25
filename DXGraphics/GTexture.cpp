@@ -14,6 +14,11 @@
 #include "GDeviceFactory.h"
 
 
+std::wstring GTexture::GetFilePath() const
+{
+	return filePath;
+}
+
 void GTexture::Resize(GTexture& texture, uint32_t width, uint32_t height, uint32_t depthOrArraySize)
 {
 	if (texture.dxResource)
@@ -295,15 +300,17 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 	desc.SampleDesc.Count = 1;
 	desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
-	auto device = commandList->GetDevice();
+	auto ownerDevice = commandList->GetDevice();
 
-	auto tex = std::make_shared<GTexture>(device, desc, filepath, usage);
+	auto tex = std::make_shared<GTexture>(ownerDevice, desc, filepath, usage);
+	tex->filePath = filePath;
 
+	
 	if (tex->GetD3D12Resource())
 	{
 		std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
 		ThrowIfFailed(
-			PrepareUpload(device->GetDXDevice().Get(), scratchImage.GetImages(), scratchImage.GetImageCount(),
+			PrepareUpload(ownerDevice->GetDXDevice().Get(), scratchImage.GetImages(), scratchImage.GetImageCount(),
 				scratchImage.GetMetadata(),
 				subresources));
 
@@ -320,6 +327,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 		{
 			tex->HasMipMap = false;
 		}
+
 	}
 
 	return tex;

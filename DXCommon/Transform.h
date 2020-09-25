@@ -37,10 +37,7 @@ public:
 	Matrix TextureTransform = Matrix::CreateScale(Vector3::One);
 	Matrix worldTranspose;
 
-	bool IsDirty()
-	{
-		return NumFramesDirty > 0;
-	}
+	bool IsDirty() const;
 
 	void Update() override;;
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;;

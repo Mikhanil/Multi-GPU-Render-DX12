@@ -12,7 +12,7 @@ MultiGPUSimple::MultiGPUSimple(HINSTANCE hInstance): D3DApp(hInstance)
 bool MultiGPUSimple::Initialize()
 {
 	auto firstDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
-	auto otherDevice = GDeviceFactory::GetDevice(GraphicsAdapterSecond);
+	auto otherDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
 
 	if (otherDevice->IsCrossAdapterTextureSupported())
 	{

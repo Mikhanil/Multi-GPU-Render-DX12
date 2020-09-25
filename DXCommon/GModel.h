@@ -27,7 +27,7 @@ public:
 
 	void AddMesh(const std::shared_ptr<GMesh> mesh);
 
-	void DublicateModelData(std::shared_ptr<GDevice> device);
+	std::shared_ptr<GModel> Dublicate(std::shared_ptr<GCommandList> otherDeviceCmdList) const;
 };
 
 
