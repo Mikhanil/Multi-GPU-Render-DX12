@@ -1,14 +1,14 @@
 #include "pch.h"
 #include "AssetsLoader.h"
-#include "ComputePSO.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
 #include "GeometryGenerator.h"
+#include "GMesh.h"
+#include "GModel.h"
 #include "GraphicPSO.h"
 #include "GTexture.h"
 #include "Material.h"
-#include "GMesh.h"
-#include "GModel.h"
+#include "NativeModel.h"
 #include "assimp/Importer.hpp"
 #include "assimp/mesh.h"
 #include "assimp/postprocess.h"
@@ -17,51 +17,44 @@ using namespace DXLib;
 
 static Assimp::Importer importer;
 
-std::shared_ptr<GModel> AssetsLoader::GenerateSphere(std::shared_ptr<GCommandList> cmdList, float radius, UINT sliceCount, UINT stackCount)
+custom_unordered_map<std::wstring, std::shared_ptr<NativeModel>> AssetsLoader::loadedModels =
+	MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<NativeModel>>();
+custom_unordered_map<std::shared_ptr<NativeMesh>, std::shared_ptr<aiMaterial>> AssetsLoader::loadedAiMaterialForMesh =
+	MemoryAllocator::CreateUnorderedMap<std::shared_ptr<NativeMesh>, std::shared_ptr<aiMaterial>>();
+custom_unordered_map<std::shared_ptr<NativeMesh>, std::vector<UINT>> AssetsLoader::loadedTexturesForMesh =
+	MemoryAllocator::CreateUnorderedMap<std::shared_ptr<NativeMesh>, std::vector<UINT>>();
+
+inline std::shared_ptr<GModel> CreateModelFromGenerated(std::shared_ptr<GCommandList> cmdList,
+                                                        GeometryGenerator::MeshData generatedData, std::wstring name)
 {
-	auto it = models.find(L"sphere");
-	if (it != models.end()) return  it->second;
+	auto nativeMesh = std::make_shared<NativeMesh>(generatedData.Vertices.data(), generatedData.Vertices.size(),
+	                                                     generatedData.Indices32.data(), generatedData.Indices32.size(),
+	                                                     D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+	auto nativeModel = std::make_shared<NativeModel>(name);
+	nativeModel->AddMesh(std::move(nativeMesh));
 
-	const auto meshDataIt = meshesData.find(L"sphere");
-	if (meshDataIt == meshesData.end())
-	{
-		GeometryGenerator::MeshData sphere = geoGen.CreateSphere(radius, sliceCount, stackCount);
-		auto meshData = std::make_shared<MeshData>(sphere.Vertices.data(), sphere.Vertices.size(), sphere.Indices32.data(), sphere.Indices32.size(), L"sphere");
-		meshesData[meshData->GetName()] = meshData;
-	}
-	
-	const auto sphereMesh = std::make_shared<GMesh>(*meshesData[L"sphere"].get(), cmdList, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	auto sphereModel = std::make_shared<GModel>(L"sphere");
-	sphereModel->AddMesh(sphereMesh);
-	models[sphereModel->GetName()] = std::move(sphereModel);	
-	return models[L"sphere"];
+	return std::make_shared<GModel>(nativeModel, cmdList);
+}
+
+std::shared_ptr<GModel> AssetsLoader::GenerateSphere(std::shared_ptr<GCommandList> cmdList, float radius, UINT sliceCount,
+                                                   UINT stackCount)
+{
+	const GeometryGenerator::MeshData sphere = geoGen.CreateSphere(radius, sliceCount, stackCount);
+
+	return CreateModelFromGenerated(cmdList, sphere, L"sphere");
 }
 
 std::shared_ptr<GModel> AssetsLoader::GenerateQuad(std::shared_ptr<GCommandList> cmdList, float x, float y, float w,
-	float h, float depth)
+                                                   float h, float depth)
 {
-	auto it = models.find(L"quad");
-	if (it != models.end()) return  it->second;
+	const GeometryGenerator::MeshData genMesh = geoGen.CreateQuad(x, y, w, h, depth);
 
-
-	const auto meshDataIt = meshesData.find(L"quad");
-	if (meshDataIt == meshesData.end())
-	{
-		GeometryGenerator::MeshData genMesh = geoGen.CreateQuad(x, y, w, h, depth);
-		auto meshData = std::make_shared<MeshData>(genMesh.Vertices.data(), genMesh.Vertices.size(), genMesh.Indices32.data(), genMesh.Indices32.size(), L"quad");
-		meshesData[meshData->GetName()] = meshData;
-	}
-
-	const auto mesh = std::make_shared<GMesh>(*meshesData[L"quad"].get(), cmdList, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);	
-	auto model = std::make_shared<GModel>(L"quad");
-	model->AddMesh(mesh);
-	models[model->GetName()] = std::move(model);
-	return models[L"quad"];
+	return CreateModelFromGenerated(cmdList, genMesh, L"quad");
 }
 
 
-std::shared_ptr<GMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring name, std::shared_ptr<GCommandList> cmdList)
+std::shared_ptr<NativeMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring modelName) const
 {
 	// Data to fill
 	std::vector<Vertex> vertices;
@@ -99,7 +92,7 @@ std::shared_ptr<GMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring na
 	//Get indices
 	for (UINT i = 0; i < mesh->mNumFaces; i++)
 	{
-		aiFace face = mesh->mFaces[i];
+		const aiFace face = mesh->mFaces[i];
 
 		for (UINT j = 0; j < face.mNumIndices; j++)
 		{
@@ -109,188 +102,193 @@ std::shared_ptr<GMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring na
 
 	RecalculateTangent(indices.data(), indices.size(), vertices.data());
 
-	auto meshName = name + L" " + AnsiToWString(mesh->mName.C_Str());
-	
-	auto meshDataIT = meshesData.find(meshName);
-	if(meshDataIT == meshesData.end())
-	{
-		const auto meshData = std::make_shared<MeshData>(vertices.data(), vertices.size(), indices.data(), indices.size(), name + L" " + AnsiToWString(mesh->mName.C_Str()));
-		meshesData[meshName] = std::move(meshData);
-	}
-	
-	return std::make_shared<GMesh>(*meshesData[meshName].get(), cmdList, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	return std::make_shared<NativeMesh>(vertices.data(), vertices.size(), indices.data(), indices.size(),
+	                                    D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
+	                                    modelName + L" " + AnsiToWString(mesh->mName.C_Str()));
 }
 
-std::shared_ptr<GTexture> AssetsLoader::LoadOrGetTexture(const aiMaterial* material, const aiTextureType type,
-                                                         const std::wstring directory,
-                                                         std::shared_ptr<GCommandList> cmdList)
+std::shared_ptr<GTexture> AssetsLoader::LoadTextureByAiMaterial(const aiMaterial* material, const aiTextureType type,
+                                                                const std::wstring directory,
+                                                                std::shared_ptr<GCommandList> cmdList)
 {
-		
 	aiString str;
-	auto result = material->GetTexture(type, 0, &str);	
+	material->GetTexture(type, 0, &str);
 
 	std::wstring modelTexturePath(AnsiToWString(str.C_Str()));
 
-	if(modelTexturePath.find(L"\\") != std::wstring::npos)
+	if (modelTexturePath.find(L"\\") != std::wstring::npos)
 	{
-		auto fileName = modelTexturePath.substr(modelTexturePath.find_last_of('\\'), modelTexturePath.size() - modelTexturePath.find_last_of('\\'));
+		auto fileName = modelTexturePath.substr(modelTexturePath.find_last_of('\\'),
+		                                        modelTexturePath.size() - modelTexturePath.find_last_of('\\'));
 
 		modelTexturePath = fileName.replace(fileName.find(L"\\"), 1, L"");
 	}
-	
+
 	std::wstring textureName = modelTexturePath;
 	std::wstring texturePath = directory + L"\\" + textureName;
 
 	const auto it = texturesMap.find(textureName);
-	if (it != texturesMap.end()) return textures[ it->second];
-	
+	if (it != texturesMap.end()) return textures[it->second];
+
 	OutputDebugStringW((texturePath + L"\n").c_str());
 
-	auto texture = GTexture::LoadTextureFromFile(texturePath, cmdList, type == aiTextureType_DIFFUSE ? TextureUsage::Albedo : TextureUsage::Normalmap);
+	auto texture = GTexture::LoadTextureFromFile(texturePath, cmdList,
+	                                             type == aiTextureType_DIFFUSE
+		                                             ? TextureUsage::Albedo
+		                                             : TextureUsage::Normalmap);
 	texture->SetName(textureName);
 
-	textures.push_back(std::move(texture));
-	
+	textures.push_back(texture);
+
 	texturesMap[textureName] = textures.size() - 1;
-	return textures[texturesMap[textureName]];
+
+	return texture;
 }
 
-void  AssetsLoader::CreateMaterialForMesh(std::shared_ptr<GMesh> mesh, const aiMaterial* material, const std::shared_ptr<GCommandList> cmdList)
+std::shared_ptr<GTexture> AssetsLoader::LoadTextureByPath(const std::wstring name,
+                                                          const std::wstring fullPath,
+                                                          std::shared_ptr<GCommandList> cmdList, TextureUsage usage)
 {
-	aiString name;
-	material->Get(AI_MATKEY_NAME, name);
-	auto materialName = mesh->GetName() + L" " + AnsiToWString(name.C_Str());
+	const auto it = texturesMap.find(name);
+	if (it != texturesMap.end()) return textures[it->second];
 
-	const auto it = materialsMap.find(materialName);
-	if (it != materialsMap.end())
+	OutputDebugStringW((name + L"\n").c_str());
+
+	auto texture = GTexture::LoadTextureFromFile(fullPath, cmdList, usage);
+	texture->SetName(name);
+
+	textures.push_back(texture);
+
+	texturesMap[name] = textures.size() - 1;
+
+	return texture;
+}
+
+void AssetsLoader::LoadTextureForModel(std::shared_ptr<GModel> model, std::shared_ptr<GCommandList> cmdList)
+{
+	for (int i = 0; i < model->GetMeshesCount(); ++i)
 	{
-		defaultMaterialForMeshFromFile[mesh->GetName()] = materials[it->second];		
-		return;
-	}
+		auto nativeMesh = model->GetMesh(i)->GetMeshData();
 
+		auto aiMaterial = loadedAiMaterialForMesh[nativeMesh];
 
-	
-	auto directory = mesh->GetName().substr(0, mesh->GetName().find_last_of('\\'));
+		assert(aiMaterial != nullptr);
 
-	auto count = material->GetTextureCount(aiTextureType_DIFFUSE);
+		aiString name;
+		aiMaterial->Get(AI_MATKEY_NAME, name);
 
-	std::shared_ptr<GTexture> diffuse;
+		auto materialName = model->GetName() + L" " + AnsiToWString(name.C_Str());
 
-	if(count > 0)
-	{
-		diffuse = LoadOrGetTexture(material, aiTextureType_DIFFUSE, directory, cmdList);
-	}
-	else
-	{
+		auto material = std::make_shared<Material>(materialName);
+		material->FresnelR0 = Vector3::One * 0.05;
+		material->Roughness = 0.95;
 
-		const auto textureIt = texturesMap.find(L"seamless");
-		if (textureIt != texturesMap.end())
+		const auto modelDirectory = model->GetName().substr(0, model->GetName().find_last_of('\\'));
+
+		auto textureCount = aiMaterial->GetTextureCount(aiTextureType_DIFFUSE);
+
+		std::shared_ptr<GTexture> texture;
+
+		if (textureCount > 0)
 		{
-			diffuse = textures[textureIt->second];
+			texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_DIFFUSE, modelDirectory, cmdList);
 		}
 		else
 		{
-			auto defauldAlbedo = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList,
-				TextureUsage::Diffuse);
-			defauldAlbedo->SetName(L"seamless");
-
-			textures.push_back((defauldAlbedo));			
-			texturesMap[defauldAlbedo->GetName()] = textures.size() - 1;
-
-			diffuse = textures.back();
-		}		
-	}
-
-	count = material->GetTextureCount(aiTextureType_HEIGHT);
-
-	std::shared_ptr<GTexture> normal;
-	
-	if (count > 0)
-	{
-		normal = LoadOrGetTexture(material, aiTextureType_HEIGHT, directory, cmdList);
-	}
-	else
-	{
-		count = material->GetTextureCount(aiTextureType_NORMALS);
-
-		if(count > 0)
-		{
-			normal = LoadOrGetTexture(material, aiTextureType_NORMALS, directory, cmdList);
+			texture = LoadTextureByPath(L"seamless", L"Data\\Textures\\seamless_grass.jpg", cmdList,
+			                            TextureUsage::Diffuse);
 		}
-		else {
 
-			const auto textureIt = texturesMap.find(L"defaultNormalMap");
-			if (textureIt != texturesMap.end())
+		loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
+
+		material->SetDiffuseTexture(texture, texturesMap[texture->GetName()]);
+
+		textureCount = aiMaterial->GetTextureCount(aiTextureType_HEIGHT);
+
+		if (textureCount > 0)
+		{
+			texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_HEIGHT, modelDirectory, cmdList);
+		}
+		else
+		{
+			textureCount = aiMaterial->GetTextureCount(aiTextureType_NORMALS);
+
+			if (textureCount > 0)
 			{
-				normal = textures[textureIt->second];
+				texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_NORMALS, modelDirectory, cmdList);
 			}
 			else
 			{
-				auto defaultNormal = GTexture::LoadTextureFromFile(L"Data\\Textures\\default_nmap.dds", cmdList,
+
+				texture = LoadTextureByPath(L"defaultNormalMap", L"Data\\Textures\\default_nmap.dds", cmdList,
 					TextureUsage::Normalmap);
-				defaultNormal->SetName(L"defaultNormalMap");
 
-				textures.push_back((defaultNormal));
-				
-				texturesMap[defaultNormal->GetName()] = textures.size() - 1;
-
-				normal = textures.back();
 			}
 		}
-	}	 
 
+		loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
 
-	
-	auto mat = std::make_shared<Material>(materialName);
-	mat->SetDiffuseTexture(diffuse, texturesMap[diffuse->GetName()]);
-	mat->SetNormalMap(normal, texturesMap[normal->GetName()]);
-	mat->FresnelR0 = Vector3::One * 0.05;
-	mat->Roughness = 0.95;
+		material->SetNormalMap(texture, texturesMap[texture->GetName()]);
 
-	AddMaterial(mat);
-	defaultMaterialForMeshFromFile[mesh->GetName()] = mat;
+		AddMaterial(material);
+
+		materials.push_back(material);
+
+		materialsMap[material->GetName()] = materials.size() - 1;
+
+		model->SetMeshMaterial(i, material);
+	}
 }
 
-
-void  AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<GModel> model, aiNode* node, const aiScene* scene, const std::shared_ptr<GCommandList> cmdList)
+void AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<NativeModel> model, aiNode* node, const aiScene* scene) const
 {
 	for (UINT i = 0; i < node->mNumMeshes; i++)
 	{
-		aiMesh* aMesh = scene->mMeshes[node->mMeshes[i]];				
-		
-		auto mesh = CreateSubMesh(aMesh, model->GetName(), cmdList);
-		CreateMaterialForMesh(mesh, scene->mMaterials[aMesh->mMaterialIndex], cmdList);
-		meshes.push_back(std::move(mesh));
-		model->AddMesh(meshes.back());
-		
+		aiMesh* aMesh = scene->mMeshes[node->mMeshes[i]];
+		auto nativeMesh = CreateSubMesh(aMesh, model->GetName());
+		loadedAiMaterialForMesh[nativeMesh] = std::shared_ptr<aiMaterial>(scene->mMaterials[aMesh->mMaterialIndex]);
+		model->AddMesh(std::move(nativeMesh));
 	}
 
 	for (UINT i = 0; i < node->mNumChildren; i++)
 	{
-		RecursivlyLoadMeshes(model, node->mChildren[i], scene, cmdList);
+		RecursivlyLoadMeshes(model, node->mChildren[i], scene);
 	}
 }
+
+std::shared_ptr<GModel> AssetsLoader::CreateModelFromFile(std::shared_ptr<GCommandList> cmdList,
+                                                          const std::string filePath)
+{
+	auto it = loadedModels.find(AnsiToWString(filePath));
+	if (it != loadedModels.end())
+	{
+		return std::make_shared<GModel>(it->second, cmdList);
+	}
+
+
+	const aiScene* sceneModel = importer.ReadFile(filePath,
+	                                              aiProcess_Triangulate | aiProcess_GenNormals |
+	                                              aiProcess_ConvertToLeftHanded);
+
+	assert(sceneModel != nullptr && "Model Path dosen't exist or wrong file");
+
+	auto modelFromFile = std::make_shared<NativeModel>(AnsiToWString(filePath));
+
+	RecursivlyLoadMeshes(modelFromFile, sceneModel->mRootNode, sceneModel);
+
+	loadedModels[modelFromFile->GetName()] = modelFromFile;
+
+	auto renderModel = std::make_shared<GModel>(modelFromFile, cmdList);
+	LoadTextureForModel(renderModel, cmdList);
+
+	return renderModel;
+}
+
 
 AssetsLoader::AssetsLoader(const std::shared_ptr<GDevice> device): device(device)
 {
 }
 
-void AssetsLoader::SetModelDefaultMaterial(std::shared_ptr<GMesh> mesh, std::shared_ptr<Material> material)
-{
-	defaultMaterialForMeshFromFile[mesh->GetName()] = material;
-}
-
-std::shared_ptr<GMesh> AssetsLoader::GetMesh(std::wstring name)
-{
-	for (auto&& mesh : meshes)
-	{
-		if (mesh->GetName()._Equal(name))
-		{
-			return mesh;
-		}
-		
-	}
-}
 
 UINT AssetsLoader::GetTextureIndex(std::wstring name)
 {
@@ -312,27 +310,31 @@ UINT AssetsLoader::GetMaterialIndex(std::wstring name)
 	return it->second;
 }
 
+std::shared_ptr<GTexture> AssetsLoader::GetTexture(UINT index)
+{
+	return textures[index];
+}
+
+std::shared_ptr<Material> AssetsLoader::GetMaterial(UINT index)
+{
+	return materials[index];
+}
+
 size_t AssetsLoader::GetLoadTexturesCount() const
 {
 	return texturesMap.size();
 }
 
 void AssetsLoader::AddMaterial(std::shared_ptr<Material> material)
-{	
+{
 	materialsMap[material->GetName()] = materials.size();
 	materials.push_back((material));
 }
 
 void AssetsLoader::AddTexture(std::shared_ptr<GTexture> texture)
 {
-	
 	texturesMap[texture->GetName()] = textures.size();
 	textures.push_back((texture));
-}
-
-void AssetsLoader::AddModel(std::shared_ptr<GModel> model)
-{
-	models[model->GetName()] = model;
 }
 
 custom_vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
@@ -340,83 +342,12 @@ custom_vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
 	return materials;
 }
 
-
 custom_vector<std::shared_ptr<GTexture>>& AssetsLoader::GetTextures()
 {
 	return textures;
 }
 
-
-std::shared_ptr<GTexture> AssetsLoader::GetTexture(UINT index)
-{
-	return textures[index];
-}
-
-std::shared_ptr<Material> AssetsLoader::GetMaterials(UINT index)
-{
-	return materials[index];
-}
-
-std::shared_ptr<Material> AssetsLoader::GetDefaultMaterial(std::shared_ptr<GMesh> mesh)
-{
-	return defaultMaterialForMeshFromFile[mesh->GetName()];
-}
-
-std::shared_ptr<GModel> AssetsLoader::GetModelByName(const std::wstring name)
-{
-	auto it = models.find((name));
-	if (it != models.end())
-	{
-		return it->second;
-	}
-
-	return nullptr;
-}
-
-
-std::shared_ptr<GModel> AssetsLoader::GetOrCreateModelFromFile(std::shared_ptr<GCommandQueue> queue,
-                                                              const std::string filePath)
-{
-	auto it = models.find(AnsiToWString(filePath));
-	if (it != models.end()) return it->second;
-
-
-	const aiScene* sceneModel = importer.ReadFile(filePath,
-		 aiProcess_Triangulate   | aiProcess_GenNormals |
-	                                          aiProcess_ConvertToLeftHanded);
-
-
-	
-	auto basePath = filePath;
-	
-	
-	
-	if (sceneModel == nullptr)
-	{
-		assert("Model Path dosen't exist or wrong file");
-		return nullptr;
-	}
-
-	auto model = std::make_shared<GModel>(AnsiToWString(filePath));
-
-	const auto cmdList = queue->GetCommandList();
-		
-	RecursivlyLoadMeshes(model, sceneModel->mRootNode, sceneModel, cmdList);
-
-	queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
-
-	models[model->GetName()] = std::move(model);
-
-	importer.FreeScene();
-	
-	return models[AnsiToWString(filePath)];	
-}
-
-
-
 void AssetsLoader::ClearTrackedObjects()
 {
-	trackGeneratedData.clear();	
+	trackGeneratedData.clear();
 }
-
-

@@ -1,55 +1,69 @@
 #include "pch.h"
 #include "GModel.h"
-#include "GeometryGenerator.h"
 #include "GMesh.h"
-#include "string"
+#include "NativeModel.h"
 
 
 UINT GModel::GetMeshesCount() const
 {
-	return meshes.size();
+	return model->GetMeshesCount();
+}
+
+std::shared_ptr<Material> GModel::GetMeshMaterial(UINT index)
+{
+	return meshesMaterials[index];
+}
+
+std::shared_ptr<GMesh> GModel::GetMesh(UINT index)
+{
+	return gmeshes[index];
 }
 
 std::wstring GModel::GetName() const
 {
-	return name;
+	return model->GetName();
 }
 
-GModel::GModel(const std::wstring modelName): name(modelName)
+GModel::GModel(std::shared_ptr<NativeModel> model, std::shared_ptr<GCommandList> uploadCmdList): model(model)
 {
-}
-
-GModel::GModel(const GModel& copy):  name(copy.name)
-{
-	meshes.resize(copy.meshes.size());
-
-	for (int i = 0; i < copy.meshes.size(); ++i)
+	if (meshesMaterials.size() < model->GetMeshesCount())
 	{
-		meshes[i] = std::move( std::make_shared<GMesh>(*copy.meshes[i]));
-	}	
+		meshesMaterials.resize(model->GetMeshesCount());
+	}
+	
+	for (int i = 0; i < model->GetMeshesCount(); ++i)
+	{
+		auto nativeMesh = model->GetMesh(i);
+		gmeshes.push_back(std::make_shared<GMesh>(nativeMesh, uploadCmdList));
+	}
 }
 
-
-std::shared_ptr<GMesh> GModel::GetMesh(const UINT submesh)
+void GModel::SetMeshMaterial(UINT index, const std::shared_ptr<Material> material)
 {
-	return meshes[submesh];
+	meshesMaterials[index] = material;
 }
 
-void GModel::AddMesh(const std::shared_ptr<GMesh> mesh)
+GModel::GModel(const GModel& copy): model(copy.model)
 {
-	meshes.push_back(mesh);
+	gmeshes.resize(copy.gmeshes.size());
+
+	for (int i = 0; i < gmeshes.size(); ++i)
+	{
+		gmeshes[i] = std::move(std::make_shared<GMesh>(*copy.gmeshes[i]));
+	}
+}
+
+GModel::~GModel() = default;
+
+void GModel::Draw(std::shared_ptr<GCommandList> cmdList)
+{
+	for (auto&& mesh : gmeshes)
+	{
+		mesh->Draw(cmdList);
+	}
 }
 
 std::shared_ptr<GModel> GModel::Dublicate(std::shared_ptr<GCommandList> otherDeviceCmdList) const
 {
-	auto dublicateModel = std::make_shared<GModel>(name);
-
-	for (auto && originMesh : meshes)
-	{
-		auto dublicateMesh = std::make_shared<GMesh>(originMesh->GetMeshData(), otherDeviceCmdList, originMesh->GetPrimitiveType());
-		dublicateModel->AddMesh(std::move(dublicateMesh));
-	}
-
-	return dublicateModel;
+	return std::make_shared<GModel>(model, otherDeviceCmdList);
 }
-

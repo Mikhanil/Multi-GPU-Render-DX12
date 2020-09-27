@@ -189,6 +189,7 @@
     <ClInclude Include="GModel.h" />
     <ClInclude Include="ModelRenderer.h" />
     <ClInclude Include="Mousepad.h" />
+    <ClInclude Include="NativeModel.h" />
     <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Reflected.h" />
@@ -219,6 +220,7 @@
     <ClCompile Include="GModel.cpp" />
     <ClCompile Include="ModelRenderer.cpp" />
     <ClCompile Include="Mousepad.cpp" />
+    <ClCompile Include="NativeModel.cpp" />
     <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

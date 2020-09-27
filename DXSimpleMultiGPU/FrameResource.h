@@ -15,7 +15,7 @@ public:
 	FrameResource& operator=(const FrameResource& rhs) = delete;
 	~FrameResource();
 
-	ComPtr<ID3D12Resource> crossAdapterResources[GraphicsAdaptersCount][globalCountFrameResources];
+	ComPtr<ID3D12Resource> crossAdapterResources[GraphicAdapterCount][globalCountFrameResources];
 	
 	std::unique_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
 	std::unique_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer = nullptr;

@@ -1,15 +1,14 @@
 #include "MultiSplitGPU.h"
-
 #include "CameraController.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
-#include "Window.h"
 #include "GCrossAdapterResource.h"
 #include "GDeviceFactory.h"
 #include "GModel.h"
 #include "Material.h"
 #include "ModelRenderer.h"
 #include "Transform.h"
+#include "Window.h"
 
 MultiSplitGPU::MultiSplitGPU(HINSTANCE hInstance): D3DApp(hInstance)
 {
@@ -40,6 +39,7 @@ void MultiSplitGPU::InitDevices()
 		adapterRects.push_back(D3D12_RECT{});
 		assets.push_back(AssetsLoader(device));
 		models.push_back(MemoryAllocator::CreateUnorderedMap<std::wstring,std::shared_ptr<GModel>>());
+		
 		typedRenderer.push_back(MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>());
 		
 		for (int i = 0; i < PsoType::Count; ++i)
@@ -188,7 +188,6 @@ void MultiSplitGPU::InitPipeLineResource()
 
 void MultiSplitGPU::CreateMaterials()
 {
-	//for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
 		auto seamless = std::make_shared<Material>(L"seamless", PsoType::Opaque);
 		seamless->FresnelR0 = Vector3(0.02f, 0.02f, 0.02f);
@@ -203,6 +202,9 @@ void MultiSplitGPU::CreateMaterials()
 		assets[GraphicAdapterPrimary].AddMaterial(seamless);
 
 
+		models[GraphicAdapterPrimary][L"quad"]->SetMeshMaterial(
+			0, assets[GraphicAdapterPrimary].GetMaterial(assets[GraphicAdapterPrimary].GetMaterialIndex(L"seamless")));
+
 
 		auto skyBox = std::make_shared<Material>(L"sky", PsoType::SkyBox);
 		skyBox->DiffuseAlbedo = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -212,8 +214,12 @@ void MultiSplitGPU::CreateMaterials()
 
 		tex = assets[GraphicAdapterPrimary].GetTextureIndex(L"skyTex");
 
+
 		skyBox->SetDiffuseTexture(assets[GraphicAdapterPrimary].GetTexture(tex), tex);
 		assets[GraphicAdapterPrimary].AddMaterial(skyBox);
+
+		models[GraphicAdapterPrimary][L"sphere"]->SetMeshMaterial(
+			0, assets[GraphicAdapterPrimary].GetMaterial(assets[GraphicAdapterPrimary].GetMaterialIndex(L"sky")));
 	}
 }
 
@@ -336,22 +342,34 @@ void MultiSplitGPU::LoadModels()
 	{
 		{
 			auto queue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
-
-			auto nano = assets[GraphicAdapterPrimary].GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
+			auto cmdList = queue->GetCommandList();
+			
+			auto nano = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 			models[GraphicAdapterPrimary][L"nano"] = std::move(nano);
 			
-			auto atlas = assets[GraphicAdapterPrimary].GetOrCreateModelFromFile(queue, "Data\\Objects\\Atlas\\Atlas.obj");
+			auto atlas = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Atlas\\Atlas.obj");
 			models[GraphicAdapterPrimary][L"atlas"] = std::move(atlas);
-			auto pbody = assets[GraphicAdapterPrimary].GetOrCreateModelFromFile(queue, "Data\\Objects\\P-Body\\P-Body.obj");
+			auto pbody = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\P-Body\\P-Body.obj");
 			models[GraphicAdapterPrimary][L"pbody"] = std::move(pbody);
-
-			const auto cmdList = queue->GetCommandList();
 
 			auto sphere = assets[GraphicAdapterPrimary].GenerateSphere(cmdList);
 			models[GraphicAdapterPrimary][L"sphere"] = std::move(sphere);
 
 			auto quad = assets[GraphicAdapterPrimary].GenerateQuad(cmdList);
 			models[GraphicAdapterPrimary][L"quad"] = std::move(quad);
+
+
+			auto stair = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Temple\\SM_AsianCastle_A.FBX");
+			models[GraphicAdapterPrimary][L"stair"] = std::move(stair);
+
+			auto columns = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Temple\\SM_AsianCastle_E.FBX");
+			models[GraphicAdapterPrimary][L"columns"] = std::move(columns);
+
+			auto fountain = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Temple\\SM_Fountain.FBX");
+			models[GraphicAdapterPrimary][L"fountain"] = std::move(fountain);
+
+			auto platform = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
+			models[GraphicAdapterPrimary][L"platform"] = std::move(platform);
 			
 			queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 			queue->Flush();
@@ -406,36 +424,24 @@ void MultiSplitGPU::DublicateResource()
 		auto queue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
 		const auto cmdList = queue->GetCommandList();
 
-		for (auto&& model : models[GraphicAdapterPrimary])
-		{
-			models[i][model.first] = (std::move(model.second->Dublicate(cmdList)));
-			assets[i].AddModel(models[i][model.first]);
-
-			for (int meshIndex = 0; meshIndex < models[i][model.first]->GetMeshesCount(); ++meshIndex)
-			{
-				assets[i].AddMesh(models[i][model.first]->GetMesh(meshIndex));
-			}
-		}
-
 		for (auto&& texture : assets[GraphicAdapterPrimary].GetTextures())
 		{
 			texture->ClearTrack();
 
 			auto tex = GTexture::LoadTextureFromFile(texture->GetFilePath(), cmdList);
-			
+
 			tex->SetName(texture->GetName());
 			tex->ClearTrack();
-			
+
 			assets[i].AddTexture(std::move(tex));
 		}
-		
-		
+
 		for (auto&& material : assets[GraphicAdapterPrimary].GetMaterials())
 		{
 			auto copy = std::make_shared<Material>(material->GetName(), material->GetPSO());
 
 			copy->SetMaterialIndex(material->GetMaterialIndex());
-			
+
 			auto index = assets[i].GetTextureIndex(material->GetDiffuseTexture()->GetName());
 			auto texture = assets[i].GetTexture(index);
 			copy->SetDiffuseTexture(texture, index);
@@ -449,15 +455,24 @@ void MultiSplitGPU::DublicateResource()
 			copy->Roughness = material->Roughness;
 			copy->MatTransform = material->MatTransform;
 
-			
+
 			assets[i].AddMaterial(std::move(copy));
 		}
-
-		for (auto && defaultMaterial : assets[GraphicAdapterPrimary].GetDefaultMaterialForMeshes())
-		{
-			assets[i].SetModelDefaultMaterial(assets[i].GetMesh(defaultMaterial.first), assets[i].GetMaterials(assets[i].GetMaterialIndex(defaultMaterial.second->GetName())));
-		}
 		
+		
+		for (auto&& model : models[GraphicAdapterPrimary])
+		{
+			auto modelCopy = model.second->Dublicate(cmdList);
+
+			for (int j = 0; j < model.second->GetMeshesCount(); ++j)
+			{
+				auto originMaterial = model.second->GetMeshMaterial(j);
+
+				modelCopy->SetMeshMaterial(j, assets[i].GetMaterial(assets[i].GetMaterialIndex(originMaterial->GetName())));				
+			}
+
+			models[i][model.first] = std::move(modelCopy);			
+		}	
 		
 		queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 	}
@@ -481,15 +496,9 @@ void MultiSplitGPU::SortGO()
 	}
 }
 
-std::shared_ptr<Renderer> MultiSplitGPU::CreateRenderer(UINT deviceIndex, std::wstring modelPath)
+std::shared_ptr<Renderer> MultiSplitGPU::CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model)
 {
-	auto renderer = std::make_shared<ModelRenderer>(devices[deviceIndex]);
-	renderer->SetModel(assets[deviceIndex].GetModelByName(modelPath));
-	for (int i = 0; i < renderer->model->GetMeshesCount(); ++i)
-	{
-		renderer->SetMeshMaterial(i, assets[deviceIndex].GetDefaultMaterial(renderer->model->GetMesh(i)));
-	}
-
+	auto renderer = std::make_shared<ModelRenderer>(devices[deviceIndex], model);
 	return renderer;
 }
 
@@ -498,11 +507,9 @@ void MultiSplitGPU::CreateGO()
 	auto skySphere = std::make_unique<GameObject>("Sky");
 	skySphere->GetTransform()->SetScale({ 500, 500, 500 });
 	for (int i = 0; i < GraphicAdapterCount; ++i)
-	{
-		auto renderer = std::make_shared<ModelRenderer>(devices[i]);
-		renderer->material = assets[i].GetMaterials(assets[i].GetMaterialIndex(L"sky")).get();
-		renderer->SetModel(models[i][L"sphere"]);
-		renderer->SetMeshMaterial(0, assets[i].GetMaterials(assets[i].GetMaterialIndex(L"sky")));
+	{		
+		auto renderer = std::make_shared<ModelRenderer>(devices[i], models[i][L"sphere"]);
+		renderer->material = assets[i].GetMaterial(assets[i].GetMaterialIndex(L"sky")).get();		
 		skySphere->AddComponent(renderer.get());
 		typedRenderer[i][PsoType::SkyBox].push_back((renderer));
 	}	
@@ -511,10 +518,9 @@ void MultiSplitGPU::CreateGO()
 	auto quadRitem = std::make_unique<GameObject>("Quad");
 	for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
-		auto renderer = std::make_shared<ModelRenderer>(devices[i]);
-		renderer->material = assets[i].GetMaterials(assets[i].GetMaterialIndex(L"seamless")).get();
-		renderer->SetModel(models[i][L"quad"]);
-		renderer->SetMeshMaterial(0, assets[i].GetMaterials(assets[i].GetMaterialIndex(L"seamless")));
+		auto renderer = std::make_shared<ModelRenderer>(devices[i], models[i][L"quad"]);
+		renderer->material = assets[i].GetMaterial(assets[i].GetMaterialIndex(L"seamless")).get();
+		renderer->SetModel(models[i][L"quad"]);		
 		quadRitem->AddComponent(renderer.get());
 		typedRenderer[i][PsoType::Debug].push_back(renderer);
 		typedRenderer[i][PsoType::Quad].push_back(renderer);
@@ -539,7 +545,7 @@ void MultiSplitGPU::CreateGO()
 			
 			for (int index = 0; index < GraphicAdapterCount; ++index)
 			{
-				auto renderer = CreateRenderer(index, L"Data\\Objects\\Atlas\\Atlas.obj");	
+				auto renderer = CreateRenderer(index, models[index][L"atlas"]);
 				atlas->AddComponent(renderer.get());
 				typedRenderer[index][PsoType::Opaque].push_back(renderer);
 			}
@@ -550,7 +556,7 @@ void MultiSplitGPU::CreateGO()
 			pbody->GetTransform()->SetPosition(Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
 			for (int index = 0; index < GraphicAdapterCount; ++index)
 			{
-				auto renderer = CreateRenderer(index, L"Data\\Objects\\P-Body\\P-Body.obj");
+				auto renderer = CreateRenderer(index, models[index][L"pbody"]);
 				pbody->AddComponent(renderer.get());
 				typedRenderer[index][PsoType::Opaque].push_back(renderer);
 			}			
@@ -567,7 +573,57 @@ void MultiSplitGPU::CreateGO()
 	gameObjects.push_back(std::move(camera));
 
 
-	
+	auto platform = std::make_unique<GameObject>(); 
+	platform->SetScale(0.2);
+	platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
+	platform->GetTransform()->SetPosition(Vector3::Backward * -130);
+	for (int i = 0; i < GraphicAdapterCount; ++i)
+	{
+		auto renderer = CreateRenderer(i, models[i][L"platform"]);
+		platform->AddComponent(renderer.get());
+		typedRenderer[i][PsoType::Opaque].push_back(renderer);
+	}	
+
+	auto stair = std::make_unique<GameObject>();
+	stair->GetTransform()->SetParent(platform->GetTransform());
+	stair->SetScale(0.2);
+	stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
+	stair->GetTransform()->SetPosition(Vector3::Left * 700);
+	for (int i = 0; i < GraphicAdapterCount; ++i)
+	{
+		auto renderer = CreateRenderer(i, models[i][L"stair"]);
+		stair->AddComponent(renderer.get());
+		typedRenderer[i][PsoType::Opaque].push_back(renderer);
+	}
+
+	auto columns = std::make_unique<GameObject>();
+	columns->GetTransform()->SetParent(stair->GetTransform());
+	columns->SetScale(0.8);
+	columns->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
+	columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900);
+	for (int i = 0; i < GraphicAdapterCount; ++i)
+	{
+		auto renderer = CreateRenderer(i, models[i][L"columns"]);
+		columns->AddComponent(renderer.get());
+		typedRenderer[i][PsoType::Opaque].push_back(renderer);
+	}
+
+	auto fountain = std::make_unique<GameObject>();
+	fountain->SetScale(0.005);
+	fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+	fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
+	for (int i = 0; i < GraphicAdapterCount; ++i)
+	{
+		auto renderer = CreateRenderer(i, models[i][L"fountain"]);
+		fountain->AddComponent(renderer.get());
+		typedRenderer[i][PsoType::Opaque].push_back(renderer);
+	}	
+
+
+	gameObjects.push_back(std::move(platform));
+	gameObjects.push_back(std::move(stair));
+	gameObjects.push_back(std::move(columns));
+	gameObjects.push_back(std::move(fountain));
 }
 
 bool MultiSplitGPU::Initialize()
@@ -599,7 +655,6 @@ void MultiSplitGPU::Update(const GameTimer& gt)
 {
 	const auto commandQueue = devices[GraphicAdapterSecond]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-	currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex();
 	currentFrameResource = frameResources[currentFrameResourceIndex];
 
 	if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->FenceValue))
@@ -830,9 +885,10 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 
 	auto cmdList = queue->GetCommandList();
 
+	cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+	
 	//Draw Shadow Map
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
 
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
@@ -1007,29 +1063,21 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 		
-	auto primeDeviceRenderingQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
-	auto primeDeviceCopyQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+	auto primeDeviceRenderingQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();	
 
-	auto secondDeviceRenderingQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
-	
+	auto secondDeviceRenderingQueue = devices[GraphicAdapterSecond]->GetCommandQueue();	
 
 	auto primeRenderCmdList = PopulateMainPathCommands(GraphicAdapterPrimary);
 	PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RtvMemory[GraphicAdapterPrimary]);
+	PopulateCopyResource(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
 	
 	auto secondRenderCmdList = PopulateMainPathCommands(GraphicAdapterSecond);
-	PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RtvMemory[GraphicAdapterSecond]);
-	
-	primeDeviceRenderingQueue->ExecuteCommandList(primeRenderCmdList);
+	PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RtvMemory[GraphicAdapterSecond]);	
 	
 	const auto secondDeviceFinishRenderSceneValue = secondDeviceRenderingQueue->ExecuteCommandList(secondRenderCmdList);
-
-	
-	const auto primeCopyCommandList = primeDeviceCopyQueue->GetCommandList();	
-	PopulateCopyResource(primeCopyCommandList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
-	primeDeviceCopyQueue->Wait(*primeDeviceRenderingQueue.get());	
-	const auto primeDeviceCopyEndFenceValue = primeDeviceCopyQueue->ExecuteCommandList(primeCopyCommandList);
-	primeDeviceCopyQueue->Signal(primeFence, primeDeviceCopyEndFenceValue);
-
+		
+	const auto primeDeviceCopyEndFenceValue = primeDeviceRenderingQueue->ExecuteCommandList(primeRenderCmdList);
+	primeDeviceRenderingQueue->Signal(primeFence, primeDeviceCopyEndFenceValue);
 
 	const auto secondCopyCmdList = secondDeviceRenderingQueue->GetCommandList();
 	PopulateCopyResource(secondCopyCmdList, currentFrameResource->CrossAdapterBackBuffer->GetSharedResource(), MainWindow->GetCurrentBackBuffer());
@@ -1041,8 +1089,7 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 	
 	currentFrameResource->FenceValue = secondDeviceRenderingQueue->ExecuteCommandList(secondCopyCmdList);
 	
-	
-	backBufferIndex = MainWindow->Present();
+	currentFrameResourceIndex = MainWindow->Present();
 }
 
 void MultiSplitGPU::OnResize()

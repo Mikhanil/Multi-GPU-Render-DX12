@@ -747,18 +747,16 @@ namespace DXLib
 		
 	void SampleApp::SetDefaultMaterialForModel(ModelRenderer* renderer) 
 	{
-		for (int i = 0; i < renderer->model->GetMeshesCount(); ++i)
-		{
-			renderer->SetMeshMaterial(i, loader.GetDefaultMaterial(renderer->model->GetMesh(i)));
-		}
+		
 	}
 
 	
 	void SampleApp::LoadModels()
 	{
 		auto queue = GDeviceFactory::GetDevice()->GetCommandQueue();
+		auto cmd = queue->GetCommandList();
 
-		auto nano = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
+		auto nano = loader.CreateModelFromFile(cmd, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 
 
 		
@@ -766,47 +764,47 @@ namespace DXLib
 
 
 		
-		auto doom = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\DoomSlayer\\doommarine.obj");
+		auto doom = loader.CreateModelFromFile(cmd, "Data\\Objects\\DoomSlayer\\doommarine.obj");
 		models[L"doom"] = std::move(doom);
 		
-		auto atlas = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Atlas\\Atlas.obj");
+		auto atlas = loader.CreateModelFromFile(cmd, "Data\\Objects\\Atlas\\Atlas.obj");
 		models[L"atlas"] = std::move(atlas);
 		
-		auto pbody = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\P-Body\\P-Body.obj");
+		auto pbody = loader.CreateModelFromFile(cmd, "Data\\Objects\\P-Body\\P-Body.obj");
 		models[L"pbody"] = std::move(pbody);
 		
-		auto golem = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\StoneGolem\\Stone.obj");
+		auto golem = loader.CreateModelFromFile(cmd, "Data\\Objects\\StoneGolem\\Stone.obj");
 		models[L"golem"] = std::move(golem);
 		
-		auto griffon = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Griffon\\Griffon.FBX");
+		auto griffon = loader.CreateModelFromFile(cmd, "Data\\Objects\\Griffon\\Griffon.FBX");
 		griffon->scaleMatrix = Matrix::CreateScale(0.1);
 		models[L"griffon"] = std::move(griffon);
 
-		auto griffonOld = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\GriffonOld\\Griffon.FBX");
+		auto griffonOld = loader.CreateModelFromFile(cmd, "Data\\Objects\\GriffonOld\\Griffon.FBX");
 		griffonOld->scaleMatrix = Matrix::CreateScale(0.1);
 		models[L"griffonOld"] = std::move(griffonOld);
 		
-		auto mountDragon = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
+		auto mountDragon = loader.CreateModelFromFile(cmd, "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
 		mountDragon->scaleMatrix = Matrix::CreateScale(0.1);
 		models[L"mountDragon"] = std::move(mountDragon);
 		
-		auto desertDragon = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
+		auto desertDragon = loader.CreateModelFromFile(cmd, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
 		desertDragon->scaleMatrix = Matrix::CreateScale(0.1);
 		models[L"desertDragon"] = std::move(desertDragon);
 		
-		auto stair = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_AsianCastle_A.FBX");
+		auto stair = loader.CreateModelFromFile(cmd, "Data\\Objects\\Temple\\SM_AsianCastle_A.FBX");
 		models[L"stair"] = std::move(stair);
 		
-		auto columns = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_AsianCastle_E.FBX");
+		auto columns = loader.CreateModelFromFile(cmd, "Data\\Objects\\Temple\\SM_AsianCastle_E.FBX");
 		models[L"columns"] = std::move(columns);
 		
-		auto fountain = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_Fountain.FBX");
+		auto fountain = loader.CreateModelFromFile(cmd, "Data\\Objects\\Temple\\SM_Fountain.FBX");
 		models[L"fountain"] = std::move(fountain);
 		
-		auto platform = loader.GetOrCreateModelFromFile(queue, "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
+		auto platform = loader.CreateModelFromFile(cmd, "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
 		models[L"platform"] = std::move(platform);
 		
-		
+		queue->WaitForFenceValue(queue->ExecuteCommandList(cmd));
 		queue->Flush();	
 	}
 	
@@ -1258,19 +1256,17 @@ namespace DXLib
 		
 		auto skySphere = std::make_unique<GameObject>( "Sky");
 		skySphere->GetTransform()->SetScale({500, 500, 500});
-		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice());
-		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"sky")).get();
-		renderer->SetModel(models[L"sphere"]);
-		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"sky")));
+		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice(), models[L"sphere"]);
+		renderer->material = loader.GetMaterial(loader.GetMaterialIndex(L"sky")).get();
+		models[L"sphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"sky")));
 		skySphere->AddComponent(renderer);
 		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
 		gameObjects.push_back(std::move(skySphere));
 
 		auto quadRitem = std::make_unique<GameObject>( "Quad");
-		renderer = new ModelRenderer(GDeviceFactory::GetDevice());
-		renderer->material = loader.GetMaterials(loader.GetMaterialIndex(L"seamless")).get();
-		renderer->SetModel(models[L"quad"]);
-		renderer->SetMeshMaterial(0, loader.GetMaterials(loader.GetMaterialIndex(L"seamless")));
+		renderer = new ModelRenderer(GDeviceFactory::GetDevice(), models[L"quad"]);
+		renderer->material = loader.GetMaterial(loader.GetMaterialIndex(L"seamless")).get();
+		models[L"quad"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"seamless")));
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 		typedGameObjects[PsoType::Quad].push_back(quadRitem.get());
@@ -1301,7 +1297,7 @@ namespace DXLib
 		for (int i = 0; i < 11; ++i)
 		{
 
-			auto nano = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\Nanosuit\\Nanosuit.obj"));
+			auto nano = CreateGOWithRenderer(models[L"nano"]);
 			nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
 			nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
 			
@@ -1309,7 +1305,7 @@ namespace DXLib
 			gameObjects.push_back(std::move(nano));
 
 			
-			auto doom = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\DoomSlayer\\doommarine.obj"));
+			auto doom = CreateGOWithRenderer(models[L"doom"]);
 			doom->SetScale(0.08);
 			doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
 			doom->GetTransform()->SetEulerRotate(Vector3(0,90,0));
@@ -1322,13 +1318,13 @@ namespace DXLib
 		{
 			for (int j = 0; j < 3; ++j)
 			{
-				auto atlas = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\Atlas\\Atlas.obj"));
+				auto atlas = CreateGOWithRenderer(models[L"atlas"]);
 				atlas->GetTransform()->SetPosition(Vector3::Right * -60 + Vector3::Right * -30 * j +  Vector3::Up * 11 + Vector3::Forward * 10 * i);
 				typedGameObjects[PsoType::Opaque].push_back(atlas.get());
 				gameObjects.push_back(std::move(atlas));
 
 
-				auto pbody = CreateGOWithRenderer(loader.GetModelByName(L"Data\\Objects\\P-Body\\P-Body.obj"));
+				auto pbody = CreateGOWithRenderer(models[L"pbody"]);
 				pbody->GetTransform()->SetPosition(Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
 				typedGameObjects[PsoType::Opaque].push_back(pbody.get());
 				gameObjects.push_back(std::move(pbody));
@@ -1424,13 +1420,8 @@ namespace DXLib
 	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<GModel> model) 
 	{
 		auto man = std::make_unique<GameObject>();
-		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice());
-		man->AddComponent(renderer);
-		renderer->SetModel(model);
-		for (int i = 0; i < renderer->model->GetMeshesCount(); ++i)
-		{
-			renderer->SetMeshMaterial(i, loader.GetDefaultMaterial(renderer->model->GetMesh(i)));
-		}		
+		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice(), model);
+		man->AddComponent(renderer);			
 		return man;
 	}
 	

@@ -54,10 +54,9 @@ private:
 	void MipMasGenerate();
 	void DublicateResource();
 	void SortGO();
-	std::shared_ptr<Renderer> CreateRenderer(UINT deviceIndex, std::wstring modelPath);
+	std::shared_ptr<Renderer> CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model);
 	void CreateGO();
 
-	UINT backBufferIndex = 0;
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
@@ -103,10 +102,8 @@ private:
 	UINT64 sharedFenceValue = 0;
 	
 	custom_vector<std::shared_ptr<SplitFrameResource>> frameResources = MemoryAllocator::CreateVector<std::shared_ptr<SplitFrameResource>>();
-
-	std::shared_ptr<SplitFrameResource> currentFrameResource = nullptr;
-	
-	int currentFrameResourceIndex = 0;
+	std::shared_ptr<SplitFrameResource> currentFrameResource = nullptr;	
+	UINT currentFrameResourceIndex = 0;
 
 	custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();
 

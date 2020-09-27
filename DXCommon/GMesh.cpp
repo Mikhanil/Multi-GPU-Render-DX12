@@ -3,17 +3,17 @@
 #include <DirectXMesh.h>
 #include "GBuffer.h"
 #include "GCommandList.h"
-#include "Material.h"
+#include "NativeModel.h"
 
 
-MeshData& GMesh::GetMeshData() const
+std::shared_ptr<NativeMesh> GMesh::GetMeshData() const
 {
-	return data;
+	return mesh;
 }
 
 D3D12_PRIMITIVE_TOPOLOGY GMesh::GetPrimitiveType() const
 {
-	return primitiveTopology;
+	return mesh->topology;
 }
 
 D3D12_VERTEX_BUFFER_VIEW* GMesh::GetVertexView() 
@@ -26,16 +26,11 @@ D3D12_INDEX_BUFFER_VIEW* GMesh::GetIndexView()
 	return &indexView.value();
 }
 
-UINT GMesh::GetIndexCount() const
-{
-	return indexBuffer->GetElementsCount();
-}
-
-GMesh::GMesh(MeshData& meshData, std::shared_ptr<GCommandList>& cmdList, D3D12_PRIMITIVE_TOPOLOGY topology): data(meshData), primitiveTopology(topology)
+GMesh::GMesh(std::shared_ptr<NativeMesh> meshData, std::shared_ptr<GCommandList>& cmdList): mesh(meshData)
 {	
-	indexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, data.GetIndexes().data(), meshData.GetIndexSize(), data.GetIndexes().size(), data.GetName() + L" Indexes")));
+	indexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, mesh->GetIndexes().data(), mesh->GetIndexSize(), mesh->GetIndexes().size(), mesh->GetName() + L" Indexes")));
 
-	vertexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, data.GetVertexes().data(), meshData.GetVertexSize(), data.GetVertexes().size(), data.GetName() + L" Vertexes")));
+	vertexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, mesh->GetVertexes().data(), mesh->GetVertexSize(), mesh->GetVertexes().size(), mesh->GetName() + L" Vertexes")));
 
 	vertexView = DXLib::Lazy< D3D12_VERTEX_BUFFER_VIEW>([this]
 	{
@@ -49,16 +44,19 @@ GMesh::GMesh(MeshData& meshData, std::shared_ptr<GCommandList>& cmdList, D3D12_P
 }
 
 
-GMesh::GMesh(const GMesh& copy) : data(copy.data), primitiveTopology(copy.primitiveTopology),
+GMesh::GMesh(const GMesh& copy) : mesh(copy.mesh),
                                   vertexBuffer(copy.vertexBuffer), indexBuffer(copy.indexBuffer), vertexView(copy.vertexView), indexView((copy.indexView))
 {}
-	
-std::wstring GMesh::GetName() const
+
+void GMesh::Draw(std::shared_ptr<GCommandList> cmdList)
 {
-	return data.GetName();
+	cmdList->SetVBuffer(0, 1, GetVertexView());
+	cmdList->SetIBuffer(GetIndexView());
+	cmdList->SetPrimitiveTopology(mesh->topology);
+	cmdList->DrawIndexed(mesh->GetIndexCount());
 }
 
-void GMesh::SetTopology(D3D12_PRIMITIVE_TOPOLOGY topology)
+std::wstring GMesh::GetName() const
 {
-	primitiveTopology = topology;
+	return mesh->GetName();
 }
