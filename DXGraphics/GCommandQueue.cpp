@@ -54,8 +54,7 @@ namespace DXLib
 
 	GCommandQueue::~GCommandQueue()
 	{
-		IsExecutorAlive = false;
-		CommandListExecutorThread.join();
+		HardStop();
 	}
 
 	uint64_t GCommandQueue::Signal()
@@ -194,6 +193,15 @@ namespace DXLib
 	uint64_t GCommandQueue::GetFenceValue() const
 	{
 		return FenceValue;
+	}
+
+	void GCommandQueue::HardStop()
+	{
+		if (IsExecutorAlive)
+		{
+			IsExecutorAlive = false;
+			CommandListExecutorThread.join();
+		}
 	}
 
 

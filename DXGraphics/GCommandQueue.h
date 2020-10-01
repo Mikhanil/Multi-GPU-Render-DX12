@@ -48,7 +48,12 @@ namespace DXLib
 
 		uint64_t GetFenceValue() const;
 
+
 	private:
+
+		friend class GDevice;
+
+		void HardStop();
 
 		// Free any command lists that are finished processing on the command queue.
 		void ProccessInFlightCommandLists();

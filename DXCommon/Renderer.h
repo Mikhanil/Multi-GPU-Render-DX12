@@ -10,8 +10,6 @@ public:
 
 	Renderer(): Component() {} ;
 
-	Material* material = nullptr;
-
 	void Update() override = 0;
 	virtual void Draw(std::shared_ptr<GCommandList> cmdList) = 0;
 };

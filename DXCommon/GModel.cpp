@@ -65,5 +65,7 @@ void GModel::Draw(std::shared_ptr<GCommandList> cmdList)
 
 std::shared_ptr<GModel> GModel::Dublicate(std::shared_ptr<GCommandList> otherDeviceCmdList) const
 {
-	return std::make_shared<GModel>(model, otherDeviceCmdList);
+	auto dublciate = std::make_shared<GModel>(model, otherDeviceCmdList);
+	dublciate->scaleMatrix = scaleMatrix;	
+	return dublciate;
 }

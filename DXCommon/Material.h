@@ -87,14 +87,12 @@ public:
 
 	void InitMaterial(GMemory* textureHeap);
 
-	void Draw(std::shared_ptr<GCommandList> cmdList) const;
-
 	void Update();
 
 	std::wstring& GetName();
 
-	DirectX::XMFLOAT4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
-	DirectX::XMFLOAT3 FresnelR0 = {0.01f, 0.01f, 0.01f};
+	Vector4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
+	Vector3 FresnelR0 = {0.01f, 0.01f, 0.01f};
 	float Roughness = .25f;
-	DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
+	Matrix MatTransform = Matrix::Identity;
 };

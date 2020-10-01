@@ -18,19 +18,34 @@ class MultiSplitGPU :
 {
 public:
 	MultiSplitGPU(HINSTANCE hInstance);
-	
+	~MultiSplitGPU() override
+	{
+		MultiSplitGPU::Flush();
+
+		for (auto && device : devices)
+		{
+			device->ResetAllocator(frameCount);
+			device->TerminatedQueuesWorker();
+			device.reset();			
+		}
+		
+		devices.clear();
+
+	};
 
 	bool Initialize() override;
-	
+
 protected:
-	void Update(const GameTimer& gt) override;
-	void UpdateShadowTransform(const GameTimer& gt);
-	void UpdateShadowPassCB(const GameTimer& gt);
-	void UpdateMainPassCB(const GameTimer& gt);
-	void UpdateSsaoCB(const GameTimer& gt);
+	void inline Update(const GameTimer& gt) override;
+	void inline UpdateMaterials();
+	void inline UpdateShadowTransform(const GameTimer& gt);
+	void inline UpdateShadowPassCB(const GameTimer& gt);
+	void inline UpdateMainPassCB(const GameTimer& gt);
+	void inline UpdateSsaoCB(const GameTimer& gt);
 	std::shared_ptr<GCommandList> PopulateMainPathCommands(GraphicsAdapter adapterIndex);
 	void PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, PsoType::Type type);
-	void PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory);
+	void PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory, UINT
+	                             offsetRTV);
 	void PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource);
 	void Draw(const GameTimer& gt) override;
 
@@ -39,23 +54,29 @@ protected:
 	bool InitMainWindow() override;;
 	
 private:
-	void InitDevices();
-	
-	
-	
-	void InitFrameResource();
-	void InitRootSignature();
-	void InitPipeLineResource();
-	void CreateMaterials();
-	void InitSRVMemoryAndMaterials();
-	void InitRenderPaths();
-	void LoadStudyTexture();
-	void LoadModels();
-	void MipMasGenerate();
-	void DublicateResource();
-	void SortGO();
-	std::shared_ptr<Renderer> CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model);
-	void CreateGO();
+		
+	void Flush() override
+	{
+		for (auto && device : devices)
+		{
+			device->Flush();
+		}
+	};
+	void inline InitDevices();
+	void inline InitFrameResource();
+	void inline InitRootSignature();
+	void inline InitPipeLineResource();
+	void inline CreateMaterials();
+	void inline InitSRVMemoryAndMaterials();
+	void inline InitRenderPaths();
+	void inline LoadStudyTexture();
+	void inline LoadModels();
+	void inline MipMasGenerate();
+	void inline DublicateResource();
+	void inline SortGO();
+	std::shared_ptr<Renderer> inline CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model);
+	void inline AddMultiDeviceOpaqueRenderComponent(GameObject* object, std::wstring modelName, PsoType::Type psoType = PsoType::Opaque);
+	void inline CreateGO();
 
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -131,5 +152,7 @@ private:
 	//off, shadowMap, ssaoMap
 	const UINT maxPathMap = 3;
 	LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
+protected:
+	
 };
 

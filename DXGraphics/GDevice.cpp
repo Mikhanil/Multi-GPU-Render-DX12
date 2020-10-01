@@ -208,17 +208,13 @@ ComPtr<ID3D12Device> GDevice::GetDXDevice() const
 GDevice::~GDevice()
 {
 	Flush();
+	
+	TerminatedQueuesWorker();
 	if (queues.IsInit())
 	{
-		for (auto&& queue : queues.value())
-		{
-			if (queue.IsInit())
-			{
-				queue.value().reset();
-			}
-		}
+		queues->clear();
 	}
-
+	
 	device->Release();
 }
 
@@ -276,6 +272,18 @@ void GDevice::Flush() const
 				queue.value()->Signal();
 				queue.value()->Flush();
 			}
+		}
+	}
+}
+
+void GDevice::TerminatedQueuesWorker()
+{
+	if (queues.IsInit())
+	{
+		for (auto&& queue : queues.value())
+		{
+			if(queue.IsInit())
+				queue.value()->HardStop();
 		}
 	}
 }

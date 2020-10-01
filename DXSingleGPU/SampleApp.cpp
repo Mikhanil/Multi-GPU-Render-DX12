@@ -17,6 +17,7 @@
 #include "Transform.h"
 #include "Window.h"
 #include "GDeviceFactory.h"
+#include "SkyBox.h"
 
 namespace DXLib
 {
@@ -1251,43 +1252,40 @@ namespace DXLib
 
 	void SampleApp::BuildGameObjects()
 	{
-		
-
-		
-		auto skySphere = std::make_unique<GameObject>( "Sky");
-		skySphere->GetTransform()->SetScale({500, 500, 500});
-		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice(), models[L"sphere"]);
-		renderer->material = loader.GetMaterial(loader.GetMaterialIndex(L"sky")).get();
-		models[L"sphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"sky")));
-		skySphere->AddComponent(renderer);
-		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
-		gameObjects.push_back(std::move(skySphere));
-
-		auto quadRitem = std::make_unique<GameObject>( "Quad");
-		renderer = new ModelRenderer(GDeviceFactory::GetDevice(), models[L"quad"]);
-		renderer->material = loader.GetMaterial(loader.GetMaterialIndex(L"seamless")).get();
+		auto quadRitem = std::make_unique<GameObject>("Quad");
+		auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"quad"]);
 		models[L"quad"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"seamless")));
 		quadRitem->AddComponent(renderer);
 		typedGameObjects[PsoType::Debug].push_back(quadRitem.get());
 		typedGameObjects[PsoType::Quad].push_back(quadRitem.get());
 		gameObjects.push_back(std::move(quadRitem));
 		
+		auto skySphere = std::make_unique<GameObject>( "Sky");
+		skySphere->GetTransform()->SetScale({500, 500, 500});
+		renderer = std::make_shared<SkyBox>(GDeviceFactory::GetDevice(), models[L"sphere"], *loader.GetTexture(loader.GetTextureIndex(L"skyTex")).get(), &srvHeap, loader.GetTextureIndex(L"skyTex"));		
+		models[L"sphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"sky")));
+		skySphere->AddComponent(renderer);
+		typedGameObjects[PsoType::SkyBox].push_back(skySphere.get());
+		gameObjects.push_back(std::move(skySphere));
+
+		
+		
 		auto sun1 = std::make_unique<GameObject>("Directional Light");
-		auto light = new Light(Directional);
+		auto light = std::make_shared<Light>(Directional);
 		light->Direction({0.57735f, -0.57735f, 0.57735f});
 		light->Strength({0.8f, 0.8f, 0.8f});
 		sun1->AddComponent(light);
 		gameObjects.push_back(std::move(sun1));
 
 		auto sun2 = std::make_unique<GameObject>();
-		light = new Light();
+		light = std::make_shared<Light>();
 		light->Direction({-0.57735f, -0.57735f, 0.57735f});
 		light->Strength({0.4f, 0.4f, 0.4f});
 		sun2->AddComponent(light);
 		gameObjects.push_back(std::move(sun2));
 
 		auto sun3 = std::make_unique<GameObject>();
-		light = new Light();
+		light = std::make_shared<Light>();
 		light->Direction({0.0f, -0.707f, -0.707f});
 		light->Strength({0.2f, 0.2f, 0.2f});
 		sun3->AddComponent(light);
@@ -1339,25 +1337,25 @@ namespace DXLib
 		typedGameObjects[PsoType::Opaque].push_back(platform.get());
 				
 		auto rotater = std::make_unique<GameObject>();
-		rotater->GetTransform()->SetParent(platform->GetTransform());
+		rotater->GetTransform()->SetParent(platform->GetTransform().get());
 		rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 		rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
 		//rotater->AddComponent(new Rotater(10));	
 		
 
 		auto camera = std::make_unique<GameObject>( "MainCamera");
-		camera->GetTransform()->SetParent(rotater->GetTransform());
+		camera->GetTransform()->SetParent(rotater->GetTransform().get());
 		camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
 		camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
-		camera->AddComponent(new Camera(AspectRatio()));
-		camera->AddComponent(new CameraController());
+		camera->AddComponent(std::make_shared <Camera>(AspectRatio()));
+		camera->AddComponent(std::make_shared<CameraController>());
 		
 		gameObjects.push_back(std::move(camera));
 		gameObjects.push_back(std::move(rotater));
 
 		
 		auto stair = CreateGOWithRenderer(models[L"stair"]);
-		stair->GetTransform()->SetParent(platform->GetTransform());
+		stair->GetTransform()->SetParent(platform->GetTransform().get());
 		stair->SetScale(0.2);
 		stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
 		stair->GetTransform()->SetPosition(Vector3::Left * 700 );
@@ -1365,7 +1363,7 @@ namespace DXLib
 
 
 		auto columns = CreateGOWithRenderer(models[L"columns"]);
-		columns->GetTransform()->SetParent(stair->GetTransform());
+		columns->GetTransform()->SetParent(stair->GetTransform().get());
 		columns->SetScale(0.8);
 		columns->GetTransform()->SetEulerRotate(Vector3(0,0,90));
 		columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900 );
@@ -1420,7 +1418,7 @@ namespace DXLib
 	std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<GModel> model) 
 	{
 		auto man = std::make_unique<GameObject>();
-		auto renderer = new ModelRenderer(GDeviceFactory::GetDevice(), model);
+		auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), model);
 		man->AddComponent(renderer);			
 		return man;
 	}
@@ -1505,13 +1503,13 @@ namespace DXLib
 			auto light = item->GetComponent<Light>();
 			if (light != nullptr)
 			{
-				lights.push_back(light);
+				lights.push_back(light.get());
 			}
 
 			auto cam = item->GetComponent<Camera>();
 			if (cam != nullptr)
 			{
-				camera = std::unique_ptr<Camera>(cam);
+				camera = (cam);
 			}
 		}
 

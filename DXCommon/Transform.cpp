@@ -61,7 +61,7 @@ void Transform::Draw(std::shared_ptr<GCommandList> cmdList)
 
 void Transform::SetParent(Transform* transform)
 {
-	Parent = std::unique_ptr<Transform>(transform);
+	Parent = transform;
 }
 
 Vector3 Transform::GetBackwardVector() const

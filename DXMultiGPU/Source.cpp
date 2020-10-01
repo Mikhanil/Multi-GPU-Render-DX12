@@ -18,7 +18,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 		if (!theApp.Initialize())
 			return 0;
 
-		return theApp.Run();
+		auto result =  theApp.Run();
+
+		std::terminate();
+
+		return result;
 	}
 	catch (DxException& e)
 	{

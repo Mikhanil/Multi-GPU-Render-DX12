@@ -43,7 +43,7 @@ namespace DXLib
 
 		KeyboardDevice keyboard;
 		Mousepad mouse;
-		std::unique_ptr<Camera> camera = nullptr;
+		std::shared_ptr<Camera> camera = nullptr;
 		
 		D3DApp(HINSTANCE hInstance);
 		D3DApp(const D3DApp& rhs) = delete;
@@ -73,7 +73,7 @@ namespace DXLib
 
 		static void Quit(int exitCode = 0);
 
-		void Flush();
+		void virtual  Flush();
 
 		GameTimer* GetTimer();
 

@@ -9,9 +9,6 @@
 
 void ModelRenderer::Draw(std::shared_ptr<GCommandList> cmdList)
 {
-	if (material != nullptr)
-		material->Draw(cmdList);
-
 	for (int i = 0; i < model->GetMeshesCount(); ++i)
 	{
 		const auto mesh = model->GetMesh(i);
@@ -24,8 +21,6 @@ void ModelRenderer::Draw(std::shared_ptr<GCommandList> cmdList)
 
 void ModelRenderer::Update()
 {
-	if (model == nullptr) return;
-
 	const auto transform = gameObject->GetTransform();
 
 	if (transform->IsDirty())

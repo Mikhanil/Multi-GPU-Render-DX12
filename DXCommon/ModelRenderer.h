@@ -6,14 +6,14 @@ class GCommandList;
 class GModel;
 
 class ModelRenderer : public Renderer
-{
+{	
+protected:
+
 	ObjectConstants objectWorldData{};
-	
-	std::shared_ptr<ConstantBuffer<ObjectConstants>> modelDataBuffer = nullptr;	
+	std::shared_ptr<ConstantBuffer<ObjectConstants>> modelDataBuffer = nullptr;
 	std::shared_ptr<GDevice> device;
 	std::shared_ptr<GModel> model;
 	
-protected:
 		
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 

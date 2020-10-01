@@ -234,7 +234,8 @@ namespace DXLib
 			OutputDebugString(std::to_wstring(GetLastError()).c_str());
 			exit(-1);
 		}
-
+		//::SetWindowLong(hWnd, GWL_STYLE, GetWindowLong(hWnd, GWL_STYLE) & ~WS_SIZEBOX);
+		
 
 		Initialize();
 	}

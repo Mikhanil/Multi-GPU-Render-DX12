@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Components">
+      <UniqueIdentifier>{019aeded-f1bb-4b36-af04-ecb61abecbc7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{1f94ad1f-b6f1-4fca-bd64-29a5268fb38e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -24,58 +30,13 @@
     <ClInclude Include="AssetsLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Camera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Component.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GameObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GeometryGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Light.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ModelRenderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Reflected.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderBuffersData.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SkyBox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Transform.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GModel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GMesh.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GCrossAdapterResource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderFactory.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Material.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="d3dApp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Window.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Mousepad.h">
@@ -84,26 +45,71 @@
     <ClInclude Include="KeyboardDevice.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ObjectMover.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Rotater.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SSAA.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Ssao.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Component.h">
+      <Filter>Components</Filter>
     </ClInclude>
     <ClInclude Include="CameraController.h">
-      <Filter>Header Files</Filter>
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelRenderer.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjectMover.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Reflected.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Rotater.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Transform.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="GameObject.h">
+      <Filter>Components</Filter>
+    </ClInclude>
+    <ClInclude Include="GCrossAdapterResource.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="GMesh.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="GModel.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="NativeModel.h">
-      <Filter>Header Files</Filter>
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderBuffersData.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderFactory.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowMap.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="SSAA.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Ssao.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Window.h">
+      <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -113,52 +119,13 @@
     <ClCompile Include="AssetsLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Component.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GameObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GeometryGenerator.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Light.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ModelRenderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Reflected.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SkyBox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Transform.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GModel.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GMesh.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GCrossAdapterResource.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ShaderFactory.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Material.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="d3dApp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Mousepad.cpp">
@@ -167,26 +134,65 @@
     <ClCompile Include="KeyboardDevice.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ObjectMover.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GMesh.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="Rotater.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GModel.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="ShadowMap.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GCrossAdapterResource.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="SSAA.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Ssao.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CameraController.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Material.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
     <ClCompile Include="NativeModel.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="SSAA.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Ssao.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Window.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderFactory.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowMap.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraController.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Component.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="GameObject.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Light.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelRenderer.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjectMover.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Reflected.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Rotater.cpp">
+      <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="Transform.cpp">
+      <Filter>Components</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -56,14 +56,19 @@ public:
 		/*ј что нам делать? Ћинейный же аллокатор, сидим ждем когда вызовут деструктор у класса чтобы все почистить за собой*/
 	}
 
-	
-	~LinearAllocationStrategy()
+	void ClearAll()
 	{
 		for (auto& allocator : pages)
 		{
 			allocator.Reset();
 		}
 		pages.clear();
+	}
+	
+	
+	~LinearAllocationStrategy()
+	{
+		ClearAll();
 	}
 private:
     std::vector<LinearAllocator> pages;

@@ -80,6 +80,8 @@ public:
 
 	void Flush() const;
 
+	void TerminatedQueuesWorker();
+
 	ComPtr<ID3D12Device> GetDXDevice() const;
 
 	std::wstring GetName() const

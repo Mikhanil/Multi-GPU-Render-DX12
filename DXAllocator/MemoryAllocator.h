@@ -5,14 +5,14 @@
 class MemoryAllocator
 {
 	
-	static LinearAllocationStrategy<> allocatorStrategy;
+	static std::shared_ptr<LinearAllocationStrategy<>> allocatorStrategy;
 		
 public:
 
 	template <typename T>
 	CustomAllocator<T> static GetAllocator()
 	{		
-		return CustomAllocator<T>(allocatorStrategy);
+		return CustomAllocator<T>(*allocatorStrategy);
 	}
 
 	template <typename T>

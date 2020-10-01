@@ -53,12 +53,9 @@ std::shared_ptr<GModel> AssetsLoader::GenerateQuad(std::shared_ptr<GCommandList>
 	return CreateModelFromGenerated(cmdList, genMesh, L"quad");
 }
 
-
-std::shared_ptr<NativeMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring modelName) const
+std::vector<Vertex> GetVertices(aiMesh* mesh)
 {
-	// Data to fill
 	std::vector<Vertex> vertices;
-	std::vector<DWORD> indices;
 
 	//Get vertices
 	for (UINT i = 0; i < mesh->mNumVertices; i++)
@@ -88,23 +85,40 @@ std::shared_ptr<NativeMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstri
 
 		vertices.push_back(vertex);
 	}
+	return  vertices;
+}
 
-	//Get indices
+std::vector<DWORD> GetIndices(aiMesh* mesh)
+{
+	std::vector<DWORD> data;
+
 	for (UINT i = 0; i < mesh->mNumFaces; i++)
 	{
 		const aiFace face = mesh->mFaces[i];
 
 		for (UINT j = 0; j < face.mNumIndices; j++)
 		{
-			indices.push_back(face.mIndices[j]);
+			data.push_back(face.mIndices[j]);
 		}
 	}
+	return data;
+}
 
+std::shared_ptr<NativeMesh> AssetsLoader::CreateSubMesh(aiMesh* mesh, std::wstring modelName) const
+{
+	// Data to fill
+	auto  vertices = GetVertices(mesh);
+	auto indices = GetIndices(mesh);
+	
 	RecalculateTangent(indices.data(), indices.size(), vertices.data());
 
-	return std::make_shared<NativeMesh>(vertices.data(), vertices.size(), indices.data(), indices.size(),
+	auto nativeMesh =  std::make_shared<NativeMesh>(vertices.data(), vertices.size(), indices.data(), indices.size(),
 	                                    D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST,
 	                                    modelName + L" " + AnsiToWString(mesh->mName.C_Str()));
+	vertices.clear();
+	indices.clear();
+	
+	return nativeMesh;
 }
 
 std::shared_ptr<GTexture> AssetsLoader::LoadTextureByAiMaterial(const aiMaterial* material, const aiTextureType type,
@@ -176,65 +190,70 @@ void AssetsLoader::LoadTextureForModel(std::shared_ptr<GModel> model, std::share
 
 		aiString name;
 		aiMaterial->Get(AI_MATKEY_NAME, name);
-
+		
 		auto materialName = model->GetName() + L" " + AnsiToWString(name.C_Str());
 
-		auto material = std::make_shared<Material>(materialName);
-		material->FresnelR0 = Vector3::One * 0.05;
-		material->Roughness = 0.95;
+		auto it = materialsMap.find(materialName);
 
-		const auto modelDirectory = model->GetName().substr(0, model->GetName().find_last_of('\\'));
-
-		auto textureCount = aiMaterial->GetTextureCount(aiTextureType_DIFFUSE);
-
-		std::shared_ptr<GTexture> texture;
-
-		if (textureCount > 0)
+		std::shared_ptr<Material> material;
+		
+		if(it == materialsMap.end())
 		{
-			texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_DIFFUSE, modelDirectory, cmdList);
-		}
-		else
-		{
-			texture = LoadTextureByPath(L"seamless", L"Data\\Textures\\seamless_grass.jpg", cmdList,
-			                            TextureUsage::Diffuse);
-		}
+			material = std::make_shared<Material>(materialName);
+			material->FresnelR0 = Vector3::One * 0.05;
+			material->Roughness = 0.95;
 
-		loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
+			const auto modelDirectory = model->GetName().substr(0, model->GetName().find_last_of('\\'));
 
-		material->SetDiffuseTexture(texture, texturesMap[texture->GetName()]);
+			auto textureCount = aiMaterial->GetTextureCount(aiTextureType_DIFFUSE);
 
-		textureCount = aiMaterial->GetTextureCount(aiTextureType_HEIGHT);
-
-		if (textureCount > 0)
-		{
-			texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_HEIGHT, modelDirectory, cmdList);
-		}
-		else
-		{
-			textureCount = aiMaterial->GetTextureCount(aiTextureType_NORMALS);
+			std::shared_ptr<GTexture> texture;
 
 			if (textureCount > 0)
 			{
-				texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_NORMALS, modelDirectory, cmdList);
+				texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_DIFFUSE, modelDirectory, cmdList);
 			}
 			else
 			{
-
-				texture = LoadTextureByPath(L"defaultNormalMap", L"Data\\Textures\\default_nmap.dds", cmdList,
-					TextureUsage::Normalmap);
-
+				texture = LoadTextureByPath(L"seamless", L"Data\\Textures\\seamless_grass.jpg", cmdList,
+					TextureUsage::Diffuse);
 			}
+
+			loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
+
+			material->SetDiffuseTexture(texture, texturesMap[texture->GetName()]);
+
+			textureCount = aiMaterial->GetTextureCount(aiTextureType_HEIGHT);
+
+			if (textureCount > 0)
+			{
+				texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_HEIGHT, modelDirectory, cmdList);
+			}
+			else
+			{
+				textureCount = aiMaterial->GetTextureCount(aiTextureType_NORMALS);
+
+				if (textureCount > 0)
+				{
+					texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_NORMALS, modelDirectory, cmdList);
+				}
+				else
+				{
+
+					texture = LoadTextureByPath(L"defaultNormalMap", L"Data\\Textures\\default_nmap.dds", cmdList,
+						TextureUsage::Normalmap);
+
+				}
+			}
+
+			loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
+			material->SetNormalMap(texture, texturesMap[texture->GetName()]);
+			AddMaterial(material);
 		}
-
-		loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
-
-		material->SetNormalMap(texture, texturesMap[texture->GetName()]);
-
-		AddMaterial(material);
-
-		materials.push_back(material);
-
-		materialsMap[material->GetName()] = materials.size() - 1;
+		else
+		{
+			material = materials[it->second];
+		}		
 
 		model->SetMeshMaterial(i, material);
 	}
@@ -247,7 +266,7 @@ void AssetsLoader::RecursivlyLoadMeshes(std::shared_ptr<NativeModel> model, aiNo
 		aiMesh* aMesh = scene->mMeshes[node->mMeshes[i]];
 		auto nativeMesh = CreateSubMesh(aMesh, model->GetName());
 		loadedAiMaterialForMesh[nativeMesh] = std::shared_ptr<aiMaterial>(scene->mMaterials[aMesh->mMaterialIndex]);
-		model->AddMesh(std::move(nativeMesh));
+		model->AddMesh((nativeMesh));
 	}
 
 	for (UINT i = 0; i < node->mNumChildren; i++)

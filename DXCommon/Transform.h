@@ -71,7 +71,7 @@ private:
 
 	static UINT gConstantBufferIndex;
 
-	std::unique_ptr<Transform> Parent = nullptr;
+	Transform* Parent = nullptr;
 
 	UINT bufferIndex = -1;
 	int NumFramesDirty = globalCountFrameResources;

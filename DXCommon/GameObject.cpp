@@ -19,9 +19,9 @@ GameObject::
 GameObject(std::string name, Vector3 position, Vector3 scale, Quaternion rotate): name(
 	std::move(name))
 {
-	transform = std::make_unique<Transform>( position, rotate, scale);
+	transform = std::make_shared<Transform>( position, rotate, scale);
 
-	AddComponent(transform.get());
+	AddComponent(transform);
 }
 
 void GameObject::Update()
@@ -40,21 +40,21 @@ void GameObject::Draw(std::shared_ptr<GCommandList> cmdList)
 	}
 }
 
-Transform* GameObject::GetTransform() const
+std::shared_ptr<Transform> GameObject::GetTransform() const
 {
-	return transform.get();
+	return transform;
 }
 
-ModelRenderer* GameObject::GetRenderer()
+std::shared_ptr<ModelRenderer> GameObject::GetRenderer() 
 {
 	if (renderer == nullptr)
 	{
 		for (auto&& component : components)
 		{
-			const auto comp = dynamic_cast<ModelRenderer*>(component);
+			const auto comp = dynamic_cast<ModelRenderer*>(component.get());
 			if (comp)
 			{
-				renderer = (comp);
+				renderer = std::static_pointer_cast<ModelRenderer>(component);
 				break;
 			}
 		}
