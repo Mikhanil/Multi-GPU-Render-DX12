@@ -42,14 +42,16 @@ protected:
 	void inline UpdateShadowPassCB(const GameTimer& gt);
 	void inline UpdateMainPassCB(const GameTimer& gt);
 	void inline UpdateSsaoCB(const GameTimer& gt);
-	void PopulateShadowMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
-	void PopulateNormalMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
-	void PopulateAmbientMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
-	void PopulateForwardPathCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
-	void PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, PsoType::Type type);
-	void PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory, UINT
+	void inline PopulateShadowMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
+	void inline PopulateNormalMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
+	void inline PopulateAmbientMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
+	void inline PopulateForwardPathCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
+	void inline PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, PsoType::Type type);
+	void inline PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory, UINT
 	                             offsetRTV);
-	void PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource);
+	void PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource,
+	                          const GResource& dstResource);
+	void inline PopulateCopyResourceRegion(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource);
 	void Draw(const GameTimer& gt) override;
 
 	void OnResize() override;
@@ -57,14 +59,8 @@ protected:
 	bool InitMainWindow() override;;
 	
 private:
-		
-	void Flush() override
-	{
-		for (auto && device : devices)
-		{
-			device->Flush();
-		}
-	};
+
+	void Flush() override;;
 	void inline InitDevices();
 	void inline InitFrameResource();
 	void inline InitRootSignature();
@@ -81,6 +77,8 @@ private:
 	void inline AddMultiDeviceOpaqueRenderComponent(GameObject* object, std::wstring modelName, PsoType::Type psoType = PsoType::Opaque);
 	void inline CreateGO();
 
+	int percentOfUsePrimeDevice = 50;
+	
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;

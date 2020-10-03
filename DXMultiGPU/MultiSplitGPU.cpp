@@ -1,4 +1,6 @@
 #include "MultiSplitGPU.h"
+#include <algorithm>
+#include <cstdint>
 #include "CameraController.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
@@ -1115,6 +1117,16 @@ void MultiSplitGPU::PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::s
 
 void MultiSplitGPU::PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource)
 {
+	cmdList->CopyResource(dstResource,  srcResource);
+	cmdList->TransitionBarrier(dstResource,
+		D3D12_RESOURCE_STATE_COMMON);
+	cmdList->TransitionBarrier(srcResource, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->FlushResourceBarriers();
+}
+
+
+void MultiSplitGPU::PopulateCopyResourceRegion(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource)
+{
 	cmdList->CopyTextureRegion(dstResource, 0, 0, 0, srcResource, &copyRegionBox);
 	cmdList->TransitionBarrier(dstResource,
 	                           D3D12_RESOURCE_STATE_COMMON);
@@ -1125,52 +1137,141 @@ void MultiSplitGPU::PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, 
 void MultiSplitGPU::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
+
+	
+	
+	if(percentOfUsePrimeDevice == 100)
+	{
+		auto primeQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
+		auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
+
+		const auto primeRenderCmdList = primeQueue->GetCommandList();
+
+		PopulateShadowMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+		PopulateNormalMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+		PopulateAmbientMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+		PopulateForwardPathCommands(GraphicAdapterPrimary, primeRenderCmdList);
+		PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RenderTargetViewMemory[GraphicAdapterPrimary], 0);
+		PopulateCopyResource(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
+
+		const auto secondDeviceCopyList = secondQueue->GetCommandList();
+		PopulateCopyResource(secondDeviceCopyList, currentFrameResource->CrossAdapterBackBuffer->GetSharedResource(), MainWindow->GetCurrentBackBuffer());
+
 		
-	auto primeQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
-	auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();	
-
-
-	auto primeRenderCmdList = primeQueue->GetCommandList();
-	
-	PopulateShadowMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
-	PopulateNormalMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
-	PopulateAmbientMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
-	PopulateForwardPathCommands(GraphicAdapterPrimary, primeRenderCmdList);
-	PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RenderTargetViewMemory[GraphicAdapterPrimary], 0);
-	PopulateCopyResource(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
-	
-	
-	
-	auto secondRenderCmdList = secondQueue->GetCommandList();
-	PopulateShadowMapCommands(GraphicAdapterSecond, secondRenderCmdList);
-	PopulateNormalMapCommands(GraphicAdapterSecond, secondRenderCmdList);
-	PopulateAmbientMapCommands(GraphicAdapterSecond, secondRenderCmdList);
-	PopulateForwardPathCommands(GraphicAdapterSecond, secondRenderCmdList);
-	PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RenderTargetViewMemory[GraphicAdapterSecond], 0);	
-	
-	const auto secondDeviceFinishRendering = secondQueue->ExecuteCommandList(secondRenderCmdList);
+		const auto primeDeviceFinishRendering = primeQueue->ExecuteCommandList(primeRenderCmdList);
+		primeQueue->Signal(primeFence, primeDeviceFinishRendering);
 		
-	const auto primeDeviceFinishRendering = primeQueue->ExecuteCommandList(primeRenderCmdList);
-	primeQueue->Signal(primeFence, primeDeviceFinishRendering);
+		secondQueue->Wait(sharedFence, primeDeviceFinishRendering);
+		currentFrameResource->FenceValue = secondQueue->ExecuteCommandList(secondDeviceCopyList);
 
-	const auto secondCopyCmdList = secondQueue->GetCommandList();
-	PopulateCopyResource(secondCopyCmdList, currentFrameResource->CrossAdapterBackBuffer->GetSharedResource(), MainWindow->GetCurrentBackBuffer());
+		MainWindow->Present();		
+	}
+	else
+	{
+		if(percentOfUsePrimeDevice == 0)
+		{
+			auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
+
+			const auto secondRenderCmdList = secondQueue->GetCommandList();
+			PopulateShadowMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateNormalMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateAmbientMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateForwardPathCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RenderTargetViewMemory[GraphicAdapterSecond], 0);
+
+			currentFrameResource->FenceValue = secondQueue->ExecuteCommandList(secondRenderCmdList);
+			MainWindow->Present();
+		}
+		else
+		{
+			auto primeQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
+			auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
+
+
+			auto primeRenderCmdList = primeQueue->GetCommandList();
+
+			PopulateShadowMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+			PopulateNormalMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+			PopulateAmbientMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+			PopulateForwardPathCommands(GraphicAdapterPrimary, primeRenderCmdList);
+			PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RenderTargetViewMemory[GraphicAdapterPrimary], 0);
+			PopulateCopyResourceRegion(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
+
+
+
+			auto secondRenderCmdList = secondQueue->GetCommandList();
+			PopulateShadowMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateNormalMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateAmbientMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateForwardPathCommands(GraphicAdapterSecond, secondRenderCmdList);
+			PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RenderTargetViewMemory[GraphicAdapterSecond], 0);
+
+			const auto secondDeviceFinishRendering = secondQueue->ExecuteCommandList(secondRenderCmdList);
+
+			const auto primeDeviceFinishRendering = primeQueue->ExecuteCommandList(primeRenderCmdList);
+			primeQueue->Signal(primeFence, primeDeviceFinishRendering);
+
+			const auto secondCopyCmdList = secondQueue->GetCommandList();
+			PopulateCopyResourceRegion(secondCopyCmdList, currentFrameResource->CrossAdapterBackBuffer->GetSharedResource(), MainWindow->GetCurrentBackBuffer());
+
+			secondCopyCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+			secondCopyCmdList->FlushResourceBarriers();
+
+			secondQueue->WaitForFenceValue(secondDeviceFinishRendering);
+			secondQueue->Wait(sharedFence, primeDeviceFinishRendering);
+
+			currentFrameResource->FenceValue = secondQueue->ExecuteCommandList(secondCopyCmdList);
+
+			MainWindow->Present();
+		}
+	}
 	
-	secondCopyCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-	secondCopyCmdList->FlushResourceBarriers();
 	
-	secondQueue->WaitForFenceValue(secondDeviceFinishRendering);
-	secondQueue->Wait(sharedFence, primeDeviceFinishRendering);
-	
-	currentFrameResource->FenceValue = secondQueue->ExecuteCommandList(secondCopyCmdList);
-	
-	MainWindow->Present();
 }
 
 void MultiSplitGPU::OnResize()
 {
 	D3DApp::OnResize();
 
+	fullViewport.Height = static_cast<float>(MainWindow->GetClientHeight());
+	fullViewport.Width = static_cast<float>(MainWindow->GetClientWidth());
+	fullViewport.MinDepth = 0.0f;
+	fullViewport.MaxDepth = 1.0f;
+	fullViewport.TopLeftX = 0;
+	fullViewport.TopLeftY = 0;
+	fullRect = D3D12_RECT{ 0,0, MainWindow->GetClientWidth(), MainWindow->GetClientHeight() };
+
+	const float currentPrimeRatio = percentOfUsePrimeDevice / 100.0f;
+
+	static int pixelDeviceZoneSize = 2;
+
+	int primeWidth = std::clamp(int(MainWindow->GetClientWidth() * currentPrimeRatio) - pixelDeviceZoneSize, 1, MainWindow->GetClientWidth() - 2 * pixelDeviceZoneSize);
+	int secondWidth = primeWidth + 2 * pixelDeviceZoneSize == MainWindow->GetClientWidth() ? primeWidth + 2 * pixelDeviceZoneSize - 1 : primeWidth + 2 * pixelDeviceZoneSize;
+	
+	if(percentOfUsePrimeDevice == 100)
+	{
+		adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0,  MainWindow->GetClientWidth(), MainWindow->GetClientHeight() };
+	}
+	else
+	{
+		if(percentOfUsePrimeDevice == 0)
+		{
+			adapterRects[GraphicAdapterSecond] = D3D12_RECT{ 0,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
+		}
+		else
+		{
+			adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0,  primeWidth, MainWindow->GetClientHeight() };
+
+			adapterRects[GraphicAdapterSecond] = D3D12_RECT{ secondWidth,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
+		}
+	}	
+
+		
+	copyRegionBox = CD3DX12_BOX(0, 0, primeWidth + pixelDeviceZoneSize, MainWindow->GetClientHeight());
+	
+	
+
+	
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = GetSRGBFormat(backBufferFormat);
@@ -1179,7 +1280,7 @@ void MultiSplitGPU::OnResize()
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
 		//Создаем то куда будем рисовать на Prime устройстве
-		GTexture::Resize(frameResources[i]->PrimeDeviceBackBuffer, MainWindow->GetClientWidth() / 2, MainWindow->GetClientHeight(), 1);
+		GTexture::Resize(frameResources[i]->PrimeDeviceBackBuffer, (percentOfUsePrimeDevice == 100) ? MainWindow->GetClientWidth() : primeWidth + pixelDeviceZoneSize, MainWindow->GetClientHeight(), 1);
 		frameResources[i]->PrimeDeviceBackBuffer.CreateRenderTargetView(&rtvDesc, &frameResources[i]->RenderTargetViewMemory[GraphicAdapterPrimary]);
 
 		
@@ -1188,27 +1289,13 @@ void MultiSplitGPU::OnResize()
 
 		//Создаем то куда будет копировать Prime ресурс, и то откуда будет копировать Second
 		auto backBufferDesc = MainWindow->GetBackBuffer(i).GetD3D12ResourceDesc();
-		backBufferDesc.Width = MainWindow->GetClientWidth() / 2;
+		backBufferDesc.Width = (percentOfUsePrimeDevice == 100) ? MainWindow->GetClientWidth() : primeWidth + pixelDeviceZoneSize;
 		frameResources[i]->CrossAdapterBackBuffer.reset();		
 		frameResources[i]->CrossAdapterBackBuffer = std::make_shared<GCrossAdapterResource>(backBufferDesc, devices[GraphicAdapterPrimary], devices[GraphicAdapterSecond], L"Shared Back Buffer");
 	}
 
 	
-	fullViewport.Height = static_cast<float>(MainWindow->GetClientHeight());
-	fullViewport.Width = static_cast<float>(MainWindow->GetClientWidth());
-	fullViewport.MinDepth = 0.0f;
-	fullViewport.MaxDepth = 1.0f;
-	fullViewport.TopLeftX = 0;
-	fullViewport.TopLeftY = 0;
-
-
-	fullRect = D3D12_RECT{ 0,0, MainWindow->GetClientWidth(), MainWindow->GetClientHeight() };
-	copyRegionBox = CD3DX12_BOX(0, 0, MainWindow->GetClientWidth() / 2, MainWindow->GetClientHeight());
 	
-	adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0, MainWindow->GetClientWidth() / 2 - 5, MainWindow->GetClientHeight() };	
-	
-	adapterRects[GraphicAdapterSecond] = D3D12_RECT{ MainWindow->GetClientWidth() / 2 + 5,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
-
 	if (camera != nullptr)
 	{
 		camera->SetAspectRatio(AspectRatio());
@@ -1236,6 +1323,14 @@ bool MultiSplitGPU::InitMainWindow()
 	MainWindow = CreateRenderWindow(devices[GraphicAdapterSecond], mainWindowCaption, 1920, 1080, false);
 
 	return true;
+}
+
+void MultiSplitGPU::Flush()
+{
+	for (auto&& device : devices)
+	{
+		device->Flush();
+	}
 }
 
 LRESULT MultiSplitGPU::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -1365,6 +1460,40 @@ LRESULT MultiSplitGPU::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 			if (keycode == (VK_F2) && keyboard.KeyIsPressed(VK_F2))
 			{
 				pathMapShow = (pathMapShow + 1) % maxPathMap;
+			}
+
+			if((keycode == (VK_LEFT) && keyboard.KeyIsPressed(VK_LEFT)) || ((keycode == ('A') && keyboard.KeyIsPressed('A'))))
+			{
+				if (percentOfUsePrimeDevice > 0)
+				{
+					isAppPaused = true;
+					isResizing = true;
+					timer.Stop();
+					percentOfUsePrimeDevice = std::clamp(percentOfUsePrimeDevice - 5, 0, 100);
+
+					Flush();
+					isAppPaused = false;
+					isResizing = false;
+					timer.Start();
+					OnResize();
+				}
+			}
+
+			if ((keycode == (VK_RIGHT) && keyboard.KeyIsPressed(VK_RIGHT)) || ((keycode == ('D') && keyboard.KeyIsPressed('D'))))
+			{
+				if (percentOfUsePrimeDevice < 100)
+				{
+					isAppPaused = true;
+					isResizing = true;
+					timer.Stop();
+					percentOfUsePrimeDevice = std::clamp(percentOfUsePrimeDevice + 5, 0, 100);
+
+					Flush();
+					isAppPaused = false;
+					isResizing = false;
+					timer.Start();
+					OnResize();
+				}
 			}
 		}
 	}
