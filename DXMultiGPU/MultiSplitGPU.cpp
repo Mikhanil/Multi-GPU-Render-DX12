@@ -36,6 +36,9 @@ void MultiSplitGPU::InitDevices()
 		devices[GraphicAdapterSecond] = otherDevice;
 	}
 
+	devices[GraphicAdapterPrimary] = firstDevice;
+	devices[GraphicAdapterSecond] = otherDevice;
+	
 	for (auto&& device : devices)
 	{
 		adapterRects.push_back(D3D12_RECT{});
@@ -923,16 +926,11 @@ void MultiSplitGPU::UpdateSsaoCB(const GameTimer& gt)
 	
 }
 
-std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAdapter adapterIndex)
+void MultiSplitGPU::PopulateShadowMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList)
 {
-	auto queue = devices[adapterIndex]->GetCommandQueue();
-
-	auto cmdList = queue->GetCommandList();
-
-	cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
-	
 	//Draw Shadow Map
 	{
+		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
 
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
@@ -945,7 +943,7 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 		cmdList->FlushResourceBarriers();
 
 		cmdList->ClearDepthStencil(shadowPaths[adapterIndex]->GetDsvMemory(), 0,
-			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(0, nullptr, false, shadowPaths[adapterIndex]->GetDsvMemory());
 
@@ -960,9 +958,17 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 		cmdList->TransitionBarrier(shadowPaths[adapterIndex]->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
 		cmdList->FlushResourceBarriers();
 	}
+}
 
+void MultiSplitGPU::PopulateNormalMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList)
+{
 	//Draw Normals
 	{
+		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
+		
 		cmdList->SetViewports(&fullViewport, 1);
 		cmdList->SetScissorRects(&fullRect, 1);
 
@@ -977,7 +983,7 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 		float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
 		cmdList->ClearRenderTarget(normalMapRtv, 0, clearValue);
 		cmdList->ClearDepthStencil(normalMapDsv, 0,
-			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
 		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PassConstantBuffers[adapterIndex]);
@@ -992,16 +998,30 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 		cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_COMMON);
 		cmdList->FlushResourceBarriers();		
 	}
+}
 
+void MultiSplitGPU::PopulateAmbientMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList)
+{
 	//Draw Ambient
 	{
+		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
+		
 		cmdList->SetRootSignature(ssaoRootSignatures[adapterIndex].get());
 		ambientPaths[adapterIndex]->ComputeSsao(cmdList, currentFrameResource->SsaoConstantBuffers[adapterIndex], 3);
 	}
+}
 
+void MultiSplitGPU::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList)
+{
 	//Forward Path with SSAA
 	{
+		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
 
 		cmdList->SetViewports(&antiAliasingPaths[adapterIndex]->GetViewPort(), 1);
 		cmdList->SetScissorRects(&antiAliasingPaths[adapterIndex]->GetRect(), 1);
@@ -1012,10 +1032,10 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 
 		cmdList->ClearRenderTarget(antiAliasingPaths[adapterIndex]->GetRTV());
 		cmdList->ClearDepthStencil(antiAliasingPaths[adapterIndex]->GetDSV(), 0,
-			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, antiAliasingPaths[adapterIndex]->GetRTV(), 0,
-			antiAliasingPaths[adapterIndex]->GetDSV());
+		                          antiAliasingPaths[adapterIndex]->GetDSV());
 
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffers[adapterIndex]);
@@ -1024,7 +1044,7 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPaths[adapterIndex]->AmbientMapSrv(), 0);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,
-			&srvTexturesMemory[adapterIndex]);
+		                                &srvTexturesMemory[adapterIndex]);
 
 
 		cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(PsoType::SkyBox));
@@ -1042,29 +1062,28 @@ std::shared_ptr<GCommandList> MultiSplitGPU::PopulateMainPathCommands(GraphicsAd
 		switch (pathMapShow)
 		{
 		case 1:
-		{
-			cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowPaths[adapterIndex]->GetSrvMemory());
-			cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(PsoType::Debug));
-			PopulateDrawCommands(adapterIndex,cmdList,(PsoType::Debug));
-			break;
-		}
+			{
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowPaths[adapterIndex]->GetSrvMemory());
+				cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(PsoType::Debug));
+				PopulateDrawCommands(adapterIndex,cmdList,(PsoType::Debug));
+				break;
+			}
 		case 2:
-		{
-			cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPaths[adapterIndex]->AmbientMapSrv(), 0);
-			cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(PsoType::Debug));
-			PopulateDrawCommands(adapterIndex,cmdList, (PsoType::Debug));
-			break;
-		}
+			{
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPaths[adapterIndex]->AmbientMapSrv(), 0);
+				cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(PsoType::Debug));
+				PopulateDrawCommands(adapterIndex,cmdList, (PsoType::Debug));
+				break;
+			}
 		}
 
 		cmdList->TransitionBarrier(antiAliasingPaths[adapterIndex]->GetRenderTarget(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		cmdList->TransitionBarrier((antiAliasingPaths[adapterIndex]->GetDepthMap()), D3D12_RESOURCE_STATE_DEPTH_READ);
 		cmdList->FlushResourceBarriers();
 	}
-
-
-	return cmdList;
 }
+
+
 
 void MultiSplitGPU::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, PsoType::Type type)
 {
@@ -1107,31 +1126,43 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 		
-	auto primeDeviceRenderingQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();	
+	auto primeQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
+	auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();	
 
-	auto secondDeviceRenderingQueue = devices[GraphicAdapterSecond]->GetCommandQueue();	
 
-	auto primeRenderCmdList = PopulateMainPathCommands(GraphicAdapterPrimary);
-	PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RtvMemory[GraphicAdapterPrimary], currentFrameResourceIndex);
+	auto primeRenderCmdList = primeQueue->GetCommandList();
+	
+	PopulateShadowMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+	PopulateNormalMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+	PopulateAmbientMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
+	PopulateForwardPathCommands(GraphicAdapterPrimary, primeRenderCmdList);
+	PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RenderTargetViewMemory[GraphicAdapterPrimary], 0);
 	PopulateCopyResource(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
 	
-	auto secondRenderCmdList = PopulateMainPathCommands(GraphicAdapterSecond);
-	PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RtvMemory[GraphicAdapterSecond], MainWindow->GetCurrentBackBufferIndex());	
 	
-	const auto secondDeviceFinishRenderSceneValue = secondDeviceRenderingQueue->ExecuteCommandList(secondRenderCmdList);
+	
+	auto secondRenderCmdList = secondQueue->GetCommandList();
+	PopulateShadowMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+	PopulateNormalMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+	PopulateAmbientMapCommands(GraphicAdapterSecond, secondRenderCmdList);
+	PopulateForwardPathCommands(GraphicAdapterSecond, secondRenderCmdList);
+	PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RenderTargetViewMemory[GraphicAdapterSecond], 0);	
+	
+	const auto secondDeviceFinishRendering = secondQueue->ExecuteCommandList(secondRenderCmdList);
 		
-	const auto primeDeviceCopyEndFenceValue = primeDeviceRenderingQueue->ExecuteCommandList(primeRenderCmdList);
-	primeDeviceRenderingQueue->Signal(primeFence, primeDeviceCopyEndFenceValue);
+	const auto primeDeviceFinishRendering = primeQueue->ExecuteCommandList(primeRenderCmdList);
+	primeQueue->Signal(primeFence, primeDeviceFinishRendering);
 
-	const auto secondCopyCmdList = secondDeviceRenderingQueue->GetCommandList();
+	const auto secondCopyCmdList = secondQueue->GetCommandList();
 	PopulateCopyResource(secondCopyCmdList, currentFrameResource->CrossAdapterBackBuffer->GetSharedResource(), MainWindow->GetCurrentBackBuffer());
+	
 	secondCopyCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 	secondCopyCmdList->FlushResourceBarriers();
 	
-	secondDeviceRenderingQueue->WaitForFenceValue(secondDeviceFinishRenderSceneValue);
-	secondDeviceRenderingQueue->Wait(sharedFence, primeDeviceCopyEndFenceValue);
+	secondQueue->WaitForFenceValue(secondDeviceFinishRendering);
+	secondQueue->Wait(sharedFence, primeDeviceFinishRendering);
 	
-	currentFrameResource->FenceValue = secondDeviceRenderingQueue->ExecuteCommandList(secondCopyCmdList);
+	currentFrameResource->FenceValue = secondQueue->ExecuteCommandList(secondCopyCmdList);
 	
 	MainWindow->Present();
 }
@@ -1149,11 +1180,11 @@ void MultiSplitGPU::OnResize()
 	{
 		//Создаем то куда будем рисовать на Prime устройстве
 		GTexture::Resize(frameResources[i]->PrimeDeviceBackBuffer, MainWindow->GetClientWidth() / 2, MainWindow->GetClientHeight(), 1);
-		frameResources[i]->PrimeDeviceBackBuffer.CreateRenderTargetView(&rtvDesc, &frameResources[i]->RtvMemory[GraphicAdapterPrimary], i);
+		frameResources[i]->PrimeDeviceBackBuffer.CreateRenderTargetView(&rtvDesc, &frameResources[i]->RenderTargetViewMemory[GraphicAdapterPrimary]);
 
 		
 		//Буферы обновлись в базовом классе. Создаем то куда рендерится финальаня картинка
-		MainWindow->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &frameResources[i]->RtvMemory[GraphicAdapterSecond], i);
+		MainWindow->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &frameResources[i]->RenderTargetViewMemory[GraphicAdapterSecond]);
 
 		//Создаем то куда будет копировать Prime ресурс, и то откуда будет копировать Second
 		auto backBufferDesc = MainWindow->GetBackBuffer(i).GetD3D12ResourceDesc();

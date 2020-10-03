@@ -24,7 +24,7 @@ public:
 	
 	GTexture PrimeDeviceBackBuffer;
 
-	custom_vector<GMemory> RtvMemory = MemoryAllocator::CreateVector<GMemory>();
+	custom_vector<GMemory> RenderTargetViewMemory = MemoryAllocator::CreateVector<GMemory>();
 	
 	custom_vector<std::shared_ptr<ConstantBuffer<PassConstants>>> PassConstantBuffers = MemoryAllocator::CreateVector < std::shared_ptr<ConstantBuffer<PassConstants>>>();
 
