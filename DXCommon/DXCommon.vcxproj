@@ -101,7 +101,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+     <AdditionalDependencies>$(SolutionDir)Assimp\$(Configuration)\assimp-vc142*.lib;</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -126,7 +126,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Assimp\$(Configuration)\assimp-vc142*.lib;</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -147,7 +147,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Assimp\$(Configuration)\assimp-vc142*.lib;</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -172,7 +172,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>$(SolutionDir)Assimp\Debug\assimp-vc142-mtd.lib;</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)Assimp\$(Configuration)\assimp-vc142*.lib;</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>

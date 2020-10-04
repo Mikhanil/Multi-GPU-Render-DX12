@@ -3,7 +3,7 @@
 #include "GDevice.h"
 
 
-std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GRootSignature::GetStaticSamplers()
+std::vector<CD3DX12_STATIC_SAMPLER_DESC> GetStaticSamplers()
 {
 	const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
 		0, // shaderRegister
@@ -63,12 +63,14 @@ std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GRootSignature::GetStaticSample
 		D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK);
 
 
-	return {
+	return std::vector<CD3DX12_STATIC_SAMPLER_DESC>{
 		pointWrap, pointClamp,
 		linearWrap, linearClamp,
 		anisotropicWrap, anisotropicClamp, shadow
 	};
 }
+
+static std::vector<CD3DX12_STATIC_SAMPLER_DESC> staticSamplersVector = GetStaticSamplers();
 
 GRootSignature::~GRootSignature()
 {
@@ -80,34 +82,6 @@ const D3D12_ROOT_SIGNATURE_DESC& GRootSignature::GetRootSignatureDesc() const
 {
 	return rootSigDesc;
 }
-
-uint32_t GRootSignature::GetParametersCount() const
-{
-	return slotRootParameters.size();
-}
-
-uint32_t GRootSignature::GetDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType) const
-{
-	uint32_t descriptorTableBitMask = 0;
-	switch (descriptorHeapType)
-	{
-	case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
-		descriptorTableBitMask = descriptorTableBitMask;
-		break;
-	case D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER:
-		descriptorTableBitMask = samplerTableBitMask;
-		break;
-	}
-
-	return descriptorTableBitMask;
-}
-
-uint32_t GRootSignature::GetNumDescriptors(uint32_t rootIndex) const
-{
-	assert(rootIndex < 32);
-	return descriptorPerTableCount[rootIndex];
-}
-
 
 void GRootSignature::AddParameter(CD3DX12_ROOT_PARAMETER parameter)
 {
@@ -173,47 +147,12 @@ void GRootSignature::Initialize(const std::shared_ptr<GDevice> device)
 	}
 	else
 	{
-		auto defaultSampler = GetStaticSamplers();
-
 		rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
-		                                          defaultSampler.size(), defaultSampler.data(),
+			staticSamplersVector.size(), staticSamplersVector.data(),
 		                                          D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	}
 
-	for (UINT i = 0; i < rootSigDesc.NumParameters; ++i)
-	{
-		descriptorPerTableCount.push_back(0);
-
-		const D3D12_ROOT_PARAMETER& rootParameter = rootSigDesc.pParameters[i];
-
-		if (rootParameter.ParameterType == D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE)
-		{
-			UINT numDescriptorRanges = rootParameter.DescriptorTable.NumDescriptorRanges;
-
-			// Set the bit mask depending on the type of descriptor table.
-			if (numDescriptorRanges > 0)
-			{
-				switch (rootParameter.DescriptorTable.pDescriptorRanges[0].RangeType)
-				{
-				case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
-				case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
-				case D3D12_DESCRIPTOR_RANGE_TYPE_UAV:
-					descriptorTableBitMask |= (1 << i);
-					break;
-				case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
-					samplerTableBitMask |= (1 << i);
-					break;
-				}
-			}
-
-
-			// Count the number of descriptors in the descriptor table.
-			for (UINT j = 0; j < numDescriptorRanges; ++j)
-			{
-				descriptorPerTableCount[i] += rootParameter.DescriptorTable.pDescriptorRanges[j].NumDescriptors;
-			}
-		}
-	}
+	
 
 
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;

@@ -9,6 +9,7 @@
 #include "GTexture.h"
 #include "Material.h"
 #include "NativeModel.h"
+#include "assimp/scene.h"
 #include "assimp/Importer.hpp"
 #include "assimp/mesh.h"
 #include "assimp/postprocess.h"

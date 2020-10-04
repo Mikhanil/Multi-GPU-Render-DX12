@@ -208,6 +208,8 @@ namespace DXLib
 			pair.second->ResetTimer();
 		}
 
+		auto devices = GDeviceFactory::GetAllDevices(true);
+		
 		while (msg.message != WM_QUIT)
 		{
 			// If there are Window messages then process them.
@@ -232,8 +234,10 @@ namespace DXLib
 					//Sleep(100);
 				}
 
-				GDeviceFactory::GetDevice()->ResetAllocator(frameCount);
-				GDeviceFactory::GetDevice(GraphicAdapterSecond)->ResetAllocator(frameCount);
+				for (auto && device : devices)
+				{
+					device->ResetAllocator(frameCount);
+				}
 			}
 		}
 

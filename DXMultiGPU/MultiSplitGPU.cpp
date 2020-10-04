@@ -30,9 +30,12 @@ MultiSplitGPU::MultiSplitGPU(HINSTANCE hInstance): D3DApp(hInstance)
 void MultiSplitGPU::InitDevices()
 {
 	devices.resize(GraphicAdapterCount);
+
+	auto allDevices = GDeviceFactory::GetAllDevices(true);
+
 	
-	const auto firstDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
-	const auto otherDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
+	const auto firstDevice = allDevices[0];
+	const auto otherDevice = allDevices[1];
 
 	if (otherDevice->IsCrossAdapterTextureSupported())
 	{
@@ -63,6 +66,11 @@ void MultiSplitGPU::InitDevices()
 	}
 
 	devices[GraphicAdapterPrimary]->SharedFence(primeFence, devices[GraphicAdapterSecond], sharedFence, sharedFenceValue);
+
+	logQueue.Push(L"\nPrime Device: " + (devices[GraphicAdapterPrimary]->GetName()));
+	logQueue.Push(L"\t\n Cross Adapter Texture Support: " + std::to_wstring(devices[GraphicAdapterPrimary]->IsCrossAdapterTextureSupported()));
+	logQueue.Push(L"\nSecond Device: " + (devices[GraphicAdapterSecond]->GetName()));
+	logQueue.Push(L"\t\n Cross Adapter Texture Support: " + std::to_wstring(devices[GraphicAdapterSecond]->IsCrossAdapterTextureSupported()));
 }
 
 void MultiSplitGPU::InitFrameResource()
@@ -75,7 +83,9 @@ void MultiSplitGPU::InitFrameResource()
 		backBufferDesc.Width = backBufferDesc.Width / 2;
 		
 		frameResources[i]->PrimeDeviceBackBuffer = GTexture(devices[GraphicAdapterPrimary], backBufferDesc, L"Prime device Back Buffer" + std::to_wstring(i), TextureUsage::RenderTarget);
+		
 	}
+	logQueue.Push(std::wstring(L"\nInit FrameResource "));
 }
 
 void MultiSplitGPU::InitRootSignature()
@@ -100,6 +110,8 @@ void MultiSplitGPU::InitRootSignature()
 		rootSignature->Initialize(devices[i]);
 
 		rootSignatures.push_back(std::move(rootSignature));
+
+		logQueue.Push(std::wstring(L"\nInit RootSignature for " + devices[i]->GetName()));
 	}
 
 	for (int i = 0; i < GraphicAdapterCount; ++i) 
@@ -162,7 +174,9 @@ void MultiSplitGPU::InitRootSignature()
 		ssaoRootSignature->Initialize(devices[i]);
 
 		ssaoRootSignatures.push_back(std::move(ssaoRootSignature));
-	}	
+	}
+
+	
 }
 
 void MultiSplitGPU::InitPipeLineResource()
@@ -197,6 +211,8 @@ void MultiSplitGPU::InitPipeLineResource()
 
 
 		ambientPaths[i]->SetPSOs(*defaultPipelineResources[i].GetPSO(PsoType::Ssao), *defaultPipelineResources[i].GetPSO(PsoType::SsaoBlur));
+
+		logQueue.Push(std::wstring(L"\nInit PSO for " + devices[i]->GetName()));
 	}
 }
 
@@ -219,6 +235,8 @@ void MultiSplitGPU::CreateMaterials()
 		models[GraphicAdapterPrimary][L"quad"]->SetMeshMaterial(
 			0, assets[GraphicAdapterPrimary].GetMaterial(assets[GraphicAdapterPrimary].GetMaterialIndex(L"seamless")));		
 	}
+
+	logQueue.Push(std::wstring(L"\nCreate Materials"));
 }
 
 void MultiSplitGPU::InitSRVMemoryAndMaterials()
@@ -239,7 +257,9 @@ void MultiSplitGPU::InitSRVMemoryAndMaterials()
 			auto material = materials[j];
 
 			material->InitMaterial(&srvTexturesMemory[i]);
-		}		
+		}
+
+		logQueue.Push(std::wstring(L"\nInit Views for " + devices[i]->GetName()));
 	}	
 }
 
@@ -262,6 +282,8 @@ void MultiSplitGPU::InitRenderPaths()
 		antiAliasingPaths[i]->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
 		commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+
+		logQueue.Push(std::wstring(L"\nInit Render path data for " + devices[i]->GetName()));
 	}
 }
 
@@ -333,6 +355,8 @@ void MultiSplitGPU::LoadStudyTexture()
 
 		queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 	}
+
+	logQueue.Push(std::wstring(L"\nLoad DDS Texture"));
 }
 
 void MultiSplitGPU::LoadModels()
@@ -383,108 +407,158 @@ void MultiSplitGPU::LoadModels()
 			
 	queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 	queue->Flush();
+
+	logQueue.Push(std::wstring(L"\nLoad Models Data"));
 }
 
 void MultiSplitGPU::MipMasGenerate()
 {
-	for (int i = 0; i < GraphicAdapterCount; ++i)
+	try
 	{
-
-		std::vector<GTexture*> generatedMipTextures;
-
-		auto textures = assets[i].GetTextures();
-
-		for (auto&& texture : textures)
+		for (int i = 0; i < GraphicAdapterCount; ++i)
 		{
-			texture->ClearTrack();
-			
-			if (texture->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
-				continue;
 
-			if (!texture->HasMipMap)
+			std::vector<GTexture*> generatedMipTextures;
+
+			auto textures = assets[i].GetTextures();
+
+			for (auto&& texture : textures)
 			{
-				generatedMipTextures.push_back(texture.get());
+				texture->ClearTrack();
+
+				if (texture->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+					continue;
+
+				if (!texture->HasMipMap)
+				{
+					generatedMipTextures.push_back(texture.get());
+				}
 			}
-		}
 
-		const auto computeQueue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-		auto computeList = computeQueue->GetCommandList();
-		GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
+			const auto computeQueue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+			auto computeList = computeQueue->GetCommandList();
+			GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
 
-		for (auto&& texture : generatedMipTextures)
-		{
-			computeList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
-		}
-		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
+			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
+			
+			logQueue.Push(std::wstring(L"\nMip Map Generation for " + devices[i]->GetName()));
+			
+			for (auto&& texture : generatedMipTextures)
+			{
+				computeList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+			}
+			
+			computeList->FlushResourceBarriers();
+			
+			logQueue.Push(std::wstring(L"\nTexture Barrier Generation for " + devices[i]->GetName()));
+			
+			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
 
+			logQueue.Push(std::wstring(L"\nMipMap Generation cmd list executing " + devices[i]->GetName()));
 
-		for (auto&& pair : textures)
-		{
-			pair->ClearTrack();
+			for (auto&& pair : textures)
+			{
+				pair->ClearTrack();
+			}
+
+			logQueue.Push(std::wstring(L"\nFinish Mip Map Generation for " + devices[i]->GetName()));
 		}
 	}
+	catch (DxException& e)
+	{
+		logQueue.Push(L"\n" + e.Filename + L" " + e.FunctionName + L" " + std::to_wstring(e.LineNumber));
+		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+	}
+	catch (...)
+	{
+		logQueue.Push(L"\nWTF???? How It Fix");
+	}	
 }
 
 void MultiSplitGPU::DublicateResource()
 {
+	
 	for (int i = GraphicAdapterPrimary + 1; i < GraphicAdapterCount; ++i)
 	{
-		auto queue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
-		const auto cmdList = queue->GetCommandList();
-
-		for (auto&& texture : assets[GraphicAdapterPrimary].GetTextures())
+		logQueue.Push(std::wstring(L"\nStart Dublicate Resource for " + devices[i]->GetName()));
+		try
 		{
-			texture->ClearTrack();
-
-			auto tex = GTexture::LoadTextureFromFile(texture->GetFilePath(), cmdList);
-
-			tex->SetName(texture->GetName());
-			tex->ClearTrack();
-
-			assets[i].AddTexture(std::move(tex));
-		}
-
-		for (auto&& material : assets[GraphicAdapterPrimary].GetMaterials())
-		{
-			auto copy = std::make_shared<Material>(material->GetName(), material->GetPSO());
-
-			copy->SetMaterialIndex(material->GetMaterialIndex());
-
-			auto index = assets[i].GetTextureIndex(material->GetDiffuseTexture()->GetName());
-			auto texture = assets[i].GetTexture(index);
-			copy->SetDiffuseTexture(texture, index);
-
-			index = assets[i].GetTextureIndex(material->GetNormalTexture()->GetName());
-			texture = assets[i].GetTexture(index);
-			copy->SetNormalMap(texture, index);
-
-			copy->DiffuseAlbedo = material->DiffuseAlbedo;
-			copy->FresnelR0 = material->FresnelR0;
-			copy->Roughness = material->Roughness;
-			copy->MatTransform = material->MatTransform;
+			auto queue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+			auto cmdList = queue->GetCommandList();
 
 
-			assets[i].AddMaterial(std::move(copy));
-		}
-		
-		
-		for (auto&& model : models[GraphicAdapterPrimary])
-		{
-			auto modelCopy = model.second->Dublicate(cmdList);
+			logQueue.Push(std::wstring(L"\nGet CmdList For " + devices[i]->GetName()));
 
-			for (int j = 0; j < model.second->GetMeshesCount(); ++j)
+			for (auto&& texture : assets[GraphicAdapterPrimary].GetTextures())
 			{
-				auto originMaterial = model.second->GetMeshMaterial(j);
+				texture->ClearTrack();
 
-				if (originMaterial != nullptr)
-					modelCopy->SetMeshMaterial(
-						j, assets[i].GetMaterial(assets[i].GetMaterialIndex(originMaterial->GetName())));				
+				auto tex = GTexture::LoadTextureFromFile(texture->GetFilePath(), cmdList);
+
+				tex->SetName(texture->GetName());
+				tex->ClearTrack();
+
+				assets[i].AddTexture(std::move(tex));
+
+				logQueue.Push(std::wstring(L"\nLoad Texture " + texture->GetName() + L" for " + devices[i]->GetName()));
 			}
 
-			models[i][model.first] = std::move(modelCopy);			
-		}	
-		
-		queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
+			logQueue.Push(std::wstring(L"\nDublicate texture Resource for " + devices[i]->GetName()));
+
+			for (auto&& material : assets[GraphicAdapterPrimary].GetMaterials())
+			{
+				auto copy = std::make_shared<Material>(material->GetName(), material->GetPSO());
+
+				copy->SetMaterialIndex(material->GetMaterialIndex());
+
+				auto index = assets[i].GetTextureIndex(material->GetDiffuseTexture()->GetName());
+				auto texture = assets[i].GetTexture(index);
+				copy->SetDiffuseTexture(texture, index);
+
+				index = assets[i].GetTextureIndex(material->GetNormalTexture()->GetName());
+				texture = assets[i].GetTexture(index);
+				copy->SetNormalMap(texture, index);
+
+				copy->DiffuseAlbedo = material->DiffuseAlbedo;
+				copy->FresnelR0 = material->FresnelR0;
+				copy->Roughness = material->Roughness;
+				copy->MatTransform = material->MatTransform;
+
+
+				assets[i].AddMaterial(std::move(copy));
+			}
+			logQueue.Push(std::wstring(L"\nDublicate material Resource for " + devices[i]->GetName()));
+
+			for (auto&& model : models[GraphicAdapterPrimary])
+			{
+				auto modelCopy = model.second->Dublicate(cmdList);
+
+				for (int j = 0; j < model.second->GetMeshesCount(); ++j)
+				{
+					auto originMaterial = model.second->GetMeshMaterial(j);
+
+					if (originMaterial != nullptr)
+						modelCopy->SetMeshMaterial(
+							j, assets[i].GetMaterial(assets[i].GetMaterialIndex(originMaterial->GetName())));
+				}
+
+				models[i][model.first] = std::move(modelCopy);
+			}
+
+			logQueue.Push(std::wstring(L"\nDublicate models Resource for " + devices[i]->GetName()));
+
+			queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
+
+			logQueue.Push(std::wstring(L"\nDublicate Resource for " + devices[i]->GetName()));
+		}
+		catch (DxException& e)
+		{
+			logQueue.Push(L"\n" + e.Filename + L" " + e.FunctionName + L" " + std::to_wstring(e.LineNumber));
+		}
+		catch (...)
+		{
+			logQueue.Push(L"\nWTF???? How It Fix");
+		}
 	}
 }
 
@@ -524,6 +598,7 @@ void MultiSplitGPU::AddMultiDeviceOpaqueRenderComponent(GameObject* object, std:
 
 void MultiSplitGPU::CreateGO()
 {
+	logQueue.Push(std::wstring(L"\nStart Create GO" ));
 	auto skySphere = std::make_unique<GameObject>("Sky");
 	skySphere->GetTransform()->SetScale({ 500, 500, 500 });
 	for (int i = 0; i < GraphicAdapterCount; ++i)
@@ -668,7 +743,8 @@ void MultiSplitGPU::CreateGO()
 	griffon->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
 	AddMultiDeviceOpaqueRenderComponent(griffon.get(), L"griffon", PsoType::OpaqueAlphaDrop);
 	gameObjects.push_back(std::move(griffon));
-	
+
+	logQueue.Push(std::wstring(L"\nFinish create GO"));
 }
 
 void MultiSplitGPU::CalculateFrameStats()
@@ -693,7 +769,7 @@ void MultiSplitGPU::CalculateFrameStats()
 
 		if(writeStaticticCount >= 60)
 		{
-			std::wstring staticticStr = L"Main device use on " + std::to_wstring(percentOfUsePrimeDevice) + L"%"
+			std::wstring staticticStr = L"\nMain device use on " + std::to_wstring(percentOfUsePrimeDevice) + L"%"
 			+ L"\n\tMin FPS: " + std::to_wstring(minFps)
 			+ L"\n\tMin MSPF: " + std::to_wstring(minMspf)
 			+ L"\n\tMax FPS: " + std::to_wstring(maxFps)
@@ -714,6 +790,7 @@ void MultiSplitGPU::CalculateFrameStats()
 				percentOfUsePrimeDevice = std::clamp(percentOfUsePrimeDevice - 5, 0, 100);				
 				OnResize();
 			}
+			++statisticCount;
 		}
 		
 		frameCount = 0;
@@ -741,11 +818,7 @@ void MultiSplitGPU::LogWriting()
 	fileSteam.open(path.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
 	if (fileSteam.is_open())
 	{
-		fileSteam << L"Information" << std::endl;
-		fileSteam << L"Prime Device: "	<< devices[GraphicAdapterPrimary]->GetName() << std::endl;
-		fileSteam << L"\t Cross Adapter Texture Support: "	<< devices[GraphicAdapterPrimary]->IsCrossAdapterTextureSupported() << std::endl;
-		fileSteam << L"Second Device: " << devices[GraphicAdapterSecond]->GetName() << std::endl;
-		fileSteam << L"\t Cross Adapter Texture Support: " << devices[GraphicAdapterSecond]->IsCrossAdapterTextureSupported() << std::endl;		
+		fileSteam << L"Information" << std::endl;		
 	}
 
 	std::wstring line;
@@ -753,25 +826,31 @@ void MultiSplitGPU::LogWriting()
 	{		
 		while(logQueue.TryPop(line))
 		{
-			fileSteam << line << std::endl;
-		}
-
-		Sleep(1000);
+			fileSteam << line;			
+		}	
+		fileSteam.flush();
+		std::this_thread::yield();
 	}
 
+	while(logQueue.Size() > 0)
+	{
+		if (logQueue.TryPop(line))
+		{
+			fileSteam << line;
+		}		
+	}
+	fileSteam << L"\nFinish Logs" << std::endl;
 
+	if (fileSteam.is_open())
 	fileSteam.close();
 }
 
-
 bool MultiSplitGPU::Initialize()
 {
+	logThread = std::thread(&MultiSplitGPU::LogWriting, this);
+	
 	InitDevices();
 	InitMainWindow();
-
-
-	logThread = std::thread(&MultiSplitGPU::LogWriting, this);
-
 	
 	LoadStudyTexture();	
 	LoadModels();
@@ -794,8 +873,7 @@ bool MultiSplitGPU::Initialize()
 	for (auto && device : devices)
 	{
 		device->Flush();
-	}
-	
+	}	
 	
 	return true;
 }
@@ -1449,8 +1527,56 @@ void MultiSplitGPU::OnResize()
 bool MultiSplitGPU::InitMainWindow()
 {
 	MainWindow = CreateRenderWindow(devices[GraphicAdapterSecond], mainWindowCaption, 1920, 1080, false);
-
+	logQueue.Push(std::wstring(L"\nInit Window"));
 	return true;
+}
+
+int MultiSplitGPU::Run()
+{
+	MSG msg = { nullptr };
+
+	timer.Reset();
+
+	while (msg.message != WM_QUIT)
+	{
+		// If there are Window messages then process them.
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		// Otherwise, do animation/game stuff.
+		else
+		{
+			if(statisticCount > 20)
+			{
+				Quit();
+				continue;
+			}
+			
+			timer.Tick();
+
+			//if (!isAppPaused)
+			{
+				CalculateFrameStats();
+				Update(timer);
+				Draw(timer);
+			}
+			//else
+			{
+				//Sleep(100);
+			}
+
+			for (auto&& device : devices)
+			{
+				device->ResetAllocator(frameCount);
+			}
+		}
+	}
+
+	logThreadIsAlive = false;
+	logThread.join();		
+	return static_cast<int>(msg.wParam);
 }
 
 void MultiSplitGPU::Flush()
@@ -1587,11 +1713,12 @@ LRESULT MultiSplitGPU::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			if (keycode == (VK_F2) && keyboard.KeyIsPressed(VK_F2))
 			{
-				pathMapShow = (pathMapShow + 1) % maxPathMap;
+				//pathMapShow = (pathMapShow + 1) % maxPathMap;
 			}
 
 			if((keycode == (VK_LEFT) && keyboard.KeyIsPressed(VK_LEFT)) || ((keycode == ('A') && keyboard.KeyIsPressed('A'))))
 			{
+				break;
 				if (percentOfUsePrimeDevice > 0)
 				{
 					isAppPaused = true;
@@ -1609,6 +1736,7 @@ LRESULT MultiSplitGPU::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam
 
 			if ((keycode == (VK_RIGHT) && keyboard.KeyIsPressed(VK_RIGHT)) || ((keycode == ('D') && keyboard.KeyIsPressed('D'))))
 			{
+				break;
 				if (percentOfUsePrimeDevice < 100)
 				{
 					isAppPaused = true;

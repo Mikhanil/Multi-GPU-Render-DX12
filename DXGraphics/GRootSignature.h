@@ -12,7 +12,6 @@ class GRootSignature
 	ComPtr<ID3D12RootSignature> signature;
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc;
 
-	static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();;
 
 	custom_vector<CD3DX12_ROOT_PARAMETER> slotRootParameters = MemoryAllocator::CreateVector<CD3DX12_ROOT_PARAMETER>();
 
@@ -32,12 +31,6 @@ public:
 	virtual ~GRootSignature();
 
 	const D3D12_ROOT_SIGNATURE_DESC& GetRootSignatureDesc() const;
-
-	uint32_t GetParametersCount() const;
-
-	uint32_t GetDescriptorTableBitMask(D3D12_DESCRIPTOR_HEAP_TYPE descriptorHeapType) const;
-	uint32_t GetNumDescriptors(uint32_t rootIndex) const;
-
 
 	void AddDescriptorParameter(CD3DX12_DESCRIPTOR_RANGE* rangeParameters, UINT size,
 	                            D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL);

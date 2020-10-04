@@ -37,6 +37,9 @@ public:
 
 	bool Initialize() override;
 
+
+	int Run() override;
+
 protected:
 	void inline Update(const GameTimer& gt) override;
 	void inline UpdateMaterials();
@@ -62,6 +65,7 @@ protected:
 	
 private:
 
+	
 	void Flush() override;;
 	void inline InitDevices();
 	void inline InitFrameResource();
@@ -86,6 +90,7 @@ private:
 	std::atomic<bool> logThreadIsAlive = true;
 	std::thread logThread;
 	ThreadSafeQueue<std::wstring> logQueue;
+	std::atomic<UINT> statisticCount = 0;
 	
 	int percentOfUsePrimeDevice = 100;
 	

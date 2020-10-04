@@ -21,7 +21,7 @@ namespace DXLib
 
 		ThrowIfFailed(device->GetDXDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));
 		
-		ThrowIfFailed(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
 
 		ThrowIfFailed(device->GetDXDevice()->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
@@ -82,7 +82,7 @@ namespace DXLib
 		readRange.Begin = 2 * index * sizeof(UINT64);
 		readRange.End = readRange.Begin + 2 * sizeof(UINT64);
 
-		ThrowIfFailed(timestampResultBuffer.value().GetD3D12Resource()->Map(0, &readRange, &mappedData));
+		(timestampResultBuffer.value().GetD3D12Resource()->Map(0, &readRange, &mappedData));
 
 		const UINT64* pTimestamps = reinterpret_cast<UINT64*>(static_cast<UINT8*>(mappedData) + readRange.Begin);
 		const UINT64 timeStampDelta = pTimestamps[1] - pTimestamps[0];
@@ -240,7 +240,7 @@ namespace DXLib
 
 	UINT64 GCommandQueue::GetTimestampFreq()
 	{
-		ThrowIfFailed(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
 		return queueTimestampFrequencies;
 	}
 

@@ -3,7 +3,9 @@
 #include "GTexture.h"
 #include "MemoryAllocator.h"
 #include "assimp/scene.h"
-
+#include "assimp/Importer.hpp"
+#include "assimp/mesh.h"
+#include "assimp/postprocess.h"
 class GCommandList;
 
 namespace DXLib

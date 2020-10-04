@@ -86,7 +86,7 @@ namespace DXLib
 		bool Get4xMsaaState() const;
 		void Set4xMsaaState(bool value);
 
-		int Run();
+		int virtual Run();
 
 		virtual bool Initialize();
 		virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);

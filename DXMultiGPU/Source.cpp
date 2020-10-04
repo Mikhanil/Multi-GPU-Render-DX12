@@ -22,7 +22,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 
 		std::terminate();
 
-		return result;
 	}
 	catch (DxException& e)
 	{
