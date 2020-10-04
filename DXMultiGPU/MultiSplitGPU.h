@@ -31,6 +31,8 @@ public:
 		
 		devices.clear();
 
+		logThreadIsAlive = false;
+		
 	};
 
 	bool Initialize() override;
@@ -77,7 +79,15 @@ private:
 	void inline AddMultiDeviceOpaqueRenderComponent(GameObject* object, std::wstring modelName, PsoType::Type psoType = PsoType::Opaque);
 	void inline CreateGO();
 
-	int percentOfUsePrimeDevice = 50;
+	void CalculateFrameStats() override;
+	void LogWriting();
+
+	UINT64 gpuTimes[GraphicAdapterCount];
+	std::atomic<bool> logThreadIsAlive = true;
+	std::thread logThread;
+	ThreadSafeQueue<std::wstring> logQueue;
+	
+	int percentOfUsePrimeDevice = 100;
 	
 	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;

@@ -195,7 +195,6 @@
     <ClInclude Include="NativeModel.h" />
     <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="Reflected.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Rotater.h" />
     <ClInclude Include="ShaderBuffersData.h" />
@@ -231,7 +230,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Reflected.cpp" />
     <ClCompile Include="Rotater.cpp" />
     <ClCompile Include="ShaderFactory.cpp" />
     <ClCompile Include="ShadowMap.cpp" />

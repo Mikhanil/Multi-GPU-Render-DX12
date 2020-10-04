@@ -2,6 +2,7 @@
 #include "d3dUtil.h"
 #include "GCommandList.h"
 #include "GDevice.h"
+#include "GResource.h"
 #include "GResourceStateTracker.h"
 #include "pix3.h"
 
@@ -19,6 +20,7 @@ namespace DXLib
 		desc.NodeMask = device->GetNodeMask();
 
 		ThrowIfFailed(device->GetDXDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));
+		
 		ThrowIfFailed(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
 
 		ThrowIfFailed(device->GetDXDevice()->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
@@ -48,10 +50,51 @@ namespace DXLib
 			break;
 		}
 
+		// Two timestamps for each frame.
+		const UINT resultCount = 2 * globalCountFrameResources;
+		const UINT resultBufferSize = resultCount * sizeof(UINT64);
 
+		timestampResultBuffer = DXLib::Lazy<GResource>([resultBufferSize, this]
+			{
+				return GResource(this->device, CD3DX12_RESOURCE_DESC::Buffer(resultBufferSize),
+					this->device->GetName() + L" TimestampBuffer", nullptr, D3D12_RESOURCE_STATE_COPY_DEST,
+					CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK));
+			});
+
+		timestampQueryHeap = DXLib::Lazy<ComPtr<ID3D12QueryHeap>>([this, resultCount]
+			{
+				D3D12_QUERY_HEAP_DESC timestampHeapDesc = {};
+				timestampHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+				timestampHeapDesc.Count = resultCount;
+				timestampHeapDesc.NodeMask = this->device->GetNodeMask();
+
+				ComPtr<ID3D12QueryHeap> heap;
+				ThrowIfFailed(this->device->GetDXDevice()->CreateQueryHeap(&timestampHeapDesc, IID_PPV_ARGS(&heap)));
+				return heap;
+			});
+
+		
 		CommandListExecutorThread = std::thread(&GCommandQueue::ProccessInFlightCommandLists, this);
 	}
 
+	UINT64 GCommandQueue::GetTimestamp(UINT index)
+	{
+		readRange.Begin = 2 * index * sizeof(UINT64);
+		readRange.End = readRange.Begin + 2 * sizeof(UINT64);
+
+		ThrowIfFailed(timestampResultBuffer.value().GetD3D12Resource()->Map(0, &readRange, &mappedData));
+
+		const UINT64* pTimestamps = reinterpret_cast<UINT64*>(static_cast<UINT8*>(mappedData) + readRange.Begin);
+		const UINT64 timeStampDelta = pTimestamps[1] - pTimestamps[0];
+
+		// Unmap with an empty range (written range).
+		timestampResultBuffer.value().GetD3D12Resource()->Unmap(0, &emptyRange);
+
+		// Calculate the GPU execution time in microseconds.
+		return (timeStampDelta * 1000000) / queueTimestampFrequencies;
+	}
+
+	
 	GCommandQueue::~GCommandQueue()
 	{
 		HardStop();
@@ -101,7 +144,7 @@ namespace DXLib
 
 		if (m_AvailableCommandLists.Empty())
 		{
-			commandList = std::make_shared<GCommandList>(this->device, this->type);
+			commandList = std::make_shared<GCommandList>(std::shared_ptr<GCommandQueue>(this), this->type);
 			return commandList;
 		}
 
@@ -193,6 +236,12 @@ namespace DXLib
 	uint64_t GCommandQueue::GetFenceValue() const
 	{
 		return FenceValue;
+	}
+
+	UINT64 GCommandQueue::GetTimestampFreq()
+	{
+		ThrowIfFailed(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		return queueTimestampFrequencies;
 	}
 
 	void GCommandQueue::HardStop()

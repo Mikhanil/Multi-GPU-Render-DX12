@@ -127,6 +127,7 @@ namespace DXLib
 
 
 		uint64_t frameCount = 0;
+		float timeElapsed = 0.0f;
 		GameTimer timer;
 
 		bool virtual InitMainWindow();
@@ -135,7 +136,7 @@ namespace DXLib
 		bool InitDirect3D();
 
 
-		void CalculateFrameStats() const;
+		void virtual CalculateFrameStats();
 
 		void LogAdapters();
 	};

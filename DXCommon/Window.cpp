@@ -201,7 +201,6 @@ namespace DXLib
 		  , height(clientHeight)
 		  , vSync(vSync)
 		  , fullscreen(false)
-		  , frameCounter(0)
 		  , device(device)
 	{
 		RECT R = {0, 0, clientWidth, clientHeight};
@@ -249,43 +248,27 @@ namespace DXLib
 
 	void Window::OnUpdate()
 	{
-		updateClock.Tick();
+	
 	}
 
 	void Window::CalculateFrameStats()
 	{
-		frameCnt++;
-
-		if ((renderClock.TotalTime() - timeElapsed) >= 1.0f)
-		{
-			float fps = static_cast<float>(frameCnt); // fps = frameCnt / 1
-			float mspf = 1000.0f / fps;
-
-			auto fpsStr = std::to_wstring(fps);
-			std::wstring mspfStr = std::to_wstring(mspf);
-
-			std::wstring windowText = windowName +
-				L"    fps: " + fpsStr +
-				L"   mspf: " + mspfStr;
-
-			SetWindowText(hWnd, windowText.c_str());
-
-			frameCnt = 0;
-			timeElapsed += 1.0f;
-		}
+		
 	}
 
+	void Window::SetWindowTitle(std::wstring text) const
+	{
+		SetWindowText(hWnd, text.c_str());
+	}
+	
 	void Window::OnRender()
 	{
-		renderClock.Tick();
-
-		CalculateFrameStats();
+		
 	}
 
 	void Window::ResetTimer()
 	{
-		renderClock.Reset();
-		updateClock.Reset();
+		
 	}
 
 	void Window::OnResize()

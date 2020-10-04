@@ -22,18 +22,18 @@ void GCommandList::TrackResource(const GResource& res)
 
 std::shared_ptr<GDevice> GCommandList::GetDevice() const
 {
-	return device;
+	return queue->device;
 }
 
-GCommandList::GCommandList(const std::shared_ptr<GDevice> device, D3D12_COMMAND_LIST_TYPE type)
-	: type(type), device(device)
+GCommandList::GCommandList(const std::shared_ptr<DXLib::GCommandQueue> queue, D3D12_COMMAND_LIST_TYPE type)
+	: type(type), queue(queue)
 {
-	ThrowIfFailed(device->GetDXDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&cmdAllocator)));
+	ThrowIfFailed(queue->device->GetDXDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&cmdAllocator)));
 
-	ThrowIfFailed(device->GetDXDevice()->CreateCommandList(device->GetNodeMask(), type, cmdAllocator.Get(),
+	ThrowIfFailed(queue->device->GetDXDevice()->CreateCommandList(queue->device->GetNodeMask(), type, cmdAllocator.Get(),
 		nullptr, IID_PPV_ARGS(&cmdList)));
 
-	uploadBuffer = std::make_unique<GDataUploader>(device);
+	uploadBuffer = std::make_unique<GDataUploader>(queue->device);
 
 	tracker = std::make_unique<GResourceStateTracker>();
 
@@ -47,6 +47,21 @@ GCommandList::~GCommandList()
 {
 	uploadBuffer->Clear();
 	uploadBuffer.reset();
+}
+
+void GCommandList::BeginQuery(UINT index) const
+{
+	cmdList->BeginQuery(queue->timestampQueryHeap.value().Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
+}
+
+void GCommandList::EndQuery(UINT index) const
+{
+	cmdList->EndQuery(queue->timestampQueryHeap.value().Get(), D3D12_QUERY_TYPE_TIMESTAMP, index);
+}
+
+void GCommandList::ResolveQuery(UINT index, UINT quriesCount, UINT64 aligned) const
+{
+	cmdList->ResolveQueryData(queue->timestampQueryHeap.value().Get(), D3D12_QUERY_TYPE_TIMESTAMP, index, quriesCount, queue->timestampResultBuffer.value().GetD3D12Resource().Get(), aligned);
 }
 
 D3D12_COMMAND_LIST_TYPE GCommandList::GetCommandListType() const

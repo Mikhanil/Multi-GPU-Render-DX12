@@ -7,11 +7,13 @@
 #include <memory>
 #include <condition_variable> 
 
+
+#include "Lazy.h"
 #include "ThreadSafeQueue.h"
 
 class GCommandList;
 class GDevice;
-
+class GResource;
 namespace DXLib
 {
 	using namespace Microsoft::WRL;
@@ -48,10 +50,14 @@ namespace DXLib
 
 		uint64_t GetFenceValue() const;
 
+		UINT64 GetTimestampFreq();	
 
+		UINT64 GetTimestamp(UINT index);
+		
 	private:
 
 		friend class GDevice;
+		friend class GCommandList;
 
 		void HardStop();
 
@@ -65,8 +71,17 @@ namespace DXLib
 			std::shared_ptr<GCommandList> commandList;
 		};
 
+		// Get the timestamp values from the result buffers.
+		D3D12_RANGE readRange = {};
+		const D3D12_RANGE emptyRange = {};
 
-		UINT64 queueTimestampFrequencies = 0;
+		void* mappedData = nullptr;
+		DXLib::Lazy<GResource> timestampResultBuffer;
+		Lazy<ComPtr<ID3D12QueryHeap>> timestampQueryHeap;
+
+		
+		UINT64 queueTimestampFrequencies;
+		LARGE_INTEGER cpuTimestampFrequencies;
 		
 		D3D12_COMMAND_LIST_TYPE type;
 		std::shared_ptr<GDevice> device;

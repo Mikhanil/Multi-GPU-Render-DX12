@@ -55,6 +55,7 @@ namespace DXLib
 
 		GTexture& GetBackBuffer(UINT i);
 
+		void SetWindowTitle(std::wstring text) const;
 	protected:
 
 		friend class D3DApp;
@@ -77,7 +78,7 @@ namespace DXLib
 	private:
 
 		int frameCnt = 0;
-		float timeElapsed = 0.0f;
+		
 		HANDLE swapChainEvent;
 
 
@@ -91,9 +92,7 @@ namespace DXLib
 		int height;
 		bool vSync;
 		bool fullscreen;
-		GameTimer updateClock;
-		GameTimer renderClock;
-		uint64_t frameCounter;
+		
 		
 		ComPtr<IDXGISwapChain4> CreateSwapChain();
 		ComPtr<IDXGISwapChain4> swapChain;		

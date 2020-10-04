@@ -196,8 +196,6 @@ GDevice::GDevice(ComPtr<IDXGIAdapter3> adapter) : adapter(adapter)
 			));
 		return options.CrossAdapterRowMajorTextureSupported;
 	});
-
-	crossAdapterTextureSupport.value();
 }
 
 ComPtr<ID3D12Device> GDevice::GetDXDevice() const
@@ -217,6 +215,9 @@ GDevice::~GDevice()
 	
 	device->Release();
 }
+
+
+
 
 void GDevice::ResetAllocator(uint64_t frameCount)
 {

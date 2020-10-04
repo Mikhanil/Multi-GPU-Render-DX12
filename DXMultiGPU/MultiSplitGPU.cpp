@@ -1,6 +1,12 @@
 #include "MultiSplitGPU.h"
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
+
+#include <chrono>
+#include <ctime>    
+#include <fstream>
+
 #include "CameraController.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
@@ -13,6 +19,7 @@
 #include "SkyBox.h"
 #include "Transform.h"
 #include "Window.h"
+
 
 MultiSplitGPU::MultiSplitGPU(HINSTANCE hInstance): D3DApp(hInstance)
 {
@@ -664,10 +671,107 @@ void MultiSplitGPU::CreateGO()
 	
 }
 
+void MultiSplitGPU::CalculateFrameStats()
+{
+	static float minFps = std::numeric_limits<float>::max();
+	static float minMspf = std::numeric_limits<float>::max();
+	static float maxFps = std::numeric_limits<float>::min();
+	static float maxMspf = std::numeric_limits<float>::min();
+	static UINT writeStaticticCount = 0;
+	
+	frameCount++;
+	
+	if ((timer.TotalTime() - timeElapsed) >= 1.0f)
+	{
+		float fps = static_cast<float>(frameCount); // fps = frameCnt / 1
+		float mspf = 1000.0f / fps;
+
+		minFps = std::min(fps, minFps);
+		minMspf = std::min(mspf, minMspf);
+		maxFps = std::max(fps, maxFps);
+		maxMspf = std::max(mspf, maxMspf);
+
+		if(writeStaticticCount >= 60)
+		{
+			std::wstring staticticStr = L"Main device use on " + std::to_wstring(percentOfUsePrimeDevice) + L"%"
+			+ L"\n\tMin FPS: " + std::to_wstring(minFps)
+			+ L"\n\tMin MSPF: " + std::to_wstring(minMspf)
+			+ L"\n\tMax FPS: " + std::to_wstring(maxFps)
+			+ L"\n\tMax MSPF: " + std::to_wstring(maxMspf)	
+			+ L"\n\tPrime GPU Rendering Time in microseconds: " + std::to_wstring(gpuTimes[GraphicAdapterPrimary]) +
+			+ L"\n\tSecond GPU Rendering Time in microseconds: " + std::to_wstring(gpuTimes[GraphicAdapterSecond]);
+
+			logQueue.Push(staticticStr);
+			
+			minFps = std::numeric_limits<float>::max();
+			minMspf = std::numeric_limits<float>::max();
+			maxFps = std::numeric_limits<float>::min();
+			maxMspf = std::numeric_limits<float>::min();
+			writeStaticticCount = 0;
+
+			if (percentOfUsePrimeDevice > 0)
+			{				
+				percentOfUsePrimeDevice = std::clamp(percentOfUsePrimeDevice - 5, 0, 100);				
+				OnResize();
+			}
+		}
+		
+		frameCount = 0;
+		timeElapsed += 1.0f;
+		writeStaticticCount++;
+	}
+}
+
+void MultiSplitGPU::LogWriting()
+{
+	std::time_t t = std::time(0);
+	
+	tm now;
+	localtime_s(&now, &t);
+	
+	std::filesystem::path filePath( L"LogData" + std::to_wstring(now.tm_mday) + L"-" + std::to_wstring(now.tm_mon + 1) + L"-" + std::to_wstring((now.tm_year + 1900)) + L"-" + std::to_wstring(now.tm_hour) + L"-" + std::to_wstring(now.tm_min) + L".txt");
+
+	
+
+	auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
+
+	OutputDebugStringW(path.c_str());
+	
+	std::wofstream fileSteam;
+	fileSteam.open(path.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
+	if (fileSteam.is_open())
+	{
+		fileSteam << L"Information" << std::endl;
+		fileSteam << L"Prime Device: "	<< devices[GraphicAdapterPrimary]->GetName() << std::endl;
+		fileSteam << L"\t Cross Adapter Texture Support: "	<< devices[GraphicAdapterPrimary]->IsCrossAdapterTextureSupported() << std::endl;
+		fileSteam << L"Second Device: " << devices[GraphicAdapterSecond]->GetName() << std::endl;
+		fileSteam << L"\t Cross Adapter Texture Support: " << devices[GraphicAdapterSecond]->IsCrossAdapterTextureSupported() << std::endl;		
+	}
+
+	std::wstring line;
+	while (logThreadIsAlive)
+	{		
+		while(logQueue.TryPop(line))
+		{
+			fileSteam << line << std::endl;
+		}
+
+		Sleep(1000);
+	}
+
+
+	fileSteam.close();
+}
+
+
 bool MultiSplitGPU::Initialize()
 {
 	InitDevices();
 	InitMainWindow();
+
+
+	logThread = std::thread(&MultiSplitGPU::LogWriting, this);
+
 	
 	LoadStudyTexture();	
 	LoadModels();
@@ -715,6 +819,14 @@ void MultiSplitGPU::Update(const GameTimer& gt)
 {
 	const auto commandQueue = devices[GraphicAdapterSecond]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
+	auto olderIndex = currentFrameResourceIndex > globalCountFrameResources ? 0 : currentFrameResourceIndex;
+	{
+		for (int i = 0; i < GraphicAdapterCount; ++i)
+		{
+			gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
+		}
+	}
+	
 	currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
 	currentFrameResource = frameResources[currentFrameResourceIndex];
 
@@ -1085,8 +1197,6 @@ void MultiSplitGPU::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, st
 	}
 }
 
-
-
 void MultiSplitGPU::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, PsoType::Type type)
 {
 	for (auto && renderer : typedRenderer[adapterIndex][type])
@@ -1124,7 +1234,6 @@ void MultiSplitGPU::PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, 
 	cmdList->FlushResourceBarriers();
 }
 
-
 void MultiSplitGPU::PopulateCopyResourceRegion(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource)
 {
 	cmdList->CopyTextureRegion(dstResource, 0, 0, 0, srcResource, &copyRegionBox);
@@ -1138,6 +1247,8 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
+	// Get a timestamp at the start of the command list.
+	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 	
 	
 	if(percentOfUsePrimeDevice == 100)
@@ -1147,15 +1258,27 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 
 		const auto primeRenderCmdList = primeQueue->GetCommandList();
 
+	
+		primeRenderCmdList->EndQuery(timestampHeapIndex);
+		
 		PopulateShadowMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
 		PopulateNormalMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
 		PopulateAmbientMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
 		PopulateForwardPathCommands(GraphicAdapterPrimary, primeRenderCmdList);
 		PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RenderTargetViewMemory[GraphicAdapterPrimary], 0);
 		PopulateCopyResource(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
+		
+		// Get a timestamp at the end of the command list and resolve the query data.
+		primeRenderCmdList->EndQuery(timestampHeapIndex+1);
+		primeRenderCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+		
 
+		
 		const auto secondDeviceCopyList = secondQueue->GetCommandList();
+		secondDeviceCopyList->EndQuery(timestampHeapIndex);
 		PopulateCopyResource(secondDeviceCopyList, currentFrameResource->CrossAdapterBackBuffer->GetSharedResource(), MainWindow->GetCurrentBackBuffer());
+		secondDeviceCopyList->EndQuery(timestampHeapIndex + 1);
+		secondDeviceCopyList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
 		
 		const auto primeDeviceFinishRendering = primeQueue->ExecuteCommandList(primeRenderCmdList);
@@ -1173,12 +1296,16 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 			auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
 
 			const auto secondRenderCmdList = secondQueue->GetCommandList();
+			secondRenderCmdList->EndQuery(timestampHeapIndex);
 			PopulateShadowMapCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateNormalMapCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateAmbientMapCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateForwardPathCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RenderTargetViewMemory[GraphicAdapterSecond], 0);
+			secondRenderCmdList->EndQuery(timestampHeapIndex + 1);
+			secondRenderCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
+			
 			currentFrameResource->FenceValue = secondQueue->ExecuteCommandList(secondRenderCmdList);
 			MainWindow->Present();
 		}
@@ -1189,23 +1316,31 @@ void MultiSplitGPU::Draw(const GameTimer& gt)
 
 
 			auto primeRenderCmdList = primeQueue->GetCommandList();
-
+			primeRenderCmdList->EndQuery(timestampHeapIndex);
 			PopulateShadowMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
 			PopulateNormalMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
 			PopulateAmbientMapCommands(GraphicAdapterPrimary, primeRenderCmdList);
 			PopulateForwardPathCommands(GraphicAdapterPrimary, primeRenderCmdList);
 			PopulateDrawQuadCommand(GraphicAdapterPrimary, primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, &currentFrameResource->RenderTargetViewMemory[GraphicAdapterPrimary], 0);
 			PopulateCopyResourceRegion(primeRenderCmdList, currentFrameResource->PrimeDeviceBackBuffer, currentFrameResource->CrossAdapterBackBuffer->GetPrimeResource());
-
+			
+			// Get a timestamp at the end of the command list and resolve the query data.
+			primeRenderCmdList->EndQuery(timestampHeapIndex + 1);
+			primeRenderCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
 
 			auto secondRenderCmdList = secondQueue->GetCommandList();
+			secondRenderCmdList->EndQuery(timestampHeapIndex);
 			PopulateShadowMapCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateNormalMapCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateAmbientMapCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateForwardPathCommands(GraphicAdapterSecond, secondRenderCmdList);
 			PopulateDrawQuadCommand(GraphicAdapterSecond, secondRenderCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->RenderTargetViewMemory[GraphicAdapterSecond], 0);
 
+			// Get a timestamp at the end of the command list and resolve the query data.
+			secondRenderCmdList->EndQuery(timestampHeapIndex + 1);
+			secondRenderCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+			
 			const auto secondDeviceFinishRendering = secondQueue->ExecuteCommandList(secondRenderCmdList);
 
 			const auto primeDeviceFinishRendering = primeQueue->ExecuteCommandList(primeRenderCmdList);
@@ -1248,22 +1383,15 @@ void MultiSplitGPU::OnResize()
 	int primeWidth = std::clamp(int(MainWindow->GetClientWidth() * currentPrimeRatio) - pixelDeviceZoneSize, 1, MainWindow->GetClientWidth() - 2 * pixelDeviceZoneSize);
 	int secondWidth = primeWidth + 2 * pixelDeviceZoneSize == MainWindow->GetClientWidth() ? primeWidth + 2 * pixelDeviceZoneSize - 1 : primeWidth + 2 * pixelDeviceZoneSize;
 	
-	if(percentOfUsePrimeDevice == 100)
+	if(percentOfUsePrimeDevice == 100 || percentOfUsePrimeDevice == 0)
 	{
-		adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0,  MainWindow->GetClientWidth(), MainWindow->GetClientHeight() };
+		adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0,  MainWindow->GetClientWidth() - pixelDeviceZoneSize, MainWindow->GetClientHeight() };
+		adapterRects[GraphicAdapterSecond] = D3D12_RECT{ pixelDeviceZoneSize,0, MainWindow->GetClientWidth(), MainWindow->GetClientHeight() };
 	}
 	else
 	{
-		if(percentOfUsePrimeDevice == 0)
-		{
-			adapterRects[GraphicAdapterSecond] = D3D12_RECT{ 0,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
-		}
-		else
-		{
-			adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0,  primeWidth, MainWindow->GetClientHeight() };
-
-			adapterRects[GraphicAdapterSecond] = D3D12_RECT{ secondWidth,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
-		}
+		adapterRects[GraphicAdapterPrimary] = D3D12_RECT{ 0,0,  primeWidth, MainWindow->GetClientHeight() };
+		adapterRects[GraphicAdapterSecond] = D3D12_RECT{ secondWidth,0, MainWindow->GetClientWidth() , MainWindow->GetClientHeight() };
 	}	
 
 		

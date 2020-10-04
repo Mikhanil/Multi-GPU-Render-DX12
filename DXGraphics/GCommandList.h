@@ -9,6 +9,11 @@
 class ShaderBuffer;
 using namespace Microsoft::WRL;
 
+namespace DXLib
+{
+	class GCommandQueue;
+}
+
 class GDevice;
 class GResource;
 class GTexture;
@@ -47,14 +52,17 @@ private:
 	void TrackResource(ComPtr<ID3D12Object> object);
 	void TrackResource(const GResource& res);
 
-	std::shared_ptr<GDevice> device;
+	std::shared_ptr<DXLib::GCommandQueue> queue;
 
 public:
 
 	std::shared_ptr<GDevice> GetDevice() const;
 
-	GCommandList(const std::shared_ptr<GDevice> device, D3D12_COMMAND_LIST_TYPE type);
+	GCommandList(const std::shared_ptr<DXLib::GCommandQueue> queue, D3D12_COMMAND_LIST_TYPE type);
 	virtual ~GCommandList();
+	void BeginQuery(UINT index) const;
+	void EndQuery(UINT index) const;
+	void ResolveQuery(UINT index, UINT quriesCount, UINT64 aligned) const;
 
 	D3D12_COMMAND_LIST_TYPE GetCommandListType() const;
 

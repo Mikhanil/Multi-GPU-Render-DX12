@@ -446,9 +446,27 @@ namespace DXLib
 		return true;
 	}
 
-	void D3DApp::CalculateFrameStats() const
+	void D3DApp::CalculateFrameStats()
 	{
-		MainWindow->OnRender();
+		frameCount++;
+
+		if ((timer.TotalTime() - timeElapsed) >= 1.0f)
+		{
+			float fps = static_cast<float>(frameCount); // fps = frameCnt / 1
+			float mspf = 1000.0f / fps;
+
+			auto fpsStr = std::to_wstring(fps);
+			std::wstring mspfStr = std::to_wstring(mspf);
+
+			std::wstring windowText = MainWindow->GetWindowName() +
+				L"    fps: " + fpsStr +
+				L"   mspf: " + mspfStr;
+
+			MainWindow->SetWindowTitle(windowText);
+
+			frameCount = 0;
+			timeElapsed += 1.0f;
+		}
 	}
 
 	void D3DApp::LogAdapters()

@@ -63,9 +63,6 @@
     <ClInclude Include="ObjectMover.h">
       <Filter>Components</Filter>
     </ClInclude>
-    <ClInclude Include="Reflected.h">
-      <Filter>Components</Filter>
-    </ClInclude>
     <ClInclude Include="Renderer.h">
       <Filter>Components</Filter>
     </ClInclude>
@@ -183,9 +180,6 @@
       <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="ObjectMover.cpp">
-      <Filter>Components</Filter>
-    </ClCompile>
-    <ClCompile Include="Reflected.cpp">
       <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="Rotater.cpp">
