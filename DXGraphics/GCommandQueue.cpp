@@ -19,9 +19,7 @@ namespace DXLib
 		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 		desc.NodeMask = device->GetNodeMask();
 
-		ThrowIfFailed(device->GetDXDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));
-		
-		(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		ThrowIfFailed(device->GetDXDevice()->CreateCommandQueue(&desc, IID_PPV_ARGS(&commandQueue)));		
 
 		ThrowIfFailed(device->GetDXDevice()->CreateFence(FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
@@ -240,7 +238,9 @@ namespace DXLib
 
 	UINT64 GCommandQueue::GetTimestampFreq()
 	{
-		(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		if(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+			(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		
 		return queueTimestampFrequencies;
 	}
 

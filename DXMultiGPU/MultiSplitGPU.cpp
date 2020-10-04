@@ -207,7 +207,7 @@ void MultiSplitGPU::InitPipeLineResource()
 	{
 		defaultPipelineResources.push_back(std::move(ShaderFactory()));
 		defaultPipelineResources[i].LoadDefaultShaders();
-		defaultPipelineResources[i].LoadDefaultPSO(devices[i], rootSignatures[i], desc, backBufferFormat, depthStencilFormat, ssaoRootSignatures[i], NormalMapFormat, AmbientMapFormat );
+		defaultPipelineResources[i].LoadDefaultPSO(devices[i], rootSignatures[i], desc, BackBufferFormat, DepthStencilFormat, ssaoRootSignatures[i], NormalMapFormat, AmbientMapFormat );
 
 
 		ambientPaths[i]->SetPSOs(*defaultPipelineResources[i].GetPSO(PsoType::Ssao), *defaultPipelineResources[i].GetPSO(PsoType::SsaoBlur));
@@ -866,9 +866,7 @@ bool MultiSplitGPU::Initialize()
 	SortGO();
 	InitFrameResource();
 	
-	OnResize();	
-
-	
+	OnResize();		
 
 	for (auto && device : devices)
 	{
@@ -1480,7 +1478,7 @@ void MultiSplitGPU::OnResize()
 	
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-	rtvDesc.Format = GetSRGBFormat(backBufferFormat);
+	rtvDesc.Format = GetSRGBFormat(BackBufferFormat);
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	for (int i = 0; i < globalCountFrameResources; ++i)

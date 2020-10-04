@@ -23,7 +23,7 @@ public:
 
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	static const DXGI_FORMAT DepthMapFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	static const DXGI_FORMAT DepthMapFormat = DXGI_FORMAT_R24G8_TYPELESS;
 
 	static const int MaxBlurRadius = 5;
 

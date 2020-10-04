@@ -278,7 +278,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 	/*Пока выключил гамма корекцию.*/
 	if (usage == TextureUsage::Albedo && filePath.extension() != ".dds")
 	{
-		//metadata.format = MakeSRGB(metadata.format);
+		metadata.format = GetUAVCompatableFormat(metadata.format);
 	}
 
 	D3D12_RESOURCE_DESC desc = {};

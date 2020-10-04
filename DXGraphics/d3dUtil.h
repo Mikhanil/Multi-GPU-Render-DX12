@@ -101,6 +101,8 @@ inline void d3dSetDebugName(ID3D12DeviceChild* obj, const char* name)
 inline DXGI_FORMAT GetSRGBFormat(DXGI_FORMAT format)
 {
 	DXGI_FORMAT srgbFormat = format;
+
+	return srgbFormat;
 	switch (format)
 	{
 	case DXGI_FORMAT_R8G8B8A8_UNORM:

@@ -92,13 +92,7 @@ private:
 	ThreadSafeQueue<std::wstring> logQueue;
 	std::atomic<UINT> statisticCount = 0;
 	
-	int percentOfUsePrimeDevice = 100;
-	
-	DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-	DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
-	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	static const DXGI_FORMAT DepthMapFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	int percentOfUsePrimeDevice = 100;	
 
 	
 	D3D12_VIEWPORT fullViewport{};

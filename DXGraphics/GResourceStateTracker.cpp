@@ -98,8 +98,11 @@ void GResourceStateTracker::ResourceBarrier(const D3D12_RESOURCE_BARRIER& barrie
 		}
 
 		// Push the final known state (possibly replacing the previously known state for the subresource).
-		finalResourceState[transitionBarrier.pResource].SetSubresourceState(
-			transitionBarrier.Subresource, transitionBarrier.StateAfter);
+		if (transitionBarrier.pResource) {
+			finalResourceState[transitionBarrier.pResource] = ResourceState();
+			finalResourceState[transitionBarrier.pResource].SetSubresourceState(
+				transitionBarrier.Subresource, transitionBarrier.StateAfter);
+		}
 	}
 	else
 	{
@@ -221,7 +224,7 @@ void GResourceStateTracker::CommitFinalResourceStates()
 	assert(isLocked);
 
 	// Commit final resource states to the global resource state array (map).
-	for (const auto& resourceState : finalResourceState)
+	for (auto && resourceState : finalResourceState)
 	{
 		globalResourceState[resourceState.first] = resourceState.second;
 	}
@@ -232,9 +235,17 @@ void GResourceStateTracker::CommitFinalResourceStates()
 void GResourceStateTracker::Reset()
 {
 	// Reset the pending, current, and final resource states.
-	pendingResourceBarriers.clear();
-	resourceBarriers.clear();
-	finalResourceState.clear();
+	try
+	{		
+		pendingResourceBarriers.clear();
+		resourceBarriers.clear();
+		finalResourceState.erase(nullptr);
+		finalResourceState.clear();
+	}
+	catch (...)
+	{
+	}
+	
 }
 
 void GResourceStateTracker::Lock()
