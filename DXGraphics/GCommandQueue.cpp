@@ -48,10 +48,13 @@ namespace DXLib
 			break;
 		}
 
+		GetTimestampFreq();
+		
 		// Two timestamps for each frame.
 		const UINT resultCount = 2 * globalCountFrameResources;
 		const UINT resultBufferSize = resultCount * sizeof(UINT64);
 
+		
 		timestampResultBuffer = DXLib::Lazy<GResource>([resultBufferSize, this]
 			{
 				return GResource(this->device, CD3DX12_RESOURCE_DESC::Buffer(resultBufferSize),
@@ -77,7 +80,7 @@ namespace DXLib
 
 	UINT64 GCommandQueue::GetTimestamp(UINT index)
 	{
-		if (type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+		if (type != D3D12_COMMAND_LIST_TYPE_DIRECT && type != D3D12_COMMAND_LIST_TYPE_COMPUTE)
 		{
 			return 0;
 		}
@@ -247,13 +250,22 @@ namespace DXLib
 
 	UINT64 GCommandQueue::GetTimestampFreq()
 	{
-		if (type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+		if (type != D3D12_COMMAND_LIST_TYPE_DIRECT && type != D3D12_COMMAND_LIST_TYPE_COMPUTE)
 		{
 			return 0;
 		}
+
+		if(queueTimestampFrequencies == 0)
+		{
+			(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+
+			if(queueTimestampFrequencies == 0)
+			{
+				queueTimestampFrequencies = UINT64_MAX;
+			}
+		}
 		
 	
-		(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));		
 		return queueTimestampFrequencies;
 	}
 

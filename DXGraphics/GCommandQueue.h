@@ -80,7 +80,7 @@ namespace DXLib
 		Lazy<ComPtr<ID3D12QueryHeap>> timestampQueryHeap;
 
 		
-		UINT64 queueTimestampFrequencies;
+		UINT64 queueTimestampFrequencies = 0;
 		LARGE_INTEGER cpuTimestampFrequencies;
 		
 		D3D12_COMMAND_LIST_TYPE type;
