@@ -381,7 +381,7 @@ void GCommandList::AliasingBarrier(ComPtr<ID3D12Resource> beforeResource,
 
 void GCommandList::FlushResourceBarriers() const
 {
-	tracker->FlushResourceBarriers(*cmdList.Get());
+	tracker->FlushResourceBarriers(cmdList);
 }
 
 void GCommandList::TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter, UINT subresource,
@@ -500,17 +500,22 @@ void GCommandList::Reset(GraphicPSO* pso)
 	ThrowIfFailed(cmdList->Reset(cmdAllocator.Get(), setedPSO.Get()));
 }
 
-bool GCommandList::Close(GCommandList& pendingCommandList) const
+bool GCommandList::Close(std::shared_ptr<GCommandList>& pendingCommandList) const
 {
 	// Flush any remaining barriers.
 	FlushResourceBarriers();
 
 	cmdList->Close();
 
-	const auto peddingCmdList = pendingCommandList.GetGraphicsCommandList();
+	uint32_t numPendingBarriers = 0;
 
-	// Flush pending resource barriers.
-	const uint32_t numPendingBarriers = tracker->FlushPendingResourceBarriers(*peddingCmdList.Get());
+	if(pendingCommandList != nullptr)
+	{
+		const auto peddingCmdList = pendingCommandList->GetGraphicsCommandList();
+
+		// Flush pending resource barriers.
+		numPendingBarriers = tracker->FlushPendingResourceBarriers(peddingCmdList);
+	}	
 	// Commit the final resource state to the global state.
 	tracker->CommitFinalResourceStates();
 

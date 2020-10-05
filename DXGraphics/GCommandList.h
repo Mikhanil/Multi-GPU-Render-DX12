@@ -155,7 +155,7 @@ public:
 
 	void Reset(GraphicPSO* pso = nullptr);
 
-	bool Close(GCommandList& pendingCommandList) const;
+	bool Close(std::shared_ptr<GCommandList>& pendingCommandList) const;
 
 	void Close() const;
 };

@@ -147,7 +147,7 @@ void GResourceStateTracker::AliasBarrier(const GResource* resourceBefore, const 
 	ResourceBarrier(CD3DX12_RESOURCE_BARRIER::Aliasing(pResourceBefore, pResourceAfter));
 }
 
-void GResourceStateTracker::FlushResourceBarriers(ID3D12GraphicsCommandList2& commandList)
+void GResourceStateTracker::FlushResourceBarriers(ComPtr<ID3D12GraphicsCommandList2> commandList)
 {
 	FlushPendingResourceBarriers(commandList);
 
@@ -155,12 +155,12 @@ void GResourceStateTracker::FlushResourceBarriers(ID3D12GraphicsCommandList2& co
 	UINT numBarriers = static_cast<UINT>(resourceBarriers.size());
 	if (numBarriers > 0)
 	{
-		commandList.ResourceBarrier(numBarriers, resourceBarriers.data());
+		commandList->ResourceBarrier(numBarriers, resourceBarriers.data());
 		resourceBarriers.clear();
 	}
 }
 
-uint32_t GResourceStateTracker::FlushPendingResourceBarriers(ID3D12GraphicsCommandList2& commandList)
+uint32_t GResourceStateTracker::FlushPendingResourceBarriers(ComPtr<ID3D12GraphicsCommandList2> commandList)
 {
 	// Resolve the pending resource barriers by checking the global state of the 
 	// (sub)resources. Add barriers if the pending state and the global state do
@@ -215,7 +215,7 @@ uint32_t GResourceStateTracker::FlushPendingResourceBarriers(ID3D12GraphicsComma
 	UINT numBarriers = static_cast<UINT>(resourceBarriers.size());
 	if (numBarriers > 0)
 	{
-		commandList.ResourceBarrier(numBarriers, resourceBarriers.data());
+		commandList->ResourceBarrier(numBarriers, resourceBarriers.data());
 	}
 
 	pendingResourceBarriers.clear();

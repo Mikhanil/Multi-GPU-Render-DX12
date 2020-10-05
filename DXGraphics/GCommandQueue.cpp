@@ -151,7 +151,7 @@ namespace DXLib
 			return commandList;
 		}
 
-		if (availableCommandLists.Size() > 0 || availableCommandLists.TryPop(commandList))
+		if (availableCommandLists.TryPop(commandList))
 		{
 			return commandList;
 		}
@@ -181,8 +181,10 @@ namespace DXLib
 			auto commandList = commandLists[i];
 
 			auto pendingCommandList = GetCommandList();
-			bool hasPendingBarriers = commandList->Close(*pendingCommandList);
-			pendingCommandList->Close();
+			
+			bool hasPendingBarriers = commandList->Close(pendingCommandList);
+			if(pendingCommandList != nullptr)
+				pendingCommandList->Close();
 			// If there are no pending barriers on the pending command list, there is no reason to 
 			// execute an empty command list on the command queue.
 			if (hasPendingBarriers)
@@ -191,7 +193,9 @@ namespace DXLib
 			}
 			d3d12CommandLists.push_back(commandList->GetGraphicsCommandList().Get());
 
-			toBeQueued.push_back(pendingCommandList);
+			if (pendingCommandList != nullptr)
+				toBeQueued.push_back(pendingCommandList);
+			
 			toBeQueued.push_back(commandList);
 		}
 

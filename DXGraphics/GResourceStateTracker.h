@@ -34,10 +34,10 @@ public:
     void AliasBarrier(const GResource* resourceBefore = nullptr, const GResource* resourceAfter = nullptr);
 
     
-    uint32_t FlushPendingResourceBarriers(ID3D12GraphicsCommandList2& commandList);
+    uint32_t FlushPendingResourceBarriers(ComPtr<ID3D12GraphicsCommandList2> commandList);
 
    
-    void FlushResourceBarriers(ID3D12GraphicsCommandList2& commandList);
+    void FlushResourceBarriers(ComPtr<ID3D12GraphicsCommandList2> commandList);
 
    
     void CommitFinalResourceStates();
