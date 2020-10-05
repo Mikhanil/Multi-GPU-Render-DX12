@@ -438,29 +438,19 @@ void MultiSplitGPU::MipMasGenerate()
 			const auto computeQueue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 			auto computeList = computeQueue->GetCommandList();
 			GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
-
-			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
-			
+			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));			
 			logQueue.Push(std::wstring(L"\nMip Map Generation for " + devices[i]->GetName()));
 			
+			computeList = computeQueue->GetCommandList();
 			for (auto&& texture : generatedMipTextures)
-			{
 				computeList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
-			}
-			
-			computeList->FlushResourceBarriers();
-			
-			logQueue.Push(std::wstring(L"\nTexture Barrier Generation for " + devices[i]->GetName()));
-			
+			computeList->FlushResourceBarriers();			
+			logQueue.Push(std::wstring(L"\nTexture Barrier Generation for " + devices[i]->GetName()));			
 			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
 
 			logQueue.Push(std::wstring(L"\nMipMap Generation cmd list executing " + devices[i]->GetName()));
-
 			for (auto&& pair : textures)
-			{
 				pair->ClearTrack();
-			}
-
 			logQueue.Push(std::wstring(L"\nFinish Mip Map Generation for " + devices[i]->GetName()));
 		}
 	}

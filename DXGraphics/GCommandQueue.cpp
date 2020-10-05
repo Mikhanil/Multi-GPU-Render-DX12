@@ -77,6 +77,11 @@ namespace DXLib
 
 	UINT64 GCommandQueue::GetTimestamp(UINT index)
 	{
+		if (type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+		{
+			return 0;
+		}
+		
 		readRange.Begin = 2 * index * sizeof(UINT64);
 		readRange.End = readRange.Begin + 2 * sizeof(UINT64);
 
@@ -140,13 +145,13 @@ namespace DXLib
 	{
 		std::shared_ptr<GCommandList> commandList;
 
-		if (m_AvailableCommandLists.Empty())
+		if (availableCommandLists.Empty())
 		{
-			commandList = std::make_shared<GCommandList>(std::shared_ptr<GCommandQueue>(this), this->type);
+			commandList = std::make_shared<GCommandList>(shared_from_this(), this->type);
 			return commandList;
 		}
 
-		if (m_AvailableCommandLists.TryPop(commandList))
+		if (availableCommandLists.Size() > 0 || availableCommandLists.TryPop(commandList))
 		{
 			return commandList;
 		}
@@ -238,9 +243,13 @@ namespace DXLib
 
 	UINT64 GCommandQueue::GetTimestampFreq()
 	{
-		if(type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
-			(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));
+		if (type == D3D12_COMMAND_LIST_TYPE_DIRECT || type == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+		{
+			return 0;
+		}
 		
+	
+		(commandQueue->GetTimestampFrequency(&queueTimestampFrequencies));		
 		return queueTimestampFrequencies;
 	}
 
@@ -263,17 +272,28 @@ namespace DXLib
 			CommandListEntry commandListEntry;
 
 			lock.lock();
+
 			while (m_InFlightCommandLists.TryPop(commandListEntry))
 			{
-				auto fenceValue = commandListEntry.fenceValue;
-				auto commandList = commandListEntry.commandList;
+				try
+				{
+					auto fenceValue = commandListEntry.fenceValue;
+					auto commandList = commandListEntry.commandList;
 
-				WaitForFenceValue(fenceValue);
+					WaitForFenceValue(fenceValue);
 
-				commandList->Reset();
+					commandList->Reset();
 
-				m_AvailableCommandLists.Push(commandList);
+					availableCommandLists.Push(commandList);
+				}
+				catch (...)
+				{
+					commandListEntry.commandList.reset();
+					commandListEntry.commandList = nullptr;
+				}
 			}
+
+
 			lock.unlock();
 			CommandListExecutorCondition.notify_one();
 

@@ -98,8 +98,13 @@ void GResourceStateTracker::ResourceBarrier(const D3D12_RESOURCE_BARRIER& barrie
 		}
 
 		// Push the final known state (possibly replacing the previously known state for the subresource).
-		if (transitionBarrier.pResource) {
-			finalResourceState[transitionBarrier.pResource] = ResourceState();
+		if (transitionBarrier.pResource) 
+		{
+			if(finalResourceState.find(transitionBarrier.pResource) == finalResourceState.end())
+			{
+				finalResourceState[transitionBarrier.pResource] = ResourceState();
+			}
+			
 			finalResourceState[transitionBarrier.pResource].SetSubresourceState(
 				transitionBarrier.Subresource, transitionBarrier.StateAfter);
 		}

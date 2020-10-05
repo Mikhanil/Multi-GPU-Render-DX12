@@ -20,7 +20,7 @@ namespace DXLib
 
 	
 	
-	class GCommandQueue
+	class GCommandQueue : public std::enable_shared_from_this<GCommandQueue>
 	{
 	public:
 		GCommandQueue(const std::shared_ptr<GDevice> device, D3D12_COMMAND_LIST_TYPE type);
@@ -90,7 +90,7 @@ namespace DXLib
 		std::atomic_uint64_t    FenceValue;
 
 		ThreadSafeQueue<CommandListEntry>               m_InFlightCommandLists;
-		ThreadSafeQueue<std::shared_ptr<GCommandList> >  m_AvailableCommandLists;
+		ThreadSafeQueue<std::shared_ptr<GCommandList> >  availableCommandLists;
 
 
 		// A thread to process in-flight command lists.
