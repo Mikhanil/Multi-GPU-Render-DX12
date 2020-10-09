@@ -1,6 +1,6 @@
 #include "GCommandList.h"
 #include "ComputePSO.h"
-#include "d3dUtil.h"
+
 #include "GDataUploader.h"
 #include "GResource.h"
 #include "GResourceStateTracker.h"
@@ -30,8 +30,9 @@ GCommandList::GCommandList(const std::shared_ptr<DXLib::GCommandQueue> queue, D3
 {
 	ThrowIfFailed(queue->device->GetDXDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&cmdAllocator)));
 
-	ThrowIfFailed(queue->device->GetDXDevice()->CreateCommandList(queue->device->GetNodeMask(), type, cmdAllocator.Get(),
-		nullptr, IID_PPV_ARGS(&cmdList)));
+	ThrowIfFailed(
+		queue->device->GetDXDevice()->CreateCommandList(queue->device->GetNodeMask(), type, cmdAllocator.Get(),
+			nullptr, IID_PPV_ARGS(&cmdList)));
 
 	uploadBuffer = std::make_unique<GDataUploader>(queue->device);
 
@@ -61,7 +62,8 @@ void GCommandList::EndQuery(UINT index) const
 
 void GCommandList::ResolveQuery(UINT index, UINT quriesCount, UINT64 aligned) const
 {
-	cmdList->ResolveQueryData(queue->timestampQueryHeap.value().Get(), D3D12_QUERY_TYPE_TIMESTAMP, index, quriesCount, queue->timestampResultBuffer.value().GetD3D12Resource().Get(), aligned);
+	cmdList->ResolveQueryData(queue->timestampQueryHeap.value().Get(), D3D12_QUERY_TYPE_TIMESTAMP, index, quriesCount,
+	                          queue->timestampResultBuffer.value().GetD3D12Resource().Get(), aligned);
 }
 
 D3D12_COMMAND_LIST_TYPE GCommandList::GetCommandListType() const
@@ -391,14 +393,15 @@ void GCommandList::TransitionBarrier(const GResource& resource, D3D12_RESOURCE_S
 }
 
 void GCommandList::CopyTextureRegion(ComPtr<ID3D12Resource> dstRes, UINT DstX,
-	UINT DstY,
-	UINT DstZ, ComPtr<ID3D12Resource> srcRes,const D3D12_BOX* srcBox)
+                                     UINT DstY,
+                                     UINT DstZ, ComPtr<ID3D12Resource> srcRes, const D3D12_BOX* srcBox)
 {
 	TransitionBarrier(dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
 	TransitionBarrier(srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 	FlushResourceBarriers();
 
-	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(dstRes.Get()), DstX, DstY,DstZ, &CD3DX12_TEXTURE_COPY_LOCATION(srcRes.Get()), srcBox);
+	cmdList->CopyTextureRegion(&CD3DX12_TEXTURE_COPY_LOCATION(dstRes.Get()), DstX, DstY, DstZ,
+	                           &CD3DX12_TEXTURE_COPY_LOCATION(srcRes.Get()), srcBox);
 
 	TrackResource(dstRes.Get());
 	TrackResource(srcRes.Get());
@@ -406,10 +409,9 @@ void GCommandList::CopyTextureRegion(ComPtr<ID3D12Resource> dstRes, UINT DstX,
 
 
 void GCommandList::CopyTextureRegion(const GResource& dstRes, UINT DstX,
-                                      UINT DstY,
-                                      UINT DstZ, const GResource& srcRes,const D3D12_BOX* srcBox)
+                                     UINT DstY,
+                                     UINT DstZ, const GResource& srcRes, const D3D12_BOX* srcBox)
 {
-	
 	CopyTextureRegion(dstRes.GetD3D12Resource(), DstX, DstY, DstZ, srcRes.GetD3D12Resource(), srcBox);
 }
 
@@ -418,8 +420,8 @@ void GCommandList::CopyResource(ComPtr<ID3D12Resource> dstRes, ComPtr<ID3D12Reso
 	TransitionBarrier(dstRes, D3D12_RESOURCE_STATE_COPY_DEST);
 	TransitionBarrier(srcRes, D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-	FlushResourceBarriers();	
-	
+	FlushResourceBarriers();
+
 	cmdList->CopyResource(dstRes.Get(), srcRes.Get());
 
 	TrackResource(dstRes.Get());
@@ -509,13 +511,13 @@ bool GCommandList::Close(std::shared_ptr<GCommandList>& pendingCommandList) cons
 
 	uint32_t numPendingBarriers = 0;
 
-	if(pendingCommandList != nullptr)
+	if (pendingCommandList != nullptr)
 	{
 		const auto peddingCmdList = pendingCommandList->GetGraphicsCommandList();
 
 		// Flush pending resource barriers.
 		numPendingBarriers = tracker->FlushPendingResourceBarriers(peddingCmdList);
-	}	
+	}
 	// Commit the final resource state to the global state.
 	tracker->CommitFinalResourceStates();
 

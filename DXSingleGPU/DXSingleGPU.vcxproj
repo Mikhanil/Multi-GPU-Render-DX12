@@ -100,8 +100,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>  
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXUtils;$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -113,7 +113,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXUtils;$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXAllocator;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -128,8 +128,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>   
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXUtils;$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -143,8 +143,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>   
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXUtils;$(SolutionDir)\DXAllocator;$(SolutionDir)\DXGraphics;$(SolutionDir)Assimp\include;$(SolutionDir)\DXCommon;$(SolutionDir)\DXLib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="packages.config" />

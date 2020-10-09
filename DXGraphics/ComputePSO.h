@@ -1,10 +1,10 @@
 #pragma once
-#include <DirectXMath.h>
 #include <d3d12.h>
 #include <wrl/client.h>
 #include "GRootSignature.h"
 #include "DirectXBuffers.h"
 #include "GShader.h"
+#include "SimpleMath.h"
 
 struct GenerateMipsCB
 {

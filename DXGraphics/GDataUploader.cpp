@@ -1,4 +1,6 @@
 #include "GDataUploader.h"
+
+
 #include "d3dUtil.h"
 #include "GDevice.h"
 
@@ -71,7 +73,7 @@ void GDataUploader::Clear()
 
 GDataUploader::UploadMemoryPage::UploadMemoryPage(const std::shared_ptr<GDevice> device, size_t sizeInBytes)
 	: CPUPtr(nullptr)
-	  , GPUPtr(D3D12_GPU_VIRTUAL_ADDRESS(0))
+	  , GPUPtr(static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(0))
 	  , PageSize(sizeInBytes)
 	  , Offset(0)
 {
@@ -94,7 +96,7 @@ GDataUploader::UploadMemoryPage::~UploadMemoryPage()
 {
 	d3d12Resource->Unmap(0, nullptr);
 	CPUPtr = nullptr;
-	GPUPtr = D3D12_GPU_VIRTUAL_ADDRESS(0);
+	GPUPtr = static_cast<D3D12_GPU_VIRTUAL_ADDRESS>(0);
 	d3d12Resource.Reset();
 }
 

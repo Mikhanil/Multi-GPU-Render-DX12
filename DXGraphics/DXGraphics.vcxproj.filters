@@ -81,26 +81,11 @@
     <ClInclude Include="GTexture.h">
       <Filter>Header Files\Objects</Filter>
     </ClInclude>
-    <ClInclude Include="d3dx12.h">
-      <Filter>Header Files\Helpers</Filter>
-    </ClInclude>
     <ClInclude Include="GameTimer.h">
-      <Filter>Header Files\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="Lazy.h">
-      <Filter>Header Files\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="MathHelper.h">
-      <Filter>Header Files\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="ThreadSafeQueue.h">
       <Filter>Header Files\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="Window.h">
       <Filter>Header Files\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="d3dUtil.h">
-      <Filter>Header Files\Helpers</Filter>
     </ClInclude>
     <ClInclude Include="DirectXBuffers.h">
       <Filter>Header Files\Objects</Filter>
@@ -114,6 +99,9 @@
     <ClInclude Include="GFence.h">
       <Filter>Header Files\Render</Filter>
     </ClInclude>
+    <ClInclude Include="D3DShaderLoad.h">
+      <Filter>Header Files\Helpers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameTimer.cpp">
@@ -121,9 +109,6 @@
     </ClCompile>
     <ClCompile Include="ComputePSO.cpp">
       <Filter>Source Files\Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="d3dUtil.cpp">
-      <Filter>Source Files\Helpers</Filter>
     </ClCompile>
     <ClCompile Include="GAllocator.cpp">
       <Filter>Source Files\Allocators</Filter>
@@ -163,15 +148,6 @@
     </ClCompile>
     <ClCompile Include="GTexture.cpp">
       <Filter>Source Files\Objects</Filter>
-    </ClCompile>
-    <ClCompile Include="Lazy.cpp">
-      <Filter>Source Files\Helpers</Filter>
-    </ClCompile>
-    <ClCompile Include="MathHelper.cpp">
-      <Filter>Source Files\Helpers</Filter>
-    </ClCompile>
-    <ClCompile Include="ThreadSaveQueue.cpp">
-      <Filter>Source Files\Helpers</Filter>
     </ClCompile>
     <ClCompile Include="DirectXBuffers.cpp">
       <Filter>Source Files\Objects</Filter>

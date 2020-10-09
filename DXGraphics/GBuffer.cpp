@@ -1,5 +1,7 @@
 #include "GBuffer.h"
 #include "GCommandList.h"
+#include "d3dcompiler.h"
+#include "d3dUtil.h"
 
 UINT GBuffer::GetElementsCount() const
 {

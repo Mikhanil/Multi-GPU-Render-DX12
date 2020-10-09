@@ -3,11 +3,11 @@
 #include <mutex>
 
 template <typename T>
-class ThreadSafeQueue
+class LockThreadQueue
 {
 public:
-	ThreadSafeQueue();
-	ThreadSafeQueue(const ThreadSafeQueue& copy);
+	LockThreadQueue();
+	LockThreadQueue(const LockThreadQueue& copy);
 
 	/**
 	 * Push a value into the back of the queue.
@@ -36,26 +36,26 @@ private:
 };
 
 template <typename T>
-ThreadSafeQueue<T>::ThreadSafeQueue()
+LockThreadQueue<T>::LockThreadQueue()
 {
 }
 
 template <typename T>
-ThreadSafeQueue<T>::ThreadSafeQueue(const ThreadSafeQueue<T>& copy)
+LockThreadQueue<T>::LockThreadQueue(const LockThreadQueue<T>& copy)
 {
 	std::lock_guard<std::mutex> lock(copy.m_Mutex);
 	m_Queue = copy.m_Queue;
 }
 
 template <typename T>
-void ThreadSafeQueue<T>::Push(T value)
+void LockThreadQueue<T>::Push(T value)
 {
 	std::lock_guard<std::mutex> lock(m_Mutex);
 	m_Queue.push(std::move(value));
 }
 
 template <typename T>
-bool ThreadSafeQueue<T>::TryPop(T& value)
+bool LockThreadQueue<T>::TryPop(T& value)
 {
 	std::lock_guard<std::mutex> lock(m_Mutex);
 	if (m_Queue.empty())
@@ -68,14 +68,14 @@ bool ThreadSafeQueue<T>::TryPop(T& value)
 }
 
 template <typename T>
-bool ThreadSafeQueue<T>::Empty() const
+bool LockThreadQueue<T>::Empty() const
 {
 	std::lock_guard<std::mutex> lock(m_Mutex);
 	return m_Queue.empty();
 }
 
 template <typename T>
-size_t ThreadSafeQueue<T>::Size() const
+size_t LockThreadQueue<T>::Size() const
 {
 	std::lock_guard<std::mutex> lock(m_Mutex);
 	return m_Queue.size();

@@ -89,7 +89,7 @@ private:
 	UINT64 gpuTimes[GraphicAdapterCount];
 	std::atomic<bool> logThreadIsAlive = true;
 	std::thread logThread;
-	ThreadSafeQueue<std::wstring> logQueue;
+	LockThreadQueue<std::wstring> logQueue;
 	std::atomic<UINT> statisticCount = 0;
 	
 	int percentOfUsePrimeDevice = 100;	

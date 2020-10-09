@@ -96,7 +96,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator; </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXUtils; </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -113,7 +113,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator; $(SolutionDir)\DXAllocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXUtils; $(SolutionDir)\DXAllocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -132,7 +132,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator; </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXUtils; </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -153,7 +153,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator; </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\DXAllocator;$(SolutionDir)\DXUtils; </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -163,12 +163,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="D3DShaderLoad.h" />
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GCommandList.h" />
     <ClInclude Include="GCommandQueue.h" />
-    <ClInclude Include="d3dUtil.h" />
-    <ClInclude Include="d3dx12.h" />
     <ClInclude Include="DirectXBuffers.h" />
     <ClInclude Include="ComputePSO.h" />
     <ClInclude Include="GDevice.h" />
@@ -179,14 +178,11 @@
     <ClInclude Include="GHeap.h" />
     <ClInclude Include="GDataUploader.h" />
     <ClInclude Include="GResourceStateTracker.h" />
-    <ClInclude Include="Lazy.h" />
-    <ClInclude Include="MathHelper.h" />
     <ClInclude Include="GraphicPSO.h" />
     <ClInclude Include="GResource.h" />
     <ClInclude Include="GRootSignature.h" />
     <ClInclude Include="GShader.h" />
     <ClInclude Include="GTexture.h" />
-    <ClInclude Include="ThreadSafeQueue.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -195,7 +191,6 @@
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="GCommandList.cpp" />
     <ClCompile Include="GCommandQueue.cpp" />
-    <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="ComputePSO.cpp" />
     <ClCompile Include="GDevice.cpp" />
     <ClCompile Include="GDeviceFactory.cpp" />
@@ -205,17 +200,22 @@
     <ClCompile Include="GHeap.cpp" />
     <ClCompile Include="GDataUploader.cpp" />
     <ClCompile Include="GResourceStateTracker.cpp" />
-    <ClCompile Include="Lazy.cpp" />
-    <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="GraphicPSO.cpp" />
     <ClCompile Include="GResource.cpp" />
     <ClCompile Include="GRootSignature.cpp" />
     <ClCompile Include="GShader.cpp" />
     <ClCompile Include="GTexture.cpp" />
-    <ClCompile Include="ThreadSaveQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DXAllocator\DXAllocator.vcxproj">
+      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\DXUtils\DXUtils.vcxproj">
+      <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

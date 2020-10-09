@@ -34,10 +34,10 @@ private:
 
 	std::unique_ptr<GDataUploader> uploadBuffer;
 	UploadAllocation UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment) const;
-	
+
 	ComPtr<ID3D12GraphicsCommandList2> cmdList;
 	ComPtr<ID3D12CommandAllocator> cmdAllocator;
-		
+
 	ID3D12DescriptorHeap* setedDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	D3D12_COMMAND_LIST_TYPE type;
@@ -47,8 +47,7 @@ private:
 	ComPtr<ID3D12RootSignature> setedRootSignature = nullptr;
 	ComPtr<ID3D12PipelineState> setedPSO = nullptr;
 
-	
-	
+
 	void TrackResource(ComPtr<ID3D12Object> object);
 	void TrackResource(const GResource& res);
 
@@ -58,7 +57,7 @@ public:
 
 	std::shared_ptr<GDevice> GetDevice() const;
 
-	GCommandList(const std::shared_ptr<DXLib::GCommandQueue> queue, D3D12_COMMAND_LIST_TYPE type);
+	GCommandList(std::shared_ptr<DXLib::GCommandQueue> queue, D3D12_COMMAND_LIST_TYPE type);
 	virtual ~GCommandList();
 	void BeginQuery(UINT index) const;
 	void EndQuery(UINT index) const;
@@ -79,13 +78,13 @@ public:
 	void SetRootConstantBufferView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset = 0);
 
 	void SetRootUnorderedAccessView(UINT rootSignatureSlot, ShaderBuffer& resource, UINT offset = 0);
-	
+
 	void SetRoot32BitConstants(UINT rootSignatureSlot, UINT Count32BitValueToSet, const void* data,
 	                           UINT DestOffsetIn32BitValueToSet) const;
-	
+
 	void SetRoot32BitConstant(UINT shaderRegister, UINT value, UINT offset) const;
 
-	void SetRootDescriptorTable(UINT rootSignatureSlot, const GMemory* memory, UINT offset = 0) const;	
+	void SetRootDescriptorTable(UINT rootSignatureSlot, const GMemory* memory, UINT offset = 0) const;
 
 	void UpdateSubresource(GResource& destResource, D3D12_SUBRESOURCE_DATA* subresources, size_t countSubresources);
 
@@ -94,7 +93,7 @@ public:
 	void SetScissorRects(const D3D12_RECT* scissorRects, size_t count) const;
 
 	void SetPipelineState(GraphicPSO& pso);
-	
+
 	void SetPipelineState(ComputePSO& pso);
 
 	void SetVBuffer(UINT slot = 0, UINT count = 0, D3D12_VERTEX_BUFFER_VIEW* views = nullptr) const;
@@ -114,17 +113,19 @@ public:
 	                       rectCount = 0) const;
 
 	void TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter,
-	                       UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false) const;
-	
+	                       UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+	                       bool flushBarriers = false) const;
+
 	void CopyTextureRegion(ComPtr<ID3D12Resource> dstRes, UINT DstX,
-		UINT DstY,
-		UINT DstZ, ComPtr<ID3D12Resource> srcRes, const D3D12_BOX* srcBox);
-	
+	                       UINT DstY,
+	                       UINT DstZ, ComPtr<ID3D12Resource> srcRes, const D3D12_BOX* srcBox);
+
 	void CopyTextureRegion(const GResource& dstRes, UINT DstX, UINT DstY, UINT DstZ, const GResource& srcRes,
 	                       const D3D12_BOX* srcBox);
-	
+
 	void TransitionBarrier(ComPtr<ID3D12Resource> resource, D3D12_RESOURCE_STATES stateAfter,
-	                       UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, bool flushBarriers = false) const;
+	                       UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+	                       bool flushBarriers = false) const;
 
 	void UAVBarrier(const GResource& resource, bool flushBarriers = false) const;
 	void UAVBarrier(ComPtr<ID3D12Resource> resource, bool flushBarriers = false) const;
@@ -145,7 +146,8 @@ public:
 	void ResolveSubresource(GResource& dstRes, const GResource& srcRes, uint32_t dstSubresource = 0,
 	                        uint32_t srcSubresource = 0);
 
-	void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertex = 0, uint32_t startInstance = 0) const;
+	void Draw(uint32_t vertexCount, uint32_t instanceCount = 1, uint32_t startVertex = 0,
+	          uint32_t startInstance = 0) const;
 	void DrawIndexed(uint32_t indexCount, uint32_t instanceCount = 1, uint32_t startIndex = 0, int32_t baseVertex = 0,
 	                 uint32_t startInstance = 0) const;
 

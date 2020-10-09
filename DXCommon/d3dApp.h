@@ -4,7 +4,6 @@
 #define _CRTDBG_MAP_ALLOC
 #endif
 
-#include "d3dUtil.h"
 #include "GameTimer.h"
 
 // Link necessary d3d12 libraries.
@@ -23,10 +22,12 @@
 #include <dxgi1_6.h>
 #include "Camera.h"
 #include "Lazy.h"
-#include "MemoryAllocator.h"
 #include "GDevice.h"
 #include "KeyboardDevice.h"
 #include "Mousepad.h"
+
+
+
 using Microsoft::WRL::ComPtr;
 
 class GDevice;

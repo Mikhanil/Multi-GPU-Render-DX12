@@ -1,6 +1,5 @@
 #pragma once
 
-#include "d3dUtil.h"
 #include "DirectXBuffers.h"
 #include "ShaderBuffersData.h"
 #include "GDeviceFactory.h"

@@ -4,21 +4,22 @@
 #include "AssetsLoader.h"
 #include "Camera.h"
 #include "CameraController.h"
+#include "d3dx12.h"
 #include "GameObject.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
 #include "GDevice.h"
+#include "GDeviceFactory.h"
 #include "GMemory.h"
 #include "GResourceStateTracker.h"
 #include "ModelRenderer.h"
 #include "ObjectMover.h"
 #include "Renderer.h"
 #include "Rotater.h"
+#include "SkyBox.h"
 #include "Transform.h"
 #include "Window.h"
-#include "GDeviceFactory.h"
-#include "SkyBox.h"
-
+#include <array>
 namespace DXLib
 {
 	SampleApp::SampleApp(HINSTANCE hInstance)
@@ -1514,71 +1515,7 @@ namespace DXLib
 		}
 
 		std::sort(lights.begin(), lights.end(), [](Light const* a, Light const* b) { return a->Type() < b->Type(); });
-	}
-
-	std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> SampleApp::GetStaticSamplers()
-	{
-		const CD3DX12_STATIC_SAMPLER_DESC pointWrap(
-			0, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-		const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
-			1, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
-
-		const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
-			2, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
-
-		const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
-			3, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
-
-		const CD3DX12_STATIC_SAMPLER_DESC anisotropicWrap(
-			4, // shaderRegister
-			D3D12_FILTER_ANISOTROPIC, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
-			0.0f, // mipLODBias
-			8); // maxAnisotropy
-
-		const CD3DX12_STATIC_SAMPLER_DESC anisotropicClamp(
-			5, // shaderRegister
-			D3D12_FILTER_ANISOTROPIC, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressW
-			0.0f, // mipLODBias
-			8); // maxAnisotropy
-
-		const CD3DX12_STATIC_SAMPLER_DESC cubesTexSampler(
-			6, // shaderRegister
-			D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
-			D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressW
-			0.0f, // mipLODBias
-			8, // maxAnisotropy
-			D3D12_COMPARISON_FUNC_NEVER);
-
-
-		return {
-			pointWrap, pointClamp,
-			linearWrap, linearClamp,
-			anisotropicWrap, anisotropicClamp, cubesTexSampler
-		};
-	}
+	}\
+	
+	
 }

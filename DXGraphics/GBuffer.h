@@ -1,5 +1,5 @@
 #pragma once
-#include "d3dUtil.h"
+
 #include "GResource.h"
 
 using namespace Microsoft::WRL;

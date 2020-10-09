@@ -7,6 +7,7 @@
 #include "GCommandList.h"
 #include "GDevice.h"
 #include "GResourceStateTracker.h"
+#include "MathHelper.h"
 #include "ShaderBuffersData.h"
 
 using namespace Microsoft::WRL;

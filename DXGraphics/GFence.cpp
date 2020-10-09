@@ -33,7 +33,7 @@ void GFence::WaitForFenceValue(uint64_t fenceValue) const
 	if (IsFenceComplete(fenceValue))
 		return;
 
-	auto event = ::CreateEvent(nullptr, FALSE, FALSE, NULL);
+	auto event = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	assert(event && "Failed to create fence event handle.");
 
 	fence->SetEventOnCompletion(fenceValue, event);

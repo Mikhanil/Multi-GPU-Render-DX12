@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "MathHelper.h"
 #include <float.h>
 #include <cmath>

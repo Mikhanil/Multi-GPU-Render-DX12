@@ -1,9 +1,8 @@
 #pragma once
 
 #include <DirectXColors.h>
-
 #include "d3dUtil.h"
-#include "DirectXBuffers.h"
+#include "d3dx12.h"
 #include "GraphicPSO.h"
 #include "ShaderBuffersData.h"
 #include "GTexture.h"
@@ -20,7 +19,7 @@ class Material
 	UINT materialIndex = -1;
 
 	std::wstring Name;
-	
+
 	PsoType::Type type = PsoType::Opaque;
 
 	MaterialConstants matConstants{};
@@ -29,7 +28,7 @@ class Material
 
 	std::shared_ptr<GTexture> diffuseMap = nullptr;
 	std::shared_ptr<GTexture> normalMap = nullptr;
-	
+
 
 	UINT DiffuseMapIndex = -1;
 	UINT NormalMapIndex = -1;
@@ -43,12 +42,12 @@ public:
 	{
 		return materialIndex;
 	}
-	
+
 	void SetMaterialIndex(UINT index)
 	{
 		materialIndex = index;
 	}
-	
+
 	std::shared_ptr<GTexture> GetDiffuseTexture() const
 	{
 		return diffuseMap;
@@ -56,7 +55,7 @@ public:
 
 	std::shared_ptr<GTexture> GetNormalTexture() const
 	{
-		return  normalMap;
+		return normalMap;
 	}
 
 	UINT GetDiffuseMapIndex() const
@@ -68,7 +67,7 @@ public:
 	{
 		return NormalMapIndex;
 	}
-	
+
 	MaterialConstants& GetMaterialConstantData();
 
 	UINT GetIndex() const;

@@ -1,12 +1,10 @@
 #include "MultiSplitGPU.h"
 #include <algorithm>
-#include <cstdint>
 #include <filesystem>
-
-#include <chrono>
 #include <ctime>    
 #include <fstream>
 
+#include <array>
 #include "CameraController.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
@@ -19,7 +17,6 @@
 #include "SkyBox.h"
 #include "Transform.h"
 #include "Window.h"
-
 
 MultiSplitGPU::MultiSplitGPU(HINSTANCE hInstance): D3DApp(hInstance)
 {

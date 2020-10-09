@@ -1,5 +1,7 @@
 #include "GraphicPSO.h"
 
+#include "d3dUtil.h"
+#include "d3dx12.h"
 #include "GDevice.h"
 
 GraphicPSO::GraphicPSO(PsoType::Type type): type(type)

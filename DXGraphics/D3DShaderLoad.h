@@ -1,23 +1,9 @@
-#include "d3dUtil.h"
-#include <comdef.h>
+#pragma once
+#include <d3dcompiler.h>
 #include <fstream>
+#include "d3dUtil.h"
 
-using Microsoft::WRL::ComPtr;
-
-DxException::DxException(HRESULT hr, const std::wstring& functionName, const std::wstring& filename, int lineNumber) :
-	ErrorCode(hr),
-	FunctionName(functionName),
-	Filename(filename),
-	LineNumber(lineNumber)
-{
-}
-
-bool d3dUtil::IsKeyDown(int vkeyCode)
-{
-	return (GetAsyncKeyState(vkeyCode) & 0x8000) != 0;
-}
-
-ComPtr<ID3DBlob> d3dUtil::LoadBinary(const std::wstring& filename)
+ComPtr<ID3DBlob> LoadBinary(const std::wstring& filename)
 {
 	std::ifstream fin(filename, std::ios::binary);
 
@@ -34,7 +20,7 @@ ComPtr<ID3DBlob> d3dUtil::LoadBinary(const std::wstring& filename)
 	return blob;
 }
 
-ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
+ComPtr<ID3D12Resource> CreateDefaultBuffer(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* commandList,
 	const void* initData,
@@ -88,7 +74,7 @@ ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
 	return defaultBuffer;
 }
 
-ComPtr<ID3DBlob> d3dUtil::CompileShader(
+ComPtr<ID3DBlob> CompileShader(
 	const std::wstring& filename,
 	const D3D_SHADER_MACRO* defines,
 	const std::string& entrypoint,
@@ -113,13 +99,4 @@ ComPtr<ID3DBlob> d3dUtil::CompileShader(
 	ThrowIfFailed(hr);
 
 	return byteCode;
-}
-
-std::wstring DxException::ToString() const
-{
-	// Get the string description of the error code.
-	_com_error err(ErrorCode);
-	std::wstring msg = err.ErrorMessage();
-
-	return FunctionName + L" failed in " + Filename + L"; line " + std::to_wstring(LineNumber) + L"; error: " + msg;
 }

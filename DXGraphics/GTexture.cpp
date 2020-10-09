@@ -127,8 +127,10 @@ void GTexture::GenerateMipMaps(std::shared_ptr<GCommandList> cmdList, GTexture**
 
 		for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
 		{
-			uint32_t dstWidth = std::max(uint32_t(textureDesc.Width >> (TopMip + 1)), uint32_t(1));
-			uint32_t dstHeight = std::max(uint32_t(textureDesc.Height >> (TopMip + 1)), uint32_t(1));
+			uint32_t dstWidth = std::max(static_cast<uint32_t>(textureDesc.Width >> (TopMip + 1)),
+			                             static_cast<uint32_t>(1));
+			uint32_t dstHeight = std::max(static_cast<uint32_t>(textureDesc.Height >> (TopMip + 1)),
+			                              static_cast<uint32_t>(1));
 
 			srcTextureSRVDesc.Format = GetUAVCompatableFormat(textureDesc.Format);
 			srcTextureSRVDesc.Texture2D.MipLevels = 1;
@@ -305,7 +307,7 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 	auto tex = std::make_shared<GTexture>(ownerDevice, desc, filepath, usage);
 	tex->filePath = filePath;
 
-	
+
 	if (tex->GetD3D12Resource())
 	{
 		std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
@@ -327,7 +329,6 @@ std::shared_ptr<GTexture> GTexture::LoadTextureFromFile(std::wstring filepath,
 		{
 			tex->HasMipMap = false;
 		}
-
 	}
 
 	return tex;

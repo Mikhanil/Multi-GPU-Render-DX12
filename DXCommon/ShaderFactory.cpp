@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "ShaderFactory.h"
-
+#include "d3dUtil.h"
+#include "d3dx12.h"
 #include "GRootSignature.h"
 
 custom_unordered_map<std::string, std::shared_ptr<GShader>> ShaderFactory::shaders = MemoryAllocator::CreateUnorderedMap<std::string, std::shared_ptr<GShader>>();

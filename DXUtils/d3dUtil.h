@@ -1,23 +1,14 @@
 #pragma once
 
-#include <windows.h>
 #include <wrl.h>
-#include <dxgi1_4.h>
 #include <d3d12.h>
-#include <D3Dcompiler.h>
-#include <DirectXMath.h>
-#include <DirectXCollision.h>
-#include <string>
-#include <memory>
-#include <cstdint>
-#include <sstream>
+#include <dxgi.h>
+
 #include "d3dx12.h"
-#include "MathHelper.h"
-#include "MemoryAllocator.h"
 
 using namespace Microsoft::WRL;
-const int globalCountFrameResources = 3;
 
+const int globalCountFrameResources = 3;
 
 
 static inline UINT Align(UINT size, UINT alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
@@ -188,29 +179,15 @@ public:
 		// 0x0200
 		// 512
 		return (byteSize + 255) & ~255;
-	}
-
-	static ComPtr<ID3DBlob> LoadBinary(const std::wstring& filename);
-
-	static ComPtr<ID3D12Resource> CreateDefaultBuffer(
-		ID3D12Device* device,
-		ID3D12GraphicsCommandList* commandList,
-		const void* initData,
-		UINT64 byteSize,
-		ComPtr<ID3D12Resource>& uploadBuffer);
-
-	static ComPtr<ID3DBlob> CompileShader(
-		const std::wstring& filename,
-		const D3D_SHADER_MACRO* defines,
-		const std::string& entrypoint,
-		const std::string& target);
+	}	
 };
 
 class DxException
 {
 public:
 	DxException() = default;
-	DxException(HRESULT hr, const std::wstring& functionName, const std::wstring& filename, int lineNumber);
+	DxException(HRESULT hr, const std::wstring& functionName, const std::wstring& filename, int lineNumber, std::wstring message = L"");
+	DxException(const std::wstring& message);
 
 	std::wstring ToString() const;
 
@@ -218,80 +195,8 @@ public:
 	std::wstring FunctionName;
 	std::wstring Filename;
 	int LineNumber = -1;
+	std::wstring message;
 };
-
-struct MeshGeometry;
-
-// Defines a subrange of geometry in a MeshGeometry.  This is for when multiple
-// geometries are stored in one vertex and index buffer.  It provides the offsets
-// and data needed to draw a subset of geometry stores in the vertex and index 
-// buffers
-struct SubmeshGeometry
-{
-	MeshGeometry* geometry;
-	UINT IndexCount = 0;
-	UINT StartIndexLocation = 0;
-	INT BaseVertexLocation = 0;
-
-	// Bounding box of the geometry defined by this submesh. 
-	DirectX::BoundingBox Bounds;
-};
-
-struct MeshGeometry
-{
-	// Give it a name so we can look it up by name.
-	std::string Name;
-
-	// System memory copies.  Use Blobs because the vertex/index format can be generic.
-	// It is up to the client to cast appropriately.  
-	ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
-	ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
-
-	ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
-	ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
-
-	ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
-	ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
-
-	// Data about the buffers.
-	UINT VertexByteStride = 0;
-	UINT VertexBufferByteSize = 0;
-	DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
-	UINT IndexBufferByteSize = 0;
-
-	// A MeshGeometry may store multiple geometries in one vertex/index buffer.
-	// Use this container to define the Submeshs geometries so we can draw
-	// the Submeshes individually.
-	std::unordered_map<std::string, SubmeshGeometry> Submeshs;
-
-	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const
-	{
-		D3D12_VERTEX_BUFFER_VIEW vbv;
-		vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();
-		vbv.StrideInBytes = VertexByteStride;
-		vbv.SizeInBytes = VertexBufferByteSize;
-
-		return vbv;
-	}
-
-	D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
-	{
-		D3D12_INDEX_BUFFER_VIEW ibv;
-		ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
-		ibv.Format = IndexFormat;
-		ibv.SizeInBytes = IndexBufferByteSize;
-
-		return ibv;
-	}
-
-	// We can free this memory after we finish upload to the GPU.
-	void DisposeUploaders()
-	{
-		VertexBufferUploader = nullptr;
-		IndexBufferUploader = nullptr;
-	}
-};
-
 
 // Hashers for view descriptions.
 namespace std

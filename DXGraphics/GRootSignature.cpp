@@ -1,5 +1,7 @@
 #include "GRootSignature.h"
 
+
+#include "d3dUtil.h"
 #include "GDevice.h"
 
 
@@ -148,11 +150,9 @@ void GRootSignature::Initialize(const std::shared_ptr<GDevice> device)
 	else
 	{
 		rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
-			staticSamplersVector.size(), staticSamplersVector.data(),
+		                                          staticSamplersVector.size(), staticSamplersVector.data(),
 		                                          D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 	}
-
-	
 
 
 	ComPtr<ID3DBlob> serializedRootSig = nullptr;

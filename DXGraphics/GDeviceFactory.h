@@ -18,23 +18,24 @@ class GDevice;
 
 class GDeviceFactory
 {
-	static Microsoft::WRL::ComPtr<IDXGIFactory4> CreateFactory();
+	static ComPtr<IDXGIFactory4> CreateFactory();
 	static ComPtr<IDXGIFactory4> dxgiFactory;
 
 	static bool CheckTearingSupport();
 	static DXLib::Lazy<bool> isTearingSupport;
-	
+
 	static custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> CreateDevices();
 	static custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> hardwareDevices;
 	static std::shared_ptr<GDevice> wrapDevice;
-	
+
 	static custom_vector<ComPtr<IDXGIAdapter3>> CreateAdapters();
 	static custom_vector<ComPtr<IDXGIAdapter3>> adapters;
 
 public:
 
-	static ComPtr<IDXGISwapChain4> CreateSwapChain(const std::shared_ptr<GDevice> device, DXGI_SWAP_CHAIN_DESC1& desc, const HWND hwnd);
-	
+	static ComPtr<IDXGISwapChain4> CreateSwapChain(std::shared_ptr<GDevice> device, DXGI_SWAP_CHAIN_DESC1& desc,
+	                                               HWND hwnd);
+
 	static ComPtr<IDXGIFactory4> GetFactory();
 
 	static std::shared_ptr<GDevice> GetDevice(GraphicsAdapter adapter = GraphicAdapterPrimary);
@@ -43,4 +44,3 @@ public:
 
 	static bool IsTearingSupport();
 };
-

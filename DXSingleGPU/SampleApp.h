@@ -77,7 +77,6 @@ namespace DXLib
 		void BuildGameObjects();
 		std::unique_ptr<GameObject> CreateGOWithRenderer(std::shared_ptr<GModel> model);
 		static void DrawGameObjects(std::shared_ptr<GCommandList> cmdList, const custom_vector<GameObject*>& ritems);
-		static std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
 		void SortGO();
 		
 	private:

@@ -1,4 +1,6 @@
 #include "GDeviceFactory.h"
+
+
 #include "d3dUtil.h"
 #include "GDevice.h"
 #include "GCommandQueue.h"
@@ -10,7 +12,7 @@ custom_vector<ComPtr<IDXGIAdapter3>> GDeviceFactory::adapters = CreateAdapters()
 custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDeviceFactory::hardwareDevices = CreateDevices();
 std::shared_ptr<GDevice> GDeviceFactory::wrapDevice = nullptr;
 
-Microsoft::WRL::ComPtr<IDXGIFactory4> GDeviceFactory::CreateFactory()
+ComPtr<IDXGIFactory4> GDeviceFactory::CreateFactory()
 {
 #if defined(DEBUG) || defined(_DEBUG)
 	{
@@ -71,9 +73,9 @@ custom_vector<DXLib::Lazy<std::shared_ptr<GDevice>>> GDeviceFactory::CreateDevic
 		auto adapter = adapters[i];
 
 		devices.push_back(DXLib::Lazy<std::shared_ptr<GDevice>>([adapter]
-			{
-				return std::make_shared<GDevice>(adapter);
-			}));
+		{
+			return std::make_shared<GDevice>(adapter);
+		}));
 	}
 
 	return devices;
@@ -86,19 +88,20 @@ bool GDeviceFactory::CheckTearingSupport()
 	if (SUCCEEDED(dxgiFactory.As(&factory5)))
 	{
 		factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING,
-			&allowTearing, sizeof(allowTearing));
+		                              &allowTearing, sizeof(allowTearing));
 	}
 
 	return allowTearing == TRUE;
 }
 
-ComPtr<IDXGISwapChain4> GDeviceFactory::CreateSwapChain(const std::shared_ptr<GDevice> device,DXGI_SWAP_CHAIN_DESC1& desc, const HWND hwnd)
+ComPtr<IDXGISwapChain4> GDeviceFactory::CreateSwapChain(const std::shared_ptr<GDevice> device,
+                                                        DXGI_SWAP_CHAIN_DESC1& desc, const HWND hwnd)
 {
 	ComPtr<IDXGISwapChain4> swapChain;
 
-	desc.Flags =  IsTearingSupport()
-		? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
-		: DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	desc.Flags = IsTearingSupport()
+		             ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+		             : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	ComPtr<IDXGISwapChain1> swapChain1;
 	ThrowIfFailed(dxgiFactory->CreateSwapChainForHwnd(
@@ -129,7 +132,6 @@ std::shared_ptr<GDevice> GDeviceFactory::GetDevice(GraphicsAdapter adapter)
 }
 
 
-
 custom_vector<std::shared_ptr<GDevice>> GDeviceFactory::GetAllDevices(bool useWrap)
 {
 	auto devices = MemoryAllocator::CreateVector<std::shared_ptr<GDevice>>();
@@ -144,7 +146,7 @@ custom_vector<std::shared_ptr<GDevice>> GDeviceFactory::GetAllDevices(bool useWr
 		return devices;
 	}
 
-	if(wrapDevice == nullptr)
+	if (wrapDevice == nullptr)
 	{
 		ComPtr<IDXGIAdapter1> adapter;
 		{
@@ -154,8 +156,8 @@ custom_vector<std::shared_ptr<GDevice>> GDeviceFactory::GetAllDevices(bool useWr
 			wrapDevice = (std::make_shared<GDevice>(adapter3));
 		}
 	}
-	
-	devices.push_back(wrapDevice);	
+
+	devices.push_back(wrapDevice);
 	return devices;
 }
 

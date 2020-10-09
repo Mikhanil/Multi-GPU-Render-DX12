@@ -1,4 +1,5 @@
 #include "GShader.h"
+#include "D3DShaderLoad.h"
 
 GShader::GShader(const std::wstring fileName, const ShaderType type, const D3D_SHADER_MACRO* defines,
                  const std::string entryPoint, const std::string target): FileName(fileName), type(type),
@@ -9,7 +10,7 @@ GShader::GShader(const std::wstring fileName, const ShaderType type, const D3D_S
 
 void GShader::LoadAndCompile()
 {
-	shaderBlob = d3dUtil::CompileShader(FileName, defines, entryPoint, target);
+	shaderBlob = CompileShader(FileName, defines, entryPoint, target);
 }
 
 ID3DBlob* GShader::GetShaderData()

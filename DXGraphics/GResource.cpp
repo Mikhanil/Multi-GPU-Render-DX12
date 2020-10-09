@@ -1,6 +1,8 @@
 #include "GResource.h"
 
 #include <utility>
+
+
 #include "d3dUtil.h"
 #include "GDevice.h"
 #include "GMemory.h"

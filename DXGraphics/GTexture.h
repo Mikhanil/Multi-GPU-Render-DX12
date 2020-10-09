@@ -1,7 +1,4 @@
 #pragma once
-#include <mutex>
-
-#include "d3dUtil.h"
 #include "GCommandQueue.h"
 #include "ComputePSO.h"
 #include "GResource.h"
@@ -27,7 +24,7 @@ class GTexture : public GResource
 	custom_vector<ComPtr<ID3D12Resource>> track = MemoryAllocator::CreateVector<ComPtr<ID3D12Resource>>();
 
 	std::wstring filePath;
-	
+
 public:
 	bool HasMipMap;
 

@@ -1,5 +1,9 @@
 #pragma once
-#include "d3dUtil.h"
+#include <d3d12.h>
+#include <d3dcommon.h>
+#include <string>
+#include <wrl/client.h>
+
 using namespace Microsoft::WRL;
 
 enum ShaderType

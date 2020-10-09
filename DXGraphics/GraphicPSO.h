@@ -1,6 +1,8 @@
 #pragma once
 
-#include "d3dUtil.h"
+
+#include <memory>
+
 #include "GShader.h"
 
 using namespace Microsoft::WRL;
@@ -80,5 +82,5 @@ public:
 
 	PsoType::Type GetType() const;
 
-	void Initialize(::std::shared_ptr<GDevice> device);
+	void Initialize(std::shared_ptr<GDevice> device);
 };

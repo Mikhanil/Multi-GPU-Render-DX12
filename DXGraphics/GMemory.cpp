@@ -5,6 +5,7 @@
 #include "GHeap.h"
 #include "GDevice.h"
 #include "GCommandQueue.h"
+
 GMemory::GMemory()
 	: cpuDescriptor{}
 	  , gpuDescriptor{}
@@ -66,7 +67,7 @@ void GMemory::Free()
 	if (!IsNull() && heap)
 	{
 		const auto frameValue = heap->GetDevice()->GetCommandQueue()->GetFenceValue();
-		
+
 		heap->Free(std::move(*this), frameValue);
 
 		cpuDescriptor = CD3DX12_CPU_DESCRIPTOR_HANDLE();

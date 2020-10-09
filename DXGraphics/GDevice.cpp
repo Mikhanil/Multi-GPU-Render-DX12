@@ -1,4 +1,6 @@
 #include "GDevice.h"
+
+
 #include "d3dUtil.h"
 #include "GAllocator.h"
 #include "GCommandQueue.h"
@@ -206,17 +208,15 @@ ComPtr<ID3D12Device> GDevice::GetDXDevice() const
 GDevice::~GDevice()
 {
 	Flush();
-	
+
 	TerminatedQueuesWorker();
 	if (queues.IsInit())
 	{
 		queues->clear();
 	}
-	
+
 	device->Release();
 }
-
-
 
 
 void GDevice::ResetAllocator(uint64_t frameCount)
@@ -231,12 +231,12 @@ void GDevice::ResetAllocator(uint64_t frameCount)
 
 				for (auto&& queue : queues.value())
 				{
-					if(queue.IsInit())
+					if (queue.IsInit())
 					{
 						fenceValue = std::max(fenceValue, queue.value()->GetFenceValue());
 					}
 				}
-				
+
 				allocator.value()->ReleaseStaleDescriptors(fenceValue);
 			}
 		}
@@ -283,7 +283,7 @@ void GDevice::TerminatedQueuesWorker()
 	{
 		for (auto&& queue : queues.value())
 		{
-			if(queue.IsInit())
+			if (queue.IsInit())
 				queue.value()->HardStop();
 		}
 	}
