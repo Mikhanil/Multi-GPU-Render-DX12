@@ -1,10 +1,10 @@
 #pragma once
 #include <tuple>
-
 namespace DX
 {
-	namespace DXJobSystem
+	namespace JobSystem
 	{
+
 		template <typename F>
 		struct function_traits;
 

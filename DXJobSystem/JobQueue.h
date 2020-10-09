@@ -2,21 +2,21 @@
 #include "Counter.h"
 #include "Job.h" // Priority
 #include <vector>
-
 namespace DX
 {
-	namespace DXJobSystem
+	namespace JobSystem
 	{
+
 		class JobManager;
 		class Counter;
 
 		class JobQueue
 		{
-			JobManager* m_manager;
-			JobPriority  m_defaultPriority;
+			JobManager* _manager;
+			JobPriority _defaultPriority;
 
-			Counter  m_counter;
-			std::vector<std::pair<JobPriority, JobInfo>>  m_queue;
+			Counter _counter;
+			std::vector<std::pair<JobPriority, JobInfo>> _queue;
 
 		public:
 			JobQueue(JobManager*, JobPriority defaultPriority = JobPriority::Normal);
@@ -27,22 +27,23 @@ namespace DX
 
 			void Add(const JobInfo& job)
 			{
-				Add(m_defaultPriority, job);
+				Add(_defaultPriority, job);
 			}
 
 			template <typename... Args>
 			void Add(JobPriority prio, Args ... args)
 			{
-				m_queue.emplace_back(prio, JobInfo(&m_counter, args...));
+				_queue.emplace_back(prio, JobInfo(&_counter, args...));
 			}
 
 			template <typename... Args>
 			void Add(Args ... args)
 			{
-				m_queue.emplace_back(m_defaultPriority, JobInfo(&m_counter, args...));
+				_queue.emplace_back(_defaultPriority, JobInfo(&_counter, args...));
 			}
 
 			JobQueue& operator+=(const JobInfo&);
+			JobQueue& operator+=(JobInfo&&);
 
 			// Execute all Jobs in Queue
 			void Execute();

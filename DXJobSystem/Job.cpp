@@ -1,16 +1,20 @@
 #include "pch.h"
 #include "Job.h"
-#include "Counter.h"
-
-void DX::DXJobSystem::JobInfo::Execute()
+namespace DX
 {
-	if (!IsNull())
+	namespace JobSystem
 	{
-		GetDelegate()->Call();
-	}
+		void JobInfo::Execute()
+		{
+			if (!IsNull())
+			{
+				GetDelegate()->Call();
+			}
 
-	if (counter)
-	{
-		counter->Decrement();
+			if (_counter)
+			{
+				_counter->Decrement();
+			}
+		}
 	}
 }

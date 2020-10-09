@@ -1,47 +1,59 @@
 #include "pch.h"
 #include "JobQueue.h"
-
 #include "JobManager.h"
-
-DX::DXJobSystem::JobQueue::JobQueue(JobManager* mgr, JobPriority defaultPriority) :
-	m_manager(mgr),
-	m_defaultPriority(defaultPriority),
-	m_counter(mgr)
+namespace DX
 {
-}
-
-DX::DXJobSystem::JobQueue::~JobQueue()
-{
-}
-
-void DX::DXJobSystem::JobQueue::Add(JobPriority prio, JobInfo job)
-{
-	job.SetCounter(&m_counter);
-	m_queue.emplace_back(prio, job);
-}
-
-DX::DXJobSystem::JobQueue& DX::DXJobSystem::JobQueue::operator+=(const JobInfo& job)
-{
-	Add(m_defaultPriority, job);
-	return *this;
-}
-
-bool DX::DXJobSystem::JobQueue::Step()
-{
-	if (m_queue.empty())
+	namespace JobSystem
 	{
-		return false;
+		JobQueue::JobQueue(JobManager* mgr, JobPriority defaultPriority)
+			: _manager(mgr),
+			_defaultPriority(defaultPriority),
+			_counter(mgr)
+		{
+		}
+
+		JobQueue::~JobQueue()
+		{
+		}
+
+		void JobQueue::Add(JobPriority prio, JobInfo job)
+		{
+			job.SetCounter(&_counter);
+			_queue.emplace_back(prio, job);
+		}
+
+		JobQueue& JobQueue::operator+=(const JobInfo& job)
+		{
+			Add(_defaultPriority, job);
+			return *this;
+		}
+
+		JobQueue& JobQueue::operator+=(JobInfo&& job)
+		{
+			job.SetCounter(&_counter);
+			_queue.emplace_back(_defaultPriority, job);
+
+			return *this;
+		}
+
+		bool JobQueue::Step()
+		{
+			if (_queue.empty())
+			{
+				return false;
+			}
+
+			const auto& job = _queue.front();
+			_manager->ScheduleJob(job.first, job.second);
+			_manager->WaitForCounter(&_counter);
+
+			_queue.erase(_queue.begin());
+			return true;
+		}
+
+		void JobQueue::Execute()
+		{
+			while (Step());
+		}
 	}
-
-	const auto& job = m_queue.front();
-	m_manager->ScheduleJob(job.first, job.second);
-	m_manager->WaitForCounter(&m_counter);
-
-	m_queue.erase(m_queue.begin());
-	return true;
-}
-
-void DX::DXJobSystem::JobQueue::Execute()
-{
-	while (Step());
 }

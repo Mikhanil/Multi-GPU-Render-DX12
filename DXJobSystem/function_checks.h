@@ -4,11 +4,11 @@
 
 #include "detail.h"
 #include "function_traits.h"
-
 namespace DX
 {
-	namespace DXJobSystem
+	namespace JobSystem
 	{
+
 		// Checks are done inside seperate structs and with __FUNCTION__ to give descriptive error messages
 		// __FUNCTION__ contains the template specializations
 
@@ -48,8 +48,8 @@ namespace DX
 		struct argument_checker;
 
 		template <unsigned Index, typename TExpected, typename... TExpectedOthers, typename TActual, typename...
-		          TActualOthers>
-		struct argument_checker<Index, std::tuple<TExpected, TExpectedOthers...>, std::tuple<TActual, TActualOthers...>>
+			TActualOthers>
+			struct argument_checker<Index, std::tuple<TExpected, TExpectedOthers...>, std::tuple<TActual, TActualOthers...>>
 		{
 			static constexpr void check()
 			{

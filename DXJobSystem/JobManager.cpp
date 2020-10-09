@@ -1,5 +1,8 @@
 #include "pch.h"
 #include "JobManager.h"
+
+#include <cassert>
+
 #include "Thread.h"
 #include "Fiber.h"
 #include <thread>
@@ -9,408 +12,510 @@
 #error Linux is not supported!
 #endif
 
+#include "TLS.h"
 
-DX::DXJobSystem::JobManager::JobManager(const ManagerOptions& options) :
-	threadsCount(options.NumThreads),
-	threadAffinity(options.ThreadAffinity),
-	fibersCount(options.NumFibers),
-	highPriorityQueue(options.HighPriorityQueueSize),
-	normalPriorityQueue(options.NormalPriorityQueueSize),
-	lowPriorityQueue(options.LowPriorityQueueSize),
-	shutdownAfterMain(options.ShutdownAfterMainCallback)
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#error Linux is not supported!
+#endif
+namespace DX
 {
-}
-
-DX::DXJobSystem::JobManager::~JobManager()
-{
-}
-
-DX::DXJobSystem::JobManager::ReturnCode DX::DXJobSystem::JobManager::Run(Main_t main)
-{
-	if (!threads.empty() || !fibers.empty())
+	namespace JobSystem
 	{
-		return ReturnCode::AlreadyInitialized;
-	}
 
-	// Threads
-	threads = std::vector<Thread>(threadsCount);
-		
-	// Current (Main) Thread
-	auto mainThread = &threads[0];
-	mainThread->FromCurrentThread();
-
-	if (threadAffinity)
-	{
-		mainThread->SetAffinity(1);
-	}
-
-	auto mainThreadTLS = mainThread->GetTLS();
-	mainThreadTLS->ThreadFiber.FromCurrentThread();
-
-	// Create Fibers
-	// This has to be done after Thread is converted to Fiber!
-	if (fibersCount == 0)
-	{
-		return ReturnCode::InvalidNumFibers;
-	}
-
-	fibers = std::vector<Fiber>(fibersCount);
-	idleFibers = std::vector<std::atomic_bool>(fibersCount);
-
-	for (uint16_t i = 0; i < fibersCount; i++)
-	{
-		fibers[i].SetCallback(FiberCallback_Worker);
-		idleFibers[i].store(true, std::memory_order_relaxed);
-	}
-
-	// Thread Affinity
-	if (threadAffinity && threadsCount > std::thread::hardware_concurrency())
-	{
-		return ReturnCode::ErrorThreadAffinity;
-	}
-
-	// Spawn Threads
-	for (uint8_t i = 0; i < threadsCount; i++)
-	{
-		const auto ttls = threads[i].GetTLS();
-		ttls->ThreadIndex = i;
-
-		if (i > 0) // 0 is Main Thread
+		JobManager::JobManager(const ManagerOptions& options)
+			: _numThreads(options.NumThreads + 1 /* IO */),
+			_hasThreadAffinity(options.ThreadAffinity),
+			_autoSpawnThreads(options.AutoSpawnThreads),
+			_numFibers(options.NumFibers),
+			_highPriorityQueue(options.HighPriorityQueueSize),
+			_normalPriorityQueue(options.NormalPriorityQueueSize),
+			_lowPriorityQueue(options.LowPriorityQueueSize),
+			_ioQueue(options.IOQueueSize),
+			_shutdownAfterMain(options.ShutdownAfterMainCallback)
 		{
-			ttls->SetAffinity = threadAffinity;
-
-			if (!threads[i].Spawn(ThreadCallback_Worker, this))
-			{
-				return ReturnCode::OSError;
-			}
 		}
-	}
 
-	// Main
-	if (main == nullptr)
-	{
-		return ReturnCode::NullCallback;
-	}
-
-	mainCallback = main;
-
-	// Setup main Fiber
-	mainThreadTLS->CurrentFiberIndex = FindFreeFiber();
-	auto mainFiber = &fibers[mainThreadTLS->CurrentFiberIndex];
-	mainFiber->SetCallback(FiberCallback_Main);
-
-	mainThreadTLS->ThreadFiber.SwitchTo(mainFiber, this);
-
-	// Wait for all Threads to shut down
-	for (uint8_t i = 1; i < threadsCount; i++)
-	{
-		threads[i].Join();
-	}
-
-	// Done
-	return ReturnCode::Succes;
-}
-
-void DX::DXJobSystem::JobManager::Shutdown(bool blocking)
-{
-	m_shuttingDown.store(true, std::memory_order_release);
-
-	if (blocking)
-	{
-		for (uint8_t i = 1; i < threadsCount; i++)
+		JobManager::~JobManager()
 		{
-			threads[i].Join();
+			delete[] _threads;
+			delete[] _fibers;
+			delete[] _idleFibers;
 		}
-	}
-}
 
-uint16_t DX::DXJobSystem::JobManager::FindFreeFiber()
-{
-	while (true)
-	{
-		for (uint16_t i = 0; i < fibersCount; i++)
+		Thread* JobManager::GetThread(uint8_t idx)
 		{
-			if (!idleFibers[i].load(std::memory_order_relaxed) ||
-				!idleFibers[i].load(std::memory_order_acquire))
+			assert(idx < _numThreads);
+			return &_threads[idx];
+		}
+
+		bool JobManager::SpawnThread(uint8_t idx)
+		{
+			return GetThread(idx)->Spawn(ThreadCallback_Worker, this);
+		}
+
+		bool JobManager::SetupThread(uint8_t idx)
+		{
+			auto thread = GetThread(idx);
+			if (thread->HasSpawned())
 			{
-				continue;
+				return false;
 			}
 
-			bool expected = true;
-						
-			if (std::atomic_compare_exchange_weak_explicit(&idleFibers[i], &expected, false,
-			                                               std::memory_order_release, std::memory_order_relaxed))
+			auto tls = GetCurrentTLS();
+			if (tls)
 			{
-				return i;
+				return false;
+			}
+
+			thread->FromCurrentThread();
+			tls = GetCurrentTLS();
+			assert(tls->_threadIndex == idx);
+
+			tls->_threadFiber.FromCurrentThread();
+			tls->_currentFiberIndex = FindFreeFiber();
+
+			return true;
+		}
+
+		JobManager::ReturnCode JobManager::Run(Main_t main)
+		{
+			if (_threads || _fibers)
+			{
+				return ReturnCode::AlreadyInitialized;
+			}
+
+			_threads = new Thread[_numThreads];
+
+			// Current (Main) Thread
+			auto mainThread = &_threads[0];
+			mainThread->FromCurrentThread();
+
+			TLS* mainThreadTLS = mainThread->GetTLS();
+			mainThreadTLS->_threadFiber.FromCurrentThread();
+
+			if (main)
+			{
+				if (_hasThreadAffinity)
+				{
+					mainThread->SetAffinity(1);
+				}
+			}
+
+			// Create Fibers
+			// This has to be done after Thread is converted to Fiber!
+			if (_numFibers == 0)
+			{
+				return ReturnCode::InvalidNumFibers;
+			}
+
+			_fibers = new Fiber[_numFibers];
+			_idleFibers = new std::atomic_bool[_numFibers];
+
+			for (uint16_t i = 0; i < _numFibers; i++)
+			{
+				_fibers[i].SetCallback(FiberCallback_Worker);
+				_idleFibers[i].store(true, std::memory_order_relaxed);
+			}
+
+			// Thread Affinity
+			if (_hasThreadAffinity && (_numThreads == 0 || _numThreads > std::thread::hardware_concurrency() + 1))
+			{
+				return ReturnCode::ErrorThreadAffinity;
+			}
+
+			// Spawn Threads
+			for (uint8_t i = 0; i < _numThreads; i++)
+			{
+				auto itTls = _threads[i].GetTLS();
+				itTls->_threadIndex = i;
+
+				if (i > 0) // 0 is Main Thread
+				{
+					if (i == (_numThreads - 1))
+					{
+						// IO Thread
+						itTls->_isIO = true;
+					}
+					else
+					{
+						itTls->_hasAffinity = _hasThreadAffinity;
+					}
+
+					if (_autoSpawnThreads && !SpawnThread(i))
+					{
+						return ReturnCode::OSError;
+					}
+				}
+			}
+
+			mainThreadTLS->_currentFiberIndex = FindFreeFiber();
+
+			// Main
+			_mainCallback = main;
+			if (_mainCallback == nullptr && _shutdownAfterMain)
+			{
+				return ReturnCode::NullCallback;
+			}
+
+			// Setup main Fiber
+			const auto mainFiber = &_fibers[mainThreadTLS->_currentFiberIndex];
+			mainFiber->SetCallback(FiberCallback_Main);
+
+			if (_mainCallback)
+			{
+				mainThreadTLS->_threadFiber.SwitchTo(mainFiber, this);
+			}
+
+			if (_mainCallback)
+			{
+				// Wait for all Threads to shut down
+				for (uint8_t i = 1; i < _numThreads; i++)
+				{
+					_threads[i].Join();
+				}
+			}
+
+			return ReturnCode::Succes;
+		}
+
+		void JobManager::Shutdown(bool blocking)
+		{
+			_shuttingDown.store(true, std::memory_order_release);
+
+			if (blocking)
+			{
+				for (uint8_t i = 1; i < _numThreads; i++)
+				{
+					_threads[i].Join();
+				}
 			}
 		}
-	}
-}
 
-void DX::DXJobSystem::JobManager::CleanupPreviousFiber(TLS* tls)
-{
-	if (tls == nullptr)
-	{
-		tls = GetCurrentTLS();
-	}
-
-	switch (tls->PreviousFiberDestination)
-	{
-	case FiberDestination::None:
-		return;
-
-	case FiberDestination::Pool:
+		uint16_t JobManager::FindFreeFiber()
 		{
-			idleFibers[tls->PreviousFiberIndex].store(true, std::memory_order_release);
-			break;
+			while (true)
+			{
+				for (uint16_t i = 0; i < _numFibers; i++)
+				{
+					if (!_idleFibers[i].load(std::memory_order_relaxed)
+						|| !_idleFibers[i].load(std::memory_order_acquire))
+					{
+						continue;
+					}
+
+					bool expected = true;
+					if (std::atomic_compare_exchange_weak_explicit(&_idleFibers[i], &expected, false, std::memory_order_release,
+						std::memory_order_relaxed))
+					{
+						return i;
+					}
+				}
+
+				// TODO: Add Debug Counter and error message
+			}
 		}
 
-	case FiberDestination::Waiting:
-		tls->PreviousFiberStored->store(true, std::memory_order_relaxed);
-		break;
-
-	default:
-		break;
-	}
-
-	// Cleanup TLS
-	tls->PreviousFiberIndex = UINT16_MAX;
-	tls->PreviousFiberDestination = FiberDestination::None;
-	tls->PreviousFiberStored = nullptr;
-}
-
-void DX::DXJobSystem::JobManager::ThreadCallback_Worker(Thread* thread)
-{
-	auto manager = reinterpret_cast<JobManager*>(thread->GetUserData());
-	auto tls = thread->GetTLS();
-
-	// Thread Affinity
-	if (tls->SetAffinity)
-		thread->SetAffinity(tls->ThreadIndex);
-
-	// Setup Thread Fiber
-	tls->ThreadFiber.FromCurrentThread();
-
-	// Fiber
-	tls->CurrentFiberIndex = manager->FindFreeFiber();
-
-	const auto fiber = &manager->fibers[tls->CurrentFiberIndex];
-	tls->ThreadFiber.SwitchTo(fiber, manager);
-}
-
-void DX::DXJobSystem::JobManager::FiberCallback_Main(Fiber* fiber)
-{
-	auto manager = reinterpret_cast<JobManager*>(fiber->GetUserdata());
-
-	// Main
-	manager->mainCallback(manager);
-
-	// Shutdown after Main
-	if (!manager->shutdownAfterMain)
-	{
-		// Switch to idle Fiber
-		auto tls = manager->GetCurrentTLS();
-		tls->CurrentFiberIndex = manager->FindFreeFiber();
-
-		const auto fiber = &manager->fibers[tls->CurrentFiberIndex];
-		tls->ThreadFiber.SwitchTo(fiber, manager);
-	}
-
-	// Shutdown
-	manager->Shutdown(false);
-
-	// Switch back to Main Thread
-	fiber->SwitchBack();
-}
-
-void DX::DXJobSystem::JobManager::FiberCallback_Worker(Fiber* fiber)
-{
-	auto manager = reinterpret_cast<JobManager*>(fiber->GetUserdata());
-	manager->CleanupPreviousFiber();
-
-	JobInfo job;
-
-	while (!manager->IsShuttingDown())
-	{
-		const auto tls = manager->GetCurrentTLS();
-
-		if (manager->GetNextJob(job, tls))
+		void JobManager::CleanupPreviousFiber(TLS* tls)
 		{
-			job.Execute();
-			continue;
+			if (tls == nullptr)
+			{
+				tls = GetCurrentTLS();
+			}
+
+			switch (tls->_previousFiberDestination)
+			{
+			case FiberDestination::None:
+				return;
+
+			case FiberDestination::Pool:
+				_idleFibers[tls->_previousFiberIndex].store(true, std::memory_order_release);
+				break;
+
+			case FiberDestination::Waiting:
+				tls->_previousFiberStored->store(true, std::memory_order_relaxed);
+				break;
+
+			default:
+				break;
+			}
+
+			tls->Cleanup();
 		}
 
-		Thread::SleepFor(1);
-	}
+		void JobManager::ThreadCallback_Worker(Thread* thread)
+		{
+			auto manager = reinterpret_cast<JobManager*>(thread->GetUserdata());
+			auto tls = thread->GetTLS();
 
-	// Switch back to Thread
-	fiber->SwitchBack();
-}
+			// Thread Name
+			if (tls->_hasAffinity)
+			{
+				thread->SetAffinity(tls->_threadIndex);
+			}
 
-ConcurrentQueue<DX::DXJobSystem::JobInfo>* DX::DXJobSystem::JobManager::GetQueueByPriority(JobPriority prio)
-{
-	switch (prio)
-	{
-	case JobPriority::High:
-		return &highPriorityQueue;
+			// Setup Thread Fiber
+			tls->_threadFiber.FromCurrentThread();
+			tls->_currentFiberIndex = manager->FindFreeFiber();
 
-	case JobPriority::Normal:
-		return &normalPriorityQueue;
+			const auto fiber = &manager->_fibers[tls->_currentFiberIndex];
+			tls->_threadFiber.SwitchTo(fiber, manager);
+		}
 
-	case JobPriority::Low:
-		return &lowPriorityQueue;
+		void JobManager::FiberCallback_Main(Fiber* fiber)
+		{
+			auto manager = reinterpret_cast<JobManager*>(fiber->GetUserdata());
 
-	default:
-		return nullptr;
-	}
-}
+			if (manager->_mainCallback)
+			{
+				manager->_mainCallback(manager);
+			}
 
-bool DX::DXJobSystem::JobManager::GetNextJob(JobInfo& job, TLS* tls)
-{
-	// High Priority Jobs always come first
-	if (highPriorityQueue.dequeue(job))
-	{
-		return true;
-	}
+			// Should we shutdown after main?
+			if (!manager->_shutdownAfterMain && manager->_mainCallback)
+			{
+				// Switch to idle Fiber
+				const auto tls = manager->GetCurrentTLS();
+				tls->_currentFiberIndex = manager->FindFreeFiber();
 
-	// Ready Fibers
-	if (tls == nullptr)
-	{
-		tls = GetCurrentTLS();
-	}
+				const auto fiber = &manager->_fibers[tls->_currentFiberIndex];
+				tls->_threadFiber.SwitchTo(fiber, manager);
+			}
 
-	for (auto it = tls->ReadyFibers.begin(); it != tls->ReadyFibers.end(); ++it)
-	{
-		const uint16_t fiberIndex = it->first;
+			if (manager->_shutdownAfterMain)
+			{
+				manager->Shutdown(false);
+			}
 
-		// Make sure Fiber is stored
-		if (!it->second->load(std::memory_order_relaxed))
-			continue;
+			// Switch back to Thread
+			fiber->SwitchBack();
+		}
 
-		// Erase
-		delete it->second;
-		tls->ReadyFibers.erase(it);
+		void JobManager::FiberCallback_Worker(Fiber* fiber)
+		{
+			auto manager = reinterpret_cast<JobManager*>(fiber->GetUserdata());
+			manager->CleanupPreviousFiber();
 
-		// Update TLS
-		tls->PreviousFiberIndex = tls->CurrentFiberIndex;
-		tls->PreviousFiberDestination = FiberDestination::Pool;
-		tls->CurrentFiberIndex = fiberIndex;
+			JobInfo job;
 
-		// Switch to Fiber
-		tls->ThreadFiber.SwitchTo(&fibers[fiberIndex], this);
-		CleanupPreviousFiber(tls);
+			while (!manager->IsShuttingDown())
+			{
+				auto tls = manager->GetCurrentTLS();
 
-		break;
-	}
+				if (manager->GetNextJob(job, tls))
+				{
+					job.Execute();
+					continue;
+				}
 
-	// Normal & Low Priority Jobs
-	return
-		normalPriorityQueue.dequeue(job) ||
-		lowPriorityQueue.dequeue(job);
-}
+				Thread::SleepFor(1);
+			}
 
-void DX::DXJobSystem::JobManager::ScheduleJob(JobPriority prio, const JobInfo& job)
-{
-	auto queue = GetQueueByPriority(prio);
-	if (!queue)
-	{
-		return;
-	}
+			// Switch back to Thread
+			fiber->SwitchBack();
+		}
 
-	if (job.GetCounter())
-	{
-		job.GetCounter()->Increment();
-	}
+		ConcurrentQueue<JobInfo>* JobManager::GetQueueByPriority(JobPriority prio)
+		{
+			switch (prio)
+			{
+			case JobPriority::High:
+				return &_highPriorityQueue;
 
-	if (!queue->enqueue(job))
-	{
-		assert(L"Job Queue is full!");
-	}
-}
+			case JobPriority::Normal:
+				return &_normalPriorityQueue;
 
-void DX::DXJobSystem::JobManager::WaitForCounter(BaseCounter* counter, uint32_t targetValue)
-{
-	if (counter == nullptr || counter->GetValue() == targetValue)
-	{
-		return;
-	}
+			case JobPriority::Low:
+				return &_lowPriorityQueue;
 
-	auto tls = GetCurrentTLS();
-	const auto fiberStored = new std::atomic_bool(false);
+			case JobPriority::IO:
+				return &_ioQueue;
 
-	if (counter->AddWaitingFiber(tls->CurrentFiberIndex, targetValue, fiberStored))
-	{
-		// Already done
-		delete fiberStored;
-		return;
-	}
+			default:
+				return nullptr;
+			}
+		}
 
-	// Update TLS
-	tls->PreviousFiberIndex = tls->CurrentFiberIndex;
-	tls->PreviousFiberDestination = FiberDestination::Waiting;
-	tls->PreviousFiberStored = fiberStored;
+		bool JobManager::GetNextJob(JobInfo& job, TLS* tls)
+		{
+			if (tls == nullptr)
+			{
+				tls = GetCurrentTLS();
+			}
 
-	// Switch to idle Fiber
-	tls->CurrentFiberIndex = FindFreeFiber();
-	tls->ThreadFiber.SwitchTo(&fibers[tls->CurrentFiberIndex], this);
+			// IO only does IO jobs
+			if (tls->_isIO)
+			{
+				return _ioQueue.dequeue(job);
+			}
 
-	// Cleanup
-	CleanupPreviousFiber();
-}
+			// High Priority Jobs always come first
+			if (_highPriorityQueue.dequeue(job))
+			{
+				return true;
+			}
 
-void DX::DXJobSystem::JobManager::WaitForSingle(JobPriority prio, JobInfo info)
-{
-	TinyCounter ctr(this);
-	info.SetCounter(&ctr);
+			// Ready Fibers
+			for (auto it = tls->_readyFibers.begin(); it != tls->_readyFibers.end(); ++it)
+			{
+				uint16_t fiberIndex = it->first;
 
-	ScheduleJob(prio, info);
-	WaitForCounter(&ctr);
-}
+				// Make sure Fiber is stored
+				if (!it->second->load(std::memory_order_relaxed)) continue;
 
-uint8_t DX::DXJobSystem::JobManager::GetCurrentThreadIndex() const
-{
+				// Erase
+				delete it->second;
+				tls->_readyFibers.erase(it);
+
+				// Update TLS
+				tls->_previousFiberIndex = tls->_currentFiberIndex;
+				tls->_previousFiberDestination = FiberDestination::Pool;
+				tls->_currentFiberIndex = fiberIndex;
+
+				// Switch to Fiber
+				tls->_threadFiber.SwitchTo(&_fibers[fiberIndex], this);
+				CleanupPreviousFiber(tls);
+
+				break;
+			}
+
+			// Normal & Low Priority Jobs
+			return _normalPriorityQueue.dequeue(job) || _lowPriorityQueue.dequeue(job);
+		}
+
+		void JobManager::ScheduleJob(JobPriority prio, const JobInfo& job)
+		{
+			auto queue = GetQueueByPriority(prio);
+			if (!queue)
+			{
+				return;
+			}
+
+			if (job.GetCounter())
+			{
+				job.GetCounter()->Increment();
+			}
+
+			if (!queue->enqueue(job))
+			{
+				assert("EX_JOB_QUEUE_FULL");
+			}
+		}
+
+#include <condition_variable>
+
+		void WaitForCounter_Proxy(JobManager* mgr, BaseCounter* counter, uint32_t targetValue, std::condition_variable* cv)
+		{
+			mgr->WaitForCounter(counter, targetValue, false);
+			cv->notify_all();
+		}
+
+		void JobManager::WaitForCounter(BaseCounter* counter, uint32_t targetValue, bool blocking)
+		{
+			if (counter == nullptr || counter->GetValue() == targetValue)
+			{
+				return;
+			}
+
+			auto tls = GetCurrentTLS();
+			if (blocking)
+			{
+				if (counter->GetValue() == targetValue)
+				{
+					return;
+				}
+
+				std::condition_variable cv;
+				ScheduleJob(JobPriority::High, WaitForCounter_Proxy, this, counter, targetValue, &cv);
+
+				std::mutex mutex;
+				std::unique_lock<std::mutex> lock(mutex);
+				cv.wait(lock);
+
+				return;
+			}
+
+			auto fiberStored = new std::atomic_bool(false);
+
+			// Check if we're already done
+			if (counter->AddWaitingFiber(tls->_currentFiberIndex, targetValue, fiberStored))
+			{
+				delete fiberStored;
+				return;
+			}
+
+			// Update TLS
+			tls->_previousFiberIndex = tls->_currentFiberIndex;
+			tls->_previousFiberDestination = FiberDestination::Waiting;
+			tls->_previousFiberStored = fiberStored;
+
+			// Switch to idle Fiber
+			tls->_currentFiberIndex = FindFreeFiber();
+			tls->_threadFiber.SwitchTo(&_fibers[tls->_currentFiberIndex], this);
+
+			// Cleanup
+			CleanupPreviousFiber();
+		}
+
+		void JobManager::WaitForSingle(JobPriority prio, JobInfo info)
+		{
+			TinyCounter ctr(this);
+			info.SetCounter(&ctr);
+
+			ScheduleJob(prio, info);
+			WaitForCounter(&ctr);
+		}
+
+		uint8_t JobManager::GetCurrentThreadIndex() const
+		{
 #ifdef _WIN32
-	const uint32_t idx = GetCurrentThreadId();
-	for (uint8_t i = 0; i < threadsCount; i++)
-	{
-		if (threads[i].GetID() == idx)
-		{
-			return i;
-		}
-	}
+			uint32_t idx = GetCurrentThreadId();
+			for (uint8_t i = 0; i < _numThreads; i++)
+			{
+				if (_threads[i].GetID() == idx)
+				{
+					return i;
+				}
+			}
 #endif
+			// TODO macos/linux impl
 
-	return UINT8_MAX;
-}
+			return UINT8_MAX;
+		}
 
-DX::DXJobSystem::Thread* DX::DXJobSystem::JobManager::GetCurrentThread()
-{
+		Thread* JobManager::GetCurrentThread() const
+		{
 #ifdef _WIN32
-	const uint32_t idx = GetCurrentThreadId();
-	for (uint8_t i = 0; i < threadsCount; i++)
-	{
-		if (threads[i].GetID() == idx)
-		{
-			return &threads[i];
-		}
-	}
+			uint32_t idx = GetCurrentThreadId();
+			for (uint8_t i = 0; i < _numThreads; i++)
+			{
+				if (_threads[i].GetID() == idx)
+				{
+					return &_threads[i];
+				}
+			}
 #endif
+			// TODO macos/linux impl
 
-	return nullptr;
-}
+			return nullptr;
+		}
 
-DX::DXJobSystem::TLS* DX::DXJobSystem::JobManager::GetCurrentTLS()
-{
+		TLS* JobManager::GetCurrentTLS() const
+		{
 #ifdef _WIN32
-	const uint32_t idx = GetCurrentThreadId();
-	for (uint8_t i = 0; i < threadsCount; i++)
-	{
-		if (threads[i].GetID() == idx)
-		{
-			return threads[i].GetTLS();
+			uint32_t idx = GetCurrentThreadId();
+			for (uint8_t i = 0; i < _numThreads; i++)
+			{
+				if (_threads[i].GetID() == idx)
+				{
+					return _threads[i].GetTLS();
+				}
+			}
+#endif
+			// TODO macos/linux impl
+
+			return nullptr;
 		}
 	}
-#endif
-
-	return nullptr;
 }

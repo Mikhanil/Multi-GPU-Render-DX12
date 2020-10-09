@@ -1,12 +1,12 @@
 #pragma once
-#include <cstdint>
+#include <stdint.h>
 #include <vector>
 #include <atomic>
 #include "Fiber.h"
 
 namespace DX
 {
-	namespace DXJobSystem
+	namespace JobSystem
 	{
 		enum class FiberDestination : uint8_t
 		{
@@ -21,22 +21,30 @@ namespace DX
 			~TLS() = default;
 
 			// Thread Index
-			uint8_t ThreadIndex = UINT8_MAX;
-			bool SetAffinity = false;
+			uint8_t _threadIndex = UINT8_MAX;
+			bool _hasAffinity = false;
+			bool _isIO = false;
 
 			// Thread Fiber
-			Fiber ThreadFiber;
+			Fiber _threadFiber;
 
 			// Current Fiber
-			uint16_t CurrentFiberIndex = UINT16_MAX;
+			uint16_t _currentFiberIndex = UINT16_MAX;
 
 			// Previous Fiber
-			uint16_t PreviousFiberIndex = UINT16_MAX;
-			std::atomic_bool* PreviousFiberStored = nullptr;
-			FiberDestination PreviousFiberDestination = FiberDestination::None;
+			uint16_t _previousFiberIndex = UINT16_MAX;
+			std::atomic_bool* _previousFiberStored = nullptr;
+			FiberDestination _previousFiberDestination = FiberDestination::None;
 
 			// Ready Fibers
-			std::vector<std::pair<uint16_t, std::atomic_bool*>> ReadyFibers;
+			std::vector<std::pair<uint16_t, std::atomic_bool*>> _readyFibers;
+
+			void Cleanup()
+			{
+				_previousFiberIndex = UINT16_MAX;
+				_previousFiberDestination = FiberDestination::None;
+				_previousFiberStored = nullptr;
+			}
 		};
 	}
 }

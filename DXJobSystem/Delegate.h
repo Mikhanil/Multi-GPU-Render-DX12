@@ -1,9 +1,11 @@
 #pragma once
+#include <tuple>
 #include "detail.h"
+#include "function_checks.h"
 
 namespace DX
 {
-	namespace DXJobSystem
+	namespace JobSystem
 	{
 		struct base_delegate
 		{
@@ -15,20 +17,20 @@ namespace DX
 		template <typename TCallable, typename... Args>
 		struct delegate_callable : base_delegate
 		{
-			TCallable  callable;
-			std::tuple<Args...>  args;
+			TCallable _callable;
+			std::tuple<Args...> _args;
 
 			delegate_callable(TCallable callable, Args ... args) :
-				 callable(callable),
-				 args(args...)
+				_callable(callable),
+				_args(args...)
 			{
-			}
+			};
 
 			virtual ~delegate_callable() = default;
 
 			void Call() override
 			{
-				apply( callable,  args);
+				apply(_callable, _args);
 			}
 		};
 
@@ -37,22 +39,22 @@ namespace DX
 		struct delegate_member : base_delegate
 		{
 			using function_t = Ret(TClass::*)(Args ...);
-			function_t  function;
-			TClass*  instance;
-			std::tuple<Args...>  args;
+			function_t _function;
+			TClass* _instance;
+			std::tuple<Args...> _args;
 
 			delegate_member(function_t function, TClass* inst, Args ... args) :
-				 function(function),
-				 instance(inst),
-				 args(args...)
+				_function(function),
+				_instance(inst),
+				_args(args...)
 			{
-			}
+			};
 
 			virtual ~delegate_member() = default;
 
 			void Call() override
 			{
-				apply( instance,  function,  args);
+				apply(_instance, _function, _args);
 			}
 		};
 	}

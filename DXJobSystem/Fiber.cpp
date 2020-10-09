@@ -3,80 +3,95 @@
 
 #include <cassert>
 
-
-#include "d3dUtil.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
-
-static void LaunchFiber(DX::DXJobSystem::Fiber* fiber)
+namespace DX
 {
-	const auto callback = fiber->GetCallback();
+	namespace JobSystem
+	{
+		// TODO: Add exceptions for invalid stuff?
 
-	assert(callback != nullptr && L"LaunchFiber: callback is nullptr");	
+		static void LaunchFiber(Fiber* fiber)
+		{
+			auto callback = fiber->GetCallback();
+			if (callback == nullptr)
+			{
+				assert("LaunchFiber: callback is nullptr");
+			}
 
-	callback(fiber);
-}
+			callback(fiber);
+		}
 
-DX::DXJobSystem::Fiber::Fiber()
-{
+		Fiber::Fiber()
+		{
 #ifdef _WIN32
-	m_fiber = CreateFiber(0, (LPFIBER_START_ROUTINE)LaunchFiber, this);
-	m_thread_fiber = false;
+			_fiber = CreateFiber(0, (LPFIBER_START_ROUTINE)LaunchFiber, this);
+			_threadFiber = false;
 #endif
-}
+			// TODO mac/linux impl
+		}
 
-DX::DXJobSystem::Fiber::~Fiber()
-{
+		Fiber::~Fiber()
+		{
 #ifdef _WIN32
-	if (m_fiber && !m_thread_fiber)
-	{
-		DeleteFiber(m_fiber);
-	}
+			if (_fiber && !_threadFiber)
+			{
+				DeleteFiber(_fiber);
+			}
 #endif
-}
+			// TODO mac/linux impl
+		}
 
-void DX::DXJobSystem::Fiber::FromCurrentThread()
-{
+		void Fiber::FromCurrentThread()
+		{
 #ifdef _WIN32
-	if (m_fiber && !m_thread_fiber)
-	{
-		DeleteFiber(m_fiber);
-	}
+			if (_fiber && !_threadFiber)
+			{
+				DeleteFiber(_fiber);
+			}
 
-	m_fiber = ConvertThreadToFiber(nullptr);
-	m_thread_fiber = true;
+			_fiber = ConvertThreadToFiber(nullptr);
+			_threadFiber = true;
 #endif
-}
+			// TODO mac/linux impl
+		}
 
-void DX::DXJobSystem::Fiber::SetCallback(Callback_t cb)
-{
-	assert(cb != nullptr && L"callback cannot be nullptr");	
+		void Fiber::SetCallback(Callback_t cb)
+		{
+			if (cb == nullptr)
+			{
+				//assert("EX_CALLBACK_IS_NULL");
+			}
 
-	m_callback = cb;
-}
+			_callback = cb;
+		}
 
-void DX::DXJobSystem::Fiber::SwitchTo(Fiber* fiber, void* userdata)
-{	
-	if (fiber == nullptr || fiber->m_fiber == nullptr)
-	{
-		assert(L"Invalid fiber (nullptr or invalid)");
-	}
+		void Fiber::SwitchTo(Fiber* fiber, void* userdata)
+		{
+			if (fiber == nullptr || fiber->_fiber == nullptr)
+			{
+				assert("EX_INVALID_FIBER");
+			}
 
-	fiber->m_userdata = userdata;
-	fiber->m_return_fiber = this;
+			fiber->_userData = userdata;
+			fiber->_returnFiber = this;
 
-	SwitchToFiber(fiber->m_fiber);
-}
+			SwitchToFiber(fiber->_fiber);
+		}
 
-void DX::DXJobSystem::Fiber::SwitchBack()
-{
-	if (m_return_fiber && m_return_fiber->m_fiber)
-	{
-		SwitchToFiber(m_return_fiber->m_fiber);
-	}
-	else
-	{
-		assert(L"Unable to switch back from Fiber (none or invalid return fiber)");
+		void Fiber::SwitchBack()
+		{
+			if (_returnFiber && _returnFiber
+				->
+				_fiber
+				)
+			{
+				SwitchToFiber(_returnFiber->_fiber);
+				return;
+			}
+
+			assert("EX_UNABLE_TO_SWITCH_BACK_FROM_FIBER");
+		}
 	}
 }

@@ -5,7 +5,7 @@
 #include "JobList.h"
 #include "JobQueue.h"
 
-using namespace DX::DXJobSystem;
+using namespace DX::JobSystem;
 
 void test_job_1(int* x)
 {
@@ -36,38 +36,31 @@ void main_test(JobManager* mgr)
 	mgr->WaitForSingle(JobPriority::Normal, test_job_1, &count);
 
 	// 2: Lambda
-	mgr->WaitForSingle(JobPriority::Normal, [&count]() {
-		std::cout << "lambda with " << count << std::endl;
-		count++;
-		});
+	for (uint16_t i = 0, length = 10000; i < length; ++i) {
+		mgr->WaitForSingle(JobPriority::Normal, [&count]() {
+			//std::cout << "lambda with " << count << std::endl;
+			count++;
+			});
+	}
 
 	// 3: Member Function
 	test_job_2 tj2_inst;
-	mgr->WaitForSingle(JobPriority::Normal, &test_job_2::Execute, &tj2_inst, &count);
+	mgr->WaitForSingle(JobPriority::Normal, &tj2_inst, &count);
 
 	// 3: Class operator()
 	mgr->WaitForSingle(JobPriority::Normal, &tj2_inst, &count);
 
-	// Counter
-	Counter counter(mgr);
 
-	// It's also possible to create a JobInfo yourself
-	// First argument can be a Counter
-	JobInfo test_job(&counter, test_job_1, &count);
-	mgr->ScheduleJob(JobPriority::Normal, test_job);
-	mgr->WaitForCounter(&counter);
 
 	// List / Queues
 	JobList list(mgr);
 	list.Add(JobPriority::Normal, test_job_1, &count);
-	//list += test_job; This would be unsafe, Jobs might execute in parallel
-
 	list.Wait();
 
 	JobQueue queue(mgr, JobPriority::High); // default Priority is high
 	queue.Add(test_job_1, &count);
-	queue += test_job; // Safe, Jobs are executed consecutively
-
+	queue += JobInfo(test_job_1, &count);
+	
 	queue.Execute();
 }
 
@@ -92,7 +85,5 @@ int main()
 	else
 		std::cout << "done" << std::endl;
 
-	// Don't close
-	getchar();
 	return 0;
 }

@@ -1,32 +1,38 @@
 #include "pch.h"
 #include "JobList.h"
 
-DX::DXJobSystem::JobList::JobList(JobManager* mgr, JobPriority defaultPriority) :
-	manager(mgr),
-	priority(defaultPriority),
-	counter(mgr)
+#include <cstdint>
+namespace DX
 {
-}
+	namespace JobSystem
+	{
+		JobList::JobList(JobManager* mgr, JobPriority defaultPriority)
+			: _manager(mgr),
+			_defaultPriority(defaultPriority),
+			_counter(mgr)
+		{
+		}
 
-DX::DXJobSystem::JobList::~JobList()
-{
-}
+		JobList::~JobList()
+		{
+		}
 
-void DX::DXJobSystem::JobList::Add(JobPriority prio, JobInfo job)
-{
-	job.SetCounter(&counter);
+		void JobList::Add(JobPriority prio, JobInfo job)
+		{
+			job.SetCounter(&_counter);
 
-	manager->ScheduleJob(prio, job);
-}
+			_manager->ScheduleJob(prio, job);
+		}
 
+		JobList& JobList::operator+=(const JobInfo& job)
+		{
+			Add(_defaultPriority, job);
+			return *this;
+		}
 
-DX::DXJobSystem::JobList& DX::DXJobSystem::JobList::operator+=(const JobInfo& job)
-{
-	Add(priority, job);
-	return *this;
-}
-
-void DX::DXJobSystem::JobList::Wait(uint32_t targetValue)
-{
-	manager->WaitForCounter(&counter, targetValue);
+		void JobList::Wait(uint32_t targetValue)
+		{
+			_manager->WaitForCounter(&_counter, targetValue);
+		}
+	}
 }

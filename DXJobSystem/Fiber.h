@@ -1,7 +1,8 @@
 #pragma once
+
 namespace DX
 {
-	namespace DXJobSystem
+	namespace JobSystem
 	{
 		class Fiber
 		{
@@ -9,18 +10,18 @@ namespace DX
 			using Callback_t = void(*)(Fiber*);
 
 		private:
-			void* m_fiber = nullptr;
-			bool  m_thread_fiber = false;
+			void* _fiber = nullptr;
+			bool _threadFiber = false;
 
-			Fiber* m_return_fiber = nullptr;
+			Fiber* _returnFiber = nullptr;
 
-			Callback_t  m_callback = nullptr;
-			void* m_userdata = nullptr;
+			Callback_t _callback = nullptr;
+			void* _userData = nullptr;
 
-			Fiber(void* fiber) :
-				m_fiber(fiber)
+			Fiber(void* fiber)
+				: _fiber(fiber)
 			{
-			}
+			};
 
 		public:
 			Fiber();
@@ -38,9 +39,9 @@ namespace DX
 			void SwitchBack();
 
 			// Getter
-			Callback_t GetCallback() const { return  m_callback; }
-			void* GetUserdata() const { return  m_userdata; }
-			bool IsValid() const { return  m_fiber && m_callback; }
+			Callback_t GetCallback() const { return _callback; };
+			void* GetUserdata() const { return _userData; };
+			bool IsValid() const { return _fiber && _callback; };
 		};
 	}
 }
