@@ -15,7 +15,8 @@ class GCrossAdapterResource
 {
 	std::shared_ptr<GResource> primeResource;
 	std::shared_ptr<GResource> sharedResource;
-
+	ComPtr<ID3D12Heap> crossAdapterResourceHeap[2];
+	
 public:
 
 	GCrossAdapterResource(D3D12_RESOURCE_DESC& desc, const std::shared_ptr<GDevice>& primeDevice,

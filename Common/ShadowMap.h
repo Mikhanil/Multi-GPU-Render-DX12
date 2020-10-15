@@ -52,7 +52,7 @@ private:
 
 	UINT mWidth = 0;
 	UINT mHeight = 0;
-	DXGI_FORMAT mFormat = DXGI_FORMAT_R24G8_TYPELESS;
+	DXGI_FORMAT mFormat = DXGI_FORMAT_R32_TYPELESS;
 
 	GMemory srvMemory;
 	
