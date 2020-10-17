@@ -20,6 +20,9 @@
 #include "Transform.h"
 #include "Window.h"
 #include <array>
+
+using namespace DirectX::SimpleMath;
+
 namespace Common
 {
 	SampleApp::SampleApp(HINSTANCE hInstance)
@@ -1068,6 +1071,7 @@ namespace Common
 
 
 		auto shadowMapPSO = std::make_unique<GraphicPSO>(RenderMode::ShadowMapOpaque);
+		basePsoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 		shadowMapPSO->SetPsoDesc(basePsoDesc);
 		shadowMapPSO->SetShader(shaders["shadowVS"].get());
 		shadowMapPSO->SetShader(shaders["shadowOpaquePS"].get());
@@ -1078,6 +1082,10 @@ namespace Common
 		rasterizedDesc.DepthBias = 100000;
 		rasterizedDesc.DepthBiasClamp = 0.0f;
 		rasterizedDesc.SlopeScaledDepthBias = 1.0f;
+		depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+		depthStencilDesc.StencilEnable = false;
+		depthStencilDesc.DepthEnable = true;		
+		shadowMapPSO->SetDepthStencilState(depthStencilDesc);
 		shadowMapPSO->SetRasterizationState(rasterizedDesc);
 
 
@@ -1087,6 +1095,7 @@ namespace Common
 
 
 		auto drawNormalsPso = std::make_unique<GraphicPSO>(RenderMode::DrawNormalsOpaque);
+		basePsoDesc.DSVFormat = depthStencilFormat;
 		drawNormalsPso->SetPsoDesc(basePsoDesc);
 		drawNormalsPso->SetShader(shaders["drawNormalsVS"].get());
 		drawNormalsPso->SetShader(shaders["drawNormalsPS"].get());

@@ -47,17 +47,13 @@ private:
 private:
 	std::shared_ptr<GDevice> device;
 
-	D3D12_VIEWPORT mViewport;
-	D3D12_RECT mScissorRect;
+	D3D12_VIEWPORT viewport;
+	D3D12_RECT scissorRect;
 
-	UINT mWidth = 0;
-	UINT mHeight = 0;
-	DXGI_FORMAT mFormat = DXGI_FORMAT_R32_TYPELESS;
+	UINT width = 0;
+	UINT height = 0;
 
-	GMemory srvMemory;
-	
+	GMemory srvMemory;	
 	GMemory dsvMemory;
-
 	GTexture shadowMap;
-
 };
