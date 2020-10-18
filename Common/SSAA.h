@@ -1,5 +1,5 @@
 #pragma once
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "GTexture.h"
 
 
@@ -13,9 +13,9 @@ class SSAA
 	GTexture renderTarget;
 	GTexture depthMap;
 	
-	GMemory srvMemory;
-	GMemory rtvMemory;
-	GMemory dsvMemory;
+	GDescriptor srvMemory;
+	GDescriptor rtvMemory;
+	GDescriptor dsvMemory;
 
 	UINT ResolutionMultiplier = 1;
 	const DXGI_FORMAT rtvFormat = GetSRGBFormat(DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -37,11 +37,11 @@ public:
 
 	GTexture& GetDepthMap();
 
-	GMemory* GetRTV();
+	GDescriptor* GetRTV();
 
-	GMemory* GetSRV();
+	GDescriptor* GetSRV();
 
-	GMemory* GetDSV();
+	GDescriptor* GetDSV();
 
 	void OnResize(UINT newWidth, UINT newHeight);
 

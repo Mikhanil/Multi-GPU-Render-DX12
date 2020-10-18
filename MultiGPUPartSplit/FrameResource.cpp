@@ -2,11 +2,11 @@
 
 #include "GCrossAdapterResource.h"
 #include "GDevice.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 
 FrameResource::FrameResource(std::shared_ptr<GDevice> primeDevices, std::shared_ptr<GDevice> secondDevice, UINT passCount, UINT materialCount)
 {
-	PassConstantBuffer = (std::make_shared<ConstantBuffer<PassConstants>>(primeDevices, passCount, primeDevices->GetName() + L" Forward Path Data"));
+	PrimePassConstantBuffer = (std::make_shared<ConstantBuffer<PassConstants>>(primeDevices, passCount + 1, primeDevices->GetName() + L" Forward Path Data"));
 
 	ShadowPassConstantBuffer = (std::make_shared<ConstantBuffer<PassConstants>>(secondDevice, passCount, secondDevice->GetName() + L" Forward Path Data"));
 		

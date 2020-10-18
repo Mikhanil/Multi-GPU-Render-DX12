@@ -2,7 +2,7 @@
 #include "Material.h"
 #include "d3dApp.h"
 #include "GCommandList.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "GraphicPSO.h"
 
 UINT Material::materialIndexGlobal = 0;
@@ -50,7 +50,7 @@ Material::Material(std::wstring name, RenderMode::Mode pso): Name(std::move(name
 }
 
 
-void Material::InitMaterial(GMemory* textureHeap)
+void Material::InitMaterial(GDescriptor* textureHeap)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;

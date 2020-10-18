@@ -12,6 +12,9 @@
 #include "Window.h"
 #include "d3dUtil.h"
 
+#include <chrono>
+#include <thread>
+
 using namespace PEPEngine;
 using namespace Utils;
 using namespace Graphics;
@@ -19,7 +22,7 @@ using namespace Graphics;
 PartSplitGPU::PartSplitGPU(HINSTANCE hInstance): D3DApp(hInstance)
 {
 	mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = 175;
+	mSceneBounds.Radius = 200;
 }
 
 void PartSplitGPU::InitDevices()
@@ -28,21 +31,9 @@ void PartSplitGPU::InitDevices()
 
 	auto allDevices = GDeviceFactory::GetAllDevices(true);
 
-
 	const auto firstDevice = allDevices[0];
 	const auto otherDevice = allDevices[1];
-
-	if (otherDevice->IsCrossAdapterTextureSupported())
-	{
-		devices[GraphicAdapterPrimary] = otherDevice;
-		devices[GraphicAdapterSecond] = firstDevice;
-	}
-	else
-	{
-		devices[GraphicAdapterPrimary] = firstDevice;
-		devices[GraphicAdapterSecond] = otherDevice;
-	}
-
+	
 	devices[GraphicAdapterPrimary] = firstDevice;
 	devices[GraphicAdapterSecond] = otherDevice;
 
@@ -60,7 +51,7 @@ void PartSplitGPU::InitDevices()
 		}
 	}
 
-	devices[GraphicAdapterPrimary]->SharedFence(primeFence, devices[GraphicAdapterSecond], sharedFence,
+	devices[GraphicAdapterPrimary]->SharedFence(primeFence, devices[GraphicAdapterSecond], secondFence,
 	                                            sharedFenceValue);
 
 	logQueue.Push(L"\nPrime Device: " + (devices[GraphicAdapterPrimary]->GetName()));
@@ -93,7 +84,7 @@ void PartSplitGPU::InitRootSignature()
 		texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
 		texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
 		texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
-		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, assets[i].GetLoadTexturesCount(),
+		texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, assets[i].GetLoadTexturesCount() > 0 ? assets[i].GetLoadTexturesCount() : 1,
 		                 StandardShaderSlot::TexturesMap - 3, 0);
 
 
@@ -203,7 +194,7 @@ void PartSplitGPU::InitPipeLineResource()
 
 	const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), defaultInputLayout.size()};
 
-	defaultPrimePipelineResources = ShaderFactory();
+	defaultPrimePipelineResources = RenderModeFactory();
 	defaultPrimePipelineResources.LoadDefaultShaders();
 	defaultPrimePipelineResources.LoadDefaultPSO(devices[GraphicAdapterPrimary], primeDeviceSignature, desc,
 	                                             BackBufferFormat, DepthStencilFormat, ssaoPrimeRootSignature,
@@ -222,10 +213,10 @@ void PartSplitGPU::InitPipeLineResource()
 	descPSO.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 	
-	shadowMapSecondDevicePSO = std::make_shared<GraphicPSO>();
-	shadowMapSecondDevicePSO->SetPsoDesc(descPSO);
-	shadowMapSecondDevicePSO->SetRootSignature(secondDeviceShadowMapSignature->GetRootSignature().Get());
-	shadowMapSecondDevicePSO->Initialize(devices[GraphicAdapterSecond]);
+	shadowMapPSOSecondDevice = std::make_shared<GraphicPSO>();
+	shadowMapPSOSecondDevice->SetPsoDesc(descPSO);
+	shadowMapPSOSecondDevice->SetRootSignature(secondDeviceShadowMapSignature->GetRootSignature().Get());
+	shadowMapPSOSecondDevice->Initialize(devices[GraphicAdapterSecond]);
 }
 
 void PartSplitGPU::CreateMaterials()
@@ -269,8 +260,6 @@ void PartSplitGPU::InitSRVMemoryAndMaterials()
 
 		logQueue.Push(std::wstring(L"\nInit Views for " + devices[i]->GetName()));
 	}
-
-	shadowSecondDevicePath->BuildDescriptors();
 	ambientPrimePath->BuildDescriptors();
 }
 
@@ -284,7 +273,7 @@ void PartSplitGPU::InitRenderPaths()
 		cmdList,
 		MainWindow->GetClientWidth(), MainWindow->GetClientHeight()));
 
-	antiAliasingPrimePath = (std::make_shared<SSAA>(devices[GraphicAdapterPrimary], 1, MainWindow->GetClientWidth(),
+	antiAliasingPrimePath = (std::make_shared<SSAA>(devices[GraphicAdapterPrimary], 8, MainWindow->GetClientWidth(),
 	                                                MainWindow->GetClientHeight()));
 	antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -292,20 +281,26 @@ void PartSplitGPU::InitRenderPaths()
 
 	logQueue.Push(std::wstring(L"\nInit Render path data for " + devices[GraphicAdapterPrimary]->GetName()));
 
-	shadowSecondDevicePath = (std::make_shared<ShadowMap>(devices[GraphicAdapterSecond], 4096, 4096));
-
-	auto shadowMapDesc = shadowSecondDevicePath->GetTexture().GetD3D12ResourceDesc();
 
 	
-	crossAdapterShadowMap = std::make_shared<GCrossAdapterResource>(shadowMapDesc, devices[GraphicAdapterPrimary],
-	                                                                devices[GraphicAdapterSecond],
-	                                                                L"Shared Shadow Map");
+	shadowPathSecondDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterSecond], 4096, 4096));
 
-
-	primeShadowMapSRV = devices[GraphicAdapterPrimary]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-	primeShadowMap = GTexture(devices[GraphicAdapterPrimary], shadowSecondDevicePath->GetTexture().GetD3D12ResourceDesc());
+	auto shadowMapDesc = shadowPathSecondDevice->GetTexture().GetD3D12ResourceDesc();
 	
+	if((devices[GraphicAdapterSecond]->IsCrossAdapterTextureSupported()))
+	{
+		crossAdapterShadowMap = std::make_shared<GCrossAdapterResource>(shadowMapDesc, devices[GraphicAdapterSecond],
+			devices[GraphicAdapterPrimary],
+			L"Shared Shadow Map");
+	}
+	else
+	{
+		crossAdapterShadowMap = std::make_shared<GCrossAdapterResource>(shadowMapDesc, devices[GraphicAdapterPrimary],
+			devices[GraphicAdapterSecond],
+			L"Shared Shadow Map");
+	}
+	primeCopyShadowMapSRV = devices[GraphicAdapterPrimary]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
@@ -314,7 +309,19 @@ void PartSplitGPU::InitRenderPaths()
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	srvDesc.Texture2D.PlaneSlice = 0;
-	primeShadowMap.CreateShaderResourceView(&srvDesc, &primeShadowMapSRV);
+	
+	if(devices[GraphicAdapterSecond]->IsCrossAdapterTextureSupported() )
+	{
+		crossAdapterShadowMap->GetSharedResource().CreateShaderResourceView(&srvDesc, &primeCopyShadowMapSRV);
+	}
+	else
+	{
+		primeCopyShadowMap = GTexture(devices[GraphicAdapterPrimary], shadowPathSecondDevice->GetTexture().GetD3D12ResourceDesc());
+		primeCopyShadowMap.CreateShaderResourceView(&srvDesc, &primeCopyShadowMapSRV);
+	}
+
+
+	shadowPathPrimeDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterPrimary], 4096, 4096));
 }
 
 void PartSplitGPU::LoadStudyTexture()
@@ -507,69 +514,17 @@ void PartSplitGPU::DublicateResource()
 		try
 		{
 			auto queue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
-			auto cmdList = queue->GetCommandList();
+			const auto cmdList = queue->GetCommandList();
 
 
-			logQueue.Push(std::wstring(L"\nGet CmdList For " + devices[i]->GetName()));
-
-			for (auto&& texture : assets[GraphicAdapterPrimary].GetTextures())
-			{
-				texture->ClearTrack();
-
-				auto tex = GTexture::LoadTextureFromFile(texture->GetFilePath(), cmdList);
-
-				tex->SetName(texture->GetName());
-				tex->ClearTrack();
-
-				assets[i].AddTexture(std::move(tex));
-
-				logQueue.Push(std::wstring(L"\nLoad Texture " + texture->GetName() + L" for " + devices[i]->GetName()));
-			}
-
-			logQueue.Push(std::wstring(L"\nDublicate texture Resource for " + devices[i]->GetName()));
-
-			for (auto&& material : assets[GraphicAdapterPrimary].GetMaterials())
-			{
-				auto copy = std::make_shared<Material>(material->GetName(), material->GetPSO());
-
-				copy->SetMaterialIndex(material->GetMaterialIndex());
-
-				auto index = assets[i].GetTextureIndex(material->GetDiffuseTexture()->GetName());
-				auto texture = assets[i].GetTexture(index);
-				copy->SetDiffuseTexture(texture, index);
-
-				index = assets[i].GetTextureIndex(material->GetNormalTexture()->GetName());
-				texture = assets[i].GetTexture(index);
-				copy->SetNormalMap(texture, index);
-
-				copy->DiffuseAlbedo = material->DiffuseAlbedo;
-				copy->FresnelR0 = material->FresnelR0;
-				copy->Roughness = material->Roughness;
-				copy->MatTransform = material->MatTransform;
-
-
-				assets[i].AddMaterial(std::move(copy));
-			}
-			logQueue.Push(std::wstring(L"\nDublicate material Resource for " + devices[i]->GetName()));
+			logQueue.Push(std::wstring(L"\nGet CmdList For " + devices[i]->GetName()));					
 
 			for (auto&& model : models[GraphicAdapterPrimary])
 			{
-				auto modelCopy = model.second->Dublicate(cmdList);
-
-				for (int j = 0; j < model.second->GetMeshesCount(); ++j)
-				{
-					auto originMaterial = model.second->GetMeshMaterial(j);
-
-					if (originMaterial != nullptr)
-						modelCopy->SetMeshMaterial(
-							j, assets[i].GetMaterial(assets[i].GetMaterialIndex(originMaterial->GetName())));
-				}
+				auto modelCopy = model.second->Dublicate(cmdList);				
 
 				models[i][model.first] = std::move(modelCopy);
 			}
-
-			logQueue.Push(std::wstring(L"\nDublicate models Resource for " + devices[i]->GetName()));
-
 			queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 
 			logQueue.Push(std::wstring(L"\nDublicate Resource for " + devices[i]->GetName()));
@@ -616,7 +571,7 @@ void PartSplitGPU::AddMultiDeviceOpaqueRenderComponent(GameObject* object, std::
 	{
 		auto renderer = CreateRenderer(i, models[i][modelName]);
 		object->AddComponent(renderer);
-		typedRenderer[i][RenderMode::Opaque].push_back(renderer);
+		typedRenderer[i][RenderMode::OpaqueAlphaDrop].push_back(renderer);
 	}
 }
 
@@ -625,25 +580,23 @@ void PartSplitGPU::CreateGO()
 	logQueue.Push(std::wstring(L"\nStart Create GO"));
 	auto skySphere = std::make_unique<GameObject>("Sky");
 	skySphere->GetTransform()->SetScale({500, 500, 500});
-	for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
-		auto renderer = std::make_shared<SkyBox>(devices[i], models[i][L"sphere"],
-		                                         *assets[i].GetTexture(assets[i].GetTextureIndex(L"skyTex")).get(),
-		                                         &srvTexturesMemory[i], assets[i].GetTextureIndex(L"skyTex"));
+		auto renderer = std::make_shared<SkyBox>(devices[GraphicAdapterPrimary], models[GraphicAdapterPrimary][L"sphere"],
+		                                         *assets[GraphicAdapterPrimary].GetTexture(assets[GraphicAdapterPrimary].GetTextureIndex(L"skyTex")).get(),
+		                                         &srvTexturesMemory[GraphicAdapterPrimary], assets[GraphicAdapterPrimary].GetTextureIndex(L"skyTex"));
 
 		skySphere->AddComponent(renderer);
-		typedRenderer[i][RenderMode::SkyBox].push_back((renderer));
+		typedRenderer[GraphicAdapterPrimary][RenderMode::SkyBox].push_back((renderer));
 	}
 	gameObjects.push_back(std::move(skySphere));
 
 	auto quadRitem = std::make_unique<GameObject>("Quad");
-	for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
-		auto renderer = std::make_shared<ModelRenderer>(devices[i], models[i][L"quad"]);
-		renderer->SetModel(models[i][L"quad"]);
+		auto renderer = std::make_shared<ModelRenderer>(devices[GraphicAdapterPrimary], models[GraphicAdapterPrimary][L"quad"]);
+		renderer->SetModel(models[GraphicAdapterPrimary][L"quad"]);
 		quadRitem->AddComponent(renderer);
-		typedRenderer[i][RenderMode::Debug].push_back(renderer);
-		typedRenderer[i][RenderMode::Quad].push_back(renderer);
+		typedRenderer[GraphicAdapterPrimary][RenderMode::Debug].push_back(renderer);
+		typedRenderer[GraphicAdapterPrimary][RenderMode::Quad].push_back(renderer);
 	}
 	gameObjects.push_back(std::move(quadRitem));
 
@@ -793,9 +746,9 @@ void PartSplitGPU::CalculateFrameStats()
 		maxFps = std::max(fps, maxFps);
 		maxMspf = std::max(mspf, maxMspf);
 
-		if (writeStaticticCount >= 60)
+		if (writeStaticticCount >= 120)
 		{
-			std::wstring staticticStr = L"\n\tMin FPS: " + std::to_wstring(minFps)
+			std::wstring staticticStr = L"\nCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +  L"\n\tMin FPS: " + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF: " + std::to_wstring(minMspf)
 				+ L"\n\tMax FPS: " + std::to_wstring(maxFps)
 				+ L"\n\tMax MSPF: " + std::to_wstring(maxMspf)
@@ -810,12 +763,21 @@ void PartSplitGPU::CalculateFrameStats()
 			maxMspf = std::numeric_limits<float>::min();
 			writeStaticticCount = 0;
 
+			if(UseOnlyPrime)
+			{
+				UseOnlyPrime = !UseOnlyPrime;
+				OnResize();
+			}
+			
 			++statisticCount;
 		}
-
+		else
+		{
+			writeStaticticCount++;
+		}
+		MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L"Calculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime));
 		frameCount = 0;
 		timeElapsed += 1.0f;
-		writeStaticticCount++;
 	}
 }
 
@@ -826,10 +788,7 @@ void PartSplitGPU::LogWriting()
 	tm now;
 	localtime_s(&now, &t);
 
-	std::filesystem::path filePath(
-		L"LogData" + std::to_wstring(now.tm_mday) + L"-" + std::to_wstring(now.tm_mon + 1) + L"-" +
-		std::to_wstring((now.tm_year + 1900)) + L"-" + std::to_wstring(now.tm_hour) + L"-" + std::to_wstring(now.tm_min)
-		+ L".txt");
+	std::filesystem::path filePath(devices[0]->GetName() + L"+" + devices[1]->GetName() + L".txt");
 
 
 	auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
@@ -869,9 +828,9 @@ void PartSplitGPU::LogWriting()
 
 bool PartSplitGPU::Initialize()
 {
-	logThread = std::thread(&PartSplitGPU::LogWriting, this);
-
 	InitDevices();
+
+	logThread = std::thread(&PartSplitGPU::LogWriting, this);
 	InitMainWindow();
 
 	LoadStudyTexture();
@@ -895,6 +854,8 @@ bool PartSplitGPU::Initialize()
 		device->Flush();
 	}
 
+	//secondDeviceThread = std::thread(&PartSplitGPU::DrawSecondDeviceShadowMap, this);
+	
 	return true;
 }
 
@@ -915,7 +876,7 @@ void PartSplitGPU::UpdateMaterials()
 
 void PartSplitGPU::Update(const GameTimer& gt)
 {
-	auto olderIndex = currentFrameResourceIndex - 1 > globalCountFrameResources ? 0 : currentFrameResourceIndex;
+	UINT olderIndex = currentFrameResourceIndex - 1 > globalCountFrameResources ? 0 : (UINT)currentFrameResourceIndex;
 	{
 		for (int i = 0; i < GraphicAdapterCount; ++i)
 		{
@@ -925,7 +886,6 @@ void PartSplitGPU::Update(const GameTimer& gt)
 	
 	const auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 		
-	currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
 	currentFrameResource = frameResources[currentFrameResourceIndex];
 
 	if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->FenceValue))
@@ -1017,13 +977,17 @@ void PartSplitGPU::UpdateShadowPassCB(const GameTimer& gt)
 	shadowPassCB.NearZ = mLightNearZ;
 	shadowPassCB.FarZ = mLightFarZ;
 
-	UINT w = shadowSecondDevicePath->Width();
-	UINT h = shadowSecondDevicePath->Height();
+	UINT w = shadowPathSecondDevice->Width();
+	UINT h = shadowPathSecondDevice->Height();
 	shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
 	shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
 	auto currPassCB = currentFrameResource->ShadowPassConstantBuffer;
 	currPassCB->CopyData(0, shadowPassCB);
+
+	currPassCB = currentFrameResource->PrimePassConstantBuffer;
+	currPassCB->CopyData(1, shadowPassCB);
+	
 }
 
 void PartSplitGPU::UpdateMainPassCB(const GameTimer& gt)
@@ -1084,7 +1048,7 @@ void PartSplitGPU::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
 
 	{
-		auto currentPassCB = currentFrameResource->PassConstantBuffer;
+		auto currentPassCB = currentFrameResource->PrimePassConstantBuffer;
 		currentPassCB->CopyData(0, mainPassCB);
 	}
 }
@@ -1129,40 +1093,50 @@ void PartSplitGPU::UpdateSsaoCB(const GameTimer& gt)
 	}
 }
 
-void PartSplitGPU::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList)
+void PartSplitGPU::PopulateShadowMapCommands(GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList)
 {
-	//Draw Shadow Map
-	{
-		cmdList->SetViewports(&shadowSecondDevicePath->Viewport(), 1);
-		cmdList->SetScissorRects(&shadowSecondDevicePath->ScissorRect(), 1);
-
-		cmdList->TransitionBarrier(shadowSecondDevicePath->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		cmdList->FlushResourceBarriers();
-		
-		cmdList->SetRenderTargets(0, nullptr, 0, shadowSecondDevicePath->GetDsvMemory(), 0, true);
-
-		cmdList->ClearDepthStencil(shadowSecondDevicePath->GetDsvMemory(), 0,
-			D3D12_CLEAR_FLAG_DEPTH);
-		
-		cmdList->SetGMemory(&srvTexturesMemory[GraphicAdapterSecond]);
-		cmdList->SetRootSignature(secondDeviceShadowMapSignature.get());
-
+	if(UseOnlyPrime)
+	{		
+		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
-			*currentFrameResource->MaterialBuffers[GraphicAdapterSecond]);
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[GraphicAdapterSecond]);
-		
+			*currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[GraphicAdapterPrimary]);
 		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-		                                   *currentFrameResource->ShadowPassConstantBuffer);
+			*currentFrameResource->PrimePassConstantBuffer, 1);
 
-		cmdList->SetPipelineState(*shadowMapSecondDevicePSO.get());
-		PopulateDrawCommands(GraphicAdapterSecond, cmdList, RenderMode::Opaque);
-		PopulateDrawCommands(GraphicAdapterSecond, cmdList, RenderMode::OpaqueAlphaDrop);
+		shadowPathPrimeDevice->PopulatePreRenderCommands(cmdList);
 
-		cmdList->TransitionBarrier(shadowSecondDevicePath->GetTexture(), D3D12_RESOURCE_STATE_COMMON);
-		cmdList->FlushResourceBarriers();
+		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque));
+		PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::Opaque);
+		PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::OpaqueAlphaDrop);
 
-		PopulateCopyResource(cmdList, shadowSecondDevicePath->GetTexture(), crossAdapterShadowMap->GetSharedResource());
-		
+		cmdList->TransitionBarrier(shadowPathPrimeDevice->GetTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		cmdList->FlushResourceBarriers();		
+	}
+	else
+	{
+		if (adapter == GraphicAdapterPrimary)
+		{
+			cmdList->CopyResource(primeCopyShadowMap, crossAdapterShadowMap->GetPrimeResource());
+		}
+		else 
+		{
+			//Draw Shadow Map
+			cmdList->SetRootSignature(secondDeviceShadowMapSignature.get());
+
+			cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+				*currentFrameResource->MaterialBuffers[GraphicAdapterSecond]);
+			cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+				*currentFrameResource->ShadowPassConstantBuffer);
+
+			shadowPathSecondDevice->PopulatePreRenderCommands(cmdList);
+
+			cmdList->SetPipelineState(*shadowMapPSOSecondDevice.get());
+			PopulateDrawCommands(GraphicAdapterSecond, cmdList, RenderMode::Opaque);
+			PopulateDrawCommands(GraphicAdapterSecond, cmdList, RenderMode::OpaqueAlphaDrop);
+
+			PopulateCopyResource(cmdList, shadowPathSecondDevice->GetTexture(), crossAdapterShadowMap->GetSharedResource());
+		}
 	}
 }
 
@@ -1170,7 +1144,7 @@ void PartSplitGPU::PopulateNormalMapCommands(std::shared_ptr<GCommandList> cmdLi
 {
 	//Draw Normals
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[GraphicAdapterPrimary]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[GraphicAdapterPrimary]);
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
 		                                   *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
@@ -1193,7 +1167,7 @@ void PartSplitGPU::PopulateNormalMapCommands(std::shared_ptr<GCommandList> cmdLi
 		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
-		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PassConstantBuffer);
+		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantBuffer);
 
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
 		PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::Opaque);
@@ -1211,7 +1185,7 @@ void PartSplitGPU::PopulateAmbientMapCommands(std::shared_ptr<GCommandList> cmdL
 {
 	//Draw Ambient
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[GraphicAdapterPrimary]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[GraphicAdapterPrimary]);
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
 		                                   *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
@@ -1226,7 +1200,7 @@ void PartSplitGPU::PopulateForwardPathCommands(std::shared_ptr<GCommandList> cmd
 {
 	//Forward Path with SSAA
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[GraphicAdapterPrimary]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[GraphicAdapterPrimary]);
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
 		                                   *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
@@ -1247,9 +1221,9 @@ void PartSplitGPU::PopulateForwardPathCommands(std::shared_ptr<GCommandList> cmd
 		                          antiAliasingPrimePath->GetDSV());
 
 		cmdList->
-			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer);
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantBuffer);
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, &primeShadowMapSRV);
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, UseOnlyPrime ? shadowPathPrimeDevice->GetSrv() : &primeCopyShadowMapSRV);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
 
 
@@ -1269,7 +1243,7 @@ void PartSplitGPU::PopulateForwardPathCommands(std::shared_ptr<GCommandList> cmd
 		{
 		case 1:
 			{
-				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, &primeShadowMapSRV);
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, UseOnlyPrime ? shadowPathPrimeDevice->GetSrv() : &primeCopyShadowMapSRV);
 				cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Debug));
 				PopulateDrawCommands(GraphicAdapterPrimary, cmdList, (RenderMode::Debug));
 				break;
@@ -1299,25 +1273,24 @@ void PartSplitGPU::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::share
 	}
 }
 
-void PartSplitGPU::PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList,
-                                           GTexture& renderTarget, GMemory* rtvMemory, UINT offsetRTV)
+void PartSplitGPU::PopulateDrawQuadCommand(std::shared_ptr<GCommandList> cmdList,
+                                           GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
 {
 	cmdList->SetViewports(&fullViewport, 1);
 	cmdList->SetScissorRects(&fullRect, 1);
 
 	cmdList->TransitionBarrier(renderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	cmdList->FlushResourceBarriers();
-	cmdList->ClearRenderTarget(rtvMemory, offsetRTV,
-	                           adapterIndex == GraphicAdapterPrimary ? Colors::Red : Colors::Blue);
+	cmdList->ClearRenderTarget(rtvMemory, offsetRTV, Colors::Black);
 
 	cmdList->SetRenderTargets(1, rtvMemory, offsetRTV);
 
 	cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, antiAliasingPrimePath->GetSRV());
 
 	cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-	PopulateDrawCommands(adapterIndex, cmdList, (RenderMode::Quad));
+	PopulateDrawCommands(GraphicAdapterPrimary, cmdList, (RenderMode::Quad));
 
-	cmdList->TransitionBarrier(renderTarget, D3D12_RESOURCE_STATE_COMMON);
+	cmdList->TransitionBarrier(renderTarget, D3D12_RESOURCE_STATE_PRESENT);
 	cmdList->FlushResourceBarriers();
 }
 
@@ -1332,55 +1305,51 @@ void PartSplitGPU::PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, c
 }
 
 
+
 void PartSplitGPU::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
-	
-	// Get a timestamp at the start of the command list.
 	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 
-	auto secondRenderQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
 
-	auto shadowMapSecondCmdList = secondRenderQueue->GetCommandList();
-	shadowMapSecondCmdList->EndQuery(timestampHeapIndex);
-	PopulateShadowMapCommands(shadowMapSecondCmdList);
-	shadowMapSecondCmdList->EndQuery(timestampHeapIndex + 1);
-	shadowMapSecondCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+	if (!UseOnlyPrime)	
+	{
+		auto secondRenderQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
+		const auto shadowMapSecondCmdList = secondRenderQueue->GetCommandList();
+		shadowMapSecondCmdList->EndQuery(timestampHeapIndex);
+		PopulateShadowMapCommands(GraphicAdapterSecond, shadowMapSecondCmdList);
+		shadowMapSecondCmdList->EndQuery(timestampHeapIndex + 1);
+		shadowMapSecondCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+		const auto secondDeviceFinishRendering = secondRenderQueue->ExecuteCommandList(shadowMapSecondCmdList);
+		//secondRenderQueue->Signal(secondFence, secondDeviceFinishRendering);
+
+		auto copyPrimeQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+		const auto copyShadowMapCmdList = copyPrimeQueue->GetCommandList();
+		PopulateShadowMapCommands(GraphicAdapterPrimary, copyShadowMapCmdList);
+		//copyPrimeQueue->Wait(primeFence, secondDeviceFinishRendering);
+		copyPrimeQueue->ExecuteCommandList(copyShadowMapCmdList);
+	}
 	
-	const auto secondDeviceFinishRendering = secondRenderQueue->ExecuteCommandList(shadowMapSecondCmdList);	
-	secondRenderQueue->Signal(sharedFence, secondDeviceFinishRendering);
-
-
-	auto primeRenderQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
-	primeRenderQueue->Wait(primeFence, secondDeviceFinishRendering);
-	
+	auto primeRenderQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();		
 	auto primeCmdList = primeRenderQueue->GetCommandList();
 	primeCmdList->EndQuery(timestampHeapIndex);
-	primeCmdList->CopyResource(primeShadowMap, crossAdapterShadowMap->GetPrimeResource());
-
-	primeCmdList->SetRootSignature(primeDeviceSignature.get());
-	primeCmdList->SetViewports(&fullViewport, 1);
-	primeCmdList->SetScissorRects(&fullRect, 1);
-
-	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-	primeCmdList->FlushResourceBarriers();
-	primeCmdList->ClearRenderTarget(&currentFrameResource->BackBufferRTVMemory, 0, Colors::Black);
-	primeCmdList->SetRenderTargets(1, &currentFrameResource->BackBufferRTVMemory, 0);
-	primeCmdList->SetGMemory(&primeShadowMapSRV);	
-	primeCmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, &primeShadowMapSRV);
-
-	primeCmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-	PopulateDrawCommands(GraphicAdapterPrimary, primeCmdList, (RenderMode::Quad));
-
+	PopulateNormalMapCommands(primeCmdList);
+	PopulateAmbientMapCommands(primeCmdList);
+	if(UseOnlyPrime)
+	{
+		PopulateShadowMapCommands(GraphicAdapterPrimary, primeCmdList);
+	}	
+	PopulateForwardPathCommands(primeCmdList);
+	PopulateDrawQuadCommand(primeCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->BackBufferRTVMemory, 0);
 	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 	primeCmdList->FlushResourceBarriers();
-
 	primeCmdList->EndQuery(timestampHeapIndex + 1);
 	primeCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-
-	currentFrameResource->FenceValue = primeRenderQueue->ExecuteCommandList(primeCmdList);	
-	MainWindow->Present();
+	currentFrameResource->FenceValue = primeRenderQueue->ExecuteCommandList(primeCmdList);
+	
+	
+	currentFrameResourceIndex = MainWindow->Present();
 }
 
 void PartSplitGPU::OnResize()
@@ -1425,7 +1394,7 @@ void PartSplitGPU::OnResize()
 		}
 	}
 
-	currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex() - 1;
+	currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex();
 }
 
 bool PartSplitGPU::InitMainWindow()
@@ -1452,8 +1421,9 @@ int PartSplitGPU::Run()
 			// Otherwise, do animation/game stuff.
 		else
 		{
-			if (statisticCount > 20)
+			if (statisticCount >= 2)
 			{
+				MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" Finished. Wait...");
 				Quit();
 				continue;
 			}
@@ -1610,22 +1580,11 @@ LRESULT PartSplitGPU::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					}
 				}
 
-				if (keycode == (VK_F2) && keyboard.KeyIsPressed(VK_F2))
-				{
-					//pathMapShow = (pathMapShow + 1) % maxPathMap;
-				}
-
-				if ((keycode == (VK_LEFT) && keyboard.KeyIsPressed(VK_LEFT)) || ((keycode == ('A') && keyboard.
-					KeyIsPressed('A'))))
-				{
-					break;
-				}
-
-				if ((keycode == (VK_RIGHT) && keyboard.KeyIsPressed(VK_RIGHT)) || ((keycode == ('D') && keyboard.
-					KeyIsPressed('D'))))
-				{
-					break;
-				}
+				//if (keycode == (VK_F2) && keyboard.KeyIsPressed(VK_F2))
+				//{
+				//	UseOnlyPrime = !UseOnlyPrime;
+				//	//pathMapShow = (pathMapShow + 1) % maxPathMap;
+				//}				
 			}
 		}
 

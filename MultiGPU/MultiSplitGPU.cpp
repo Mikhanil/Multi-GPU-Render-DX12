@@ -199,7 +199,7 @@ void MultiSplitGPU::InitPipeLineResource()
 	
 	for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
-		defaultPipelineResources.push_back(std::move(ShaderFactory()));
+		defaultPipelineResources.push_back(std::move(RenderModeFactory()));
 		defaultPipelineResources[i].LoadDefaultShaders();
 		defaultPipelineResources[i].LoadDefaultPSO(devices[i], rootSignatures[i], desc, BackBufferFormat, DepthStencilFormat, ssaoRootSignatures[i], NormalMapFormat, AmbientMapFormat );
 
@@ -238,8 +238,6 @@ void MultiSplitGPU::InitSRVMemoryAndMaterials()
 	for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
 		srvTexturesMemory.push_back(devices[i]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, assets[i].GetTextures().size()));
-
-		shadowPaths[i]->BuildDescriptors();
 
 		ambientPaths[i]->BuildDescriptors();
 		
@@ -1104,25 +1102,15 @@ void MultiSplitGPU::PopulateShadowMapCommands(GraphicsAdapter adapterIndex, std:
 {
 	//Draw Shadow Map
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
 
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
-
-		cmdList->SetViewports(&shadowPaths[adapterIndex]->Viewport(), 1);
-		cmdList->SetScissorRects(&shadowPaths[adapterIndex]->ScissorRect(), 1);
-
-		cmdList->TransitionBarrier(shadowPaths[adapterIndex]->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		cmdList->FlushResourceBarriers();
-
-		cmdList->ClearDepthStencil(shadowPaths[adapterIndex]->GetDsvMemory(), 0,
-		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
-
-		cmdList->SetRenderTargets(0, nullptr, false, shadowPaths[adapterIndex]->GetDsvMemory());
-
 		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffers[adapterIndex], 1);
 
+		shadowPaths[adapterIndex]->PopulatePreRenderCommands(cmdList);
+		
 		cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(RenderMode::ShadowMapOpaque));
 		PopulateDrawCommands(adapterIndex, cmdList, RenderMode::Opaque);
 
@@ -1138,7 +1126,7 @@ void MultiSplitGPU::PopulateNormalMapCommands(GraphicsAdapter adapterIndex, std:
 {
 	//Draw Normals
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
@@ -1178,7 +1166,7 @@ void MultiSplitGPU::PopulateAmbientMapCommands(GraphicsAdapter adapterIndex, std
 {
 	//Draw Ambient
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
@@ -1192,7 +1180,7 @@ void MultiSplitGPU::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, st
 {
 	//Forward Path with SSAA
 	{
-		cmdList->SetGMemory(&srvTexturesMemory[adapterIndex]);
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
 		cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffers[adapterIndex]);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
@@ -1214,7 +1202,7 @@ void MultiSplitGPU::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, st
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffers[adapterIndex]);
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPaths[adapterIndex]->GetSrvMemory());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPaths[adapterIndex]->GetSrv());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPaths[adapterIndex]->AmbientMapSrv(), 0);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap,
@@ -1237,7 +1225,7 @@ void MultiSplitGPU::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, st
 		{
 		case 1:
 			{
-				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowPaths[adapterIndex]->GetSrvMemory());
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowPaths[adapterIndex]->GetSrv());
 				cmdList->SetPipelineState(*defaultPipelineResources[adapterIndex].GetPSO(RenderMode::Debug));
 				PopulateDrawCommands(adapterIndex,cmdList,(RenderMode::Debug));
 				break;
@@ -1265,7 +1253,7 @@ void MultiSplitGPU::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shar
 	}
 }
 
-void MultiSplitGPU::PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory, UINT offsetRTV)
+void MultiSplitGPU::PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
 {
 	cmdList->SetViewports(&fullViewport, 1);
 	cmdList->SetScissorRects(&adapterRects[adapterIndex], 1);

@@ -13,7 +13,19 @@ ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height) :
 	dsvMemory = this->device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
 	
 	BuildResource();
-	BuildDescriptors();
+	BuildViews();
+}
+
+ShadowMap::~ShadowMap() = default;
+
+GDescriptor* ShadowMap::GetSrv()
+{
+	return &srvMemory;
+}
+
+GDescriptor* ShadowMap::GetDsv()
+{
+	return &dsvMemory;
 }
 
 UINT ShadowMap::Width() const
@@ -32,16 +44,6 @@ GTexture& ShadowMap::GetTexture()
 }
 
 
-D3D12_VIEWPORT ShadowMap::Viewport() const
-{
-	return viewport;
-}
-
-D3D12_RECT ShadowMap::ScissorRect() const
-{
-	return scissorRect;
-}
-
 void ShadowMap::OnResize(UINT newWidth, UINT newHeight)
 {
 	if ((width != newWidth) || (height != newHeight))
@@ -50,11 +52,25 @@ void ShadowMap::OnResize(UINT newWidth, UINT newHeight)
 		height = newHeight;
 
 		BuildResource();
-		BuildDescriptors();
+		BuildViews();
 	}
 }
 
-void ShadowMap::BuildDescriptors()
+void ShadowMap::PopulatePreRenderCommands(std::shared_ptr<GCommandList>& cmdList)
+{
+	cmdList->SetViewports(&viewport, 1);
+	cmdList->SetScissorRects(&scissorRect, 1);
+
+	cmdList->TransitionBarrier(shadowMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+	cmdList->FlushResourceBarriers();
+
+	cmdList->SetRenderTargets(0, nullptr, 0, &dsvMemory, 0, true);
+	cmdList->ClearDepthStencil(&dsvMemory, 0,
+		D3D12_CLEAR_FLAG_DEPTH);
+	
+}
+
+void ShadowMap::BuildViews()
 {		
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -76,7 +92,7 @@ void ShadowMap::BuildDescriptors()
 
 void ShadowMap::BuildResource()
 {
-	if(shadowMap.GetD3D12Resource() == nullptr)
+	if(!shadowMap.IsValid())
 	{
 		D3D12_RESOURCE_DESC texDesc;
 		ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));

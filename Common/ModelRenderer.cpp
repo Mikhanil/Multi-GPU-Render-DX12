@@ -29,7 +29,11 @@ void ModelRenderer::Update()
 		objectWorldData.World = (transform->GetWorldMatrix() * model->scaleMatrix).Transpose();
 		for (int i = 0; i < model->GetMeshesCount(); ++i)
 		{
-			objectWorldData.MaterialIndex = model->GetMeshMaterial(i)->GetIndex();
+			auto material = model->GetMeshMaterial(i);
+			if(material != nullptr)
+			{
+				objectWorldData.MaterialIndex = material->GetIndex();
+			}
 			modelDataBuffer->CopyData(i, objectWorldData);
 		}		
 	}

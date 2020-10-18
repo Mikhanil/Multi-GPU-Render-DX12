@@ -86,7 +86,7 @@ public:
 
 	Material(std::wstring name, RenderMode::Mode pso = RenderMode::Opaque);
 
-	void InitMaterial(GMemory* textureHeap);
+	void InitMaterial(GDescriptor* textureHeap);
 
 	void Update();
 

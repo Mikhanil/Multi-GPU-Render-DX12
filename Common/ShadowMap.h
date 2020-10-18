@@ -1,7 +1,7 @@
 #pragma once
 
 #include "d3dUtil.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "GTexture.h"
 using namespace Microsoft::WRL;
 
@@ -17,31 +17,21 @@ public:
 
 	ShadowMap(const ShadowMap& rhs) = delete;
 	ShadowMap& operator=(const ShadowMap& rhs) = delete;
-	~ShadowMap() = default;
+	~ShadowMap();
 
 	UINT Width() const;
 	UINT Height() const;
 	GTexture& GetTexture();
 
-	GMemory* GetSrvMemory()
-	{
-		return &srvMemory;
-	}
-
-	GMemory* GetDsvMemory()
-	{
-		return &dsvMemory;
-	}
-	
-	D3D12_VIEWPORT Viewport() const;
-	D3D12_RECT ScissorRect() const;
-
-	void BuildDescriptors();
+	GDescriptor* GetSrv();
+	GDescriptor* GetDsv();
 
 	void OnResize(UINT newWidth, UINT newHeight);
 
+	void PopulatePreRenderCommands(std::shared_ptr<GCommandList>& cmdList);
+
 private:
-	
+	void BuildViews();
 	void BuildResource();
 
 private:
@@ -53,7 +43,7 @@ private:
 	UINT width = 0;
 	UINT height = 0;
 
-	GMemory srvMemory;	
-	GMemory dsvMemory;
+	GDescriptor srvMemory;	
+	GDescriptor dsvMemory;
 	GTexture shadowMap;
 };

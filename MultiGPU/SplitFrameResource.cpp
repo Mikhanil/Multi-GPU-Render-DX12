@@ -2,7 +2,7 @@
 
 #include "GCrossAdapterResource.h"
 #include "GDevice.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 
 SplitFrameResource::SplitFrameResource(std::shared_ptr<GDevice>* devices, UINT deviceCount, UINT passCount, UINT materialCount)
 {

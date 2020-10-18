@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "ShaderFactory.h"
+#include "RenderModeFactory.h"
 #include "d3dUtil.h"
 #include "d3dx12.h"
 #include "GRootSignature.h"
@@ -9,9 +9,9 @@ using namespace Graphics;
 using namespace Allocator;
 using namespace Utils;
 
-custom_unordered_map<std::string, std::shared_ptr<GShader>> ShaderFactory::shaders = MemoryAllocator::CreateUnorderedMap<std::string, std::shared_ptr<GShader>>();
+custom_unordered_map<std::string, std::shared_ptr<GShader>> RenderModeFactory::shaders = MemoryAllocator::CreateUnorderedMap<std::string, std::shared_ptr<GShader>>();
 
-void ShaderFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_ptr<GRootSignature> rootSignature,
+void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_ptr<GRootSignature> rootSignature,
                                    D3D12_INPUT_LAYOUT_DESC defautlInputDesc, DXGI_FORMAT backBufferFormat,
                                    DXGI_FORMAT depthStencilFormat,
                                    std::shared_ptr<GRootSignature> ssaoRootSignature, DXGI_FORMAT normalMapFormat, DXGI_FORMAT ambientMapFormat)
@@ -52,6 +52,7 @@ void ShaderFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_
 
 
 	auto shadowMapPSO = std::make_shared<GraphicPSO>(RenderMode::ShadowMapOpaque);
+	basePsoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	shadowMapPSO->SetPsoDesc(basePsoDesc);
 	shadowMapPSO->SetShader(shaders["shadowVS"].get());
 	shadowMapPSO->SetShader(shaders["shadowOpaquePS"].get());
@@ -71,6 +72,7 @@ void ShaderFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_
 
 
 	auto drawNormalsPso = std::make_shared<GraphicPSO>(RenderMode::DrawNormalsOpaque);
+	basePsoDesc.DSVFormat = depthStencilFormat;
 	drawNormalsPso->SetPsoDesc(basePsoDesc);
 	drawNormalsPso->SetShader(shaders["drawNormalsVS"].get());
 	drawNormalsPso->SetShader(shaders["drawNormalsPS"].get());
@@ -173,7 +175,7 @@ void ShaderFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_
 	}
 }
 
-void ShaderFactory::LoadDefaultShaders() const
+void RenderModeFactory::LoadDefaultShaders() const
 {
 	if(shaders.size() > 0) return;
 	
@@ -244,7 +246,7 @@ void ShaderFactory::LoadDefaultShaders() const
 	}
 }
 
-std::shared_ptr<GShader> ShaderFactory::GetShader(std::string name)
+std::shared_ptr<GShader> RenderModeFactory::GetShader(std::string name)
 {
 	return shaders[name];
 }

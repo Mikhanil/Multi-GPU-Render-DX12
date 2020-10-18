@@ -2,7 +2,7 @@
 #include "d3dApp.h"
 #include "FrameResource.h"
 #include "GCrossAdapterResource.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "GTexture.h"
 
 
@@ -40,8 +40,8 @@ private:
 
 	custom_vector<GResource> primeDeviceBackBuffers = MemoryAllocator::CreateVector<GResource>();
 	
-	GMemory primeRTV;
-	GMemory sharedRTV;
+	GDescriptor primeRTV;
+	GDescriptor sharedRTV;
 
 	ComPtr<ID3D12Fence> primeFence;
 	ComPtr<ID3D12Fence> sharedFence;

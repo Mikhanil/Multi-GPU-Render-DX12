@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "ShaderBuffersData.h"
 #include "GTexture.h"
 
@@ -18,9 +18,9 @@ public:
 	~FrameResource();
 			
 
-	GMemory BackBufferRTVMemory;
+	GDescriptor BackBufferRTVMemory;
 	
-	std::shared_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer;
+	std::shared_ptr<ConstantBuffer<PassConstants>> PrimePassConstantBuffer;
 	std::shared_ptr<ConstantBuffer<PassConstants>> ShadowPassConstantBuffer;
 	std::shared_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer;
 
@@ -29,4 +29,5 @@ public:
 	
 
 	UINT64 FenceValue = 0;
+	UINT64 SecondFenceValue = 0;
 };

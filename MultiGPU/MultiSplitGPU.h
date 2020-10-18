@@ -8,7 +8,7 @@
 #include "Light.h"
 #include "LockThreadQueue.h"
 #include "Renderer.h"
-#include "ShaderFactory.h"
+#include "RenderModeFactory.h"
 #include "ShadowMap.h"
 #include "SplitFrameResource.h"
 #include "SSAA.h"
@@ -57,7 +57,7 @@ protected:
 	void inline PopulateAmbientMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
 	void inline PopulateForwardPathCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList);
 	void inline PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, RenderMode::Mode type);
-	void inline PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory, UINT
+	void inline PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory, UINT
 	                             offsetRTV);
 	void PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource,
 	                          const GResource& dstResource);
@@ -107,7 +107,7 @@ private:
 
 	
 	custom_vector<std::shared_ptr<GDevice>> devices = MemoryAllocator::CreateVector<std::shared_ptr<GDevice>>();
-	custom_vector<GMemory> srvTexturesMemory = MemoryAllocator::CreateVector<GMemory>();
+	custom_vector<GDescriptor> srvTexturesMemory = MemoryAllocator::CreateVector<GDescriptor>();
 	
 	custom_vector<AssetsLoader> assets = MemoryAllocator::CreateVector<AssetsLoader>();
 
@@ -117,7 +117,7 @@ private:
 
 	custom_vector<std::shared_ptr<GRootSignature>> ssaoRootSignatures = MemoryAllocator::CreateVector<std::shared_ptr<GRootSignature>>();
 
-	custom_vector< ShaderFactory> defaultPipelineResources = MemoryAllocator::CreateVector<ShaderFactory>();	
+	custom_vector< RenderModeFactory> defaultPipelineResources = MemoryAllocator::CreateVector<RenderModeFactory>();	
 
 	custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = MemoryAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 

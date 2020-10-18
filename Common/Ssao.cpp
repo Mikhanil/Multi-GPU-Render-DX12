@@ -39,17 +39,17 @@ Ssao::Ssao(
 
 Ssao::~Ssao() = default;
 
-GMemory* Ssao::NormalMapRtv()
+GDescriptor* Ssao::NormalMapRtv()
 {
 	return &normalMapRtvMemory;
 }
 
-GMemory* Ssao::NormalMapSrv()
+GDescriptor* Ssao::NormalMapSrv()
 {
 	return &normalMapSrvMemory;
 }
 
-GMemory* Ssao::AmbientMapSrv()
+GDescriptor* Ssao::AmbientMapSrv()
 {
 	return &ambientMapMapSrvMemory;
 }
@@ -117,7 +117,7 @@ GTexture& Ssao::NormalDepthMap()
 	return depthMap;
 }
 
-GMemory* Ssao::NormalMapDSV()
+GDescriptor* Ssao::NormalMapDSV()
 {
 	return &depthMapDSVMemory;
 }

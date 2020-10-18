@@ -80,7 +80,7 @@ namespace Common
 		D3D12_VIEWPORT viewport;
 		D3D12_RECT rect;
 
-		GMemory renderTargetMemory;
+		GDescriptor renderTargetMemory;
 		
 		custom_unordered_map<std::wstring, std::shared_ptr<GModel>> models = MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GModel>>();
 			
@@ -96,7 +96,7 @@ namespace Common
 		std::unique_ptr<Ssao> ssao;
 		std::unique_ptr<SSAA> ssaa;
 		
-		GMemory srvHeap;
+		GDescriptor srvHeap;
 		AssetsLoader loader;
 				
 		

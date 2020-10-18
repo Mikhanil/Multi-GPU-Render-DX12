@@ -14,7 +14,7 @@ class SkyBox : public ModelRenderer
 	
 public:
 	SkyBox(const std::shared_ptr<GDevice>& device, const std::shared_ptr<GModel>& model, GTexture& skyMapTexture,
-	       GMemory* srvMemory, UINT offset = 0);
+	       GDescriptor* srvMemory, UINT offset = 0);
 
 protected:
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;

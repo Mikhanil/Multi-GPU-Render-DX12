@@ -10,7 +10,7 @@
 #include "GCommandQueue.h"
 #include "GDevice.h"
 #include "GDeviceFactory.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "GResourceStateTracker.h"
 #include "ModelRenderer.h"
 #include "ObjectMover.h"
@@ -390,7 +390,7 @@ namespace Common
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer);
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrvMemory());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrv());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssao->AmbientMapSrv(), 0);
 
 		/*Bind all Diffuse Textures*/
@@ -414,7 +414,7 @@ namespace Common
 		{
 		case 1:
 			{
-				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowMap->GetSrvMemory());
+				cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, shadowMap->GetSrv());
 				cmdList->SetPipelineState(*psos[RenderMode::Debug]);
 				DrawGameObjects(cmdList, typedGameObjects[static_cast<int>(RenderMode::Debug)]);
 				break;
@@ -464,7 +464,7 @@ namespace Common
 
 
 		commandQueue->StartPixEvent(L"Prepare Render 3D");
-		cmdList->SetGMemory(&srvHeap);
+		cmdList->SetDescriptorsHeap(&srvHeap);
 		cmdList->SetRootSignature(rootSignature.get());
 		/*Bind all materials*/		
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData, *currentFrameResource->MaterialBuffer);
@@ -910,9 +910,6 @@ namespace Common
 	void SampleApp::BuildTexturesHeap()
 	{
 		srvHeap = std::move(GDeviceFactory::GetDevice()->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,  loader.GetLoadTexturesCount()));
-
-
-		shadowMap->BuildDescriptors();
 
 		ssao->BuildDescriptors();
 	}
@@ -1444,23 +1441,12 @@ namespace Common
 
 	void SampleApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> cmdList)
 	{
-		cmdList->SetViewports(&shadowMap->Viewport(), 1);
-		cmdList->SetScissorRects(&shadowMap->ScissorRect(), 1);
-
-		cmdList->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-		cmdList->FlushResourceBarriers();
-
-
-		cmdList->ClearDepthStencil(shadowMap->GetDsvMemory(), 0,
-		                        D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
-
-		cmdList->SetRenderTargets(0, nullptr, false, shadowMap->GetDsvMemory());
-
 		//Shadow Path Data
-		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer,1);
+		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer, 1);
 
+		shadowMap->PopulatePreRenderCommands(cmdList);		
+	
 		cmdList->SetPipelineState(*psos[RenderMode::ShadowMapOpaque]);
-
 		DrawGameObjects(cmdList, typedGameObjects[RenderMode::Opaque]);
 
 		cmdList->SetPipelineState(*psos[RenderMode::ShadowMapOpaqueDrop]);

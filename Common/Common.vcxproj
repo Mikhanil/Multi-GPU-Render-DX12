@@ -198,7 +198,7 @@
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Rotater.h" />
     <ClInclude Include="ShaderBuffersData.h" />
-    <ClInclude Include="ShaderFactory.h" />
+    <ClInclude Include="RenderModeFactory.h" />
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="SkyBox.h" />
     <ClInclude Include="SSAA.h" />
@@ -231,7 +231,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Rotater.cpp" />
-    <ClCompile Include="ShaderFactory.cpp" />
+    <ClCompile Include="RenderModeFactory.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="SkyBox.cpp" />
     <ClCompile Include="SSAA.cpp" />

@@ -8,7 +8,7 @@
 #include "Light.h"
 #include "LockThreadQueue.h"
 #include "Renderer.h"
-#include "ShaderFactory.h"
+#include "RenderModeFactory.h"
 #include "ShadowMap.h"
 #include "FrameResource.h"
 #include "SSAA.h"
@@ -54,16 +54,17 @@ protected:
 	void inline UpdateShadowPassCB(const GameTimer& gt);
 	void inline UpdateMainPassCB(const GameTimer& gt);
 	void inline UpdateSsaoCB(const GameTimer& gt);
-	void inline PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList);
+	void inline PopulateShadowMapCommands(GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList);
 	void inline PopulateNormalMapCommands(std::shared_ptr<GCommandList> cmdList);
 	void inline PopulateAmbientMapCommands(std::shared_ptr<GCommandList> cmdList);
 	void inline PopulateForwardPathCommands(std::shared_ptr<GCommandList> cmdList);
 	void inline PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, RenderMode::Mode type);
-	void inline PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GMemory* rtvMemory, UINT
-	                             offsetRTV);
-	void PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource,
+	void inline PopulateDrawQuadCommand(std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory, UINT
+	                                    offsetRTV);
+	void inline PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource,
 	                          const GResource& dstResource);
-	void inline PopulateCopyResourceRegion(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource, const GResource& dstResource);
+	void DrawSecondDeviceShadowMap();
+
 	void Draw(const GameTimer& gt) override;
 
 	void OnResize() override;
@@ -96,17 +97,18 @@ private:
 	UINT64 gpuTimes[GraphicAdapterCount];
 	std::atomic<bool> logThreadIsAlive = true;
 	std::thread logThread;
+	std::thread secondDeviceThread;
 	LockThreadQueue<std::wstring> logQueue;
 	std::atomic<UINT> statisticCount = 0;
 	
-
+	std::atomic<bool> UseOnlyPrime = true;
 	
 	D3D12_VIEWPORT fullViewport{};
 	D3D12_RECT fullRect;
 	
 	custom_vector<std::shared_ptr<GDevice>> devices = MemoryAllocator::CreateVector<std::shared_ptr<GDevice>>();
 	
-	custom_vector<GMemory> srvTexturesMemory = MemoryAllocator::CreateVector<GMemory>();
+	custom_vector<GDescriptor> srvTexturesMemory = MemoryAllocator::CreateVector<GDescriptor>();
 
 	custom_vector<AssetsLoader> assets = MemoryAllocator::CreateVector<AssetsLoader>();
 
@@ -116,17 +118,19 @@ private:
 	std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
 	std::shared_ptr<GRootSignature> secondDeviceShadowMapSignature;
 		
-	ShaderFactory defaultPrimePipelineResources;	
+	RenderModeFactory defaultPrimePipelineResources;	
 
-	std::shared_ptr<GraphicPSO> shadowMapSecondDevicePSO;
+	std::shared_ptr<GraphicPSO> shadowMapPSOSecondDevice;
 	std::shared_ptr<GCrossAdapterResource> crossAdapterShadowMap;
-	GTexture primeShadowMap;
-	GMemory primeShadowMapSRV;
+	GTexture primeCopyShadowMap;
+	GDescriptor primeCopyShadowMapSRV;
+	std::shared_ptr<ShadowMap> shadowPathSecondDevice;
 
+	std::shared_ptr<ShadowMap> shadowPathPrimeDevice;
+	
 	
 	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
 
-	std::shared_ptr<ShadowMap> shadowSecondDevicePath;
 		
 	std::shared_ptr<Ssao> ambientPrimePath;
 	std::shared_ptr<SSAA> antiAliasingPrimePath;
@@ -140,12 +144,12 @@ private:
 
 	
 	ComPtr<ID3D12Fence> primeFence;
-	ComPtr<ID3D12Fence> sharedFence;
+	ComPtr<ID3D12Fence> secondFence;
 	UINT64 sharedFenceValue = 0;
 	
 	custom_vector<std::shared_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::shared_ptr<FrameResource>>();
 	std::shared_ptr<FrameResource> currentFrameResource = nullptr;	
-	UINT currentFrameResourceIndex = 0;
+	std::atomic<UINT> currentFrameResourceIndex = 0;
 
 	custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();
 

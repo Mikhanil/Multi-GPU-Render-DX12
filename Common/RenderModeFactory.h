@@ -9,7 +9,7 @@ using namespace PEPEngine;
 using namespace Graphics;
 using namespace Allocator;
 
-class ShaderFactory
+class RenderModeFactory
 {
 	static custom_unordered_map<std::string, std::shared_ptr<GShader>> shaders;
 

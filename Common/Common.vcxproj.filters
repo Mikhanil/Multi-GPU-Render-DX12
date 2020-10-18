@@ -93,9 +93,6 @@
     <ClInclude Include="ShaderBuffersData.h">
       <Filter>Render</Filter>
     </ClInclude>
-    <ClInclude Include="ShaderFactory.h">
-      <Filter>Render</Filter>
-    </ClInclude>
     <ClInclude Include="ShadowMap.h">
       <Filter>Render</Filter>
     </ClInclude>
@@ -106,6 +103,9 @@
       <Filter>Render</Filter>
     </ClInclude>
     <ClInclude Include="Window.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderModeFactory.h">
       <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>
@@ -155,9 +155,6 @@
     <ClCompile Include="Window.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderFactory.cpp">
-      <Filter>Render</Filter>
-    </ClCompile>
     <ClCompile Include="ShadowMap.cpp">
       <Filter>Render</Filter>
     </ClCompile>
@@ -187,6 +184,9 @@
     </ClCompile>
     <ClCompile Include="Transform.cpp">
       <Filter>Components</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderModeFactory.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

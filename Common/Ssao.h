@@ -2,7 +2,7 @@
 
 #include "d3dUtil.h"
 #include "GraphicPSO.h"
-#include "GMemory.h"
+#include "GDescriptor.h"
 #include "GTexture.h"
 #include "ShaderBuffersData.h"
 
@@ -42,10 +42,10 @@ public:
 	GTexture& AmbientMap();
 	GTexture& NormalDepthMap();
 
-	GMemory* NormalMapDSV();
-	GMemory* NormalMapRtv();
-	GMemory* NormalMapSrv();
-	GMemory* AmbientMapSrv();
+	GDescriptor* NormalMapDSV();
+	GDescriptor* NormalMapRtv();
+	GDescriptor* NormalMapSrv();
+	GDescriptor* AmbientMapSrv();
 
 	void BuildDescriptors();
 
@@ -90,16 +90,16 @@ private:
 	GTexture depthMap;
 
 	
-	GMemory normalMapSrvMemory;
-	GMemory normalMapRtvMemory;
+	GDescriptor normalMapSrvMemory;
+	GDescriptor normalMapRtvMemory;
 	
-	GMemory depthMapSrvMemory;
-	GMemory depthMapDSVMemory;
+	GDescriptor depthMapSrvMemory;
+	GDescriptor depthMapDSVMemory;
 	
-	GMemory randomVectorSrvMemory;
+	GDescriptor randomVectorSrvMemory;
 	
-	GMemory ambientMapMapSrvMemory;
-	GMemory ambientMapRtvMemory;
+	GDescriptor ambientMapMapSrvMemory;
+	GDescriptor ambientMapRtvMemory;
 	
 
 	UINT mRenderTargetWidth;
