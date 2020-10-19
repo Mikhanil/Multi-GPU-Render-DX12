@@ -6,7 +6,6 @@
 #include "GModel.h"
 #include "GraphicPSO.h"
 #include "Light.h"
-#include "LockThreadQueue.h"
 #include "Renderer.h"
 #include "RenderModeFactory.h"
 #include "ShadowMap.h"
@@ -16,7 +15,7 @@
 #include "GCrossAdapterResource.h"
 
 using namespace DirectX::SimpleMath;
-using namespace  PEPEngine;
+using namespace PEPEngine;
 using namespace Graphics;
 
 

@@ -50,8 +50,7 @@ class AssetsLoader
 
 public:
 
-	AssetsLoader(
-		std::shared_ptr<GDevice> device);
+	AssetsLoader(		std::shared_ptr<GDevice> device);
 
 	UINT GetTextureIndex(std::wstring name);
 

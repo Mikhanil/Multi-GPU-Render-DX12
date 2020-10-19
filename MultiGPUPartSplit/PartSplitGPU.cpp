@@ -4,17 +4,16 @@
 #include <filesystem>
 #include <fstream>
 #include "CameraController.h"
+#include "d3dUtil.h"
 #include "GameObject.h"
 #include "GCrossAdapterResource.h"
 #include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
 #include "Window.h"
-#include "d3dUtil.h"
-
 #include <chrono>
 #include <thread>
-#include "SimpleMath.h"
+#include "GCommandList.h"
 
 using namespace SimpleMath;
 using namespace PEPEngine;
@@ -36,10 +35,13 @@ void PartSplitGPU::InitDevices()
 	const auto firstDevice = allDevices[0];
 	const auto otherDevice = allDevices[1];
 	
-	if(!(firstDevice->GetName().find(L"NVIDIA")) != std::wstring::npos && otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
+	if(!(firstDevice->GetName().find(L"NVIDIA") != std::wstring::npos))
 	{
-		devices[GraphicAdapterPrimary] = otherDevice;
-		devices[GraphicAdapterSecond] = firstDevice;
+		if (otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
+		{
+			devices[GraphicAdapterPrimary] = otherDevice;
+			devices[GraphicAdapterSecond] = firstDevice;
+		}
 	}
 	else
 	{
@@ -771,7 +773,7 @@ void PartSplitGPU::CalculateFrameStats()
 			}
 			else
 			{
-				if (multi <= 6)
+				if (multi <= 8)
 				{
 					Flush();
 					multi = multi + 1;
@@ -779,18 +781,18 @@ void PartSplitGPU::CalculateFrameStats()
 					UseOnlyPrime = true;
 					OnResize();
 
-					++statisticCount;
+					++statisticCount;				
 				}
 			}
+
+			MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" SSAA X" + std::to_wstring(multi) + L" Calculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime));
 
 			writeStaticticCount = 0;
 		}
 		else
 		{
 			writeStaticticCount++;
-		}
-		MainWindow->SetWindowTitle(
-			MainWindow->GetWindowName() + L" SSAA X" + std::to_wstring(multi) + L" Calculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime));
+		}		
 		frameCount = 0;
 		timeElapsed += 1.0f;
 	}
@@ -869,8 +871,9 @@ bool PartSplitGPU::Initialize()
 		device->Flush();
 	}
 
-	//secondDeviceThread = std::thread(&PartSplitGPU::DrawSecondDeviceShadowMap, this);
-
+	MainWindow->SetWindowTitle(
+		MainWindow->GetWindowName() + L" SSAA X" + std::to_wstring(multi) + L" Calculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime));
+	
 	return true;
 }
 
@@ -895,9 +898,17 @@ void PartSplitGPU::Update(const GameTimer& gt)
 		                  ? 0
 		                  : static_cast<UINT>(currentFrameResourceIndex);
 	{
-		for (int i = 0; i < GraphicAdapterCount; ++i)
+		if (UseOnlyPrime)
 		{
-			gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
+			gpuTimes[GraphicAdapterPrimary] = devices[GraphicAdapterPrimary]->GetCommandQueue()->GetTimestamp(olderIndex);
+			gpuTimes[GraphicAdapterSecond] = 0;
+		}
+		else
+		{
+			for (int i = 0; i < GraphicAdapterCount; ++i)
+			{
+				gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
+			}
 		}
 	}
 
@@ -1442,7 +1453,7 @@ int PartSplitGPU::Run()
 			// Otherwise, do animation/game stuff.
 		else
 		{
-			if (statisticCount >= 6)
+			if (statisticCount >= 8)
 			{
 				MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" Finished. Wait...");
 				Quit();
