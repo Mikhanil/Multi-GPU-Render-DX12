@@ -765,6 +765,7 @@ void PartSplitGPU::CalculateFrameStats()
 
 			if (UseOnlyPrime)
 			{
+				Flush();
 				UseOnlyPrime = !UseOnlyPrime;
 				OnResize();
 			}
@@ -772,6 +773,7 @@ void PartSplitGPU::CalculateFrameStats()
 			{
 				if (multi <= 6)
 				{
+					Flush();
 					multi = multi + 1;
 					antiAliasingPrimePath->SetMultiplier(multi, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 					UseOnlyPrime = true;
