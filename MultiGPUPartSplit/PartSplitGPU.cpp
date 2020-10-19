@@ -761,7 +761,7 @@ void PartSplitGPU::CalculateFrameStats()
 			minMspf = std::numeric_limits<float>::max();
 			maxFps = std::numeric_limits<float>::min();
 			maxMspf = std::numeric_limits<float>::min();
-			writeStaticticCount = 0;
+			
 
 			if (UseOnlyPrime)
 			{
@@ -780,7 +780,8 @@ void PartSplitGPU::CalculateFrameStats()
 					++statisticCount;
 				}
 			}
-			
+
+			writeStaticticCount = 0;
 		}
 		else
 		{
