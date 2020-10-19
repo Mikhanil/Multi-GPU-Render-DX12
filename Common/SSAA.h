@@ -32,6 +32,7 @@ public:
 
 	D3D12_RECT GetRect() const;
 
+	void SetMultiplier(UINT multi, UINT newWidth, UINT newHeight);
 
 	GTexture& GetRenderTarget();
 

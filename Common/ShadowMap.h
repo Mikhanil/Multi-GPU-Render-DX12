@@ -14,6 +14,7 @@ class ShadowMap
 {
 public:
 	ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height);
+	ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height, GTexture& texture);
 
 	ShadowMap(const ShadowMap& rhs) = delete;
 	ShadowMap& operator=(const ShadowMap& rhs) = delete;

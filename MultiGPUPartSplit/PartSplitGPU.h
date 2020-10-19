@@ -96,12 +96,12 @@ private:
 
 	UINT64 gpuTimes[GraphicAdapterCount];
 	std::atomic<bool> logThreadIsAlive = true;
-	std::thread logThread;
-	std::thread secondDeviceThread;
-	LockThreadQueue<std::wstring> logQueue;
+	std::thread logThread;;
+	LockThreadQueue<std::wstring> logQueue{};
 	std::atomic<UINT> statisticCount = 0;
 	
 	std::atomic<bool> UseOnlyPrime = true;
+	UINT multi = 1;
 	
 	D3D12_VIEWPORT fullViewport{};
 	D3D12_RECT fullRect;
@@ -129,7 +129,7 @@ private:
 	std::shared_ptr<ShadowMap> shadowPathPrimeDevice;
 	
 	
-	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
+	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
 
 		
 	std::shared_ptr<Ssao> ambientPrimePath;

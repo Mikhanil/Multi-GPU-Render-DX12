@@ -14,6 +14,12 @@ D3D12_RECT SSAA::GetRect() const
 	return scissorRect;
 }
 
+void SSAA::SetMultiplier(UINT multi, UINT newWidth, UINT newHeight)
+{
+	ResolutionMultiplier = multi;
+	OnResize(newWidth, newHeight);
+}
+
 GTexture& SSAA::GetRenderTarget()
 {
 	return renderTarget;
@@ -41,7 +47,7 @@ GDescriptor* SSAA::GetDSV()
 
 void SSAA::OnResize(UINT newWidth, UINT newHeight)
 {
-	if (viewport.Width == newWidth * ResolutionMultiplier && viewport.Height == newHeight * ResolutionMultiplier)
+	if ((viewport.Width == ResolutionMultiplier * newWidth) && (viewport.Height == ResolutionMultiplier * newHeight))
 	{
 		return;	
 	}

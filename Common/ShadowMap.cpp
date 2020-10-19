@@ -16,6 +16,19 @@ ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height) :
 	BuildViews();
 }
 
+ShadowMap::ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height, GTexture& texture): device(device), width(width), height(height)
+{
+	viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f };
+	scissorRect = { 0, 0, static_cast<int>(width), static_cast<int>(height) };
+
+	srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	dsvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
+
+	shadowMap = texture;
+	
+	BuildViews();
+}
+
 ShadowMap::~ShadowMap() = default;
 
 GDescriptor* ShadowMap::GetSrv()
