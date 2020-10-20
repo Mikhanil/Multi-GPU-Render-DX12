@@ -222,11 +222,26 @@ void PartSplitGPU::InitPipeLineResource()
 
 
 	auto descPSO = primeDeviceShadowMapPso->GetPsoDescription();
-	descPSO.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC basePsoDesc;
+
+	ZeroMemory(&basePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+	basePsoDesc.InputLayout = descPSO.InputLayout;
+	basePsoDesc.VS = descPSO.VS;
+	basePsoDesc.RasterizerState = descPSO.RasterizerState;
+	basePsoDesc.BlendState = descPSO.BlendState;
+	basePsoDesc.DepthStencilState = descPSO.DepthStencilState;
+	basePsoDesc.SampleMask = descPSO.SampleMask;
+	basePsoDesc.PrimitiveTopologyType = descPSO.PrimitiveTopologyType;
+	basePsoDesc.NumRenderTargets = 0;
+	basePsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	basePsoDesc.SampleDesc =  descPSO.SampleDesc;
+	basePsoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;	
 
 
 	shadowMapPSOSecondDevice = std::make_shared<GraphicPSO>();
-	shadowMapPSOSecondDevice->SetPsoDesc(descPSO);
+	shadowMapPSOSecondDevice->SetPsoDesc(basePsoDesc);
 	shadowMapPSOSecondDevice->SetRootSignature(secondDeviceShadowMapSignature->GetRootSignature().Get());
 	shadowMapPSOSecondDevice->Initialize(devices[GraphicAdapterSecond]);
 }
@@ -293,6 +308,8 @@ void PartSplitGPU::InitRenderPaths()
 
 	logQueue.Push(std::wstring(L"\nInit Render path data for " + devices[GraphicAdapterPrimary]->GetName()));
 
+	shadowPathPrimeDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterPrimary], 2048, 2048));
+
 	shadowPathSecondDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterSecond], 2048, 2048));
 
 	auto shadowMapDesc = shadowPathSecondDevice->GetTexture().GetD3D12ResourceDesc();
@@ -300,7 +317,7 @@ void PartSplitGPU::InitRenderPaths()
 	crossAdapterShadowMap = std::make_shared<GCrossAdapterResource>(shadowMapDesc, devices[GraphicAdapterPrimary],
 		devices[GraphicAdapterSecond],
 		L"Shared Shadow Map");
-	
+
 	primeCopyShadowMapSRV = devices[GraphicAdapterPrimary]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -314,10 +331,8 @@ void PartSplitGPU::InitRenderPaths()
 
 	primeCopyShadowMap = GTexture(devices[GraphicAdapterPrimary],
 		shadowPathSecondDevice->GetTexture().GetD3D12ResourceDesc());
-	
-	primeCopyShadowMap.CreateShaderResourceView(&srvDesc, &primeCopyShadowMapSRV);
 
-	shadowPathPrimeDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterPrimary], 4096, 4096));
+	primeCopyShadowMap.CreateShaderResourceView(&srvDesc, &primeCopyShadowMapSRV);
 }
 
 void PartSplitGPU::LoadStudyTexture()

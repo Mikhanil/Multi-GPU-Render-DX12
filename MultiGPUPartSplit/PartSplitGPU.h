@@ -99,7 +99,7 @@ private:
 	LockThreadQueue<std::wstring> logQueue{};
 	std::atomic<UINT> statisticCount = 0;
 	
-	std::atomic<bool> UseOnlyPrime = true;
+	std::atomic<bool> UseOnlyPrime = false;
 	UINT multi = 1;
 	
 	D3D12_VIEWPORT fullViewport{};
