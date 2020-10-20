@@ -24,24 +24,21 @@ class GMesh
 	
 	std::shared_ptr<GBuffer> vertexBuffer = nullptr;
 	std::shared_ptr<GBuffer> indexBuffer = nullptr;
-	PEPEngine::Utils::Lazy< D3D12_VERTEX_BUFFER_VIEW> vertexView;
-	PEPEngine::Utils::Lazy< D3D12_INDEX_BUFFER_VIEW> indexView;	
 public:
 
 	std::shared_ptr<NativeMesh> GetMeshData() const;
 	
 	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveType() const;
 	
-	D3D12_VERTEX_BUFFER_VIEW* GetVertexView();
+	D3D12_VERTEX_BUFFER_VIEW* GetVertexView() const;
 	
-	D3D12_INDEX_BUFFER_VIEW* GetIndexView();
+	D3D12_INDEX_BUFFER_VIEW* GetIndexView() const;
 
 
-	GMesh(std::shared_ptr<NativeMesh> meshData, std::shared_ptr<GCommandList>& cmdList);
+	GMesh(const std::shared_ptr<NativeMesh>& data, std::shared_ptr<GCommandList>& cmdList);
 
-	GMesh(const GMesh& copy);
 
-	void Draw(std::shared_ptr<GCommandList> cmdList);
+	void Draw(std::shared_ptr<GCommandList> cmdList) const;
 
 	std::wstring GetName() const;
 };

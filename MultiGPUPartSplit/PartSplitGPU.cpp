@@ -762,7 +762,7 @@ void PartSplitGPU::CalculateFrameStats()
 		maxFps = std::max(fps, maxFps);
 		maxMspf = std::max(mspf, maxMspf);
 
-		if (writeStaticticCount >= 120)
+		if (writeStaticticCount >= 60)
 		{
 			std::wstring staticticStr = L"\nSSAA X" + std::to_wstring(multi) +  L"\n\tCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +
 				L"\n\tMin FPS: " + std::to_wstring(minFps)
@@ -931,9 +931,9 @@ void PartSplitGPU::Update(const GameTimer& gt)
 
 	currentFrameResource = frameResources[currentFrameResourceIndex];
 
-	if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->FenceValue))
+	if (currentFrameResource->PrimeRenderFenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->PrimeRenderFenceValue))
 	{
-		commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);
+		commandQueue->WaitForFenceValue(currentFrameResource->PrimeRenderFenceValue);
 	}
 
 	mLightRotationAngle += 0.1f * gt.DeltaTime();
@@ -1362,19 +1362,23 @@ void PartSplitGPU::Draw(const GameTimer& gt)
 	if (!UseOnlyPrime)
 	{
 		auto secondRenderQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
-		const auto shadowMapSecondCmdList = secondRenderQueue->GetCommandList();
-		shadowMapSecondCmdList->EndQuery(timestampHeapIndex);
-		PopulateShadowMapCommands(GraphicAdapterSecond, shadowMapSecondCmdList);
-		shadowMapSecondCmdList->EndQuery(timestampHeapIndex + 1);
-		shadowMapSecondCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-		const auto secondDeviceFinishRendering = secondRenderQueue->ExecuteCommandList(shadowMapSecondCmdList);
-		//secondRenderQueue->Signal(secondFence, secondDeviceFinishRendering);
+		if (currentFrameResource->SecondRenderFenceValue == 0 || secondRenderQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+		{
+			const auto shadowMapSecondCmdList = secondRenderQueue->GetCommandList();
+			shadowMapSecondCmdList->EndQuery(timestampHeapIndex);
+			PopulateShadowMapCommands(GraphicAdapterSecond, shadowMapSecondCmdList);
+			shadowMapSecondCmdList->EndQuery(timestampHeapIndex + 1);
+			shadowMapSecondCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+			currentFrameResource->SecondRenderFenceValue = secondRenderQueue->ExecuteCommandList(shadowMapSecondCmdList);
+		}
 
 		auto copyPrimeQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
-		const auto copyShadowMapCmdList = copyPrimeQueue->GetCommandList();
-		PopulateShadowMapCommands(GraphicAdapterPrimary, copyShadowMapCmdList);
-		//copyPrimeQueue->Wait(primeFence, secondDeviceFinishRendering);
-		copyPrimeQueue->ExecuteCommandList(copyShadowMapCmdList);
+		if (currentFrameResource->PrimeCopyFenceValue == 0 || copyPrimeQueue->IsFinish(currentFrameResource->PrimeCopyFenceValue))
+		{
+			const auto copyShadowMapCmdList = copyPrimeQueue->GetCommandList();
+			PopulateShadowMapCommands(GraphicAdapterPrimary, copyShadowMapCmdList);
+			currentFrameResource->PrimeCopyFenceValue = copyPrimeQueue->ExecuteCommandList(copyShadowMapCmdList);
+		}
 	}
 
 	auto primeRenderQueue = devices[GraphicAdapterPrimary]->GetCommandQueue();
@@ -1393,7 +1397,7 @@ void PartSplitGPU::Draw(const GameTimer& gt)
 	primeCmdList->FlushResourceBarriers();
 	primeCmdList->EndQuery(timestampHeapIndex + 1);
 	primeCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-	currentFrameResource->FenceValue = primeRenderQueue->ExecuteCommandList(primeCmdList);
+	currentFrameResource->PrimeRenderFenceValue = primeRenderQueue->ExecuteCommandList(primeCmdList);
 
 
 	currentFrameResourceIndex = MainWindow->Present();
@@ -1510,149 +1514,5 @@ void PartSplitGPU::Flush()
 
 LRESULT PartSplitGPU::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	switch (msg)
-	{
-	case WM_INPUT:
-		{
-			UINT dataSize;
-			GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize,
-			                sizeof(RAWINPUTHEADER));
-			//Need to populate data size first
-
-			if (dataSize > 0)
-			{
-				std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
-				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
-				                    sizeof(RAWINPUTHEADER)) == dataSize)
-				{
-					RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
-					if (raw->header.dwType == RIM_TYPEMOUSE)
-					{
-						mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
-					}
-				}
-			}
-
-			return DefWindowProc(hwnd, msg, wParam, lParam);
-		}
-		//Mouse Messages
-	case WM_MOUSEMOVE:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnMouseMove(x, y);
-			return 0;
-		}
-	case WM_LBUTTONDOWN:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnLeftPressed(x, y);
-			return 0;
-		}
-	case WM_RBUTTONDOWN:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnRightPressed(x, y);
-			return 0;
-		}
-	case WM_MBUTTONDOWN:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnMiddlePressed(x, y);
-			return 0;
-		}
-	case WM_LBUTTONUP:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnLeftReleased(x, y);
-			return 0;
-		}
-	case WM_RBUTTONUP:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnRightReleased(x, y);
-			return 0;
-		}
-	case WM_MBUTTONUP:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			mouse.OnMiddleReleased(x, y);
-			return 0;
-		}
-	case WM_MOUSEWHEEL:
-		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
-			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
-			{
-				mouse.OnWheelUp(x, y);
-			}
-			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
-			{
-				mouse.OnWheelDown(x, y);
-			}
-			return 0;
-		}
-	case WM_KEYUP:
-
-		{
-			/*if ((int)wParam == VK_F2)
-				Set4xMsaaState(!isM4xMsaa);*/
-			unsigned char keycode = static_cast<unsigned char>(wParam);
-			keyboard.OnKeyReleased(keycode);
-
-
-			return 0;
-		}
-	case WM_KEYDOWN:
-		{
-			{
-				unsigned char keycode = static_cast<unsigned char>(wParam);
-				if (keyboard.IsKeysAutoRepeat())
-				{
-					keyboard.OnKeyPressed(keycode);
-				}
-				else
-				{
-					const bool wasPressed = lParam & 0x40000000;
-					if (!wasPressed)
-					{
-						keyboard.OnKeyPressed(keycode);
-					}
-				}
-
-				//if (keycode == (VK_F2) && keyboard.KeyIsPressed(VK_F2))
-				//{
-				//	UseOnlyPrime = !UseOnlyPrime;
-				//	//pathMapShow = (pathMapShow + 1) % maxPathMap;
-				//}				
-			}
-		}
-
-	case WM_CHAR:
-		{
-			unsigned char ch = static_cast<unsigned char>(wParam);
-			if (keyboard.IsCharsAutoRepeat())
-			{
-				keyboard.OnChar(ch);
-			}
-			else
-			{
-				const bool wasPressed = lParam & 0x40000000;
-				if (!wasPressed)
-				{
-					keyboard.OnChar(ch);
-				}
-			}
-			return 0;
-		}
-	}
-
 	return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
 }

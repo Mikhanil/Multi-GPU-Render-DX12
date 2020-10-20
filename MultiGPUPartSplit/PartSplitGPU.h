@@ -62,7 +62,6 @@ protected:
 	                                    offsetRTV);
 	void inline PopulateCopyResource(std::shared_ptr<GCommandList> cmdList, const GResource& srcResource,
 	                          const GResource& dstResource);
-	void DrawSecondDeviceShadowMap();
 
 	void Draw(const GameTimer& gt) override;
 
@@ -99,7 +98,7 @@ private:
 	LockThreadQueue<std::wstring> logQueue{};
 	std::atomic<UINT> statisticCount = 0;
 	
-	std::atomic<bool> UseOnlyPrime = false;
+	std::atomic<bool> UseOnlyPrime = true;
 	UINT multi = 1;
 	
 	D3D12_VIEWPORT fullViewport{};

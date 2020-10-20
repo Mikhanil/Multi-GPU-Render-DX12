@@ -28,6 +28,7 @@ public:
 	
 	
 
-	UINT64 FenceValue = 0;
-	UINT64 SecondFenceValue = 0;
+	UINT64 PrimeRenderFenceValue = 0;
+	UINT64 PrimeCopyFenceValue = 0;
+	UINT64 SecondRenderFenceValue = 0;
 };
