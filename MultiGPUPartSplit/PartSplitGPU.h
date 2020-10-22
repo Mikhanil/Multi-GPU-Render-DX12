@@ -94,9 +94,8 @@ private:
 
 	UINT64 gpuTimes[GraphicAdapterCount];
 	std::atomic<bool> logThreadIsAlive = true;
-	std::thread logThread;;
 	LockThreadQueue<std::wstring> logQueue{};
-	std::atomic<UINT> statisticCount = 0;
+	bool finishTest = false;
 	
 	std::atomic<bool> UseOnlyPrime = true;
 	UINT multi = 1;

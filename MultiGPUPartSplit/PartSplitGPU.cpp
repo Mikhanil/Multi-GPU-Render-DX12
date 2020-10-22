@@ -749,7 +749,10 @@ void PartSplitGPU::CalculateFrameStats()
 	static float maxFps = std::numeric_limits<float>::min();
 	static float maxMspf = std::numeric_limits<float>::min();
 	static UINT writeStaticticCount = 0;
-
+	static UINT64 primeGPUTimeMax = std::numeric_limits<UINT64>::min();
+	static UINT64 primeGPUTimeMin = std::numeric_limits<UINT64>::max();
+	static UINT64 secondGPUTimeMax = std::numeric_limits<UINT64>::min();
+	static UINT64 secondGPUTimeMin = std::numeric_limits<UINT64>::max();
 	frameCount++;
 
 	if ((timer.TotalTime() - timeElapsed) >= 1.0f)
@@ -762,22 +765,28 @@ void PartSplitGPU::CalculateFrameStats()
 		maxFps = std::max(fps, maxFps);
 		maxMspf = std::max(mspf, maxMspf);
 
+		primeGPUTimeMin = std::min(gpuTimes[GraphicAdapterPrimary], primeGPUTimeMin);
+		primeGPUTimeMax = std::max(gpuTimes[GraphicAdapterPrimary], primeGPUTimeMax);
+		secondGPUTimeMin = std::min(gpuTimes[GraphicAdapterSecond], secondGPUTimeMin);
+		secondGPUTimeMax = std::max(gpuTimes[GraphicAdapterSecond], secondGPUTimeMax);
+
+		
+		
 		if (writeStaticticCount >= 60)
 		{
-			std::wstring staticticStr = L"\nSSAA X" + std::to_wstring(multi) +  L"\n\tCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +
-				L"\n\tMin FPS: " + std::to_wstring(minFps)
-				+ L"\n\tMin MSPF: " + std::to_wstring(minMspf)
-				+ L"\n\tMax FPS: " + std::to_wstring(maxFps)
-				+ L"\n\tMax MSPF: " + std::to_wstring(maxMspf)
-				+ L"\n\tPrime GPU Rendering Time in microseconds: " + std::to_wstring(gpuTimes[GraphicAdapterPrimary]) +
-				+ L"\n\tSecond GPU Rendering Time in microseconds: " + std::to_wstring(gpuTimes[GraphicAdapterSecond]);
+			const std::wstring staticticStr = L"\nTotal SSAA X" + std::to_wstring(multi) +  L"\n\tCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +
+				L"\n\tMin FPS:" + std::to_wstring(minFps)
+				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
+				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
+				+ L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
+				+ L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
+				+ L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
+				+ L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
+				+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin);
 
 			logQueue.Push(staticticStr);
 
-			minFps = std::numeric_limits<float>::max();
-			minMspf = std::numeric_limits<float>::max();
-			maxFps = std::numeric_limits<float>::min();
-			maxMspf = std::numeric_limits<float>::min();
+			
 			
 
 			if (UseOnlyPrime)
@@ -788,24 +797,43 @@ void PartSplitGPU::CalculateFrameStats()
 			}
 			else
 			{
-				if (multi <= 8)
+				if (multi < 8)
 				{
 					Flush();
 					multi = multi + 1;
 					antiAliasingPrimePath->SetMultiplier(multi, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 					UseOnlyPrime = true;
-					OnResize();
-
-					++statisticCount;				
+					OnResize();					
+				}
+				else
+				{
+					finishTest = true;
 				}
 			}
 
 			MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" SSAA X" + std::to_wstring(multi) + L" Calculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime));
 
 			writeStaticticCount = 0;
+
+			minFps = std::numeric_limits<float>::max();
+			minMspf = std::numeric_limits<float>::max();
+			maxFps = std::numeric_limits<float>::min();
+			maxMspf = std::numeric_limits<float>::min();
+			primeGPUTimeMax = std::numeric_limits<UINT64>::min();
+			primeGPUTimeMin = std::numeric_limits<UINT64>::max();
+			secondGPUTimeMax = std::numeric_limits<UINT64>::min();
+			secondGPUTimeMin = std::numeric_limits<UINT64>::max();
 		}
 		else
 		{
+			const std::wstring staticticStr = L"\nStep SSAA X" + std::to_wstring(multi) + L"\n\tCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +
+				L"\n\tFPS:" + std::to_wstring(fps)
+				+ L"\n\tMSPF:" + std::to_wstring(mspf)
+				+ L"\n\tPrime GPU Rendering Time:" + std::to_wstring(gpuTimes[GraphicAdapterPrimary])
+				+ L"\n\tSecond GPU Rendering Time:" + std::to_wstring(gpuTimes[GraphicAdapterSecond]);
+
+			logQueue.Push(staticticStr);
+			
 			writeStaticticCount++;
 		}		
 		frameCount = 0;
@@ -815,15 +843,9 @@ void PartSplitGPU::CalculateFrameStats()
 
 void PartSplitGPU::LogWriting()
 {
-	std::time_t t = std::time(nullptr);
+	const std::filesystem::path filePath(L"PartShadow "+devices[0]->GetName() + L"+" + devices[1]->GetName() + L".txt");
 
-	tm now;
-	localtime_s(&now, &t);
-
-	std::filesystem::path filePath(devices[0]->GetName() + L"+" + devices[1]->GetName() + L".txt");
-
-
-	auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
+	const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
 
 	OutputDebugStringW(path.c_str());
 
@@ -835,34 +857,24 @@ void PartSplitGPU::LogWriting()
 	}
 
 	std::wstring line;
-	while (logThreadIsAlive)
+	
+	while (logQueue.Size() > 0)
 	{
 		while (logQueue.TryPop(line))
 		{
 			fileSteam << line;
 		}
-		fileSteam.flush();
-		std::this_thread::yield();
 	}
 
-	while (logQueue.Size() > 0)
-	{
-		if (logQueue.TryPop(line))
-		{
-			fileSteam << line;
-		}
-	}
 	fileSteam << L"\nFinish Logs" << std::endl;
 
-	if (fileSteam.is_open())
-		fileSteam.close();
+	fileSteam.flush();
+	fileSteam.close();
 }
 
 bool PartSplitGPU::Initialize()
 {
-	InitDevices();
-
-	logThread = std::thread(&PartSplitGPU::LogWriting, this);
+	InitDevices();	
 	InitMainWindow();
 
 	LoadStudyTexture();
@@ -1472,9 +1484,10 @@ int PartSplitGPU::Run()
 			// Otherwise, do animation/game stuff.
 		else
 		{
-			if (statisticCount >= 8)
+			if (finishTest)
 			{
 				MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" Finished. Wait...");
+				LogWriting();				
 				Quit();
 				continue;
 			}
@@ -1497,10 +1510,8 @@ int PartSplitGPU::Run()
 				device->ResetAllocator(frameCount);
 			}
 		}
-	}
-
-	logThreadIsAlive = false;
-	logThread.join();
+	}		
+	
 	return static_cast<int>(msg.wParam);
 }
 
