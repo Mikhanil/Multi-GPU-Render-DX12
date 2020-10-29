@@ -91,7 +91,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -114,7 +114,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -139,7 +139,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -160,7 +160,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
@@ -250,6 +250,15 @@
       <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Core\Utils\Utils.vcxproj">
+      <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Submodule\PEPEngine.Core\Allocator\Allocator.vcxproj">
+      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Submodule\PEPEngine.Core\Graphics\Graphics.vcxproj">
+      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\Submodule\PEPEngine.Core\Utils\Utils.vcxproj">
       <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
     </ProjectReference>
   </ItemGroup>

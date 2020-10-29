@@ -265,7 +265,7 @@ void MultiSplitGPU::InitRenderPaths()
 
 		shadowPaths.push_back(std::make_shared<ShadowMap>(devices[i], 4096, 4096));
 
-		ambientPaths.push_back(std::make_shared<Ssao>(
+		ambientPaths.push_back(std::make_shared<SSAO>(
 			devices[i],
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight()));

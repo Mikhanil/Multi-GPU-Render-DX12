@@ -14,16 +14,16 @@ using namespace Allocator;
 using namespace Utils;
 
 
-class Ssao
+class SSAO
 {
 public:
 
-	Ssao(const std::shared_ptr<GDevice> device,
+	SSAO(const std::shared_ptr<GDevice> device,
 	     std::shared_ptr<GCommandList> cmdList,
 	     UINT width, UINT height);
-	Ssao(const Ssao& rhs) = delete;
-	Ssao& operator=(const Ssao& rhs) = delete;
-	~Ssao();
+	SSAO(const SSAO& rhs) = delete;
+	SSAO& operator=(const SSAO& rhs) = delete;
+	~SSAO();
 
 	static const DXGI_FORMAT AmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 	static const DXGI_FORMAT NormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;

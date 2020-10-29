@@ -11,7 +11,7 @@
 #include "ShadowMap.h"
 #include "FrameResource.h"
 #include "SSAA.h"
-#include "Ssao.h"
+#include "SSAO.h"
 #include "GCrossAdapterResource.h"
 
 using namespace DirectX::SimpleMath;
@@ -129,7 +129,7 @@ private:
 	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
 
 		
-	std::shared_ptr<Ssao> ambientPrimePath;
+	std::shared_ptr<SSAO> ambientPrimePath;
 	std::shared_ptr<SSAA> antiAliasingPrimePath;
 	
 	custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<GameObject>>();

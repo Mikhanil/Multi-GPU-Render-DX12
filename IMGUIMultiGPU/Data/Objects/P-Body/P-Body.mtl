@@ -1,0 +1,28 @@
+newmtl acmat_0
+Kd 0.8 0.8 0.8
+Ka 0.8 0.8 0.8
+Ks 1 1 1
+Ns 12.8
+Tr 0
+map_Kd eggbot_shell.png
+newmtl acmat_1
+Kd 0.8 0.8 0.8
+Ka 0.8 0.8 0.8
+Ks 1 1 1
+Ns 12.8
+Tr 0
+map_Kd eggbot_frame.png
+newmtl acmat_2
+Kd 0.8 0.8 0.8
+Ka 0.8 0.8 0.8
+Ks 1 1 1
+Ns 12.8
+Tr 0
+map_Kd eggbot_orange.png
+newmtl acmat_3
+Kd 0.8 0.8 0.8
+Ka 0.8 0.8 0.8
+Ks 1 1 1
+Ns 12.8
+Tr 0
+map_Kd bot_eye_ring_lights.png

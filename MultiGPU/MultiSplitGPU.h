@@ -12,7 +12,7 @@
 #include "ShadowMap.h"
 #include "SplitFrameResource.h"
 #include "SSAA.h"
-#include "Ssao.h"
+#include "SSAO.h"
 
 
 using namespace  PEPEngine;
@@ -122,7 +122,7 @@ private:
 	custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = MemoryAllocator::CreateVector<D3D12_INPUT_ELEMENT_DESC>();
 
 	custom_vector<std::shared_ptr<ShadowMap>> shadowPaths = MemoryAllocator::CreateVector< std::shared_ptr<ShadowMap>>();
-	custom_vector<std::shared_ptr<Ssao>> ambientPaths = MemoryAllocator::CreateVector< std::shared_ptr<Ssao>>();
+	custom_vector<std::shared_ptr<SSAO>> ambientPaths = MemoryAllocator::CreateVector< std::shared_ptr<SSAO>>();
 	custom_vector<std::shared_ptr<SSAA>> antiAliasingPaths = MemoryAllocator::CreateVector< std::shared_ptr<SSAA>>();
 	
 	custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<GameObject>>();

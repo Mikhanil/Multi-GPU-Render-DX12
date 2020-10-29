@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "Ssao.h"
+#include "SSAO.h"
 #include <DirectXPackedVector.h>
 
 
@@ -12,7 +12,7 @@
 
 using namespace Microsoft::WRL;
 
-Ssao::Ssao(
+SSAO::SSAO(
 	const std::shared_ptr<GDevice> device,
 	std::shared_ptr<GCommandList> cmdList,
 	UINT width, UINT height): device(device)
@@ -37,39 +37,39 @@ Ssao::Ssao(
 	BuildRandomVectorTexture(cmdList);
 }
 
-Ssao::~Ssao() = default;
+SSAO::~SSAO() = default;
 
-GDescriptor* Ssao::NormalMapRtv()
+GDescriptor* SSAO::NormalMapRtv()
 {
 	return &normalMapRtvMemory;
 }
 
-GDescriptor* Ssao::NormalMapSrv()
+GDescriptor* SSAO::NormalMapSrv()
 {
 	return &normalMapSrvMemory;
 }
 
-GDescriptor* Ssao::AmbientMapSrv()
+GDescriptor* SSAO::AmbientMapSrv()
 {
 	return &ambientMapMapSrvMemory;
 }
 
-UINT Ssao::SsaoMapWidth() const
+UINT SSAO::SsaoMapWidth() const
 {
 	return mRenderTargetWidth / 2;
 }
 
-UINT Ssao::SsaoMapHeight() const
+UINT SSAO::SsaoMapHeight() const
 {
 	return mRenderTargetHeight / 2;
 }
 
-void Ssao::GetOffsetVectors(Vector4 offsets[14])
+void SSAO::GetOffsetVectors(Vector4 offsets[14])
 {
 	std::copy(&mOffsets[0], &mOffsets[14], &offsets[0]);
 }
 
-std::vector<float> Ssao::CalcGaussWeights(float sigma)
+std::vector<float> SSAO::CalcGaussWeights(float sigma)
 {
 	float twoSigma2 = 2.0f * sigma * sigma;
 
@@ -102,33 +102,33 @@ std::vector<float> Ssao::CalcGaussWeights(float sigma)
 	return weights;
 }
 
-GTexture& Ssao::NormalMap()
+GTexture& SSAO::NormalMap()
 {
 	return normalMap;
 }
 
-GTexture& Ssao::AmbientMap()
+GTexture& SSAO::AmbientMap()
 {
 	return ambientMap0;
 }
 
-GTexture& Ssao::NormalDepthMap()
+GTexture& SSAO::NormalDepthMap()
 {
 	return depthMap;
 }
 
-GDescriptor* Ssao::NormalMapDSV()
+GDescriptor* SSAO::NormalMapDSV()
 {
 	return &depthMapDSVMemory;
 }
 
 
-void Ssao::BuildDescriptors()
+void SSAO::BuildDescriptors()
 {
 	RebuildDescriptors();
 }
 
-void Ssao::RebuildDescriptors()
+void SSAO::RebuildDescriptors()
 {
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
@@ -168,13 +168,13 @@ void Ssao::RebuildDescriptors()
 	ambientMap1.CreateRenderTargetView(&rtvDesc, &ambientMapRtvMemory, 1);
 }
 
-void Ssao::SetPSOs(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso)
+void SSAO::SetPSOs(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso)
 {
 	mSsaoPso = ssaoPso;
 	mBlurPso = ssaoBlurPso;
 }
 
-void Ssao::OnResize(UINT newWidth, UINT newHeight)
+void SSAO::OnResize(UINT newWidth, UINT newHeight)
 {
 	if (mRenderTargetWidth != newWidth || mRenderTargetHeight != newHeight)
 	{
@@ -194,7 +194,7 @@ void Ssao::OnResize(UINT newWidth, UINT newHeight)
 	}
 }
 
-void Ssao::ComputeSsao(
+void SSAO::ComputeSsao(
 	std::shared_ptr<GCommandList> cmdList,
 	std::shared_ptr<ConstantBuffer<SsaoConstants>> currFrame,
 	int blurCount)
@@ -233,7 +233,7 @@ void Ssao::ComputeSsao(
 	BlurAmbientMap(cmdList, currFrame, blurCount);
 }
 
-void Ssao::ClearAmbiantMap(
+void SSAO::ClearAmbiantMap(
 	std::shared_ptr<GCommandList> cmdList)
 {
 	cmdList->TransitionBarrier(ambientMap0, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -247,7 +247,7 @@ void Ssao::ClearAmbiantMap(
 	cmdList->FlushResourceBarriers();
 }
 
-void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, std::shared_ptr<ConstantBuffer<SsaoConstants>> currFrame, int blurCount)
+void SSAO::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, std::shared_ptr<ConstantBuffer<SsaoConstants>> currFrame, int blurCount)
 {
 	cmdList->SetPipelineState(mBlurPso);
 	
@@ -260,7 +260,7 @@ void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, std::shared_ptr
 	}
 }
 
-void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur)
+void SSAO::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur)
 {
 	GTexture output;
 	size_t inputSrv;
@@ -303,7 +303,7 @@ void Ssao::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, bool horzBlur)
 	cmdList->FlushResourceBarriers();
 }
 
-GTexture Ssao::CreateNormalMap() const
+GTexture SSAO::CreateNormalMap() const
 {
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
@@ -326,7 +326,7 @@ GTexture Ssao::CreateNormalMap() const
 	return  GTexture(device,texDesc, L"SSAO NormalMap", TextureUsage::Normalmap, &optClear);
 }
 
-GTexture Ssao::CreateAmbientMap() const
+GTexture SSAO::CreateAmbientMap() const
 {
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
@@ -349,7 +349,7 @@ GTexture Ssao::CreateAmbientMap() const
 }
 
 
-GTexture Ssao::CreateDepthMap() const
+GTexture SSAO::CreateDepthMap() const
 {
 	D3D12_RESOURCE_DESC depthStencilDesc;
 	depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -373,7 +373,7 @@ GTexture Ssao::CreateDepthMap() const
 }
 
 
-void Ssao::BuildResources()
+void SSAO::BuildResources()
 {
 	if (normalMap.GetD3D12Resource() == nullptr)
 	{
@@ -412,7 +412,7 @@ void Ssao::BuildResources()
 	}
 }
 
-void Ssao::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
+void SSAO::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
 {
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
@@ -457,7 +457,7 @@ void Ssao::BuildRandomVectorTexture(std::shared_ptr<GCommandList> cmdList)
 	cmdList->FlushResourceBarriers();
 }
 
-void Ssao::BuildOffsetVectors()
+void SSAO::BuildOffsetVectors()
 {
 	// Start with 14 uniformly distributed vectors.  We choose the 8 corners of the cube
 	// and the 6 center points along each cube face.  We always alternate the points on 

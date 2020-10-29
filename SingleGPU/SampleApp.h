@@ -6,7 +6,7 @@
 #include "Light.h"
 #include "ShadowMap.h"
 #include "SSAA.h"
-#include "Ssao.h"
+#include "SSAO.h"
 
 
 using Microsoft::WRL::ComPtr;
@@ -93,7 +93,7 @@ namespace Common
 		std::unique_ptr<GRootSignature> rootSignature = nullptr;
 		std::unique_ptr<GRootSignature> ssaoRootSignature = nullptr;
 		std::unique_ptr<ShadowMap> shadowMap;
-		std::unique_ptr<Ssao> ssao;
+		std::unique_ptr<SSAO> ssao;
 		std::unique_ptr<SSAA> ssaa;
 		
 		GDescriptor srvHeap;

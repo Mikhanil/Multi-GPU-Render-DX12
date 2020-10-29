@@ -295,7 +295,7 @@ void PartSplitGPU::InitRenderPaths()
 	auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto cmdList = commandQueue->GetCommandList();
 
-	ambientPrimePath = (std::make_shared<Ssao>(
+	ambientPrimePath = (std::make_shared<SSAO>(
 		devices[GraphicAdapterPrimary],
 		cmdList,
 		MainWindow->GetClientWidth(), MainWindow->GetClientHeight()));
@@ -1443,7 +1443,6 @@ void PartSplitGPU::OnResize()
 		camera->SetAspectRatio(AspectRatio());
 	}
 
-	//for (int i = 0; i < GraphicAdapterCount; ++i)
 	{
 		if (ambientPrimePath != nullptr)
 		{

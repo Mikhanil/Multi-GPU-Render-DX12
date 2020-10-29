@@ -100,7 +100,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -113,7 +113,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -128,7 +128,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -143,7 +143,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Core\Graphics;$(SolutionDir)\Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -296,13 +296,13 @@
     <ProjectReference Include="..\Common\Common.vcxproj">
       <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Core\Allocator\Allocator.vcxproj">
+    <ProjectReference Include="..\Submodule\PEPEngine.Core\Allocator\Allocator.vcxproj">
       <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Core\Graphics\Graphics.vcxproj">
+    <ProjectReference Include="..\Submodule\PEPEngine.Core\Graphics\Graphics.vcxproj">
       <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Core\Utils\Utils.vcxproj">
+    <ProjectReference Include="..\Submodule\PEPEngine.Core\Utils\Utils.vcxproj">
       <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
     </ProjectReference>
   </ItemGroup>

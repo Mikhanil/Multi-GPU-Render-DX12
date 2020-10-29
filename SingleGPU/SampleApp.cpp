@@ -104,7 +104,7 @@ namespace Common
 
 		shadowMap = std::make_unique<ShadowMap>(GDeviceFactory::GetDevice(),4096, 4096);
 
-		ssao = std::make_unique<Ssao>(
+		ssao = std::make_unique<SSAO>(
 			GDeviceFactory::GetDevice(),
 			cmdList,
 			MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
@@ -1096,7 +1096,7 @@ namespace Common
 		drawNormalsPso->SetPsoDesc(basePsoDesc);
 		drawNormalsPso->SetShader(shaders["drawNormalsVS"].get());
 		drawNormalsPso->SetShader(shaders["drawNormalsPS"].get());
-		drawNormalsPso->SetRTVFormat(0, Ssao::NormalMapFormat);
+		drawNormalsPso->SetRTVFormat(0, SSAO::NormalMapFormat);
 		drawNormalsPso->SetSampleCount(1);
 		drawNormalsPso->SetSampleQuality(0);
 		drawNormalsPso->SetDSVFormat(depthStencilFormat);
@@ -1114,7 +1114,7 @@ namespace Common
 		ssaoPSO->SetRootSignature(ssaoRootSignature->GetRootSignature().Get());
 		ssaoPSO->SetShader(shaders["ssaoVS"].get());
 		ssaoPSO->SetShader(shaders["ssaoPS"].get());
-		ssaoPSO->SetRTVFormat(0, Ssao::AmbientMapFormat);
+		ssaoPSO->SetRTVFormat(0, SSAO::AmbientMapFormat);
 		ssaoPSO->SetSampleCount(1);
 		ssaoPSO->SetSampleQuality(0);
 		ssaoPSO->SetDSVFormat(DXGI_FORMAT_UNKNOWN);

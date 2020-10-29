@@ -1,3 +1,6 @@
-[submodule "Core"]
-	path = Core
+[submodule "Submodule/imgui"]
+	path = Submodule/imgui
+	url = git@github.com:ocornut/imgui.git
+[submodule "Submodule/PEPEngine.Core"]
+	path = Submodule/PEPEngine.Core
 	url = git@github.com:Pepengineers/PEPEngine.Core.git
