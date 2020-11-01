@@ -15,7 +15,8 @@ class MultiGPUUIApp :
 {
 public:
 	MultiGPUUIApp(HINSTANCE hInstance);
-
+	~MultiGPUUIApp();
+	
 	bool Initialize() override;;
 	
 
@@ -73,6 +74,7 @@ protected:
 	std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
 	GDescriptor srvTexturesMemory;
+	GDescriptor imguiSRVMemory;
 	RenderModeFactory defaultPrimePipelineResources;
 
 	std::shared_ptr<ShadowMap> shadowPath;

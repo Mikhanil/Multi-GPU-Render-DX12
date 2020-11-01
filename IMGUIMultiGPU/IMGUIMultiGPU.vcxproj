@@ -89,7 +89,7 @@
       <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -106,7 +106,7 @@
       <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -123,7 +123,7 @@
       <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -140,7 +140,7 @@
       <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)Submodule\PEPEngine.Core\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)Submodule\PEPEngine.Core\Graphics;$(SolutionDir)Submodule\PEPEngine.Core\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -151,6 +151,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp" />
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="MultiGPUUIApp.cpp" />
     <ClCompile Include="Source.cpp" />
@@ -158,15 +164,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.vcxproj">
       <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Core\Allocator\Allocator.vcxproj">
-      <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Core\Graphics\Graphics.vcxproj">
-      <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\Core\Utils\Utils.vcxproj">
-      <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Submodule\PEPEngine.Core\Allocator\Allocator.vcxproj">
       <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
@@ -179,6 +176,16 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_dx12.h" />
+    <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_win32.h" />
+    <ClInclude Include="..\Submodule\imgui\imconfig.h" />
+    <ClInclude Include="..\Submodule\imgui\imgui.h">
+      <DeploymentContent>false</DeploymentContent>
+    </ClInclude>
+    <ClInclude Include="..\Submodule\imgui\imgui_internal.h" />
+    <ClInclude Include="..\Submodule\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\Submodule\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\Submodule\imgui\imstb_truetype.h" />
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="MultiGPUUIApp.h" />
   </ItemGroup>
