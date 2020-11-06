@@ -160,6 +160,7 @@
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="MultiGPUUIApp.cpp" />
     <ClCompile Include="Source.cpp" />
+    <ClCompile Include="UILayer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.vcxproj">
@@ -188,6 +189,7 @@
     <ClInclude Include="..\Submodule\imgui\imstb_truetype.h" />
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="MultiGPUUIApp.h" />
+    <ClInclude Include="UILayer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

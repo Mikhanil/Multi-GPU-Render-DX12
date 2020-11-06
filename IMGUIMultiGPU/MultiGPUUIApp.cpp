@@ -7,15 +7,12 @@
 #include "GameObject.h"
 #include "GDeviceFactory.h"
 #include "GModel.h"
+#include "imgui.h"
 #include "ModelRenderer.h"
 #include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
 #include "Window.h"
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_dx12.h"
-#include "GDescriptorHeap.h"
 
 MultiGPUUIApp::MultiGPUUIApp(HINSTANCE hInstance): D3DApp(hInstance)
 {
@@ -25,9 +22,7 @@ MultiGPUUIApp::MultiGPUUIApp(HINSTANCE hInstance): D3DApp(hInstance)
 
 MultiGPUUIApp::~MultiGPUUIApp()
 {
-	ImGui_ImplDX12_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
+	
 }
 
 void MultiGPUUIApp::Update(const GameTimer& gt)
@@ -217,25 +212,61 @@ void MultiGPUUIApp::PopulateDrawQuadCommand(std::shared_ptr<GCommandList> cmdLis
 
 	cmdList->SetRenderTargets(1, rtvMemory, offsetRTV);
 
-	cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, antiAliasingPrimePath->GetSRV());
+	cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, &primeUIBackBufferSRV);
 
 	cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
 	PopulateDrawCommands(cmdList, (RenderMode::Quad));
 }
 
+bool IsUseSecondDevice = true;
+
 void MultiGPUUIApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
-
-	// Start the Dear ImGui frame
-	ImGui_ImplDX12_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-	ImGui::ShowDemoWindow();
-
 	
 	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 
+	if(IsUseSecondDevice)
+	{
+		auto secondRenderQueue = secondDevice->GetCommandQueue();
+
+		if (currentFrameResource->SecondRenderFenceValue == 0 || secondRenderQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+		{
+			auto cmdList = secondRenderQueue->GetCommandList();
+
+			cmdList->EndQuery(timestampHeapIndex);
+			cmdList->SetViewports(&fullViewport, 1);
+			cmdList->SetScissorRects(&fullRect, 1);
+
+			cmdList->TransitionBarrier(secondDeviceUITexture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			cmdList->FlushResourceBarriers();
+			cmdList->ClearRenderTarget(&secondDeviceUIBackBufferRTV, 0, Colors::Black);
+
+			cmdList->SetRenderTargets(1, &secondDeviceUIBackBufferRTV, 0);
+
+			UIPath->Render(cmdList);
+
+			cmdList->CopyResource(crossAdapterUITexture->GetSharedResource(), secondDeviceUITexture);
+
+			cmdList->EndQuery(timestampHeapIndex + 1);
+			cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+			currentFrameResource->SecondRenderFenceValue = secondRenderQueue->ExecuteCommandList(cmdList);
+		}
+
+		auto copyPrimeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+
+		if(currentFrameResource->PrimeCopyFenceValue == 0 || copyPrimeQueue->IsFinish(currentFrameResource->PrimeCopyFenceValue))
+		{
+			auto cmdList = copyPrimeQueue->GetCommandList();
+
+			cmdList->CopyResource(primeDeviceUITexture, crossAdapterUITexture->GetPrimeResource());
+
+			currentFrameResource->PrimeCopyFenceValue = copyPrimeQueue->ExecuteCommandList(cmdList);
+		}
+	}
+
+	
 	auto primeRenderQueue = primeDevice->GetCommandQueue();
 	auto primeCmdList = primeRenderQueue->GetCommandList();
 	primeCmdList->EndQuery(timestampHeapIndex);
@@ -246,8 +277,16 @@ void MultiGPUUIApp::Draw(const GameTimer& gt)
 	PopulateDrawQuadCommand(primeCmdList, MainWindow->GetCurrentBackBuffer(),
 		&currentFrameResource->BackBufferRTVMemory, 0);
 
-	ImGui::Render();
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), primeCmdList->GetGraphicsCommandList().Get());
+	/*primeCmdList->SetViewports(&fullViewport, 1);
+	primeCmdList->SetScissorRects(&fullRect, 1);
+
+	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+	primeCmdList->FlushResourceBarriers();
+	primeCmdList->ClearRenderTarget(&currentFrameResource->BackBufferRTVMemory, 0, Colors::Black);
+
+	primeCmdList->SetRenderTargets(1, &currentFrameResource->BackBufferRTVMemory, 0);
+	
+	UIPath->Render(primeCmdList);*/
 	
 	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 	primeCmdList->FlushResourceBarriers();
@@ -500,6 +539,10 @@ void MultiGPUUIApp::InitSRVMemoryAndMaterials()
 
 	logQueue.Push(std::wstring(L"\nInit Views for " + primeDevice->GetName()));
 	ambientPrimePath->BuildDescriptors();
+
+	primeUIBackBufferSRV = primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	
+	secondDeviceUIBackBufferRTV = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 }
 
 void MultiGPUUIApp::InitRenderPaths()
@@ -520,7 +563,20 @@ void MultiGPUUIApp::InitRenderPaths()
 
 	logQueue.Push(std::wstring(L"\nInit Render path data for " + primeDevice->GetName()));
 
-	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));	
+	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));
+
+	UIPath = std::make_shared<UILayer>(secondDevice, MainWindow->GetWindowHandle());
+
+
+	secondDeviceUITexture = GTexture(secondDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(), L"Second Device UI Texture");
+
+	auto desc = MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc();
+	crossAdapterUITexture = std::make_shared<GCrossAdapterResource>(desc, primeDevice, secondDevice, L"Cross Adapter UI");
+		
+	primeDeviceUITexture = GTexture(primeDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(), L"Prime Device UI Texture");
+
+
+	
 }
 
 void MultiGPUUIApp::LoadStudyTexture()
@@ -1193,29 +1249,7 @@ void MultiGPUUIApp::UpdateSsaoCB(const GameTimer& gt)
 
 bool MultiGPUUIApp::InitMainWindow()
 {
-	MainWindow = CreateRenderWindow(primeDevice, mainWindowCaption, 1920, 1080, false);
-
-
-	// Setup Dear ImGui context
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-	// Setup Dear ImGui style
-	ImGui::StyleColorsDark();
-	//ImGui::StyleColorsClassic();
-
-	imguiSRVMemory = primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, globalCountFrameResources);
-	
-	// Setup Platform/Renderer backends
-	ImGui_ImplWin32_Init(MainWindow->GetWindowHandle());
-	ImGui_ImplDX12_Init(primeDevice->GetDXDevice().Get(), globalCountFrameResources,
-		DXGI_FORMAT_R8G8B8A8_UNORM, imguiSRVMemory.GetDescriptorHeap()->GetDirectxHeap(),	imguiSRVMemory.GetCPUHandle(),imguiSRVMemory.GetGPUHandle());
-
-
-	
+	MainWindow = CreateRenderWindow(primeDevice, mainWindowCaption, 1920, 1080, false);	
 	
 	logQueue.Push(std::wstring(L"\nInit Window"));
 	return true;
@@ -1223,7 +1257,7 @@ bool MultiGPUUIApp::InitMainWindow()
 
 void MultiGPUUIApp::OnResize()
 {
-	ImGui_ImplDX12_InvalidateDeviceObjects();
+	UIPath->Invalidate();
 	D3DApp::OnResize();
 
 	fullViewport.Height = static_cast<float>(MainWindow->GetClientHeight());
@@ -1244,6 +1278,21 @@ void MultiGPUUIApp::OnResize()
 		MainWindow->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &frameResources[i]->BackBufferRTVMemory);
 	}
 
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = primeDeviceUITexture.GetD3D12ResourceDesc().Format;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.MipLevels = 1;
+	
+	GTexture::Resize(primeDeviceUITexture, MainWindow->GetClientWidth(), MainWindow->GetClientHeight(), 1);
+	primeDeviceUITexture.CreateShaderResourceView(&srvDesc, &primeUIBackBufferSRV);
+
+	GTexture::Resize(secondDeviceUITexture, MainWindow->GetClientWidth(), MainWindow->GetClientHeight(), 1);
+	secondDeviceUITexture.CreateRenderTargetView(&rtvDesc, &secondDeviceUIBackBufferRTV);
+
+	/*crossAdapterUITexture->Resize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());*/
+	
 
 	if (camera != nullptr)
 	{
@@ -1261,8 +1310,7 @@ void MultiGPUUIApp::OnResize()
 		antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 	}
 
-
-	ImGui_ImplDX12_CreateDeviceObjects();
+	UIPath->CreateDeviceObject();
 	
 	currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex();
 }
@@ -1273,13 +1321,11 @@ void MultiGPUUIApp::Flush()
 	secondDevice->Flush();
 }
 
-// Forward declare message handler from imgui_impl_win32.cpp
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 
 LRESULT MultiGPUUIApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
-		return true;
+	UIPath->MsgProc(hwnd, msg, wParam, lParam);
 
 	return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
 }

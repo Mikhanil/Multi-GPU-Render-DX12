@@ -57,3 +57,16 @@ const GResource& GCrossAdapterResource::GetSharedResource() const
 {
 	return *sharedResource.get();
 }
+
+void GCrossAdapterResource::Resize(UINT newWidth, UINT newHeight)
+{
+    auto desc = primeResource->GetD3D12ResourceDesc();
+    desc.Width = newWidth;
+    desc.Height = newHeight;
+
+	
+    primeResource = std::make_shared<GResource>(primeResource->GetDevice(), desc, crossAdapterResourceHeap[0], primeResource->GetName());
+
+    sharedResource = std::make_shared<GResource>(sharedResource->GetDevice(), desc, crossAdapterResourceHeap[1], sharedResource->GetName());
+	
+}

@@ -45,6 +45,9 @@
     <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_win32.cpp">
       <Filter>IMGUI</Filter>
     </ClCompile>
+    <ClCompile Include="UILayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MultiGPUUIApp.h">
@@ -76,6 +79,9 @@
     </ClInclude>
     <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_win32.h">
       <Filter>IMGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="UILayer.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

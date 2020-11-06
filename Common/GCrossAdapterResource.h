@@ -28,4 +28,6 @@ public:
 	const GResource& GetPrimeResource() const;
 
 	const GResource& GetSharedResource() const;
+
+	void Resize(UINT newWidth, UINT newHeight);
 };

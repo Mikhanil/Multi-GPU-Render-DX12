@@ -7,8 +7,10 @@
 #include "SSAA.h"
 #include "SSAO.h"
 #include "FrameResource.h"
+#include "GCrossAdapterResource.h"
 #include "GDeviceFactory.h"
 #include "Light.h"
+#include "UILayer.h"
 
 class MultiGPUUIApp :
     public Common::D3DApp
@@ -74,9 +76,15 @@ protected:
 	std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
 	GDescriptor srvTexturesMemory;
-	GDescriptor imguiSRVMemory;
 	RenderModeFactory defaultPrimePipelineResources;
 
+	GTexture secondDeviceUITexture;
+	GDescriptor secondDeviceUIBackBufferRTV;
+	std::shared_ptr<GCrossAdapterResource> crossAdapterUITexture;
+	GTexture primeDeviceUITexture;
+	GDescriptor primeUIBackBufferSRV;
+	
+	std::shared_ptr<UILayer> UIPath;
 	std::shared_ptr<ShadowMap> shadowPath;
 	std::shared_ptr<SSAO> ambientPrimePath;
 	std::shared_ptr<SSAA> antiAliasingPrimePath;
