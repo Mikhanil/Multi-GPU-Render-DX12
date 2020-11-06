@@ -200,8 +200,7 @@ void MultiGPUUIApp::PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
 	}
 }
 
-void MultiGPUUIApp::PopulateDrawQuadCommand(std::shared_ptr<GCommandList> cmdList,
-	GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
+void MultiGPUUIApp::PopulateInitRenderTarget(std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
 {
 	cmdList->SetViewports(&fullViewport, 1);
 	cmdList->SetScissorRects(&fullRect, 1);
@@ -211,10 +210,14 @@ void MultiGPUUIApp::PopulateDrawQuadCommand(std::shared_ptr<GCommandList> cmdLis
 	cmdList->ClearRenderTarget(rtvMemory, offsetRTV, Colors::Black);
 
 	cmdList->SetRenderTargets(1, rtvMemory, offsetRTV);
+}
 
-	cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, &primeUIBackBufferSRV);
+void MultiGPUUIApp::PopulateDrawFullQuadTexture(std::shared_ptr<GCommandList> cmdList,
+                                            GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset, GraphicPSO& pso)
+{
+	cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
 
-	cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
+	cmdList->SetPipelineState(pso);
 	PopulateDrawCommands(cmdList, (RenderMode::Quad));
 }
 
@@ -274,19 +277,22 @@ void MultiGPUUIApp::Draw(const GameTimer& gt)
 	PopulateAmbientMapCommands(primeCmdList);
 	PopulateShadowMapCommands(primeCmdList);
 	PopulateForwardPathCommands(primeCmdList);
-	PopulateDrawQuadCommand(primeCmdList, MainWindow->GetCurrentBackBuffer(),
-		&currentFrameResource->BackBufferRTVMemory, 0);
+	PopulateInitRenderTarget(primeCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->BackBufferRTVMemory, 0);
+	PopulateDrawFullQuadTexture(primeCmdList, antiAliasingPrimePath->GetSRV(),
+	                        0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
+	if(IsUseSecondDevice)
+	{
+		primeCmdList->SetViewports(&fullViewport, 1);
+		primeCmdList->SetScissorRects(&fullRect, 1);
+		
+		primeCmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::UI));		
 
-	/*primeCmdList->SetViewports(&fullViewport, 1);
-	primeCmdList->SetScissorRects(&fullRect, 1);
+		primeCmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, &primeUIBackBufferSRV, 0);
+		
+		PopulateDrawCommands(primeCmdList, (RenderMode::Quad));
 
-	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-	primeCmdList->FlushResourceBarriers();
-	primeCmdList->ClearRenderTarget(&currentFrameResource->BackBufferRTVMemory, 0, Colors::Black);
-
-	primeCmdList->SetRenderTargets(1, &currentFrameResource->BackBufferRTVMemory, 0);
+	}
 	
-	UIPath->Render(primeCmdList);*/
 	
 	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 	primeCmdList->FlushResourceBarriers();
@@ -1291,7 +1297,7 @@ void MultiGPUUIApp::OnResize()
 	GTexture::Resize(secondDeviceUITexture, MainWindow->GetClientWidth(), MainWindow->GetClientHeight(), 1);
 	secondDeviceUITexture.CreateRenderTargetView(&rtvDesc, &secondDeviceUIBackBufferRTV);
 
-	/*crossAdapterUITexture->Resize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());*/
+	crossAdapterUITexture->Resize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 	
 
 	if (camera != nullptr)

@@ -31,8 +31,10 @@ protected:
 	void PopulateForwardPathCommands(std::shared_ptr<GCommandList> cmdList);
 	void PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
 	                          RenderMode::Mode type);
-	void PopulateDrawQuadCommand(std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory,
+	void PopulateInitRenderTarget(std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory,
 	                             UINT offsetRTV);
+	void PopulateDrawFullQuadTexture(std::shared_ptr<GCommandList> cmdList,
+	                             GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset, GraphicPSO& pso);
 	void Draw(const GameTimer& gt) override;
 
 	void InitDevices();

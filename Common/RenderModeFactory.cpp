@@ -37,7 +37,7 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	auto depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	auto rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 
-
+	
 	auto opaquePSO = std::make_shared<GraphicPSO>();
 	opaquePSO->SetPsoDesc(basePsoDesc);
 	depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -137,7 +137,6 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	transparencyBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	transperentPSO->SetRenderTargetBlendState(0, transparencyBlendDesc);
 
-
 	auto debugPso = std::make_shared<GraphicPSO>(RenderMode::Debug);
 	debugPso->SetPsoDesc(basePsoDesc);
 	debugPso->SetShader(shaders["quadVS"].get());
@@ -156,6 +155,28 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	quadPso->SetDepthStencilState(depthStencilDesc);
 
 
+	auto uiPSO = std::make_shared<GraphicPSO>(RenderMode::UI);
+	uiPSO->SetPsoDesc(quadPso->GetPsoDescription());
+
+	// Create the blending setup
+	{
+		D3D12_RENDER_TARGET_BLEND_DESC desc = {};
+		desc.BlendEnable = true;
+		desc.LogicOpEnable = false;
+		desc.SrcBlend = D3D12_BLEND_ONE;
+		desc.DestBlend = D3D12_BLEND_SRC_ALPHA;
+		desc.BlendOp = D3D12_BLEND_OP_ADD;
+		desc.SrcBlendAlpha = D3D12_BLEND_ONE;
+		desc.DestBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+		desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		desc.LogicOp = D3D12_LOGIC_OP_NOOP;
+		desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;	
+		
+		uiPSO->SetRenderTargetBlendState(0, desc);
+	}	
+
+
+
 	PSO[opaquePSO->GetType()] = std::move(opaquePSO);
 	PSO[transperentPSO->GetType()] = std::move(transperentPSO);
 	PSO[alphaDropPso->GetType()] = std::move(alphaDropPso);
@@ -168,7 +189,8 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	PSO[ssaoBlurPSO->GetType()] = std::move(ssaoBlurPSO);
 	PSO[debugPso->GetType()] = std::move(debugPso);
 	PSO[quadPso->GetType()] = std::move(quadPso);
-
+	PSO[uiPSO->GetType()] = std::move(uiPSO);
+	
 	for (auto& pso : PSO)
 	{
 		pso.second->Initialize(device);

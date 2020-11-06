@@ -86,7 +86,7 @@ void UILayer::ChangeDevice(std::shared_ptr<GDevice> device)
 
 
 void UILayer::Render(const std::shared_ptr<GCommandList> cmdList)
-{
+{	
 	cmdList->SetDescriptorsHeap(&srvMemory);
 	// Start the Dear ImGui frame
 	ImGui_ImplDX12_NewFrame();
