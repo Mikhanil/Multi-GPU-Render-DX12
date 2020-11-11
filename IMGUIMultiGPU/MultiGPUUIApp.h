@@ -20,7 +20,8 @@ public:
 	~MultiGPUUIApp();
 	
 	bool Initialize() override;;
-	
+
+	int Run() override;
 
 
 protected:
@@ -80,6 +81,13 @@ protected:
 	GDescriptor srvTexturesMemory;
 	RenderModeFactory defaultPrimePipelineResources;
 
+	bool IsUseSharedUI = false;
+
+	bool IsStop = false;
+
+	const int StatisticStepSecondsCount = 120;
+
+	
 	GTexture secondDeviceUITexture;
 	GDescriptor secondDeviceUIBackBufferRTV;
 	std::shared_ptr<GCrossAdapterResource> crossAdapterUITexture;

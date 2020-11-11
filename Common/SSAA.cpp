@@ -80,7 +80,9 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 		renderTargetDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		renderTargetDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-		renderTarget = GTexture(device,renderTargetDesc, L"SSAA RTV", TextureUsage::RenderTarget);
+		auto optClear = CD3DX12_CLEAR_VALUE(rtvFormat, DirectX::Colors::Black);
+		
+		renderTarget = GTexture(device,renderTargetDesc, L"SSAA RTV", TextureUsage::RenderTarget, &optClear);
 	}
 	else
 	{

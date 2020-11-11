@@ -38,7 +38,7 @@ void UILayer::Initialize()
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//ImGuiIO& io = ImGui::GetIO(); (void)io;
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 	//
@@ -85,9 +85,10 @@ void UILayer::ChangeDevice(std::shared_ptr<GDevice> device)
 }
 
 
-void UILayer::Render(const std::shared_ptr<GCommandList> cmdList)
+void UILayer::Render(const std::shared_ptr<GCommandList>& cmdList)
 {	
 	cmdList->SetDescriptorsHeap(&srvMemory);
+	
 	// Start the Dear ImGui frame
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();

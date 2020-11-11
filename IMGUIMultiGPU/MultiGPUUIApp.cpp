@@ -157,7 +157,7 @@ void MultiGPUUIApp::PopulateForwardPathCommands(std::shared_ptr<GCommandList> cm
 		cmdList->TransitionBarrier(antiAliasingPrimePath->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		cmdList->FlushResourceBarriers();
 
-		cmdList->ClearRenderTarget(antiAliasingPrimePath->GetRTV());
+		cmdList->ClearRenderTarget(antiAliasingPrimePath->GetRTV(), 0 , DirectX::Colors::Black);
 		cmdList->ClearDepthStencil(antiAliasingPrimePath->GetDSV(), 0,
 			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
@@ -221,7 +221,7 @@ void MultiGPUUIApp::PopulateDrawFullQuadTexture(std::shared_ptr<GCommandList> cm
 	PopulateDrawCommands(cmdList, (RenderMode::Quad));
 }
 
-bool IsUseSecondDevice = true;
+
 
 void MultiGPUUIApp::Draw(const GameTimer& gt)
 {
@@ -229,7 +229,7 @@ void MultiGPUUIApp::Draw(const GameTimer& gt)
 	
 	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 
-	if(IsUseSecondDevice)
+	if(IsUseSharedUI)
 	{
 		auto secondRenderQueue = secondDevice->GetCommandQueue();
 
@@ -280,7 +280,7 @@ void MultiGPUUIApp::Draw(const GameTimer& gt)
 	PopulateInitRenderTarget(primeCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->BackBufferRTVMemory, 0);
 	PopulateDrawFullQuadTexture(primeCmdList, antiAliasingPrimePath->GetSRV(),
 	                        0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-	if(IsUseSecondDevice)
+	if(IsUseSharedUI)
 	{
 		primeCmdList->SetViewports(&fullViewport, 1);
 		primeCmdList->SetScissorRects(&fullRect, 1);
@@ -290,7 +290,10 @@ void MultiGPUUIApp::Draw(const GameTimer& gt)
 		primeCmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, &primeUIBackBufferSRV, 0);
 		
 		PopulateDrawCommands(primeCmdList, (RenderMode::Quad));
-
+	}
+	else
+	{
+		UIPath->Render(primeCmdList);
 	}
 	
 	
@@ -571,19 +574,24 @@ void MultiGPUUIApp::InitRenderPaths()
 
 	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));
 
-	UIPath = std::make_shared<UILayer>(secondDevice, MainWindow->GetWindowHandle());
+	UIPath = std::make_shared<UILayer>(primeDevice, MainWindow->GetWindowHandle());
 
 
 	secondDeviceUITexture = GTexture(secondDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(), L"Second Device UI Texture");
 
 	auto desc = MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc();
 	crossAdapterUITexture = std::make_shared<GCrossAdapterResource>(desc, primeDevice, secondDevice, L"Cross Adapter UI");
-		
-	primeDeviceUITexture = GTexture(primeDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(), L"Prime Device UI Texture");
+
+
+	auto optClear = CD3DX12_CLEAR_VALUE(MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc().Format, DirectX::Colors::Black);
+	
+	primeDeviceUITexture = GTexture(primeDevice, MainWindow->GetCurrentBackBuffer().GetD3D12ResourceDesc(), L"Prime Device UI Texture", TextureUsage::RenderTarget, &optClear);
 
 
 	
 }
+
+
 
 void MultiGPUUIApp::LoadStudyTexture()
 {
@@ -992,25 +1000,35 @@ void MultiGPUUIApp::CalculateFrameStats()
 
 
 
-		if (writeStaticticCount >= 60)
+		if (writeStaticticCount >= StatisticStepSecondsCount)
 		{
 			const std::wstring staticticStr = 
-				L"\n\tMin FPS:" + std::to_wstring(minFps)
+				L"\nUse Shared UI: " + std::to_wstring(IsUseSharedUI)
+				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
 				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
 				+ L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
 				+ L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
-				+L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
-				+L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
+				+ L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
+				+ L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
 				+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin);
 
-			logQueue.Push(staticticStr);
+			logQueue.Push(staticticStr);			
+
+			if(!IsUseSharedUI)
+			{
+				Flush();
+				UIPath->ChangeDevice(secondDevice);
+				IsUseSharedUI = true;
+			}
+			else
+			{
+				IsStop = true;
+			}
 
 
 			
-
 			writeStaticticCount = 0;
-
 			minFps = std::numeric_limits<float>::max();
 			minMspf = std::numeric_limits<float>::max();
 			maxFps = std::numeric_limits<float>::min();
@@ -1039,7 +1057,7 @@ void MultiGPUUIApp::CalculateFrameStats()
 
 void MultiGPUUIApp::LogWriting()
 {
-	const std::filesystem::path filePath(L"PartShadow " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
+	const std::filesystem::path filePath(L"SharedUI " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
 
 	const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
 
@@ -1049,7 +1067,7 @@ void MultiGPUUIApp::LogWriting()
 	fileSteam.open(path.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
 	if (fileSteam.is_open())
 	{
-		fileSteam << L"Information" << std::endl;
+		fileSteam << L"Information" << std::endl << L"Statistic step seconds:" << std::to_wstring(StatisticStepSecondsCount) << std::endl;		
 	}
 
 	std::wstring line;
@@ -1066,6 +1084,52 @@ void MultiGPUUIApp::LogWriting()
 
 	fileSteam.flush();
 	fileSteam.close();
+}
+
+int MultiGPUUIApp::Run()
+{
+	MSG msg = { nullptr };
+
+	timer.Reset();
+
+	while (msg.message != WM_QUIT)
+	{
+		// If there are Window messages then process them.
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		// Otherwise, do animation/game stuff.
+		else
+		{
+			if (IsStop)
+			{
+				MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" Finished. Wait...");
+				LogWriting();
+				Quit();
+				break;
+			}
+
+			timer.Tick();
+
+			//if (!isAppPaused)
+			{
+				CalculateFrameStats();
+				Update(timer);
+				Draw(timer);
+			}
+			//else
+			{
+				//Sleep(100);
+			}
+
+			primeDevice->ResetAllocator(frameCount);
+			secondDevice->ResetAllocator(frameCount);			
+		}
+	}
+
+	return static_cast<int>(msg.wParam);
 }
 
 void MultiGPUUIApp::UpdateMaterials()
@@ -1326,8 +1390,6 @@ void MultiGPUUIApp::Flush()
 	primeDevice->Flush();
 	secondDevice->Flush();
 }
-
-
 
 LRESULT MultiGPUUIApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {

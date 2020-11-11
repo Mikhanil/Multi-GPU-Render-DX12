@@ -27,7 +27,7 @@ public:
 	void CreateDeviceObject();
 	void Invalidate();
 	
-	void Render(std::shared_ptr<GCommandList> cmdList);
+	void Render(const std::shared_ptr<GCommandList>& cmdList);
 
 	void ChangeDevice(std::shared_ptr<GDevice> device);
 
