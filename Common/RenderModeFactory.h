@@ -20,7 +20,7 @@ public:
 	void LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_ptr<GRootSignature> rootSignature,
 	                    D3D12_INPUT_LAYOUT_DESC defautlInputDesc, DXGI_FORMAT backBufferFormat,
 	                    DXGI_FORMAT depthStencilFormat, std::shared_ptr<GRootSignature> ssaoRootSignature, DXGI_FORMAT normalMapFormat, DXGI_FORMAT
-	                    ambientMapFormat);
+	                    ambientMapFormat, std::shared_ptr<GRootSignature> particleRS);
 
 	void LoadDefaultShaders() const;
 

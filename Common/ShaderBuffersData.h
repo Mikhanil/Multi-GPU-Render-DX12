@@ -137,6 +137,22 @@ struct alignas(sizeof(Vector4)) MaterialConstants
 	UINT MatPad2;
 };
 
+struct alignas(sizeof(Vector4)) ParticleData
+{
+	Vector4 Color;
+	Vector3 Position;
+	Vector3 Velocity;
+	float Acceleration;
+	float Padding;
+};
+
+struct alignas(sizeof(Vector4)) EmitterData
+{
+	float DeltaTime;
+	float TotalTime;
+	float ParticlesCount;
+	float Padding;
+};
 
 class StandardShaderSlot
 {

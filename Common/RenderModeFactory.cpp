@@ -14,7 +14,7 @@ custom_unordered_map<std::string, std::shared_ptr<GShader>> RenderModeFactory::s
 void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_ptr<GRootSignature> rootSignature,
                                    D3D12_INPUT_LAYOUT_DESC defautlInputDesc, DXGI_FORMAT backBufferFormat,
                                    DXGI_FORMAT depthStencilFormat,
-                                   std::shared_ptr<GRootSignature> ssaoRootSignature, DXGI_FORMAT normalMapFormat, DXGI_FORMAT ambientMapFormat)
+                                   std::shared_ptr<GRootSignature> ssaoRootSignature, DXGI_FORMAT normalMapFormat, DXGI_FORMAT ambientMapFormat, std::shared_ptr<GRootSignature> particleRS)
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC basePsoDesc;
 
@@ -176,6 +176,29 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	}	
 
 
+	auto particlePSO = std::make_shared<GraphicPSO>(RenderMode::Particle);
+	particlePSO->SetPsoDesc(basePsoDesc);
+	particlePSO->SetShader(shaders["particleVS"].get());
+	particlePSO->SetShader(shaders["particlePS"].get());
+	particlePSO->SetPrimitiveType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT);
+	particlePSO->SetRootSignature(particleRS->GetRootSignature().Get());
+	particlePSO->SetInputLayout({ nullptr, 0 });
+	{
+		D3D12_RENDER_TARGET_BLEND_DESC desc = {};
+		desc.BlendEnable = true;
+		desc.LogicOpEnable = false;
+		desc.SrcBlend = D3D12_BLEND_ONE;
+		desc.DestBlend = D3D12_BLEND_ONE;
+		desc.BlendOp = D3D12_BLEND_OP_ADD;
+		desc.SrcBlendAlpha = D3D12_BLEND_ONE;
+		desc.DestBlendAlpha = D3D12_BLEND_ZERO;
+		desc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		desc.LogicOp = D3D12_LOGIC_OP_NOOP;
+		desc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		particlePSO->SetRenderTargetBlendState(0, desc);
+	}
+	
 
 	PSO[opaquePSO->GetType()] = std::move(opaquePSO);
 	PSO[transperentPSO->GetType()] = std::move(transperentPSO);
@@ -190,6 +213,7 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	PSO[debugPso->GetType()] = std::move(debugPso);
 	PSO[quadPso->GetType()] = std::move(quadPso);
 	PSO[uiPSO->GetType()] = std::move(uiPSO);
+	PSO[particlePSO->GetType()] = std::move(particlePSO);
 	
 	for (auto& pso : PSO)
 	{
@@ -262,6 +286,12 @@ void RenderModeFactory::LoadDefaultShaders() const
 	shaders["quadPS"] = std::move(
 		std::make_shared<GShader>(L"Shaders\\Quad.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 
+	shaders["particleVS"] = std::move(
+		std::make_shared<GShader>(L"Shaders\\ParticleDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+	shaders["particlePS"] = std::move(
+		std::make_shared<GShader>(L"Shaders\\ParticleDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+
+	
 	for (auto&& pair : shaders)
 	{
 		pair.second->LoadAndCompile();
