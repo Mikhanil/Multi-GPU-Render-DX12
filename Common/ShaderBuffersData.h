@@ -138,8 +138,7 @@ struct alignas(sizeof(Vector4)) MaterialConstants
 };
 
 struct alignas(sizeof(Vector4)) ParticleData
-{
-	Vector4 Color;
+{	
 	Vector3 Position;
 	Vector3 Velocity;
 	float Acceleration;
@@ -148,10 +147,11 @@ struct alignas(sizeof(Vector4)) ParticleData
 
 struct alignas(sizeof(Vector4)) EmitterData
 {
+	Vector4 Color;
 	float DeltaTime;
 	float TotalTime;
-	float ParticlesCount;
-	float Padding;
+	float Size;
+	int ParticlesCount;
 };
 
 class StandardShaderSlot
@@ -167,5 +167,18 @@ public:
 		AmbientMap,
 		TexturesMap,
 		Count
+	};
+};
+
+class ParticleRenderSlot
+{
+public:
+	enum Slots
+	{
+		ObjectData,
+		CameraData,
+		EmitterData,
+		Particles,
+		ParticleIndex
 	};
 };

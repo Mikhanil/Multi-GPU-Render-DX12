@@ -196,7 +196,7 @@ void SSAO::OnResize(UINT newWidth, UINT newHeight)
 
 void SSAO::ComputeSsao(
 	std::shared_ptr<GCommandList> cmdList,
-	std::shared_ptr<ConstantBuffer<SsaoConstants>> currFrame,
+	std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> currFrame,
 	int blurCount)
 {
 	cmdList->SetViewports( &mViewport,1);
@@ -247,7 +247,7 @@ void SSAO::ClearAmbiantMap(
 	cmdList->FlushResourceBarriers();
 }
 
-void SSAO::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, std::shared_ptr<ConstantBuffer<SsaoConstants>> currFrame, int blurCount)
+void SSAO::BlurAmbientMap(std::shared_ptr<GCommandList> cmdList, std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> currFrame, int blurCount)
 {
 	cmdList->SetPipelineState(mBlurPso);
 	

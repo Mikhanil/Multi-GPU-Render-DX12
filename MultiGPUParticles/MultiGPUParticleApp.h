@@ -75,7 +75,6 @@ protected:
 
 	custom_unordered_map < std::wstring, std::shared_ptr<GModel>> models = MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GModel>>();
 	std::shared_ptr<GRootSignature> primeDeviceSignature;
-	std::shared_ptr<GRootSignature> particlesRootSignature;
 	std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
 	std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
 	GDescriptor srvTexturesMemory;
@@ -86,10 +85,7 @@ protected:
 
 	const int StatisticStepSecondsCount = 120;
 
-
-	std::unique_ptr<UploadBuffer<ParticleData>> particles;
-	std::unique_ptr<UploadBuffer<UINT>> particlesIndex;
-	
+		
 	std::shared_ptr<ShadowMap> shadowPath;
 	std::shared_ptr<SSAO> ambientPrimePath;
 	std::shared_ptr<SSAA> antiAliasingPrimePath;

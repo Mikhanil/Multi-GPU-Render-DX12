@@ -108,6 +108,9 @@
     <ClInclude Include="RenderModeFactory.h">
       <Filter>Render</Filter>
     </ClInclude>
+    <ClInclude Include="ParticleEmitter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -187,6 +190,9 @@
     </ClCompile>
     <ClCompile Include="RenderModeFactory.cpp">
       <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticleEmitter.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

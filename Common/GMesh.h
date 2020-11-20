@@ -2,7 +2,7 @@
 #include <d3d12.h>
 #include <string>
 
-#include "GBuffer.h"
+#include "GMeshBuffer.h"
 #include "Lazy.h"
 
 
@@ -22,8 +22,8 @@ class GMesh
 	std::shared_ptr<NativeMesh> mesh;
 	
 	
-	std::shared_ptr<GBuffer> vertexBuffer = nullptr;
-	std::shared_ptr<GBuffer> indexBuffer = nullptr;
+	std::shared_ptr<GMeshBuffer> vertexBuffer = nullptr;
+	std::shared_ptr<GMeshBuffer> indexBuffer = nullptr;
 public:
 
 	std::shared_ptr<NativeMesh> GetMeshData() const;

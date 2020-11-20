@@ -10,23 +10,20 @@
 #include "imgui.h"
 #include "MathHelper.h"
 #include "ModelRenderer.h"
+#include "ParticleEmitter.h"
 #include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
 #include "Window.h"
 
-
-const int Particles_Count = 1000000;
-
 MultiGPUParticleApp::MultiGPUParticleApp(HINSTANCE hInstance): D3DApp(hInstance)
 {
 	mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
-	mSceneBounds.Radius = 200;	
+	mSceneBounds.Radius = 200;
 }
 
 MultiGPUParticleApp::~MultiGPUParticleApp()
 {
-	
 }
 
 void MultiGPUParticleApp::Update(const GameTimer& gt)
@@ -37,11 +34,12 @@ void MultiGPUParticleApp::Update(const GameTimer& gt)
 	primeGPURenderingTime = primeDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 	secondGPURenderingTime = secondDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 
-	const auto commandQueue =primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	const auto commandQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	currentFrameResource = frameResources[currentFrameResourceIndex];
 
-	if (currentFrameResource->PrimeRenderFenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->PrimeRenderFenceValue))
+	if (currentFrameResource->PrimeRenderFenceValue != 0 && !commandQueue->IsFinish(
+		currentFrameResource->PrimeRenderFenceValue))
 	{
 		commandQueue->WaitForFenceValue(currentFrameResource->PrimeRenderFenceValue);
 	}
@@ -73,10 +71,10 @@ void MultiGPUParticleApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList
 {
 	cmdList->SetRootSignature(primeDeviceSignature.get());
 	cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
-		*currentFrameResource->MaterialBuffer, 1);
+	                                   *currentFrameResource->MaterialBuffer, 1);
 	cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 	cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-		*currentFrameResource->PrimePassConstantBuffer, 1);
+	                                   *currentFrameResource->PrimePassConstantBuffer, 1);
 
 	shadowPath->PopulatePreRenderCommands(cmdList);
 
@@ -95,7 +93,7 @@ void MultiGPUParticleApp::PopulateNormalMapCommands(std::shared_ptr<GCommandList
 		cmdList->SetDescriptorsHeap(&srvTexturesMemory);
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
-			*currentFrameResource->MaterialBuffer);
+		                                   *currentFrameResource->MaterialBuffer);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
 		cmdList->SetViewports(&fullViewport, 1);
@@ -109,10 +107,10 @@ void MultiGPUParticleApp::PopulateNormalMapCommands(std::shared_ptr<GCommandList
 		cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		cmdList->FlushResourceBarriers();
-		float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
+		float clearValue[] = {0.0f, 0.0f, 1.0f, 0.0f};
 		cmdList->ClearRenderTarget(normalMapRtv, 0, clearValue);
 		cmdList->ClearDepthStencil(normalMapDsv, 0,
-			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
 		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantBuffer);
@@ -136,7 +134,7 @@ void MultiGPUParticleApp::PopulateAmbientMapCommands(std::shared_ptr<GCommandLis
 		cmdList->SetDescriptorsHeap(&srvTexturesMemory);
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
-			*currentFrameResource->MaterialBuffer);
+		                                   *currentFrameResource->MaterialBuffer);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
 		cmdList->SetRootSignature(ssaoPrimeRootSignature.get());
@@ -151,7 +149,7 @@ void MultiGPUParticleApp::PopulateForwardPathCommands(std::shared_ptr<GCommandLi
 		cmdList->SetDescriptorsHeap(&srvTexturesMemory);
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
-			*currentFrameResource->MaterialBuffer);
+		                                   *currentFrameResource->MaterialBuffer);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
 		cmdList->SetViewports(&antiAliasingPrimePath->GetViewPort(), 1);
@@ -161,20 +159,18 @@ void MultiGPUParticleApp::PopulateForwardPathCommands(std::shared_ptr<GCommandLi
 		cmdList->TransitionBarrier(antiAliasingPrimePath->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 		cmdList->FlushResourceBarriers();
 
-		cmdList->ClearRenderTarget(antiAliasingPrimePath->GetRTV(), 0 , DirectX::Colors::Black);
+		cmdList->ClearRenderTarget(antiAliasingPrimePath->GetRTV(), 0, Colors::Black);
 		cmdList->ClearDepthStencil(antiAliasingPrimePath->GetDSV(), 0,
-			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, antiAliasingPrimePath->GetRTV(), 0,
-			antiAliasingPrimePath->GetDSV());
+		                          antiAliasingPrimePath->GetDSV());
 
 
-		
-		
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantBuffer);
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap,shadowPath->GetSrv());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
 
 
@@ -189,26 +185,22 @@ void MultiGPUParticleApp::PopulateForwardPathCommands(std::shared_ptr<GCommandLi
 
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Transparent));
 		PopulateDrawCommands(cmdList, (RenderMode::Transparent));
-			
-		
-		cmdList->SetRootSignature(particlesRootSignature.get());
-		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantBuffer.get(), 0);
-		cmdList->SetRootUnorderedAccessView(3, *particles.get());
-		cmdList->SetRootUnorderedAccessView(4, *particlesIndex.get());
-		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Particle).get());
-		cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-		cmdList->Draw(Particles_Count);
 
-		
+
+		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+		                                   *currentFrameResource->PrimePassConstantBuffer.get(), 0);
+		PopulateDrawCommands(cmdList, RenderMode::Particle);
+
+
 		cmdList->TransitionBarrier(antiAliasingPrimePath->GetRenderTarget(),
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		cmdList->TransitionBarrier((antiAliasingPrimePath->GetDepthMap()), D3D12_RESOURCE_STATE_DEPTH_READ);
 		cmdList->FlushResourceBarriers();
 	}
 }
 
 void MultiGPUParticleApp::PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
-	RenderMode::Mode type)
+                                               RenderMode::Mode type)
 {
 	for (auto&& renderer : typedRenderer[type])
 	{
@@ -216,7 +208,8 @@ void MultiGPUParticleApp::PopulateDrawCommands(std::shared_ptr<GCommandList> cmd
 	}
 }
 
-void MultiGPUParticleApp::PopulateInitRenderTarget(std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
+void MultiGPUParticleApp::PopulateInitRenderTarget(std::shared_ptr<GCommandList> cmdList, GTexture& renderTarget,
+                                                   GDescriptor* rtvMemory, UINT offsetRTV)
 {
 	cmdList->SetViewports(&fullViewport, 1);
 	cmdList->SetScissorRects(&fullRect, 1);
@@ -229,11 +222,12 @@ void MultiGPUParticleApp::PopulateInitRenderTarget(std::shared_ptr<GCommandList>
 }
 
 void MultiGPUParticleApp::PopulateDrawFullQuadTexture(std::shared_ptr<GCommandList> cmdList,
-                                            GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset, GraphicPSO& pso)
+                                                      GDescriptor* renderTextureSRVMemory,
+                                                      UINT renderTextureMemoryOffset, GraphicPSO& pso)
 {
 	cmdList->SetRootSignature(primeDeviceSignature.get());
 	cmdList->SetDescriptorsHeap(renderTextureSRVMemory);
-	
+
 	cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
 
 	cmdList->SetPipelineState(pso);
@@ -241,29 +235,49 @@ void MultiGPUParticleApp::PopulateDrawFullQuadTexture(std::shared_ptr<GCommandLi
 }
 
 
-
 void MultiGPUParticleApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
+
+	auto primeRenderQueue = primeDevice->GetCommandQueue();
+	
+	{
+		if (primeRenderQueue->IsFinish(currentFrameResource->PrimeRenderFenceValue))
+		{
+			auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+			auto cmdList = queue->GetCommandList();
+
+			auto particlesSystems = typedRenderer[RenderMode::Particle];
+
+			for (auto renderer : particlesSystems)
+			{
+				auto emitter = (ParticleEmitter*)renderer.get();
+				emitter->Dispatch(cmdList);
+			}
+			currentFrameResource->PrimeCopyFenceValue = queue->ExecuteCommandList(cmdList);
+			queue->Flush();
+		}
+	}
+
+
+
 	
 	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 
+
 	
-	auto primeRenderQueue = primeDevice->GetCommandQueue();
 	auto primeCmdList = primeRenderQueue->GetCommandList();
 	primeCmdList->EndQuery(timestampHeapIndex);
 	PopulateNormalMapCommands(primeCmdList);
 	PopulateAmbientMapCommands(primeCmdList);
 	PopulateShadowMapCommands(primeCmdList);
 	PopulateForwardPathCommands(primeCmdList);
-	PopulateInitRenderTarget(primeCmdList, MainWindow->GetCurrentBackBuffer(), &currentFrameResource->BackBufferRTVMemory, 0);
+	PopulateInitRenderTarget(primeCmdList, MainWindow->GetCurrentBackBuffer(),
+	                         &currentFrameResource->BackBufferRTVMemory, 0);
 	PopulateDrawFullQuadTexture(primeCmdList, antiAliasingPrimePath->GetSRV(),
-	                        0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));	
+	                            0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
 
 
-	
-
-	
 	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
 	primeCmdList->FlushResourceBarriers();
 	primeCmdList->EndQuery(timestampHeapIndex + 1);
@@ -278,7 +292,8 @@ bool MultiGPUParticleApp::Initialize()
 {
 	InitDevices();
 	InitMainWindow();
-
+	
+	
 	LoadStudyTexture();
 	LoadModels();
 	CreateMaterials();
@@ -292,29 +307,16 @@ bool MultiGPUParticleApp::Initialize()
 	SortGO();
 	InitFrameResource();
 
-	particles = std::make_unique<UploadBuffer<ParticleData>>(primeDevice, Particles_Count, L"Particles Buffer");
-	particlesIndex = std::make_unique<UploadBuffer<UINT>>(primeDevice, Particles_Count, L"Particles Indexes Buffer");
 
-	ParticleData tempParticle;
-	for (int i = 0; i < Particles_Count; ++i)
-	{
-		tempParticle.Color = Vector4(MathHelper::RandF(0, 1), MathHelper::RandF(0, 1), MathHelper::RandF(0, 1), MathHelper::RandF(0, 1));
-		tempParticle.Position = Vector3(MathHelper::RandF(-30, 30), MathHelper::RandF(-30, 30), MathHelper::RandF(-30, 30));
-		particles->CopyData(i, tempParticle);
-		particlesIndex->CopyData(i, i);
-	}
-	
-
-	
 	OnResize();
 
 	Flush();
-	
+
 	return true;
 }
 
 void MultiGPUParticleApp::InitDevices()
-{	
+{
 	auto allDevices = GDeviceFactory::GetAllDevices(true);
 
 	const auto firstDevice = allDevices[0];
@@ -325,7 +327,7 @@ void MultiGPUParticleApp::InitDevices()
 		if (otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
 		{
 			primeDevice = otherDevice;
-			secondDevice = firstDevice;			
+			secondDevice = firstDevice;
 		}
 	}
 	else
@@ -337,14 +339,13 @@ void MultiGPUParticleApp::InitDevices()
 
 	assets = std::make_shared<AssetsLoader>(primeDevice);
 
-	
+
 	for (int i = 0; i < RenderMode::Count; ++i)
-		{
-			typedRenderer.push_back(
-				MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
-		}
-		
-	
+	{
+		typedRenderer.push_back(
+			MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
+	}
+
 
 	logQueue.Push(L"\nPrime Device: " + (primeDevice->GetName()));
 	logQueue.Push(
@@ -354,8 +355,6 @@ void MultiGPUParticleApp::InitDevices()
 	logQueue.Push(
 		L"\t\n Cross Adapter Texture Support: " + std::to_wstring(
 			secondDevice->IsCrossAdapterTextureSupported()));
-
-	
 }
 
 void MultiGPUParticleApp::InitFrameResource()
@@ -363,8 +362,8 @@ void MultiGPUParticleApp::InitFrameResource()
 	for (int i = 0; i < globalCountFrameResources; ++i)
 	{
 		frameResources.push_back(std::make_unique<FrameResource>(primeDevice,
-			primeDevice, 2,
-			assets->GetMaterials().size()));
+		                                                         primeDevice, 2,
+		                                                         assets->GetMaterials().size()));
 	}
 	logQueue.Push(std::wstring(L"\nInit FrameResource "));
 }
@@ -391,20 +390,8 @@ void MultiGPUParticleApp::InitRootSignature()
 	rootSignature->Initialize(primeDevice);
 
 	primeDeviceSignature = rootSignature;
-	
 
 
-	rootSignature = std::make_shared<GRootSignature>();
-	rootSignature->AddConstantBufferParameter(0);
-	rootSignature->AddConstantBufferParameter(1);
-	rootSignature->AddConstantBufferParameter(0, 1);
-	rootSignature->AddUnorderedAccessView(0);
-	rootSignature->AddUnorderedAccessView(1);
-	rootSignature->Initialize(primeDevice);
-
-	particlesRootSignature = rootSignature;
-
-	
 	logQueue.Push(std::wstring(L"\nInit RootSignature for " + primeDevice->GetName()));
 
 	ssaoPrimeRootSignature = std::make_shared<GRootSignature>();
@@ -487,21 +474,21 @@ void MultiGPUParticleApp::InitPipeLineResource()
 		},
 	};
 
-	const D3D12_INPUT_LAYOUT_DESC desc = { defaultInputLayout.data(), defaultInputLayout.size() };
+	const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), defaultInputLayout.size()};
 
 	defaultPrimePipelineResources = RenderModeFactory();
 	defaultPrimePipelineResources.LoadDefaultShaders();
 	defaultPrimePipelineResources.LoadDefaultPSO(primeDevice, primeDeviceSignature, desc,
 	                                             BackBufferFormat, DepthStencilFormat, ssaoPrimeRootSignature,
-	                                             NormalMapFormat, AmbientMapFormat, particlesRootSignature);
+	                                             NormalMapFormat, AmbientMapFormat);
 
 	ambientPrimePath->SetPSOs(*defaultPrimePipelineResources.GetPSO(RenderMode::Ssao),
-		*defaultPrimePipelineResources.GetPSO(RenderMode::SsaoBlur));
+	                          *defaultPrimePipelineResources.GetPSO(RenderMode::SsaoBlur));
 
 
 	logQueue.Push(std::wstring(L"\nInit PSO for " + primeDevice->GetName()));
 
-	const auto primeDeviceShadowMapPso = defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque);	
+	const auto primeDeviceShadowMapPso = defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque);
 }
 
 void MultiGPUParticleApp::CreateMaterials()
@@ -526,7 +513,7 @@ void MultiGPUParticleApp::CreateMaterials()
 
 void MultiGPUParticleApp::InitSRVMemoryAndMaterials()
 {
-	srvTexturesMemory = 
+	srvTexturesMemory =
 		primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, assets->GetTextures().size());
 
 	auto materials = assets->GetMaterials();
@@ -553,17 +540,15 @@ void MultiGPUParticleApp::InitRenderPaths()
 		MainWindow->GetClientWidth(), MainWindow->GetClientHeight()));
 
 	antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 2, MainWindow->GetClientWidth(),
-		MainWindow->GetClientHeight()));
+	                                                MainWindow->GetClientHeight()));
 	antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
 	commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 
 	logQueue.Push(std::wstring(L"\nInit Render path data for " + primeDevice->GetName()));
 
-	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));	
+	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));
 }
-
-
 
 void MultiGPUParticleApp::LoadStudyTexture()
 {
@@ -696,7 +681,6 @@ void MultiGPUParticleApp::MipMasGenerate()
 {
 	try
 	{
-		
 		{
 			std::vector<GTexture*> generatedMipTextures;
 
@@ -767,15 +751,15 @@ void MultiGPUParticleApp::CreateGO()
 {
 	logQueue.Push(std::wstring(L"\nStart Create GO"));
 	auto skySphere = std::make_unique<GameObject>("Sky");
-	skySphere->GetTransform()->SetScale({ 500, 500, 500 });
+	skySphere->GetTransform()->SetScale({500, 500, 500});
 	{
 		auto renderer = std::make_shared<SkyBox>(primeDevice,
-			models[L"sphere"],
-			*assets->GetTexture(
-				assets->
-				GetTextureIndex(L"skyTex")).get(),
-			&srvTexturesMemory,
-			assets->GetTextureIndex(L"skyTex"));
+		                                         models[L"sphere"],
+		                                         *assets->GetTexture(
+			                                         assets->
+			                                         GetTextureIndex(L"skyTex")).get(),
+		                                         &srvTexturesMemory,
+		                                         assets->GetTextureIndex(L"skyTex"));
 
 		skySphere->AddComponent(renderer);
 		typedRenderer[RenderMode::SkyBox].push_back((renderer));
@@ -785,7 +769,7 @@ void MultiGPUParticleApp::CreateGO()
 	auto quadRitem = std::make_unique<GameObject>("Quad");
 	{
 		auto renderer = std::make_shared<ModelRenderer>(primeDevice,
-			models[L"quad"]);
+		                                                models[L"quad"]);
 		renderer->SetModel(models[L"quad"]);
 		quadRitem->AddComponent(renderer);
 		typedRenderer[RenderMode::Debug].push_back(renderer);
@@ -796,8 +780,8 @@ void MultiGPUParticleApp::CreateGO()
 
 	auto sun1 = std::make_unique<GameObject>("Directional Light");
 	auto light = std::make_shared<Light>(Directional);
-	light->Direction({ 0.57735f, -0.57735f, 0.57735f });
-	light->Strength({ 0.8f, 0.8f, 0.8f });
+	light->Direction({0.57735f, -0.57735f, 0.57735f});
+	light->Strength({0.8f, 0.8f, 0.8f});
 	sun1->AddComponent(light);
 	gameObjects.push_back(std::move(sun1));
 
@@ -845,6 +829,12 @@ void MultiGPUParticleApp::CreateGO()
 		}
 	}
 
+	auto particle = std::make_unique<GameObject>();
+	particle->GetTransform()->SetPosition(Vector3::Up * 50);
+	auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 1000000);
+	particle->AddComponent(emitter);
+	typedRenderer[RenderMode::Particle].push_back(emitter);
+	gameObjects.push_back(std::move(particle));
 
 	auto platform = std::make_unique<GameObject>();
 	platform->SetScale(0.2);
@@ -971,10 +961,9 @@ void MultiGPUParticleApp::CalculateFrameStats()
 		secondGPUTimeMax = std::max(secondGPURenderingTime, secondGPUTimeMax);
 
 
-
 		if (writeStaticticCount >= StatisticStepSecondsCount)
 		{
-			const std::wstring staticticStr = 
+			const std::wstring staticticStr =
 				L"\nUse Shared UI: " + std::to_wstring(IsStop)
 				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
@@ -985,10 +974,9 @@ void MultiGPUParticleApp::CalculateFrameStats()
 				+ L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
 				+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin);
 
-			logQueue.Push(staticticStr);				
+			logQueue.Push(staticticStr);
 
 
-			
 			writeStaticticCount = 0;
 			minFps = std::numeric_limits<float>::max();
 			minMspf = std::numeric_limits<float>::max();
@@ -1001,7 +989,7 @@ void MultiGPUParticleApp::CalculateFrameStats()
 		}
 		else
 		{
-			const std::wstring staticticStr = 
+			const std::wstring staticticStr =
 				L"\n\tFPS:" + std::to_wstring(fps)
 				+ L"\n\tMSPF:" + std::to_wstring(mspf)
 				+ L"\n\tPrime GPU Rendering Time:" + std::to_wstring(primeGPURenderingTime)
@@ -1011,6 +999,9 @@ void MultiGPUParticleApp::CalculateFrameStats()
 
 			writeStaticticCount++;
 		}
+
+		MainWindow->SetWindowTitle(L"FPS " + std::to_wstring(fps));
+
 		frameCount = 0;
 		timeElapsed += 1.0f;
 	}
@@ -1018,7 +1009,8 @@ void MultiGPUParticleApp::CalculateFrameStats()
 
 void MultiGPUParticleApp::LogWriting()
 {
-	const std::filesystem::path filePath(L"SharedUI " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
+	const std::filesystem::path filePath(
+		L"SharedUI " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
 
 	const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
 
@@ -1028,7 +1020,8 @@ void MultiGPUParticleApp::LogWriting()
 	fileSteam.open(path.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
 	if (fileSteam.is_open())
 	{
-		fileSteam << L"Information" << std::endl << L"Statistic step seconds:" << std::to_wstring(StatisticStepSecondsCount) << std::endl;		
+		fileSteam << L"Information" << std::endl << L"Statistic step seconds:" << std::to_wstring(
+			StatisticStepSecondsCount) << std::endl;
 	}
 
 	std::wstring line;
@@ -1049,7 +1042,7 @@ void MultiGPUParticleApp::LogWriting()
 
 int MultiGPUParticleApp::Run()
 {
-	MSG msg = { nullptr };
+	MSG msg = {nullptr};
 
 	timer.Reset();
 
@@ -1061,7 +1054,7 @@ int MultiGPUParticleApp::Run()
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-		// Otherwise, do animation/game stuff.
+			// Otherwise, do animation/game stuff.
 		else
 		{
 			if (IsStop)
@@ -1086,7 +1079,7 @@ int MultiGPUParticleApp::Run()
 			}
 
 			primeDevice->ResetAllocator(frameCount);
-			secondDevice->ResetAllocator(frameCount);			
+			secondDevice->ResetAllocator(frameCount);
 		}
 	}
 
@@ -1095,7 +1088,6 @@ int MultiGPUParticleApp::Run()
 
 void MultiGPUParticleApp::UpdateMaterials()
 {
-	
 	{
 		auto currentMaterialBuffer = currentFrameResource->MaterialBuffer;
 
@@ -1134,7 +1126,7 @@ void MultiGPUParticleApp::UpdateShadowTransform(const GameTimer& gt)
 
 	mLightNearZ = n;
 	mLightFarZ = f;
-	Matrix lightProj = DirectX::XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+	Matrix lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
 
 	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
 	Matrix T(
@@ -1206,14 +1198,14 @@ void MultiGPUParticleApp::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.ShadowTransform = shadowTransform.Transpose();
 	mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetWorldPosition();
 	mainPassCB.RenderTargetSize = Vector2(static_cast<float>(MainWindow->GetClientWidth()),
-		static_cast<float>(MainWindow->GetClientHeight()));
+	                                      static_cast<float>(MainWindow->GetClientHeight()));
 	mainPassCB.InvRenderTargetSize = Vector2(1.0f / mainPassCB.RenderTargetSize.x,
-		1.0f / mainPassCB.RenderTargetSize.y);
+	                                         1.0f / mainPassCB.RenderTargetSize.y);
 	mainPassCB.NearZ = 1.0f;
 	mainPassCB.FarZ = 1000.0f;
 	mainPassCB.TotalTime = gt.TotalTime();
 	mainPassCB.DeltaTime = gt.DeltaTime();
-	mainPassCB.AmbientLight = Vector4{ 0.25f, 0.25f, 0.35f, 1.0f };
+	mainPassCB.AmbientLight = Vector4{0.25f, 0.25f, 0.35f, 1.0f};
 
 	for (int i = 0; i < MaxLights; ++i)
 	{
@@ -1228,11 +1220,11 @@ void MultiGPUParticleApp::UpdateMainPassCB(const GameTimer& gt)
 	}
 
 	mainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
-	mainPassCB.Lights[0].Strength = Vector3{ 0.9f, 0.8f, 0.7f };
+	mainPassCB.Lights[0].Strength = Vector3{0.9f, 0.8f, 0.7f};
 	mainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-	mainPassCB.Lights[1].Strength = Vector3{ 0.4f, 0.4f, 0.4f };
+	mainPassCB.Lights[1].Strength = Vector3{0.4f, 0.4f, 0.4f};
 	mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
-	mainPassCB.Lights[2].Strength = Vector3{ 0.2f, 0.2f, 0.2f };
+	mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
 
 	auto currentPassCB = currentFrameResource->PrimePassConstantBuffer;
 	currentPassCB->CopyData(0, mainPassCB);
@@ -1265,7 +1257,7 @@ void MultiGPUParticleApp::UpdateSsaoCB(const GameTimer& gt)
 		ssaoCB.BlurWeights[2] = Vector4(&blurWeights[8]);
 
 		ssaoCB.InvRenderTargetSize = Vector2(1.0f / ambientPrimePath->SsaoMapWidth(),
-			1.0f / ambientPrimePath->SsaoMapHeight());
+		                                     1.0f / ambientPrimePath->SsaoMapHeight());
 
 		// Coordinates given in view space.
 		ssaoCB.OcclusionRadius = 0.5f;
@@ -1280,8 +1272,8 @@ void MultiGPUParticleApp::UpdateSsaoCB(const GameTimer& gt)
 
 bool MultiGPUParticleApp::InitMainWindow()
 {
-	MainWindow = CreateRenderWindow(primeDevice, mainWindowCaption, 1920, 1080, false);	
-	
+	MainWindow = CreateRenderWindow(primeDevice, mainWindowCaption, 1920, 1080, false);
+
 	logQueue.Push(std::wstring(L"\nInit Window"));
 	return true;
 }
@@ -1296,7 +1288,7 @@ void MultiGPUParticleApp::OnResize()
 	fullViewport.MaxDepth = 1.0f;
 	fullViewport.TopLeftX = 0;
 	fullViewport.TopLeftY = 0;
-	fullRect = D3D12_RECT{ 0, 0, MainWindow->GetClientWidth(), MainWindow->GetClientHeight() };
+	fullRect = D3D12_RECT{0, 0, MainWindow->GetClientWidth(), MainWindow->GetClientHeight()};
 
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
@@ -1307,7 +1299,7 @@ void MultiGPUParticleApp::OnResize()
 	{
 		MainWindow->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &frameResources[i]->BackBufferRTVMemory);
 	}
-	
+
 
 	if (camera != nullptr)
 	{
@@ -1324,7 +1316,7 @@ void MultiGPUParticleApp::OnResize()
 	{
 		antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 	}
-	
+
 	currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex();
 }
 
@@ -1336,5 +1328,141 @@ void MultiGPUParticleApp::Flush()
 
 LRESULT MultiGPUParticleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	switch (msg)
+	{
+	case WM_INPUT:
+		{
+			UINT dataSize;
+			GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize,
+			                sizeof(RAWINPUTHEADER));
+			//Need to populate data size first
+
+			if (dataSize > 0)
+			{
+				std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
+				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
+				                    sizeof(RAWINPUTHEADER)) == dataSize)
+				{
+					RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
+					if (raw->header.dwType == RIM_TYPEMOUSE)
+					{
+						mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+					}
+				}
+			}
+
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		}
+		//Mouse Messages
+	case WM_MOUSEMOVE:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMouseMove(x, y);
+			return 0;
+		}
+	case WM_LBUTTONDOWN:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnLeftPressed(x, y);
+			return 0;
+		}
+	case WM_RBUTTONDOWN:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnRightPressed(x, y);
+			return 0;
+		}
+	case WM_MBUTTONDOWN:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMiddlePressed(x, y);
+			return 0;
+		}
+	case WM_LBUTTONUP:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnLeftReleased(x, y);
+			return 0;
+		}
+	case WM_RBUTTONUP:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnRightReleased(x, y);
+			return 0;
+		}
+	case WM_MBUTTONUP:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			mouse.OnMiddleReleased(x, y);
+			return 0;
+		}
+	case WM_MOUSEWHEEL:
+		{
+			int x = LOWORD(lParam);
+			int y = HIWORD(lParam);
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+			{
+				mouse.OnWheelUp(x, y);
+			}
+			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+			{
+				mouse.OnWheelDown(x, y);
+			}
+			return 0;
+		}
+	case WM_KEYUP:
+
+		{
+			unsigned char keycode = static_cast<unsigned char>(wParam);
+			keyboard.OnKeyReleased(keycode);
+
+
+			return 0;
+		}
+	case WM_KEYDOWN:
+		{
+			{
+				unsigned char keycode = static_cast<unsigned char>(wParam);
+				if (keyboard.IsKeysAutoRepeat())
+				{
+					keyboard.OnKeyPressed(keycode);
+				}
+				else
+				{
+					const bool wasPressed = lParam & 0x40000000;
+					if (!wasPressed)
+					{
+						keyboard.OnKeyPressed(keycode);
+					}
+				}
+			}
+		}
+
+	case WM_CHAR:
+		{
+			unsigned char ch = static_cast<unsigned char>(wParam);
+			if (keyboard.IsCharsAutoRepeat())
+			{
+				keyboard.OnChar(ch);
+			}
+			else
+			{
+				const bool wasPressed = lParam & 0x40000000;
+				if (!wasPressed)
+				{
+					keyboard.OnChar(ch);
+				}
+			}
+			return 0;
+		}
+	}
+
 	return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
 }

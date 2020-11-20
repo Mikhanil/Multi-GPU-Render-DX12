@@ -3,7 +3,7 @@
 #include <DirectXMesh.h>
 
 #include <utility>
-#include "GBuffer.h"
+#include "GMeshBuffer.h"
 #include "GCommandList.h"
 #include "NativeModel.h"
 
@@ -30,9 +30,9 @@ D3D12_INDEX_BUFFER_VIEW* GMesh::GetIndexView() const
 
 GMesh::GMesh(const std::shared_ptr<NativeMesh>& data, std::shared_ptr<GCommandList>& cmdList): mesh(std::move(data))
 {	
-	indexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, mesh->GetIndexes().data(), mesh->GetIndexSize(), mesh->GetIndexes().size(), mesh->GetName() + L" Indexes")));
+	indexBuffer = std::make_shared<GMeshBuffer>(std::move(GMeshBuffer::CreateBuffer(cmdList, mesh->GetIndexes().data(), mesh->GetIndexSize(), mesh->GetIndexes().size(), mesh->GetName() + L" Indexes")));
 
-	vertexBuffer = std::make_shared<GBuffer>(std::move(GBuffer::CreateBuffer(cmdList, mesh->GetVertexes().data(), mesh->GetVertexSize(), mesh->GetVertexes().size(), mesh->GetName() + L" Vertexes")));	
+	vertexBuffer = std::make_shared<GMeshBuffer>(std::move(GMeshBuffer::CreateBuffer(cmdList, mesh->GetVertexes().data(), mesh->GetVertexSize(), mesh->GetVertexes().size(), mesh->GetName() + L" Vertexes")));	
 }
 
 

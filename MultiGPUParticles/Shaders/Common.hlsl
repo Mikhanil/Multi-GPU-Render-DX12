@@ -13,61 +13,61 @@
 
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
+#include "ParticleCommon.hlsl"
 
 struct ObjectData
 {
-	float4x4 World;
-	float4x4 TexTransform;
-	uint materialIndex;
-	uint gObjPad0;
-	uint gObjPad1;
-	uint gObjPad2;
+    float4x4 World;
+    float4x4 TexTransform;
+    uint materialIndex;
+    uint gObjPad0;
+    uint gObjPad1;
+    uint gObjPad2;
 };
-
-ConstantBuffer<ObjectData> objectBuffer : register(b0);
 
 struct WorldData
 {
-	float4x4 View;
-	float4x4 InvView;
-	float4x4 Proj;
-	float4x4 InvProj;
-	float4x4 ViewProj;
-	float4x4 InvViewProj;
-	float4x4 ViewProjTex;
-	float4x4 ShadowTransform;
-	float3 EyePosW;
-	float debugMap;
-	float2 RenderTargetSize;
-	float2 InvRenderTargetSize;
-	float NearZ;
-	float FarZ;
-	float TotalTime;
-	float DeltaTime;
-	float4 AmbientLight;
+    float4x4 View;
+    float4x4 InvView;
+    float4x4 Proj;
+    float4x4 InvProj;
+    float4x4 ViewProj;
+    float4x4 InvViewProj;
+    float4x4 ViewProjTex;
+    float4x4 ShadowTransform;
+    float3 EyePosW;
+    float debugMap;
+    float2 RenderTargetSize;
+    float2 InvRenderTargetSize;
+    float NearZ;
+    float FarZ;
+    float TotalTime;
+    float DeltaTime;
+    float4 AmbientLight;
 
-	float4 gFogColor;
-	float gFogStart;
-	float gFogRange;
-	float2 cbPerObjectPad2;
+    float4 gFogColor;
+    float gFogStart;
+    float gFogRange;
+    float2 cbPerObjectPad2;
 
 
-	Light Lights[MaxLights];
+    Light Lights[MaxLights];
 };
-
-ConstantBuffer<WorldData> worldBuffer : register(b1);
 
 struct MaterialData
 {
-	float4 DiffuseAlbedo;
-	float3 FresnelR0;
-	float Roughness;
-	float4x4 MatTransform;
-	uint DiffuseMapIndex;
-	uint NormalMapIndex;
-	uint MatPad1;
-	uint MatPad2;
+    float4 DiffuseAlbedo;
+    float3 FresnelR0;
+    float Roughness;
+    float4x4 MatTransform;
+    uint DiffuseMapIndex;
+    uint NormalMapIndex;
+    uint MatPad1;
+    uint MatPad2;
 };
+
+ConstantBuffer<ObjectData> objectBuffer : register(b0);
+ConstantBuffer<WorldData> worldBuffer : register(b1);
 
 // Put in space1, so the texture array does not overlap with these resources.  
 // The texture array will occupy registers t0, t1, ..., t3 in space0. 
@@ -87,26 +87,6 @@ SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 SamplerComparisonState gsamShadow : register(s6);
 
-struct ParticleData
-{
-    float4 Color;
-    float3 Position;
-    float3 Velocity;
-    float Acceleration;
-    float Padding;
-};
-
-struct EmitterData
-{
-    float DeltaTime;
-    float TotalTime;
-    float ParticlesCount;
-};
-
-ConstantBuffer<EmitterData> EmitterBuffer : register(b0, space1);
-
-RWStructuredBuffer<ParticleData> Particles : register(u0);
-ConsumeStructuredBuffer<uint> ParticlesIndexes : register(u1);
 
 
 //---------------------------------------------------------------------------------------

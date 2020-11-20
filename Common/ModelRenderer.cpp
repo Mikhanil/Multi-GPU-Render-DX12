@@ -50,7 +50,7 @@ void ModelRenderer::SetModel(std::shared_ptr<GModel> asset)
 	if(modelDataBuffer == nullptr || modelDataBuffer->GetElementCount() < asset->GetMeshesCount() )
 	{
 		modelDataBuffer.reset();
-		modelDataBuffer = std::make_shared<ConstantBuffer<ObjectConstants>>(device,asset->GetMeshesCount(), asset->GetName());
+		modelDataBuffer = std::make_shared<ConstantUploadBuffer<ObjectConstants>>(device,asset->GetMeshesCount(), asset->GetName());
 	}
 	
 	model = asset;
