@@ -46,7 +46,7 @@ void MultiGPUParticleApp::Update(const GameTimer& gt)
 
 	mLightRotationAngle += 0.1f * gt.DeltaTime();
 
-	Matrix R = Matrix::CreateRotationY(mLightRotationAngle);
+	const Matrix R = Matrix::CreateRotationY(mLightRotationAngle);
 	for (int i = 0; i < 3; ++i)
 	{
 		auto lightDir = mBaseLightDirections[i];
@@ -99,10 +99,10 @@ void MultiGPUParticleApp::PopulateNormalMapCommands(std::shared_ptr<GCommandList
 		cmdList->SetViewports(&fullViewport, 1);
 		cmdList->SetScissorRects(&fullRect, 1);
 
-		auto normalMap = ambientPrimePath->NormalMap();
-		auto normalDepthMap = ambientPrimePath->NormalDepthMap();
-		auto normalMapRtv = ambientPrimePath->NormalMapRtv();
-		auto normalMapDsv = ambientPrimePath->NormalMapDSV();
+		const auto normalMap = ambientPrimePath->NormalMap();
+		const auto normalDepthMap = ambientPrimePath->NormalDepthMap();
+		const auto normalMapRtv = ambientPrimePath->NormalMapRtv();
+		const auto normalMapDsv = ambientPrimePath->NormalMapDSV();
 
 		cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -239,51 +239,48 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
-	auto primeRenderQueue = primeDevice->GetCommandQueue();
+	auto computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	auto renderQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	
+	computeQueue->Wait(renderQueue);
+
 	{
-		if (primeRenderQueue->IsFinish(currentFrameResource->PrimeRenderFenceValue))
+		const auto cmdList = computeQueue->GetCommandList();
+
+		auto particlesSystems = typedRenderer[RenderMode::Particle];
+
+		for (auto renderer : particlesSystems)
 		{
-			auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-			auto cmdList = queue->GetCommandList();
-
-			auto particlesSystems = typedRenderer[RenderMode::Particle];
-
-			for (auto renderer : particlesSystems)
-			{
-				auto emitter = (ParticleEmitter*)renderer.get();
-				emitter->Dispatch(cmdList);
-			}
-			currentFrameResource->PrimeCopyFenceValue = queue->ExecuteCommandList(cmdList);
-			queue->Flush();
+			auto emitter = (ParticleEmitter*)renderer.get();
+			emitter->Dispatch(cmdList);
 		}
+		currentFrameResource->ComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
 	}
 
+	{
+		auto cmdList = renderQueue->GetCommandList();	
+		
+		const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;	
+		cmdList->EndQuery(timestampHeapIndex);
+		PopulateNormalMapCommands(cmdList);
+		PopulateAmbientMapCommands(cmdList);
+		PopulateShadowMapCommands(cmdList);
+		PopulateForwardPathCommands(cmdList);
+		PopulateInitRenderTarget(cmdList, MainWindow->GetCurrentBackBuffer(),
+			&currentFrameResource->BackBufferRTVMemory, 0);
+		PopulateDrawFullQuadTexture(cmdList, antiAliasingPrimePath->GetSRV(),
+			0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
 
 
-	
-	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
+		cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+		cmdList->FlushResourceBarriers();
+		cmdList->EndQuery(timestampHeapIndex + 1);
+		cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
-
-	
-	auto primeCmdList = primeRenderQueue->GetCommandList();
-	primeCmdList->EndQuery(timestampHeapIndex);
-	PopulateNormalMapCommands(primeCmdList);
-	PopulateAmbientMapCommands(primeCmdList);
-	PopulateShadowMapCommands(primeCmdList);
-	PopulateForwardPathCommands(primeCmdList);
-	PopulateInitRenderTarget(primeCmdList, MainWindow->GetCurrentBackBuffer(),
-	                         &currentFrameResource->BackBufferRTVMemory, 0);
-	PopulateDrawFullQuadTexture(primeCmdList, antiAliasingPrimePath->GetSRV(),
-	                            0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-
-
-	primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-	primeCmdList->FlushResourceBarriers();
-	primeCmdList->EndQuery(timestampHeapIndex + 1);
-	primeCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-	currentFrameResource->PrimeRenderFenceValue = primeRenderQueue->ExecuteCommandList(primeCmdList);
-
+		renderQueue->Wait(computeQueue);
+		
+		currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
+	}
 
 	currentFrameResourceIndex = MainWindow->Present();
 }
@@ -622,7 +619,7 @@ void MultiGPUParticleApp::LoadStudyTexture()
 void MultiGPUParticleApp::LoadModels()
 {
 	auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
-	auto cmdList = queue->GetCommandList();
+	const auto cmdList = queue->GetCommandList();
 
 	auto nano = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
 	models[L"nano"] = std::move(nano);
@@ -681,42 +678,40 @@ void MultiGPUParticleApp::MipMasGenerate()
 {
 	try
 	{
+		std::vector<GTexture*> generatedMipTextures;
+
+		auto textures = assets->GetTextures();
+
+		for (auto&& texture : textures)
 		{
-			std::vector<GTexture*> generatedMipTextures;
+			texture->ClearTrack();
 
-			auto textures = assets->GetTextures();
+			if (texture->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+				continue;
 
-			for (auto&& texture : textures)
+			if (!texture->HasMipMap)
 			{
-				texture->ClearTrack();
-
-				if (texture->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
-					continue;
-
-				if (!texture->HasMipMap)
-				{
-					generatedMipTextures.push_back(texture.get());
-				}
+				generatedMipTextures.push_back(texture.get());
 			}
-
-			const auto computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-			auto computeList = computeQueue->GetCommandList();
-			GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
-			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
-			logQueue.Push(std::wstring(L"\nMip Map Generation for " + primeDevice->GetName()));
-
-			computeList = computeQueue->GetCommandList();
-			for (auto&& texture : generatedMipTextures)
-				computeList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
-			computeList->FlushResourceBarriers();
-			logQueue.Push(std::wstring(L"\nTexture Barrier Generation for " + primeDevice->GetName()));
-			computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
-
-			logQueue.Push(std::wstring(L"\nMipMap Generation cmd list executing " + primeDevice->GetName()));
-			for (auto&& pair : textures)
-				pair->ClearTrack();
-			logQueue.Push(std::wstring(L"\nFinish Mip Map Generation for " + primeDevice->GetName()));
 		}
+
+		const auto computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		auto computeList = computeQueue->GetCommandList();
+		GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
+		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
+		logQueue.Push(std::wstring(L"\nMip Map Generation for " + primeDevice->GetName()));
+
+		computeList = computeQueue->GetCommandList();
+		for (auto&& texture : generatedMipTextures)
+			computeList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+		computeList->FlushResourceBarriers();
+		logQueue.Push(std::wstring(L"\nTexture Barrier Generation for " + primeDevice->GetName()));
+		computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
+
+		logQueue.Push(std::wstring(L"\nMipMap Generation cmd list executing " + primeDevice->GetName()));
+		for (auto&& pair : textures)
+			pair->ClearTrack();
+		logQueue.Push(std::wstring(L"\nFinish Mip Map Generation for " + primeDevice->GetName()));
 	}
 	catch (DxException& e)
 	{
@@ -753,13 +748,13 @@ void MultiGPUParticleApp::CreateGO()
 	auto skySphere = std::make_unique<GameObject>("Sky");
 	skySphere->GetTransform()->SetScale({500, 500, 500});
 	{
-		auto renderer = std::make_shared<SkyBox>(primeDevice,
-		                                         models[L"sphere"],
-		                                         *assets->GetTexture(
-			                                         assets->
-			                                         GetTextureIndex(L"skyTex")).get(),
-		                                         &srvTexturesMemory,
-		                                         assets->GetTextureIndex(L"skyTex"));
+		const auto renderer = std::make_shared<SkyBox>(primeDevice,
+		                                               models[L"sphere"],
+		                                               *assets->GetTexture(
+			                                               assets->
+			                                               GetTextureIndex(L"skyTex")).get(),
+		                                               &srvTexturesMemory,
+		                                               assets->GetTextureIndex(L"skyTex"));
 
 		skySphere->AddComponent(renderer);
 		typedRenderer[RenderMode::SkyBox].push_back((renderer));
@@ -831,7 +826,7 @@ void MultiGPUParticleApp::CreateGO()
 
 	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up * 50);
-	auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 1000000);
+	const auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 1000000);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
 	gameObjects.push_back(std::move(particle));
@@ -849,10 +844,11 @@ void MultiGPUParticleApp::CreateGO()
 	rotater->GetTransform()->SetParent(platform->GetTransform().get());
 	rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 	rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
-	rotater->AddComponent(std::make_shared<Rotater>(10));
+	//rotater->AddComponent(std::make_shared<Rotater>(10));
 
 	auto camera = std::make_unique<GameObject>("MainCamera");
 	camera->GetTransform()->SetParent(rotater->GetTransform().get());
+	camera->AddComponent(std::make_shared<CameraController>());
 	camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
 	camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
 	camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
@@ -947,8 +943,8 @@ void MultiGPUParticleApp::CalculateFrameStats()
 
 	if ((timer.TotalTime() - timeElapsed) >= 1.0f)
 	{
-		float fps = static_cast<float>(frameCount); // fps = frameCnt / 1
-		float mspf = 1000.0f / fps;
+		const float fps = static_cast<float>(frameCount); // fps = frameCnt / 1
+		const float mspf = 1000.0f / fps;
 
 		minFps = std::min(fps, minFps);
 		minMspf = std::min(mspf, minMspf);
@@ -1339,7 +1335,7 @@ LRESULT MultiGPUParticleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 
 			if (dataSize > 0)
 			{
-				std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
+				const std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
 				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
 				                    sizeof(RAWINPUTHEADER)) == dataSize)
 				{
@@ -1356,57 +1352,57 @@ LRESULT MultiGPUParticleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 		//Mouse Messages
 	case WM_MOUSEMOVE:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnMouseMove(x, y);
 			return 0;
 		}
 	case WM_LBUTTONDOWN:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnLeftPressed(x, y);
 			return 0;
 		}
 	case WM_RBUTTONDOWN:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnRightPressed(x, y);
 			return 0;
 		}
 	case WM_MBUTTONDOWN:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnMiddlePressed(x, y);
 			return 0;
 		}
 	case WM_LBUTTONUP:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnLeftReleased(x, y);
 			return 0;
 		}
 	case WM_RBUTTONUP:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnRightReleased(x, y);
 			return 0;
 		}
 	case WM_MBUTTONUP:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			mouse.OnMiddleReleased(x, y);
 			return 0;
 		}
 	case WM_MOUSEWHEEL:
 		{
-			int x = LOWORD(lParam);
-			int y = HIWORD(lParam);
+			const int x = LOWORD(lParam);
+			const int y = HIWORD(lParam);
 			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
 			{
 				mouse.OnWheelUp(x, y);
@@ -1420,7 +1416,7 @@ LRESULT MultiGPUParticleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 	case WM_KEYUP:
 
 		{
-			unsigned char keycode = static_cast<unsigned char>(wParam);
+			const unsigned char keycode = static_cast<unsigned char>(wParam);
 			keyboard.OnKeyReleased(keycode);
 
 
@@ -1429,7 +1425,7 @@ LRESULT MultiGPUParticleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 	case WM_KEYDOWN:
 		{
 			{
-				unsigned char keycode = static_cast<unsigned char>(wParam);
+				const unsigned char keycode = static_cast<unsigned char>(wParam);
 				if (keyboard.IsKeysAutoRepeat())
 				{
 					keyboard.OnKeyPressed(keycode);
@@ -1447,7 +1443,7 @@ LRESULT MultiGPUParticleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 
 	case WM_CHAR:
 		{
-			unsigned char ch = static_cast<unsigned char>(wParam);
+			const unsigned char ch = static_cast<unsigned char>(wParam);
 			if (keyboard.IsCharsAutoRepeat())
 			{
 				keyboard.OnChar(ch);

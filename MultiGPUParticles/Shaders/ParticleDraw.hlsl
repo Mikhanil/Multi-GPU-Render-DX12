@@ -1,7 +1,8 @@
 #include "Common.hlsl"
 
 ConstantBuffer<EmitterData> EmitterBuffer : register(b0, space1);
-RWStructuredBuffer<ParticleData> Particles : register(u0);
+StructuredBuffer<ParticleData> Particles : register(t0, space1);
+RWStructuredBuffer<uint> RenderingParticles : register(u0, space1);
 
 struct VertexOut
 {
@@ -11,13 +12,14 @@ struct VertexOut
 
 VertexOut VS(uint VertexID : SV_VertexID)
 {
+    uint index = RenderingParticles[VertexID];
+	
+    ParticleData particle = Particles[index];
+    	
     VertexOut output = (VertexOut) 0;
-
-    ParticleData particle = Particles[VertexID];
-
     output.PositionV = mul(float4(particle.Position, 1), objectBuffer.World);
     output.PositionV = mul(output.PositionV, worldBuffer.View);
-    output.Index = VertexID;
+    output.Index = index;
     return output;
 }
 
@@ -31,7 +33,7 @@ struct GeoOut
 };
 
 // функция изменения вертекса и последующая проекция его в Projection Space
-GeoOut _offsetNprojected(VertexOut data, float2 offset, float2 uv)
+GeoOut CreateQuadVertex(VertexOut data, float2 offset, float2 uv)
 {
     GeoOut o = (GeoOut)0;
     o.PositionV = data.PositionV;
@@ -50,18 +52,17 @@ GeoOut _offsetNprojected(VertexOut data, float2 offset, float2 uv)
 [maxvertexcount(4)]
 void GS(point VertexOut gin[1], inout TriangleStream<GeoOut> triStream)
 {
-    const float size = EmitterBuffer.Size; // размер конченого квадрата
-    // описание квадрата
-    triStream.Append(_offsetNprojected(gin[0], float2(-1, -1) * size, float2(0, 0)));
-    triStream.Append(_offsetNprojected(gin[0], float2(-1, 1) * size, float2(0, 1)));
-    triStream.Append(_offsetNprojected(gin[0], float2(1, -1) * size, float2(1, 0)));
-    triStream.Append(_offsetNprojected(gin[0], float2(1, 1) * size, float2(1, 1)));	
-	
-
+    triStream.Append(CreateQuadVertex(gin[0], float2(-1, -1) * EmitterBuffer.Size, float2(0, 0)));
+    triStream.Append(CreateQuadVertex(gin[0], float2(-1, 1) * EmitterBuffer.Size, float2(0, 1)));
+    triStream.Append(CreateQuadVertex(gin[0], float2(1, -1) * EmitterBuffer.Size, float2(1, 0)));
+    triStream.Append(CreateQuadVertex(gin[0], float2(1, 1) * EmitterBuffer.Size, float2(1, 1)));
     triStream.RestartStrip();
 }
 
 float4 PS(GeoOut pin) : SV_Target
 {
-    return EmitterBuffer.Color;
+    float intensity = 0.5f - length(float2(0.5f, 0.5f) - pin.UV);
+    intensity = clamp(intensity, 0.0f, 0.5f) * 2.0f;
+	
+    return float4(EmitterBuffer.Color.xyz, intensity);
 }

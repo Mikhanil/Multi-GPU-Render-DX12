@@ -83,26 +83,46 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Shaders\Common.hlsl" />
-    <None Include="Shaders\Default.hlsl" />
-    <None Include="Shaders\DrawNormals.hlsl" />
-    <None Include="Shaders\LightingUtil.hlsl" />
-    <None Include="Shaders\MipMapCS.hlsl" />
-    <None Include="Shaders\Quad.hlsl" />
-    <None Include="Shaders\Shadows.hlsl" />
-    <None Include="Shaders\SkyBoxShader.hlsl" />
-    <None Include="Shaders\Ssao.hlsl" />
-    <None Include="Shaders\SsaoBlur.hlsl" />
-    <None Include="Shaders\TreeSprite.hlsl" />
+    <None Include="Shaders\ParticleCommon.hlsl" />
+    <None Include="Shaders\MipMapCS.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Common.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Default.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\DrawNormals.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\LightingUtil.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Quad.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Shadows.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SkyBoxShader.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Ssao.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\SsaoBlur.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TreeSprite.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\ParticleDraw.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ComputeParticle.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\ParticleCommon.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
