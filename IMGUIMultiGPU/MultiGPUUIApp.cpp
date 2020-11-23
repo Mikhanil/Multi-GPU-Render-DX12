@@ -72,7 +72,7 @@ void MultiGPUUIApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdL
 		*currentFrameResource->MaterialBuffer, 1);
 	cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 	cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-		*currentFrameResource->PrimePassConstantBuffer, 1);
+		*currentFrameResource->PrimePassConstantUploadBuffer, 1);
 
 	shadowPath->PopulatePreRenderCommands(cmdList);
 
@@ -111,7 +111,7 @@ void MultiGPUUIApp::PopulateNormalMapCommands(std::shared_ptr<GCommandList> cmdL
 			D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
-		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantBuffer);
+		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantUploadBuffer);
 
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
 		PopulateDrawCommands(cmdList, RenderMode::Opaque);
@@ -136,7 +136,7 @@ void MultiGPUUIApp::PopulateAmbientMapCommands(std::shared_ptr<GCommandList> cmd
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
 		cmdList->SetRootSignature(ssaoPrimeRootSignature.get());
-		ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantBuffer, 3);
+		ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
 	}
 }
 
@@ -165,7 +165,7 @@ void MultiGPUUIApp::PopulateForwardPathCommands(std::shared_ptr<GCommandList> cm
 			antiAliasingPrimePath->GetDSV());
 
 		cmdList->
-			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantBuffer);
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantUploadBuffer);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap,shadowPath->GetSrv());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
@@ -1213,7 +1213,7 @@ void MultiGPUUIApp::UpdateShadowPassCB(const GameTimer& gt)
 	shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
 	shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
-	auto currPassCB = currentFrameResource->PrimePassConstantBuffer;
+	auto currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
 	currPassCB->CopyData(1, shadowPassCB);
 }
 
@@ -1273,7 +1273,7 @@ void MultiGPUUIApp::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mainPassCB.Lights[2].Strength = Vector3{ 0.2f, 0.2f, 0.2f };
 
-	auto currentPassCB = currentFrameResource->PrimePassConstantBuffer;
+	auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
 	currentPassCB->CopyData(0, mainPassCB);
 }
 
@@ -1312,7 +1312,7 @@ void MultiGPUUIApp::UpdateSsaoCB(const GameTimer& gt)
 		ssaoCB.OcclusionFadeEnd = 1.0f;
 		ssaoCB.SurfaceEpsilon = 0.05f;
 
-		auto currSsaoCB = currentFrameResource->SsaoConstantBuffer;
+		auto currSsaoCB = currentFrameResource->SsaoConstantUploadBuffer;
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 }

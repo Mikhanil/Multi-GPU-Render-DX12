@@ -74,7 +74,7 @@ private:
 	Matrix MakeParentToLocal() const;
 	Matrix CalculateWorldMatrix() const;
 
-	static UINT gConstantBufferIndex;
+	static UINT gConstantUploadBufferIndex;
 
 	Transform* Parent = nullptr;
 

@@ -3,9 +3,9 @@
 
 FrameResource::FrameResource(std::shared_ptr<GDevice> primeDevice, UINT passCount, UINT objectCount, UINT materialCount)
 {
-	PassConstantBuffer = std::make_shared<ConstantBuffer<PassConstants>>(primeDevice,passCount, L"Forward Path Data");
-	SsaoConstantBuffer = std::make_shared<ConstantBuffer<SsaoConstants>>(primeDevice,1, L"SSAO Path Data");
-	MaterialBuffer = std::make_shared<UploadBuffer<MaterialConstants>>(primeDevice, materialCount, L"Materials Data");
+	PassConstantUploadBuffer = std::make_shared<ConstantUploadBuffer<PassConstants>>(primeDevice,passCount, L"Forward Path Data");
+	SsaoConstantUploadBuffer = std::make_shared<ConstantUploadBuffer<SsaoConstants>>(primeDevice,1, L"SSAO Path Data");
+	MaterialBuffer = std::make_shared<StructuredUploadBuffer<MaterialConstants>>(primeDevice, materialCount, L"Materials Data");
 }
 
 FrameResource::~FrameResource()

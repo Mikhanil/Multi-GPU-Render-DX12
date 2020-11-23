@@ -388,7 +388,7 @@ namespace Common
 
 		//Main Path Data
 		cmdList->
-			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer);
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantUploadBuffer);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrv());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssao->AmbientMapSrv(), 0);
@@ -485,7 +485,7 @@ namespace Common
 
 		commandQueue->StartPixEvent(L"Compute SSAO");
 		cmdList->SetRootSignature(ssaoRootSignature.get());
-		ssao->ComputeSsao(cmdList, currentFrameResource->SsaoConstantBuffer, 3);		
+		ssao->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);		
 		commandQueue->EndPixEvent();
 
 		commandQueue->StartPixEvent(L"Main Pass");		
@@ -587,7 +587,7 @@ namespace Common
 		mShadowPassCB.NearZ = mLightNearZ;
 		mShadowPassCB.FarZ = mLightFarZ;
 
-		auto currPassCB = currentFrameResource->PassConstantBuffer.get();
+		auto currPassCB = currentFrameResource->PassConstantUploadBuffer.get();
 		currPassCB->CopyData(1, mShadowPassCB);
 	}
 
@@ -649,7 +649,7 @@ namespace Common
 		mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
 
 
-		auto currentPassCB = currentFrameResource->PassConstantBuffer.get();
+		auto currentPassCB = currentFrameResource->PassConstantUploadBuffer.get();
 		currentPassCB->CopyData(0, mainPassCB);
 	}
 
@@ -685,7 +685,7 @@ namespace Common
 		ssaoCB.OcclusionFadeEnd = 1.0f;
 		ssaoCB.SurfaceEpsilon = 0.05f;
 
-		auto currSsaoCB = currentFrameResource->SsaoConstantBuffer.get();
+		auto currSsaoCB = currentFrameResource->SsaoConstantUploadBuffer.get();
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 
@@ -1442,7 +1442,7 @@ namespace Common
 	void SampleApp::DrawSceneToShadowMap(std::shared_ptr<GCommandList> cmdList)
 	{
 		//Shadow Path Data
-		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantBuffer, 1);
+		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PassConstantUploadBuffer, 1);
 
 		shadowMap->PopulatePreRenderCommands(cmdList);		
 	
@@ -1479,7 +1479,7 @@ namespace Common
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
 
 		//Main Path Data
-		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PassConstantBuffer);
+		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PassConstantUploadBuffer);
 
 		cmdList->SetPipelineState(*psos[RenderMode::DrawNormalsOpaque]);
 		DrawGameObjects(cmdList, typedGameObjects[RenderMode::Opaque]);

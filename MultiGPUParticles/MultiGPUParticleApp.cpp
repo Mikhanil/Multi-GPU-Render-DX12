@@ -74,7 +74,7 @@ void MultiGPUParticleApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList
 	                                   *currentFrameResource->MaterialBuffer, 1);
 	cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 	cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-	                                   *currentFrameResource->PrimePassConstantBuffer, 1);
+	                                   *currentFrameResource->PrimePassConstantUploadBuffer, 1);
 
 	shadowPath->PopulatePreRenderCommands(cmdList);
 
@@ -113,7 +113,7 @@ void MultiGPUParticleApp::PopulateNormalMapCommands(std::shared_ptr<GCommandList
 		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
-		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantBuffer);
+		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantUploadBuffer);
 
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
 		PopulateDrawCommands(cmdList, RenderMode::Opaque);
@@ -138,7 +138,7 @@ void MultiGPUParticleApp::PopulateAmbientMapCommands(std::shared_ptr<GCommandLis
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
 		cmdList->SetRootSignature(ssaoPrimeRootSignature.get());
-		ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantBuffer, 3);
+		ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
 	}
 }
 
@@ -168,7 +168,7 @@ void MultiGPUParticleApp::PopulateForwardPathCommands(std::shared_ptr<GCommandLi
 
 
 		cmdList->
-			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantBuffer);
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantUploadBuffer);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
@@ -188,7 +188,7 @@ void MultiGPUParticleApp::PopulateForwardPathCommands(std::shared_ptr<GCommandLi
 
 
 		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-		                                   *currentFrameResource->PrimePassConstantBuffer.get(), 0);
+		                                   *currentFrameResource->PrimePassConstantUploadBuffer.get(), 0);
 		PopulateDrawCommands(cmdList, RenderMode::Particle);
 
 
@@ -1162,7 +1162,7 @@ void MultiGPUParticleApp::UpdateShadowPassCB(const GameTimer& gt)
 	shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
 	shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
-	auto currPassCB = currentFrameResource->PrimePassConstantBuffer;
+	auto currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
 	currPassCB->CopyData(1, shadowPassCB);
 }
 
@@ -1222,7 +1222,7 @@ void MultiGPUParticleApp::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
 	mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
 
-	auto currentPassCB = currentFrameResource->PrimePassConstantBuffer;
+	auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
 	currentPassCB->CopyData(0, mainPassCB);
 }
 
@@ -1261,7 +1261,7 @@ void MultiGPUParticleApp::UpdateSsaoCB(const GameTimer& gt)
 		ssaoCB.OcclusionFadeEnd = 1.0f;
 		ssaoCB.SurfaceEpsilon = 0.05f;
 
-		auto currSsaoCB = currentFrameResource->SsaoConstantBuffer;
+		auto currSsaoCB = currentFrameResource->SsaoConstantUploadBuffer;
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 }

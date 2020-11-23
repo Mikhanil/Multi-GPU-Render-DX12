@@ -2,12 +2,12 @@
 #include "Transform.h"
 #include "GameObject.h"
 
-UINT Transform::gConstantBufferIndex = 0;
+UINT Transform::gConstantUploadBufferIndex = 0;
 
 Transform::Transform(Vector3 pos, Quaternion rot, Vector3 scale): Component(), localPosition(pos),
                                                                                         localRotate(rot), localScale(scale)
 {
-	bufferIndex = gConstantBufferIndex++;
+	bufferIndex = gConstantUploadBufferIndex++;
 }
 
 Transform::Transform() : Transform(Vector3::Zero, Quaternion::Identity, Vector3::One)

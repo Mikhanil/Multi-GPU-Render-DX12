@@ -29,7 +29,7 @@ class ParticleEmitter :
 	std::shared_ptr<GBuffer> RenderParticles = nullptr;
 	std::shared_ptr<GBuffer> ParticlesRenderCount = nullptr;
 	
-	std::shared_ptr<ReadBackBuffer<UINT>> ReadBackCount = nullptr;
+	std::shared_ptr<ReadBackBuffer<UINT64>> ReadBackCount = nullptr;
 	
 	UINT AliveParticleCount = 0;
 	

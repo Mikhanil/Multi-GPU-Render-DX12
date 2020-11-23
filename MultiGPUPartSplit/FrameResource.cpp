@@ -6,15 +6,15 @@
 
 FrameResource::FrameResource(std::shared_ptr<GDevice> primeDevices, std::shared_ptr<GDevice> secondDevice, UINT passCount, UINT materialCount)
 {
-	PrimePassConstantBuffer = (std::make_shared<ConstantBuffer<PassConstants>>(primeDevices, passCount + 1, primeDevices->GetName() + L" Forward Path Data"));
+	PrimePassConstantUploadBuffer = (std::make_shared<ConstantUploadBuffer<PassConstants>>(primeDevices, passCount + 1, primeDevices->GetName() + L" Forward Path Data"));
 
-	ShadowPassConstantBuffer = (std::make_shared<ConstantBuffer<PassConstants>>(secondDevice, passCount, secondDevice->GetName() + L" Forward Path Data"));
+	ShadowPassConstantUploadBuffer = (std::make_shared<ConstantUploadBuffer<PassConstants>>(secondDevice, passCount, secondDevice->GetName() + L" Forward Path Data"));
 		
-	SsaoConstantBuffer = (std::make_shared<ConstantBuffer<SsaoConstants>>(primeDevices, 1, primeDevices->GetName() + L" SSAO Path Data"));
+	SsaoConstantUploadBuffer = (std::make_shared<ConstantUploadBuffer<SsaoConstants>>(primeDevices, 1, primeDevices->GetName() + L" SSAO Path Data"));
 
-	MaterialBuffers.push_back(std::make_shared<UploadBuffer<MaterialConstants>>(primeDevices, materialCount, primeDevices->GetName() + L" Materials Data"));
+	MaterialBuffers.push_back(std::make_shared<StructuredUploadBuffer<MaterialConstants>>(primeDevices, materialCount, primeDevices->GetName() + L" Materials Data"));
 
-	MaterialBuffers.push_back(std::make_shared<UploadBuffer<MaterialConstants>>(secondDevice, materialCount, secondDevice->GetName() + L" Materials Data"));
+	MaterialBuffers.push_back(std::make_shared<StructuredUploadBuffer<MaterialConstants>>(secondDevice, materialCount, secondDevice->GetName() + L" Materials Data"));
 
 	BackBufferRTVMemory = (primeDevices->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));	
 	

@@ -25,11 +25,11 @@ public:
 
 	custom_vector<GDescriptor> RenderTargetViewMemory = MemoryAllocator::CreateVector<GDescriptor>();
 	
-	custom_vector<std::shared_ptr<ConstantBuffer<PassConstants>>> PassConstantBuffers = MemoryAllocator::CreateVector < std::shared_ptr<ConstantBuffer<PassConstants>>>();
+	custom_vector<std::shared_ptr<ConstantUploadBuffer<PassConstants>>> PassConstantUploadBuffers = MemoryAllocator::CreateVector < std::shared_ptr<ConstantUploadBuffer<PassConstants>>>();
 
-	custom_vector<std::shared_ptr<ConstantBuffer<SsaoConstants>>> SsaoConstantBuffers = MemoryAllocator::CreateVector < std::shared_ptr<ConstantBuffer<SsaoConstants>>>();
+	custom_vector<std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>> SsaoConstantUploadBuffers = MemoryAllocator::CreateVector < std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>>();
 
-	custom_vector<std::shared_ptr<UploadBuffer<MaterialConstants>>> MaterialBuffers = MemoryAllocator::CreateVector < std::shared_ptr<UploadBuffer<MaterialConstants>>>();
+	custom_vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>> MaterialBuffers = MemoryAllocator::CreateVector < std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>>();
 	
 	
 

@@ -1037,10 +1037,10 @@ void PartSplitGPU::UpdateShadowPassCB(const GameTimer& gt)
 	shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
 	shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
-	auto currPassCB = currentFrameResource->ShadowPassConstantBuffer;
+	auto currPassCB = currentFrameResource->ShadowPassConstantUploadBuffer;
 	currPassCB->CopyData(0, shadowPassCB);
 
-	currPassCB = currentFrameResource->PrimePassConstantBuffer;
+	currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
 	currPassCB->CopyData(1, shadowPassCB);
 }
 
@@ -1102,7 +1102,7 @@ void PartSplitGPU::UpdateMainPassCB(const GameTimer& gt)
 	mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
 
 	{
-		auto currentPassCB = currentFrameResource->PrimePassConstantBuffer;
+		auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
 		currentPassCB->CopyData(0, mainPassCB);
 	}
 }
@@ -1142,7 +1142,7 @@ void PartSplitGPU::UpdateSsaoCB(const GameTimer& gt)
 		ssaoCB.OcclusionFadeEnd = 1.0f;
 		ssaoCB.SurfaceEpsilon = 0.05f;
 
-		auto currSsaoCB = currentFrameResource->SsaoConstantBuffer;
+		auto currSsaoCB = currentFrameResource->SsaoConstantUploadBuffer;
 		currSsaoCB->CopyData(0, ssaoCB);
 	}
 }
@@ -1156,7 +1156,7 @@ void PartSplitGPU::PopulateShadowMapCommands(GraphicsAdapter adapter, std::share
 		                                   *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[GraphicAdapterPrimary]);
 		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-		                                   *currentFrameResource->PrimePassConstantBuffer, 1);
+		                                   *currentFrameResource->PrimePassConstantUploadBuffer, 1);
 
 		shadowPathPrimeDevice->PopulatePreRenderCommands(cmdList);
 
@@ -1181,7 +1181,7 @@ void PartSplitGPU::PopulateShadowMapCommands(GraphicsAdapter adapter, std::share
 			cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
 			                                   *currentFrameResource->MaterialBuffers[GraphicAdapterSecond]);
 			cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-			                                   *currentFrameResource->ShadowPassConstantBuffer);
+			                                   *currentFrameResource->ShadowPassConstantUploadBuffer);
 
 			shadowPathSecondDevice->PopulatePreRenderCommands(cmdList);
 
@@ -1222,7 +1222,7 @@ void PartSplitGPU::PopulateNormalMapCommands(std::shared_ptr<GCommandList> cmdLi
 		                           D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
 
 		cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
-		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantBuffer);
+		cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantUploadBuffer);
 
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
 		PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::Opaque);
@@ -1247,7 +1247,7 @@ void PartSplitGPU::PopulateAmbientMapCommands(std::shared_ptr<GCommandList> cmdL
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[GraphicAdapterPrimary]);
 
 		cmdList->SetRootSignature(ssaoPrimeRootSignature.get());
-		ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantBuffer, 3);
+		ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
 	}
 }
 
@@ -1276,7 +1276,7 @@ void PartSplitGPU::PopulateForwardPathCommands(std::shared_ptr<GCommandList> cmd
 		                          antiAliasingPrimePath->GetDSV());
 
 		cmdList->
-			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantBuffer);
+			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantUploadBuffer);
 
 		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap,
 		                                UseOnlyPrime ? shadowPathPrimeDevice->GetSrv() : &primeCopyShadowMapSRV);

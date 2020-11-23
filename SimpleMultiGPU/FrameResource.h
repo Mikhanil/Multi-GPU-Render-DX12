@@ -18,9 +18,9 @@ public:
 
 	ComPtr<ID3D12Resource> crossAdapterResources[GraphicAdapterCount][globalCountFrameResources];
 	
-	std::unique_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
-	std::unique_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer = nullptr;
-	std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;
+	std::unique_ptr<ConstantUploadBuffer<PassConstants>> PassConstantUploadBuffer = nullptr;
+	std::unique_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer = nullptr;
+	std::unique_ptr<StructuredUploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;
 
 	UINT64 FenceValue = 0;
 };

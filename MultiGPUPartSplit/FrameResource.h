@@ -20,11 +20,11 @@ public:
 
 	GDescriptor BackBufferRTVMemory;
 	
-	std::shared_ptr<ConstantBuffer<PassConstants>> PrimePassConstantBuffer;
-	std::shared_ptr<ConstantBuffer<PassConstants>> ShadowPassConstantBuffer;
-	std::shared_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer;
+	std::shared_ptr<ConstantUploadBuffer<PassConstants>> PrimePassConstantUploadBuffer;
+	std::shared_ptr<ConstantUploadBuffer<PassConstants>> ShadowPassConstantUploadBuffer;
+	std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer;
 
-	custom_vector<std::shared_ptr<UploadBuffer<MaterialConstants>>> MaterialBuffers = MemoryAllocator::CreateVector < std::shared_ptr<UploadBuffer<MaterialConstants>>>();
+	custom_vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>> MaterialBuffers = MemoryAllocator::CreateVector < std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>>();
 	
 	
 

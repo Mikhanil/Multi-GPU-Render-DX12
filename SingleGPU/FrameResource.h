@@ -15,9 +15,9 @@ public:
 	FrameResource& operator=(const FrameResource& rhs) = delete;
 	~FrameResource();
 	
-	std::shared_ptr<ConstantBuffer<PassConstants>> PassConstantBuffer = nullptr;
-	std::shared_ptr<ConstantBuffer<SsaoConstants>> SsaoConstantBuffer = nullptr;
-	std::shared_ptr<UploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;
+	std::shared_ptr<ConstantUploadBuffer<PassConstants>> PassConstantUploadBuffer = nullptr;
+	std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer = nullptr;
+	std::shared_ptr<StructuredUploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;
 
 	UINT64 FenceValue = 0;
 };

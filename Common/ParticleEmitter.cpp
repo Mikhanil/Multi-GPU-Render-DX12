@@ -147,10 +147,10 @@ ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, UINT particleC
 	ParticlesAlive = std::make_shared<GBuffer>(device, sizeof(UINT), emitterData.ParticlesTotalCount, L"Particles Alive Index Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	RenderParticles = std::make_shared<GBuffer>(device, sizeof(UINT), emitterData.ParticlesTotalCount, L"Particles Render Index Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	InjectedParticles = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticleInjectCount, L"Injected Particle Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	ParticlesRenderCount = std::make_shared<GBuffer>(device, sizeof(UINT), 1, L"Particles Render Count Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	ParticlesAliveCount = std::make_shared<GBuffer>(device, sizeof(UINT), 1, L"Particles Alive Count Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	ParticlesDeadCount = std::make_shared<GBuffer>(device, sizeof(UINT), 1, L"Particles Dead Count Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);	
-	ReadBackCount = std::make_shared<ReadBackBuffer<UINT>>(device, 1, L"Read Count Buffer");
+	ParticlesRenderCount = std::make_shared<GBuffer>(device, sizeof(UINT64), 1, L"Particles Render Count Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	ParticlesAliveCount = std::make_shared<GBuffer>(device, sizeof(UINT64), 1, L"Particles Alive Count Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	ParticlesDeadCount = std::make_shared<GBuffer>(device, sizeof(UINT64), 1, L"Particles Dead Count Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);	
+	ReadBackCount = std::make_shared<ReadBackBuffer<UINT64>>(device, 1, L"Read Count Buffer");
 	
 	
 	{
