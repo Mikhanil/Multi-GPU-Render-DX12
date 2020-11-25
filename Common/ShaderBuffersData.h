@@ -141,7 +141,6 @@ struct alignas(sizeof(Vector4)) ParticleData
 {	
 	Vector3 Position;
 	Vector3 Velocity;
-	float Acceleration;
 	float LiveTime;	
 };
 
@@ -158,8 +157,8 @@ struct alignas(sizeof(Vector4)) EmitterData
 	
 	UINT ParticleInjectCount;
 	UINT InjectedGroupCount;
-	UINT Particle2;
-	UINT Particle3;
+	UINT ParticlesAliveCount;
+	float Acceleration;
 };
 
 class StandardShaderSlot
@@ -187,7 +186,7 @@ public:
 		CameraData,
 		EmitterData,
 		ParticlesPool,
-		ParticlesRenderIndex,
+		ParticlesAliveIndex,
 		Count
 	};
 };
@@ -202,7 +201,6 @@ public:
 		ParticleDead,
 		ParticleAlive,
 		ParticleInjection,
-		RenderParticle = ParticleInjection,
 		Count
 	};
 };

@@ -2,7 +2,6 @@ struct ParticleData
 {
     float3 Position;
     float3 Velocity;
-    float Acceleration;
     float LifeTime;
 };
 
@@ -14,11 +13,11 @@ struct EmitterData
     float DeltaTime;
 	
     float2 Size;
-    uint ParticlesCount;	
+    uint ParticlesTotalCount;	
     uint SimulatedGroupCount;
 	
     uint ParticleInjectCount;
     uint InjectGroupCount;
-    uint Padding3;
-    uint Padding4;
+    uint ParticleAliveCount;	
+    float Acceleration;
 };
