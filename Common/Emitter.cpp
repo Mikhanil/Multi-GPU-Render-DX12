@@ -1,7 +1,40 @@
 #include "pch.h"
 #include "Emitter.h"
 
-void Emitter::PSOInitialize() const
+#include "MathHelper.h"
+
+ParticleData Emitter::GenerateParticle()
+{
+	ParticleData tempParticle;
+	tempParticle.Position = Vector3(MathHelper::RandF(-1, 1), MathHelper::RandF(-1, 1), MathHelper::RandF(-1, 1));
+	tempParticle.Velocity = Vector3(MathHelper::RandF(-5, 5), MathHelper::RandF(30, 50),
+		MathHelper::RandF(-5, 5));
+	tempParticle.TotalLifeTime = MathHelper::RandF(2.0, 3.0);
+	tempParticle.LiveTime = tempParticle.TotalLifeTime;
+	tempParticle.TextureIndex = 0;
+	return tempParticle;
+}
+
+void Emitter::CompileComputeShaders()
+{
+	D3D_SHADER_MACRO defines[] =
+	{
+		"INJECTION", "1",
+		nullptr, nullptr
+	};
+
+	injectedShader = std::move(
+		std::make_shared<GShader>(L"Shaders\\ComputeParticle.hlsl", ComputeShader, defines, "CS", "cs_5_1"));
+	injectedShader->LoadAndCompile();
+
+	defines[0] = { "SIMULATION",  "1" };
+
+	simulatedShader = std::move(
+		std::make_shared<GShader>(L"Shaders\\ComputeParticle.hlsl", ComputeShader, defines, "CS", "cs_5_1"));
+	simulatedShader->LoadAndCompile();
+}
+
+void Emitter::PSOInitialize()
 {
 	if (renderPSO == nullptr)
 	{
@@ -85,21 +118,7 @@ void Emitter::PSOInitialize() const
 		computeSignature->AddDescriptorParameter(&range[3], 1);
 		computeSignature->Initialize(device);
 
-		D3D_SHADER_MACRO defines[] =
-		{
-			"INJECTION", "1",
-			nullptr, nullptr
-		};
-
-		injectedShader = std::move(
-			std::make_shared<GShader>(L"Shaders\\ComputeParticle.hlsl", ComputeShader, defines, "CS", "cs_5_1"));
-		injectedShader->LoadAndCompile();
-
-		defines[0] = { "SIMULATION",  "1" };
-
-		simulatedShader = std::move(
-			std::make_shared<GShader>(L"Shaders\\ComputeParticle.hlsl", ComputeShader, defines, "CS", "cs_5_1"));
-		simulatedShader->LoadAndCompile();
+		CompileComputeShaders();
 
 
 		injectedPSO = std::make_shared<ComputePSO>();

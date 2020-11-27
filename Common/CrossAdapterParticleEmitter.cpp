@@ -5,28 +5,8 @@
 #include "MathHelper.h"
 #include "ParticleEmitter.h"
 
-CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, UINT particleCount): secondDevice(otherDevice)
+void CrossAdapterParticleEmitter::InitPSO(std::shared_ptr<GDevice> otherDevice)
 {
-	this->device = primeDevice;
-	
-	primeParticleEmitter = std::make_shared<ParticleEmitter>(primeDevice, particleCount);
-
-	ParticlesPool = std::make_shared<CounteredStructBuffer<ParticleData>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Pool Buffer");
-	InjectedParticles = std::make_shared<CounteredStructBuffer<ParticleData>>(otherDevice, primeParticleEmitter->emitterData.ParticleInjectCount, L"Second Injected Particle Buffer");
-	ParticlesAlive = std::make_shared<CounteredStructBuffer<UINT>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Alive Index Buffer");
-	ParticlesDead = std::make_shared<CounteredStructBuffer<UINT>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Dead Index Buffer");
-
-	auto desc = ParticlesAlive->GetD3D12ResourceDesc();
-	CrossAdapterAliveIndexes = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Alive Index Buffer");
-	CrossAdapterDeadIndexes = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Dead Index Buffer");
-
-	desc = ParticlesPool->GetD3D12ResourceDesc();
-	CrossAdapterParticles = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Buffer");
-	
-	
-	newParticles.resize(primeParticleEmitter->emitterData.ParticleInjectCount);
-
-
 	CD3DX12_DESCRIPTOR_RANGE rng[4];
 	rng[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 	rng[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
@@ -51,8 +31,56 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
 	updatePSO->SetShader(simulatedShader.get());
 	updatePSO->SetRootSignature(*computeRS.get());
 	updatePSO->Initialize(secondDevice);
+}
+
+CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, UINT particleCount): secondDevice(otherDevice)
+{
+	this->device = primeDevice;
 	
-	updateDescriptors = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+	primeParticleEmitter = std::make_shared<ParticleEmitter>(primeDevice, particleCount);
+
+	ParticlesPool = std::make_shared<CounteredStructBuffer<ParticleData>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Pool Buffer");
+	InjectedParticles = std::make_shared<CounteredStructBuffer<ParticleData>>(otherDevice, primeParticleEmitter->emitterData.ParticleInjectCount, L"Second Injected Particle Buffer");
+	ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Alive Index Buffer");
+	ParticlesDead = std::make_shared<CounteredStructBuffer<DWORD>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Dead Index Buffer");
+
+	auto desc = ParticlesAlive->GetD3D12ResourceDesc();
+	CrossAdapterAliveIndexes = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Alive Index Buffer");
+	CrossAdapterDeadIndexes = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Dead Index Buffer");
+
+	desc = ParticlesPool->GetD3D12ResourceDesc();
+	CrossAdapterParticles = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Buffer");
+	
+	
+	newParticles.resize(primeParticleEmitter->emitterData.ParticleInjectCount);
+
+	{
+		std::vector<UINT> deadIndex;
+
+		for (int i = 0; i < primeParticleEmitter->emitterData.ParticlesTotalCount; ++i)
+		{
+			deadIndex.push_back(i);
+		}
+
+		auto queue = otherDevice->GetCommandQueue();
+		auto cmdList = queue->GetCommandList();
+
+		ParticlesDead->LoadData(deadIndex.data(), cmdList);
+		ParticlesDead->SetCounterValue(cmdList, primeParticleEmitter->emitterData.ParticlesTotalCount);
+
+		cmdList->TransitionBarrier(ParticlesDead->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+		cmdList->FlushResourceBarriers();
+
+		queue->ExecuteCommandList(cmdList);
+		queue->Flush();
+	}
+
+	
+	CompileComputeShaders();
+	
+	InitPSO(otherDevice);
+	
+	updateDescriptors = otherDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -61,19 +89,19 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
 	uavDesc.Buffer.FirstElement = 0;
 	uavDesc.Buffer.NumElements = ParticlesPool->GetElementCount();
 	uavDesc.Buffer.StructureByteStride = ParticlesPool->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = ParticlesPool->GetBufferSize() - sizeof(UINT);
+	uavDesc.Buffer.CounterOffsetInBytes = ParticlesPool->GetBufferSize() - sizeof(DWORD);
 
 	ParticlesPool->CreateUnorderedAccessView(&uavDesc, &updateDescriptors, 0, ParticlesPool->GetD3D12Resource());
 
 	uavDesc.Buffer.NumElements = ParticlesDead->GetElementCount();
 	uavDesc.Buffer.StructureByteStride = ParticlesDead->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = ParticlesDead->GetBufferSize() - sizeof(UINT);
+	uavDesc.Buffer.CounterOffsetInBytes = ParticlesDead->GetBufferSize() - sizeof(DWORD);
 	ParticlesDead->CreateUnorderedAccessView(&uavDesc, &updateDescriptors, 1, ParticlesDead->GetD3D12Resource());
 	ParticlesAlive->CreateUnorderedAccessView(&uavDesc, &updateDescriptors, 2, ParticlesAlive->GetD3D12Resource());
 
 	uavDesc.Buffer.NumElements = InjectedParticles->GetElementCount();
 	uavDesc.Buffer.StructureByteStride = InjectedParticles->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = InjectedParticles->GetBufferSize() - sizeof(UINT);
+	uavDesc.Buffer.CounterOffsetInBytes = InjectedParticles->GetBufferSize() - sizeof(DWORD);
 	InjectedParticles->CreateUnorderedAccessView(&uavDesc, &updateDescriptors, 3, InjectedParticles->GetD3D12Resource());
 	
 }
@@ -85,20 +113,26 @@ void CrossAdapterParticleEmitter::Update()
 }
 
 void CrossAdapterParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
-{
+{	
 	if(UseSharedCompute)
 	{
 		ParticlesAlive->ReadCounter(&primeParticleEmitter->emitterData.ParticlesAliveCount);
 		
 		cmdList->CopyResource(primeParticleEmitter->ParticlesPool->GetD3D12Resource(), CrossAdapterParticles->GetPrimeResource().GetD3D12Resource());
-		cmdList->CopyResource(primeParticleEmitter->ParticlesAlive->GetD3D12Resource(), CrossAdapterAliveIndexes->GetPrimeResource().GetD3D12Resource());				
+		cmdList->CopyResource(primeParticleEmitter->ParticlesAlive->GetD3D12Resource(), CrossAdapterAliveIndexes->GetPrimeResource().GetD3D12Resource());
+
+		primeParticleEmitter->Draw(cmdList, false);
+	}
+	else
+	{
+		primeParticleEmitter->Draw(cmdList, true);
 	}
 	
-	primeParticleEmitter->Draw(cmdList, !UseSharedCompute);
 }
 
 void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList)
 {
+	
 	if(DirtyActivated == Enable)
 	{
 		if (primeParticleEmitter->isWorked)
@@ -131,42 +165,36 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 		cmdList->SetRootSignature(computeRS.get());
 		cmdList->SetDescriptorsHeap(&updateDescriptors);
 
-		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticlesPool, &updateDescriptors,
-			ParticleComputeSlot::ParticlesPool - 1);
-		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleDead, &updateDescriptors,
-			ParticleComputeSlot::ParticleDead - 1);
-		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &updateDescriptors,
-			ParticleComputeSlot::ParticleAlive - 1);
+		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticlesPool, &updateDescriptors,	0);
+		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleDead, &updateDescriptors,	1);
+		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &updateDescriptors,	2);
 
-		if (primeParticleEmitter->emitterData.ParticlesTotalCount - primeParticleEmitter->emitterData.ParticlesAliveCount >= primeParticleEmitter->emitterData.ParticleInjectCount)
+		if (primeParticleEmitter->emitterData.ParticlesTotalCount > primeParticleEmitter->emitterData.ParticlesAliveCount)
 		{
-			cmdList->TransitionBarrier(InjectedParticles->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);		
-			cmdList->FlushResourceBarriers();
+			const long check = (primeParticleEmitter->emitterData.ParticlesTotalCount - primeParticleEmitter->emitterData.ParticlesAliveCount);
 
-			ParticleData tempParticle;
-			for (int i = 0; i < primeParticleEmitter->emitterData.ParticleInjectCount; ++i)
+			if (check >= primeParticleEmitter->emitterData.ParticleInjectCount)
 			{
-				tempParticle.Position = Vector3(MathHelper::RandF(-1, 1), MathHelper::RandF(-1, 1), MathHelper::RandF(-1, 1));
-				tempParticle.Velocity = Vector3(MathHelper::RandF(-5, 5), MathHelper::RandF(100, 200), MathHelper::RandF(-5, 5));
-				tempParticle.TotalLifeTime = MathHelper::RandF(10, 15);
-				tempParticle.LiveTime = tempParticle.TotalLifeTime;
-				tempParticle.TextureIndex = 0;
+				for (int i = 0; i < primeParticleEmitter->emitterData.ParticleInjectCount; ++i)
+				{
+					newParticles[i] = GenerateParticle();
+				}
 
-				newParticles[i] = tempParticle;
+				InjectedParticles->LoadData(newParticles.data(), cmdList);
+				cmdList->TransitionBarrier(InjectedParticles->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				cmdList->FlushResourceBarriers();
+
+				cmdList->SetPipelineState(*injectPSO.get());
+
+				cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleInjection, &updateDescriptors, 3);
+
+				cmdList->SetRoot32BitConstants(ParticleComputeSlot::EmitterData, sizeof(EmitterData) / sizeof(float), &primeParticleEmitter->emitterData, 0);
+
+				cmdList->Dispatch(primeParticleEmitter->emitterData.InjectedGroupCount, primeParticleEmitter->emitterData.InjectedGroupCount, 1);
+
+				cmdList->UAVBarrier(InjectedParticles->GetD3D12Resource());
+				cmdList->FlushResourceBarriers();
 			}
-
-			InjectedParticles->LoadData(newParticles.data(), cmdList);
-
-			cmdList->SetPipelineState(*injectPSO.get());
-
-			cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleInjection, &updateDescriptors, ParticleComputeSlot::ParticleInjection - 1);
-
-			cmdList->SetRoot32BitConstants(ParticleComputeSlot::EmitterData, sizeof(EmitterData) / sizeof(float), &primeParticleEmitter->emitterData, 0);
-
-			cmdList->Dispatch(primeParticleEmitter->emitterData.InjectedGroupCount, primeParticleEmitter->emitterData.InjectedGroupCount, 1);
-
-			cmdList->UAVBarrier(InjectedParticles->GetD3D12Resource());
-			cmdList->FlushResourceBarriers();
 		}
 
 		if (primeParticleEmitter->emitterData.ParticlesAliveCount > 0)

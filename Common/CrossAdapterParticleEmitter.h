@@ -10,8 +10,8 @@ class CrossAdapterParticleEmitter :    public Emitter
 	std::shared_ptr<ParticleEmitter> primeParticleEmitter;
 
 	std::shared_ptr<CounteredStructBuffer<ParticleData>> ParticlesPool = nullptr;
-	std::shared_ptr<CounteredStructBuffer<UINT>> ParticlesAlive = nullptr;
-	std::shared_ptr<CounteredStructBuffer<UINT>> ParticlesDead = nullptr;
+	std::shared_ptr<CounteredStructBuffer<DWORD>> ParticlesAlive = nullptr;
+	std::shared_ptr<CounteredStructBuffer<DWORD>> ParticlesDead = nullptr;
 	std::shared_ptr<CounteredStructBuffer<ParticleData>> InjectedParticles = nullptr;
 
 	std::shared_ptr<GCrossAdapterResource> CrossAdapterAliveIndexes;
@@ -20,11 +20,11 @@ class CrossAdapterParticleEmitter :    public Emitter
 
 	GDescriptor updateDescriptors;
 	
-	static inline std::shared_ptr<ComputePSO> injectPSO;
-	static inline std::shared_ptr<ComputePSO> updatePSO;
-	static inline std::shared_ptr<GRootSignature> computeRS;
+	std::shared_ptr<ComputePSO> injectPSO;
+	std::shared_ptr<ComputePSO> updatePSO;
+	std::shared_ptr<GRootSignature> computeRS;
 	
-	custom_vector<ParticleData> newParticles = MemoryAllocator::CreateVector<ParticleData>();
+	std::vector<ParticleData> newParticles;
 	
 	bool UseSharedCompute = false;
 
@@ -43,6 +43,7 @@ class CrossAdapterParticleEmitter :    public Emitter
 	Status DirtyActivated = None;
 	
 public:
+	void InitPSO(std::shared_ptr<GDevice> otherDevice);
 	CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, UINT particleCount);
 	void Update() override;;
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;

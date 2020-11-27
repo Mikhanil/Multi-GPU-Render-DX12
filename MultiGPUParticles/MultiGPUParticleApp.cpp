@@ -240,6 +240,8 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
+	
+	
 	std::shared_ptr<GCommandQueue> computeQueue;
 
 	if(UseCrossAdapter)
@@ -252,21 +254,34 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 	}
 
 	auto renderQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-	
-	computeQueue->Wait(renderQueue);
 
+	if (UseCrossSync)
+	{
+		computeQueue->Wait(secondRenderFence, sharedRenderFenceValue);
+	}
+	else
+	{
+		computeQueue->Wait(renderQueue);
+	}
+
+	
+	
 	{
 		const auto cmdList = computeQueue->GetCommandList();
 
-		auto particlesSystems = typedRenderer[RenderMode::Particle];
-
-		for (auto renderer : particlesSystems)
+		for (auto emitter : crossEmitter)
 		{
-			auto emitter = (Emitter*)renderer.get();
 			emitter->Dispatch(cmdList);
-		}
+		}		
 		currentFrameResource->ComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
+
+		if(UseCrossSync)
+		{
+			sharedComputeFenceValue = currentFrameResource->ComputeFenceValue;
+			secondComputeFence->Signal(sharedComputeFenceValue);
+		}
 	}
+	
 
 	{
 		const auto cmdList = renderQueue->GetCommandList();	
@@ -288,9 +303,20 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 		cmdList->EndQuery(timestampHeapIndex + 1);
 		cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
-		renderQueue->Wait(computeQueue);
+		if(UseCrossSync)
+		{
+			renderQueue->Wait(primeComputeFence, sharedComputeFenceValue);
+		}
+		else
+			renderQueue->Wait(computeQueue);
 		
 		currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
+
+		if (UseCrossSync)
+		{
+			sharedRenderFenceValue = currentFrameResource->PrimeRenderFenceValue;
+			primeRenderFence->Signal(sharedRenderFenceValue);
+		}
 	}
 
 	currentFrameResourceIndex = MainWindow->Present();
@@ -354,7 +380,8 @@ void MultiGPUParticleApp::InitDevices()
 			MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
 	}
 
-	primeDevice->SharedFence(primeFence, secondDevice, sharedFence, sharedFenceValue);
+	primeDevice->SharedFence(primeComputeFence, secondDevice, secondComputeFence, sharedComputeFenceValue);
+	primeDevice->SharedFence(primeRenderFence, secondDevice, secondRenderFence, sharedRenderFenceValue);
 	
 
 	logQueue.Push(L"\nPrime Device: " + (primeDevice->GetName()));
@@ -838,7 +865,7 @@ void MultiGPUParticleApp::CreateGO()
 	}
 
 	auto particle = std::make_unique<GameObject>();
-	particle->GetTransform()->SetPosition(Vector3::Up * 50);
+	particle->GetTransform()->SetPosition(Vector3::Up);
 	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
@@ -858,11 +885,11 @@ void MultiGPUParticleApp::CreateGO()
 	rotater->GetTransform()->SetParent(platform->GetTransform().get());
 	rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 	rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
-	//rotater->AddComponent(std::make_shared<Rotater>(10));
+	rotater->AddComponent(std::make_shared<Rotater>(10));
 
 	auto camera = std::make_unique<GameObject>("MainCamera");
 	camera->GetTransform()->SetParent(rotater->GetTransform().get());
-	camera->AddComponent(std::make_shared<CameraController>());
+	//camera->AddComponent(std::make_shared<CameraController>());
 	camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
 	camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
 	camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
@@ -970,17 +997,19 @@ void MultiGPUParticleApp::CalculateFrameStats()
 		secondGPUTimeMin = std::min(secondGPURenderingTime, secondGPUTimeMin);
 		secondGPUTimeMax = std::max(secondGPURenderingTime, secondGPUTimeMax);
 
-		MainWindow->SetWindowTitle(L"FPS " + std::to_wstring(fps));
+		
 
 		frameCount = 0;
 		timeElapsed += 1.0f;
 
-	
+		
+		const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (UseCrossAdapter ? (UseCrossSync ? L"3" : L"2") : L"1") + L"/3" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) +  L"/" + std::to_wstring(100);
 
 		if (writeStaticticCount >= StatisticStepSecondsCount)
 		{
 			const std::wstring staticticStr =
-				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
+				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter) +
+				L"\nUse Cross Sync: " + std::to_wstring(UseCrossSync)
 				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
 				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
@@ -1014,7 +1043,13 @@ void MultiGPUParticleApp::CalculateFrameStats()
 			}
 			else
 			{
-				IsStop = true;
+				if(UseCrossSync == false)
+				{
+					Flush();
+					UseCrossSync = true;
+				}
+				else
+					IsStop = true;
 			}
 			
 		}
@@ -1029,7 +1064,10 @@ void MultiGPUParticleApp::CalculateFrameStats()
 			logQueue.Push(staticticStr);
 
 			writeStaticticCount++;
-		}		
+		}
+
+		
+		MainWindow->SetWindowTitle(title);
 	}
 }
 

@@ -145,10 +145,10 @@ struct alignas(sizeof(Vector4)) ParticleData
 	Vector3 Velocity;
 	float TotalLifeTime;
 
-	UINT TextureIndex;
-	UINT PD2;
-	UINT PD3;
-	UINT PD4;
+	DWORD TextureIndex;
+	DWORD PD2;
+	DWORD PD3;
+	DWORD PD4;
 };
 
 struct alignas(sizeof(Vector4)) EmitterData
@@ -159,13 +159,13 @@ struct alignas(sizeof(Vector4)) EmitterData
 	float DeltaTime;
 	
 	Vector2 Size;
-	UINT ParticlesTotalCount;
-	UINT SimulatedGroupCount;
+	DWORD ParticlesTotalCount;
+	DWORD SimulatedGroupCount;
 	
-	UINT ParticleInjectCount;
-	UINT InjectedGroupCount;
-	UINT ParticlesAliveCount;
-	UINT AtlasTextureCount;
+	DWORD ParticleInjectCount;
+	DWORD InjectedGroupCount;
+	DWORD ParticlesAliveCount;
+	DWORD AtlasTextureCount;
 
 	bool UseTexture = false;
 	bool Padding;

@@ -98,11 +98,16 @@ protected:
 	custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>();
 
 	bool UseCrossAdapter = false;
+	bool UseCrossSync = false;
 	custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter*>();
-	ComPtr<ID3D12Fence> primeFence;
-	ComPtr<ID3D12Fence> sharedFence;
-	UINT64 sharedFenceValue = 0;
+	
+	ComPtr<ID3D12Fence> primeComputeFence;
+	ComPtr<ID3D12Fence> secondComputeFence;
+	UINT64 sharedComputeFenceValue = 0;
 
+	ComPtr<ID3D12Fence> primeRenderFence;
+	ComPtr<ID3D12Fence> secondRenderFence;
+	UINT64 sharedRenderFenceValue = 0;
 	
 	PassConstants mainPassCB;
 	PassConstants shadowPassCB;
