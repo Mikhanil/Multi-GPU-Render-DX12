@@ -194,8 +194,8 @@ void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList, bool readCount
 	if (readCounter)
 	{
 		ParticlesAlive->ReadCounter(&emitterData.ParticlesAliveCount);
-	}
-
+	}	
+	
 	emitterData.ParticlesAliveCount = std::clamp(emitterData.ParticlesAliveCount, DWORD(0), emitterData.ParticlesTotalCount);
 	
 	cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -250,13 +250,11 @@ void ParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList)
 	cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleDead, &particlesComputeDescriptors,
 	                                ParticleComputeSlot::ParticleDead - 1);
 	cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &particlesComputeDescriptors,
-	                                ParticleComputeSlot::ParticleAlive - 1);
-
+	                                ParticleComputeSlot::ParticleAlive - 1);	
+	
 	if (emitterData.ParticlesTotalCount > emitterData.ParticlesAliveCount)
 	{
-		long check = (emitterData.ParticlesTotalCount - emitterData.ParticlesAliveCount);
-
-		if (check >= emitterData.ParticleInjectCount)
+		if (emitterData.ParticlesAliveCount + emitterData.ParticleInjectCount <= emitterData.ParticlesTotalCount)
 		{
 			cmdList->TransitionBarrier(InjectedParticles->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 

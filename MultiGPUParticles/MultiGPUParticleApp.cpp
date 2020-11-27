@@ -290,7 +290,7 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 		cmdList->EndQuery(timestampHeapIndex);
 		PopulateNormalMapCommands(cmdList);
 		PopulateAmbientMapCommands(cmdList);
-		PopulateShadowMapCommands(cmdList);
+		PopulateShadowMapCommands(cmdList); 
 		PopulateForwardPathCommands(cmdList);
 		PopulateInitRenderTarget(cmdList, MainWindow->GetCurrentBackBuffer(),
 			&currentFrameResource->BackBufferRTVMemory, 0);
@@ -1047,6 +1047,10 @@ void MultiGPUParticleApp::CalculateFrameStats()
 				{
 					Flush();
 					UseCrossSync = true;
+
+					primeRenderFence->Signal(currentFrameResource->PrimeRenderFenceValue);
+					primeComputeFence->Signal(currentFrameResource->ComputeFenceValue);
+					
 				}
 				else
 					IsStop = true;

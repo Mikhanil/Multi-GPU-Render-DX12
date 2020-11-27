@@ -137,6 +137,8 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 	{
 		if (primeParticleEmitter->isWorked)
 		{
+			primeParticleEmitter->ParticlesAlive->ReadCounter(&primeParticleEmitter->emitterData.ParticlesAliveCount);
+			
 			cmdList->CopyResource(ParticlesPool->GetD3D12Resource(), CrossAdapterParticles->GetSharedResource().GetD3D12Resource());
 			cmdList->CopyResource(ParticlesAlive->GetD3D12Resource(), CrossAdapterAliveIndexes->GetSharedResource().GetD3D12Resource());
 			cmdList->CopyResource(ParticlesDead->GetD3D12Resource(), CrossAdapterDeadIndexes->GetSharedResource().GetD3D12Resource());
@@ -169,6 +171,10 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleDead, &updateDescriptors,	1);
 		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &updateDescriptors,	2);
 
+		
+
+		
+		
 		if (primeParticleEmitter->emitterData.ParticlesTotalCount > primeParticleEmitter->emitterData.ParticlesAliveCount)
 		{
 			const long check = (primeParticleEmitter->emitterData.ParticlesTotalCount - primeParticleEmitter->emitterData.ParticlesAliveCount);
@@ -227,6 +233,8 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 
 void CrossAdapterParticleEmitter::EnableShared()
 {
+	primeParticleEmitter->ParticlesAlive->ReadCounter(&primeParticleEmitter->emitterData.ParticlesAliveCount);
+	
 	UseSharedCompute = true;
 
 	DirtyActivated = Enable;
