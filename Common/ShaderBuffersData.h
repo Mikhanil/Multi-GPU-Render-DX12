@@ -140,8 +140,15 @@ struct alignas(sizeof(Vector4)) MaterialConstants
 struct alignas(sizeof(Vector4)) ParticleData
 {	
 	Vector3 Position;
+	float LiveTime;
+	
 	Vector3 Velocity;
-	float LiveTime;	
+	float TotalLifeTime;
+
+	UINT TextureIndex;
+	UINT PD2;
+	UINT PD3;
+	UINT PD4;
 };
 
 struct alignas(sizeof(Vector4)) EmitterData
@@ -158,7 +165,13 @@ struct alignas(sizeof(Vector4)) EmitterData
 	UINT ParticleInjectCount;
 	UINT InjectedGroupCount;
 	UINT ParticlesAliveCount;
-	float Acceleration;
+	UINT AtlasTextureCount;
+
+	bool UseTexture = false;
+	bool Padding;
+	bool Padding1;
+	bool Padding2;
+	Vector3 Padding3;
 };
 
 class StandardShaderSlot
@@ -187,6 +200,7 @@ public:
 		EmitterData,
 		ParticlesPool,
 		ParticlesAliveIndex,
+		Atlas,
 		Count
 	};
 };

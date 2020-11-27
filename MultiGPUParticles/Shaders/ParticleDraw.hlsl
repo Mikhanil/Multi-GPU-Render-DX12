@@ -2,12 +2,14 @@
 
 ConstantBuffer<EmitterData> EmitterBuffer : register(b0, space1);
 StructuredBuffer<ParticleData> Particles : register(t0, space1);
-RWStructuredBuffer<uint> RenderingParticles : register(u0, space1);
+StructuredBuffer<uint> RenderingParticles : register(t1, space1);
+Texture2D Atlas[] : register(t2, space1);
 
 struct VertexOut
 {
     float4 PositionV : SV_Position;
-    uint Index : INDEX;
+    uint ParticleIndex : INDEX;
+    uint TextureIndex : INDEX1;
 };
 
 VertexOut VS(uint VertexID : SV_VertexID)
@@ -19,7 +21,8 @@ VertexOut VS(uint VertexID : SV_VertexID)
     VertexOut output = (VertexOut) 0;
     output.PositionV = mul(float4(particle.Position, 1), objectBuffer.World);
     output.PositionV = mul(output.PositionV, worldBuffer.View);
-    output.Index = index;
+    output.ParticleIndex = index;
+    output.TextureIndex = particle.TextureIndex;
     return output;
 }
 
@@ -29,7 +32,8 @@ struct GeoOut
     float4 PositionV : POSITION;
     float3 NormalW : NORMAL;
     float2 UV : TEXCOORD;
-    uint Index : INDEX;
+    uint ParticleIndex : INDEX;
+    uint TextureIndex : INDEX1;
 };
 
 // функция изменения вертекса и последующая проекция его в Projection Space
@@ -41,8 +45,8 @@ GeoOut CreateQuadVertex(VertexOut data, float2 offset, float2 uv)
     o.PositionV.xy += offset;
     o.PositionH = mul(o.PositionV, worldBuffer.Proj);
     o.UV = uv;
-    o.Index = data.Index;
-	
+    o.ParticleIndex = data.ParticleIndex;
+    o.TextureIndex = data.TextureIndex;
     return o;
 }
 
@@ -61,8 +65,15 @@ void GS(point VertexOut gin[1], inout TriangleStream<GeoOut> triStream)
 
 float4 PS(GeoOut pin) : SV_Target
 {
+    if(EmitterBuffer.UseTexture)
+    {
+        return Atlas[pin.TextureIndex].Sample(gsamAnisotropicWrap, pin.UV);
+    }
+		
     float intensity = 0.5f - length(float2(0.5f, 0.5f) - pin.UV);
     intensity = clamp(intensity, 0.0f, 0.5f) * 2.0f;
-	
+    	
     return float4(EmitterBuffer.Color.xyz, intensity);
+
+	
 }

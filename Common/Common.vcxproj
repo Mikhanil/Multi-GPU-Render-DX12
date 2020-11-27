@@ -180,7 +180,9 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="Component.h" />
+    <ClInclude Include="CrossAdapterParticleEmitter.h" />
     <ClInclude Include="d3dApp.h" />
+    <ClInclude Include="Emitter.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GCrossAdapterResource.h" />
@@ -212,7 +214,9 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="Component.cpp" />
+    <ClCompile Include="CrossAdapterParticleEmitter.cpp" />
     <ClCompile Include="d3dApp.cpp" />
+    <ClCompile Include="Emitter.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />

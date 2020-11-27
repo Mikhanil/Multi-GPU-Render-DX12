@@ -67,6 +67,10 @@ void CS(uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex)
         return;
     }
 
+    float percent = particle.LifeTime / particle.TotalLifeTime;
+	    
+    particle.TextureIndex = floor((1 - percent) * EmitterBuffer.AtlasTextureCount);
+	
     particle.Velocity += EmitterBuffer.Force * EmitterBuffer.DeltaTime;
     particle.Position += particle.Velocity * EmitterBuffer.DeltaTime;
 

@@ -1,8 +1,15 @@
 struct ParticleData
 {
-    float3 Position;
-    float3 Velocity;
+    float3 Position;	
     float LifeTime;
+	
+    float3 Velocity;
+    float TotalLifeTime;
+
+    uint TextureIndex;
+    uint PD1;
+    uint PD2;
+    uint PD3;
 };
 
 struct EmitterData
@@ -19,5 +26,11 @@ struct EmitterData
     uint ParticleInjectCount;
     uint InjectGroupCount;
     uint ParticleAliveCount;	
-    float Acceleration;
+    uint AtlasTextureCount;
+
+    bool UseTexture;
+    bool Padding;
+    bool Padding1;
+    bool Padding2;
+    float3 Padding3;
 };

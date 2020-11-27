@@ -10,5 +10,6 @@ public:
 	Renderer(): Component() {} ;
 
 	void Update() override = 0;
-	virtual void Draw(std::shared_ptr<GCommandList> cmdList) = 0;
+	void Draw(std::shared_ptr<GCommandList> cmdList) override = 0;
 };
+

@@ -1,5 +1,6 @@
 #pragma once
 #include "AssetsLoader.h"
+#include "CrossAdapterParticleEmitter.h"
 #include "d3dApp.h"
 #include "Renderer.h"
 #include "RenderModeFactory.h"
@@ -85,6 +86,8 @@ protected:
 
 	const int StatisticStepSecondsCount = 120;
 
+
+	
 		
 	std::shared_ptr<ShadowMap> shadowPath;
 	std::shared_ptr<SSAO> ambientPrimePath;
@@ -94,6 +97,13 @@ protected:
 
 	custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>();
 
+	bool UseCrossAdapter = false;
+	custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter*>();
+	ComPtr<ID3D12Fence> primeFence;
+	ComPtr<ID3D12Fence> sharedFence;
+	UINT64 sharedFenceValue = 0;
+
+	
 	PassConstants mainPassCB;
 	PassConstants shadowPassCB;
 

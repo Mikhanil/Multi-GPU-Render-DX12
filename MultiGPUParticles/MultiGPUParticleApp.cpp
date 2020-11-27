@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include "CameraController.h"
+#include "CrossAdapterParticleEmitter.h"
 #include "GameObject.h"
 #include "GDeviceFactory.h"
 #include "GModel.h"
@@ -239,7 +240,17 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
-	auto computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	std::shared_ptr<GCommandQueue> computeQueue;
+
+	if(UseCrossAdapter)
+	{
+		computeQueue = secondDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	}
+	else
+	{
+		computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	}
+
 	auto renderQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 	
 	computeQueue->Wait(renderQueue);
@@ -251,14 +262,14 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 
 		for (auto renderer : particlesSystems)
 		{
-			auto emitter = (ParticleEmitter*)renderer.get();
+			auto emitter = (Emitter*)renderer.get();
 			emitter->Dispatch(cmdList);
 		}
 		currentFrameResource->ComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
 	}
 
 	{
-		auto cmdList = renderQueue->GetCommandList();	
+		const auto cmdList = renderQueue->GetCommandList();	
 		
 		const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;	
 		cmdList->EndQuery(timestampHeapIndex);
@@ -343,6 +354,8 @@ void MultiGPUParticleApp::InitDevices()
 			MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
 	}
 
+	primeDevice->SharedFence(primeFence, secondDevice, sharedFence, sharedFenceValue);
+	
 
 	logQueue.Push(L"\nPrime Device: " + (primeDevice->GetName()));
 	logQueue.Push(
@@ -826,9 +839,10 @@ void MultiGPUParticleApp::CreateGO()
 
 	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up * 50);
-	const auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 1000000);
+	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
+	crossEmitter.push_back(emitter.get());
 	gameObjects.push_back(std::move(particle));
 
 	auto platform = std::make_unique<GameObject>();
@@ -956,11 +970,17 @@ void MultiGPUParticleApp::CalculateFrameStats()
 		secondGPUTimeMin = std::min(secondGPURenderingTime, secondGPUTimeMin);
 		secondGPUTimeMax = std::max(secondGPURenderingTime, secondGPUTimeMax);
 
+		MainWindow->SetWindowTitle(L"FPS " + std::to_wstring(fps));
+
+		frameCount = 0;
+		timeElapsed += 1.0f;
+
+	
 
 		if (writeStaticticCount >= StatisticStepSecondsCount)
 		{
 			const std::wstring staticticStr =
-				L"\nUse Shared UI: " + std::to_wstring(IsStop)
+				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
 				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
 				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
@@ -982,6 +1002,21 @@ void MultiGPUParticleApp::CalculateFrameStats()
 			primeGPUTimeMin = std::numeric_limits<UINT64>::max();
 			secondGPUTimeMax = std::numeric_limits<UINT64>::min();
 			secondGPUTimeMin = std::numeric_limits<UINT64>::max();
+
+			if(UseCrossAdapter == false)
+			{
+				Flush();
+				for (auto && emitter : crossEmitter)
+				{
+					emitter->EnableShared();
+				}
+				UseCrossAdapter = true;
+			}
+			else
+			{
+				IsStop = true;
+			}
+			
 		}
 		else
 		{
@@ -994,12 +1029,7 @@ void MultiGPUParticleApp::CalculateFrameStats()
 			logQueue.Push(staticticStr);
 
 			writeStaticticCount++;
-		}
-
-		MainWindow->SetWindowTitle(L"FPS " + std::to_wstring(fps));
-
-		frameCount = 0;
-		timeElapsed += 1.0f;
+		}		
 	}
 }
 
