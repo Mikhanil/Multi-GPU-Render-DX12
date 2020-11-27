@@ -866,7 +866,7 @@ void MultiGPUParticleApp::CreateGO()
 
 	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up);
-	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000);
+	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 3.5);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
 	crossEmitter.push_back(emitter.get());
@@ -1074,7 +1074,7 @@ void MultiGPUParticleApp::CalculateFrameStats()
 void MultiGPUParticleApp::LogWriting()
 {
 	const std::filesystem::path filePath(
-		L"SharedUI " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
+		L"SharedParticle " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
 
 	const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
 

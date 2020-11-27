@@ -4,7 +4,7 @@
 #include "MathHelper.h"
 #include "Transform.h"
 
-double ParticleEmitter::CalculateGroupCount(UINT particleCount) const
+double ParticleEmitter::CalculateGroupCount(DWORD particleCount) const
 {
 	auto numGroups = (particleCount % 1024 != 0) ? ((particleCount / 1024) + 1) : (particleCount / 1024);
 	auto secondRoot = std::pow((double)numGroups, (double)(1.0 / 2.0));
@@ -24,9 +24,9 @@ void ParticleEmitter::DescriptorInitialize()
 	uavDesc.Buffer.FirstElement = 0;
 	uavDesc.Buffer.NumElements = ParticlesPool->GetElementCount();
 	uavDesc.Buffer.StructureByteStride = ParticlesPool->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = ParticlesPool->GetBufferSize() - sizeof(DWORD);
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
 
-	ParticlesPool->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 0, ParticlesPool->GetD3D12Resource());
+	ParticlesPool->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 0);
 
 	uavDesc.Buffer.NumElements = ParticlesDead->GetElementCount();
 	uavDesc.Buffer.StructureByteStride = ParticlesDead->GetStride();
@@ -36,8 +36,8 @@ void ParticleEmitter::DescriptorInitialize()
 
 	uavDesc.Buffer.NumElements = InjectedParticles->GetElementCount();
 	uavDesc.Buffer.StructureByteStride = InjectedParticles->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = InjectedParticles->GetBufferSize() - sizeof(DWORD);
-	InjectedParticles->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 3, InjectedParticles->GetD3D12Resource());	
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	InjectedParticles->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 3);	
 
 
 	particlesRenderDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 + Atlas.size());
@@ -81,8 +81,8 @@ void ParticleEmitter::DescriptorInitialize()
 void ParticleEmitter::BufferInitialize()
 {
 	objectPositionBuffer = std::make_shared<ConstantUploadBuffer<ObjectConstants>>(device, 1, L"Emitter Position");
-	ParticlesPool = std::make_shared<CounteredStructBuffer<ParticleData>>(device, emitterData.ParticlesTotalCount, L"Particles Pool Buffer");
-	InjectedParticles = std::make_shared<CounteredStructBuffer<ParticleData>>(device, emitterData.ParticleInjectCount, L"Injected Particle Buffer");
+	ParticlesPool = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticlesTotalCount, L"Particles Pool Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	InjectedParticles = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticleInjectCount, L"Injected Particle Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(device, emitterData.ParticlesTotalCount, L"Particles Alive Index Buffer");
 	ParticlesDead = std::make_shared<CounteredStructBuffer<DWORD>>(device, emitterData.ParticlesTotalCount, L"Particles Dead Index Buffer");	
 	
@@ -114,7 +114,7 @@ void ParticleEmitter::BufferInitialize()
 
 
 
-ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, UINT particleCount)
+ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, DWORD particleCount)
 {
 	this->device = device;
 	
@@ -127,7 +127,7 @@ ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, UINT particleC
 	emitterData.UseTexture = true;
 	
 	emitterData.ParticleInjectCount = particleCount / 16;
-	newParticles.resize(emitterData.ParticleInjectCount);
+	
 
 	emitterData.InjectedGroupCount = CalculateGroupCount(emitterData.ParticleInjectCount);
 
@@ -172,6 +172,9 @@ ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, UINT particleC
 	BufferInitialize();
 
 	DescriptorInitialize();
+
+
+	newParticles.resize(InjectedParticles->GetElementCount());
 }
 
 void ParticleEmitter::Update()
@@ -192,7 +195,8 @@ void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList, bool readCount
 	{
 		ParticlesAlive->ReadCounter(&emitterData.ParticlesAliveCount);
 	}
-	
+
+	emitterData.ParticlesAliveCount = std::clamp(emitterData.ParticlesAliveCount, DWORD(0), emitterData.ParticlesTotalCount);
 	
 	cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	cmdList->TransitionBarrier(ParticlesAlive->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

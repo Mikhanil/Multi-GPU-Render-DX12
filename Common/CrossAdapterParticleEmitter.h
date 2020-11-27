@@ -9,10 +9,10 @@ class CrossAdapterParticleEmitter :    public Emitter
 
 	std::shared_ptr<ParticleEmitter> primeParticleEmitter;
 
-	std::shared_ptr<CounteredStructBuffer<ParticleData>> ParticlesPool = nullptr;
+	std::shared_ptr<GBuffer> ParticlesPool = nullptr;
 	std::shared_ptr<CounteredStructBuffer<DWORD>> ParticlesAlive = nullptr;
 	std::shared_ptr<CounteredStructBuffer<DWORD>> ParticlesDead = nullptr;
-	std::shared_ptr<CounteredStructBuffer<ParticleData>> InjectedParticles = nullptr;
+	std::shared_ptr<GBuffer> InjectedParticles = nullptr;
 
 	std::shared_ptr<GCrossAdapterResource> CrossAdapterAliveIndexes;
 	std::shared_ptr<GCrossAdapterResource> CrossAdapterDeadIndexes;
@@ -44,7 +44,7 @@ class CrossAdapterParticleEmitter :    public Emitter
 	
 public:
 	void InitPSO(std::shared_ptr<GDevice> otherDevice);
-	CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, UINT particleCount);
+	CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, DWORD particleCount);
 	void Update() override;;
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 	void Dispatch(std::shared_ptr<GCommandList> cmdList) override;

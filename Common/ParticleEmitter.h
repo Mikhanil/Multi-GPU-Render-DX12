@@ -10,10 +10,10 @@ class ParticleEmitter :
 
 	std::shared_ptr<ConstantUploadBuffer<ObjectConstants>> objectPositionBuffer = nullptr;
 
-	std::shared_ptr<CounteredStructBuffer<ParticleData>> ParticlesPool = nullptr;	
+	std::shared_ptr<GBuffer> ParticlesPool = nullptr;	
 	std::shared_ptr<CounteredStructBuffer<DWORD>> ParticlesAlive = nullptr;	
 	std::shared_ptr<CounteredStructBuffer<DWORD>> ParticlesDead = nullptr;	
-	std::shared_ptr<CounteredStructBuffer<ParticleData>> InjectedParticles = nullptr;	
+	std::shared_ptr<GBuffer> InjectedParticles = nullptr;
 		
 	
 	std::vector<ParticleData> newParticles;
@@ -33,13 +33,13 @@ protected:
 	void Draw(std::shared_ptr<GCommandList> cmdList, bool readCounter);
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 
-	double CalculateGroupCount(UINT particleCount) const;
+	double CalculateGroupCount(DWORD particleCount) const;
 
 	void DescriptorInitialize();
 	void BufferInitialize();
 	
 public:
 
-	ParticleEmitter(std::shared_ptr<GDevice> primeDevice, UINT particleCount = 100);
+	ParticleEmitter(std::shared_ptr<GDevice> primeDevice, DWORD particleCount = 100);
 	void Dispatch(std::shared_ptr<GCommandList> cmdList) override;
 };
