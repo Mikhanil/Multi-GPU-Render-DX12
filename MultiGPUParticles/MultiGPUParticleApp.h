@@ -69,6 +69,9 @@ protected:
 	UINT64 primeGPURenderingTime = 0;
 	UINT64 secondGPURenderingTime = 0;
 
+	UINT64 primeGPUComputingTime = 0;
+	UINT64 secondGPUComputingTime = 0;
+	
 	D3D12_VIEWPORT fullViewport{};
 	D3D12_RECT fullRect;
 

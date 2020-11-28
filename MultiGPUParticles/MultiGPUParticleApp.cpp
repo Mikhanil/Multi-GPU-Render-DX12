@@ -35,6 +35,9 @@ void MultiGPUParticleApp::Update(const GameTimer& gt)
 	primeGPURenderingTime = primeDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 	secondGPURenderingTime = secondDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 
+	primeGPUComputingTime = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetTimestamp(olderIndex);
+	secondGPUComputingTime = secondDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetTimestamp(olderIndex);
+	
 	const auto commandQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 	currentFrameResource = frameResources[currentFrameResourceIndex];
@@ -240,6 +243,7 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
+	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 	
 	
 	std::shared_ptr<GCommandQueue> computeQueue;
@@ -269,10 +273,16 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 	{
 		const auto cmdList = computeQueue->GetCommandList();
 
+		cmdList->EndQuery(timestampHeapIndex);
+		
 		for (auto emitter : crossEmitter)
 		{
 			emitter->Dispatch(cmdList);
-		}		
+		}
+
+		cmdList->EndQuery(timestampHeapIndex + 1);
+		cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+		
 		currentFrameResource->ComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
 
 		if(UseCrossSync)
@@ -286,7 +296,7 @@ void MultiGPUParticleApp::Draw(const GameTimer& gt)
 	{
 		const auto cmdList = renderQueue->GetCommandList();	
 		
-		const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;	
+		
 		cmdList->EndQuery(timestampHeapIndex);
 		PopulateNormalMapCommands(cmdList);
 		PopulateAmbientMapCommands(cmdList);
@@ -576,7 +586,7 @@ void MultiGPUParticleApp::InitRenderPaths()
 		cmdList,
 		MainWindow->GetClientWidth(), MainWindow->GetClientHeight()));
 
-	antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 2, MainWindow->GetClientWidth(),
+	antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 4, MainWindow->GetClientWidth(),
 	                                                MainWindow->GetClientHeight()));
 	antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -866,7 +876,7 @@ void MultiGPUParticleApp::CreateGO()
 
 	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up);
-	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 3.5);
+	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 1);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
 	crossEmitter.push_back(emitter.get());
@@ -980,6 +990,11 @@ void MultiGPUParticleApp::CalculateFrameStats()
 	static UINT64 primeGPUTimeMin = std::numeric_limits<UINT64>::max();
 	static UINT64 secondGPUTimeMax = std::numeric_limits<UINT64>::min();
 	static UINT64 secondGPUTimeMin = std::numeric_limits<UINT64>::max();
+
+	static UINT64 primeGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
+	static UINT64 primeGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
+	static UINT64 secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
+	static UINT64 secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
 	frameCount++;
 
 	if ((timer.TotalTime() - timeElapsed) >= 1.0f)
@@ -996,6 +1011,11 @@ void MultiGPUParticleApp::CalculateFrameStats()
 		primeGPUTimeMax = std::max(primeGPURenderingTime, primeGPUTimeMax);
 		secondGPUTimeMin = std::min(secondGPURenderingTime, secondGPUTimeMin);
 		secondGPUTimeMax = std::max(secondGPURenderingTime, secondGPUTimeMax);
+		
+		primeGPUComputingTimeMin = std::min(primeGPUComputingTime, primeGPUComputingTimeMin);
+		primeGPUComputingTimeMax = std::max(primeGPUComputingTime, primeGPUComputingTimeMax);
+		secondGPUComputingTimeMin = std::min(secondGPUComputingTime, secondGPUComputingTimeMin);
+		secondGPUComputingTimeMax = std::max(secondGPUComputingTime, secondGPUComputingTimeMax);
 
 		
 
@@ -1017,7 +1037,11 @@ void MultiGPUParticleApp::CalculateFrameStats()
 				+ L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
 				+ L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
 				+ L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
-				+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin);
+				+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin)
+				+L"\n\tMax Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMax) +
+				+L"\n\tMin Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMin) +
+				+L"\n\tMax Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMax)
+				+ L"\n\tMin Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMin);
 
 			logQueue.Push(staticticStr);
 
@@ -1031,6 +1055,10 @@ void MultiGPUParticleApp::CalculateFrameStats()
 			primeGPUTimeMin = std::numeric_limits<UINT64>::max();
 			secondGPUTimeMax = std::numeric_limits<UINT64>::min();
 			secondGPUTimeMin = std::numeric_limits<UINT64>::max();
+			primeGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
+			primeGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
+			secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
+			secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
 
 			if(UseCrossAdapter == false)
 			{
@@ -1063,7 +1091,9 @@ void MultiGPUParticleApp::CalculateFrameStats()
 				L"\n\tFPS:" + std::to_wstring(fps)
 				+ L"\n\tMSPF:" + std::to_wstring(mspf)
 				+ L"\n\tPrime GPU Rendering Time:" + std::to_wstring(primeGPURenderingTime)
-				+ L"\n\tSecond GPU Rendering Time:" + std::to_wstring(secondGPURenderingTime);
+				+ L"\n\tSecond GPU Rendering Time:" + std::to_wstring(secondGPURenderingTime)
+				+ L"\n\tPrime GPU Computing Time:" + std::to_wstring(primeGPUComputingTime)
+				+ L"\n\tSecond GPU Computing Time:" + std::to_wstring(secondGPUComputingTime);
 
 			logQueue.Push(staticticStr);
 
