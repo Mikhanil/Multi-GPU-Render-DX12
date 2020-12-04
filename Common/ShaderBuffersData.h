@@ -85,10 +85,8 @@ struct PassConstants
 	Vector4 AmbientLight = Vector4{0.0f, 0.0f, 0.0f, 1.0f};
 
 
-	Vector4 FogColor = Vector4{0.7f, 0.7f, 0.7f, 1.0f};
-	float gFogStart = 5.0f;
-	float gFogRange = 150.0f;
-	Vector2 cbPerObjectPad2;
+	Vector3 CameraForwardVector;
+	float padding;
 
 	LightData Lights[MaxLights];
 };

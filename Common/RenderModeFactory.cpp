@@ -155,6 +155,20 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	quadPso->SetDepthStencilState(depthStencilDesc);
 
 
+	auto noisePSO = std::make_shared<GraphicPSO>(RenderMode::Debug);
+	noisePSO->SetPsoDesc(basePsoDesc);
+	noisePSO->SetShader(shaders["noiseVS"].get());
+	noisePSO->SetShader(shaders["noisePS"].get());
+	noisePSO->SetSampleCount(1);
+	noisePSO->SetSampleQuality(0);
+	noisePSO->SetDSVFormat(DXGI_FORMAT_UNKNOWN);
+	depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	depthStencilDesc.DepthEnable = false;
+	depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	noisePSO->SetDepthStencilState(depthStencilDesc);
+	
+
+	
 	auto uiPSO = std::make_shared<GraphicPSO>(RenderMode::UI);
 	uiPSO->SetPsoDesc(quadPso->GetPsoDescription());
 
@@ -189,6 +203,7 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 	PSO[ssaoBlurPSO->GetType()] = std::move(ssaoBlurPSO);
 	PSO[debugPso->GetType()] = std::move(debugPso);
 	PSO[quadPso->GetType()] = std::move(quadPso);
+	PSO[noisePSO->GetType()] = std::move(noisePSO);
 	PSO[uiPSO->GetType()] = std::move(uiPSO);
 	
 	for (auto& pso : PSO)
@@ -262,7 +277,10 @@ void RenderModeFactory::LoadDefaultShaders() const
 	shaders["quadPS"] = std::move(
 		std::make_shared<GShader>(L"Shaders\\Quad.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 	
-
+	shaders["noiseVS"] = std::move(
+		std::make_shared<GShader>(L"Shaders\\NoiseDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+	shaders["noisePS"] = std::move(
+		std::make_shared<GShader>(L"Shaders\\NoiseDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 	
 	for (auto&& pair : shaders)
 	{
@@ -270,7 +288,7 @@ void RenderModeFactory::LoadDefaultShaders() const
 	}
 }
 
-std::shared_ptr<GShader> RenderModeFactory::GetShader(std::string name)
+std::shared_ptr<GShader> RenderModeFactory::GetShader(const std::string& name)
 {
 	return shaders[name];
 }

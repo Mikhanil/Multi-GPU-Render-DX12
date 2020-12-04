@@ -179,6 +179,7 @@
     <ClInclude Include="AssetsLoader.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CameraController.h" />
+    <ClInclude Include="CloudGenerator.h" />
     <ClInclude Include="Component.h" />
     <ClInclude Include="CrossAdapterParticleEmitter.h" />
     <ClInclude Include="d3dApp.h" />
@@ -213,6 +214,7 @@
     <ClCompile Include="AssetsLoader.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CameraController.cpp" />
+    <ClCompile Include="CloudGenerator.cpp" />
     <ClCompile Include="Component.cpp" />
     <ClCompile Include="CrossAdapterParticleEmitter.cpp" />
     <ClCompile Include="d3dApp.cpp" />

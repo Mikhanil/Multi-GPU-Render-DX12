@@ -24,7 +24,7 @@ public:
 
 	void LoadDefaultShaders() const;
 
-	static std::shared_ptr<GShader> GetShader(std::string name);
+	static std::shared_ptr<GShader> GetShader(const std::string& name);
 	std::shared_ptr<GraphicPSO> GetPSO(RenderMode::Mode type)
 	{
 		return PSO[type];
