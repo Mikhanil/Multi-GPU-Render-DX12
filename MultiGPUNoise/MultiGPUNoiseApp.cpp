@@ -150,7 +150,7 @@ void MultiGPUNoiseApp::PopulateForwardPathCommands(std::shared_ptr<GCommandList>
 {
 	//Forward Path with SSAA
 	{
-		cmdList->SetDescriptorsHeap(&srvTexturesMemory);
+		
 		cmdList->SetRootSignature(primeDeviceSignature.get());
 		cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
 		                                   *currentFrameResource->MaterialBuffer);
@@ -174,13 +174,19 @@ void MultiGPUNoiseApp::PopulateForwardPathCommands(std::shared_ptr<GCommandList>
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantUploadBuffer);
 
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
+	
+		cmdList->SetDescriptorsHeap(cloudGenerator->GetCloudSRV());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, cloudGenerator->GetCloudSRV());
 
-
+		
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::SkyBox));
 		PopulateDrawCommands(cmdList, (RenderMode::SkyBox));
 
+		cmdList->SetDescriptorsHeap(&srvTexturesMemory);		
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
+		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
+
+		
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Opaque));
 		PopulateDrawCommands(cmdList, (RenderMode::Opaque));
 
@@ -239,99 +245,104 @@ void MultiGPUNoiseApp::PopulateDrawFullQuadTexture(std::shared_ptr<GCommandList>
 }
 
 
+UINT64 MultiGPUNoiseApp::ComputeEmitters(const UINT timestampHeapIndex, std::shared_ptr<GCommandQueue> computeQueue)
+{
+	primeComputeQueue->Wait(renderQueue);
+	
+	const auto cmdList = computeQueue->GetCommandList();
+
+	cmdList->EndQuery(timestampHeapIndex);
+
+	for (auto emitter : crossEmitter)
+	{
+		emitter->Dispatch(cmdList);
+	}		
+
+	cmdList->EndQuery(timestampHeapIndex + 1);
+	cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+	
+	 return computeQueue->ExecuteCommandList(cmdList);
+}
+
+UINT64 MultiGPUNoiseApp::RenderScene(const UINT timestampHeapIndex, UINT computeCloudFenceValue)
+{
+	const auto cmdList = renderQueue->GetCommandList();			
+		
+	cmdList->EndQuery(timestampHeapIndex);		
+
+	if(UseCrossAdapter)
+	{
+		if(secondComputeQueue->IsFinish(computeCloudFenceValue))
+			cloudGenerator->PrimeCopy(cmdList);
+	}
+
+	
+	PopulateNormalMapCommands(cmdList);
+	PopulateAmbientMapCommands(cmdList);
+	PopulateShadowMapCommands(cmdList); 
+	PopulateForwardPathCommands(cmdList);
+	PopulateInitRenderTarget(cmdList, MainWindow->GetCurrentBackBuffer(),
+	                         &currentFrameResource->BackBufferRTVMemory, 0);
+	PopulateDrawFullQuadTexture(cmdList, antiAliasingPrimePath->GetSRV(),
+	                            0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
+
+
+	cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+	cmdList->FlushResourceBarriers();
+	cmdList->EndQuery(timestampHeapIndex + 1);
+	cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+	renderQueue->Wait(primeComputeQueue->GetFence(), currentFrameResource->PrimeComputeParticleFenceValue);
+		
+	return renderQueue->ExecuteCommandList(cmdList);
+}
+
+UINT64 MultiGPUNoiseApp::ComputeClouds(const UINT timestampHeapIndex) const
+{
+	if(UseCrossAdapter)
+	{
+		if (currentFrameResource->CloudComputeFenceValue == 0 || secondComputeQueue->IsFinish(currentFrameResource->CloudComputeFenceValue))
+		{
+
+			const auto cmdList = secondComputeQueue->GetCommandList();
+
+			cmdList->EndQuery(timestampHeapIndex);
+
+			cloudGenerator->SecondCompute(cmdList, timer.DeltaTime());
+
+			cmdList->EndQuery(timestampHeapIndex + 1);
+			cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+			return secondComputeQueue->ExecuteCommandList(cmdList);
+		}
+		return  currentFrameResource->CloudComputeFenceValue;
+	}
+	else
+	{
+		const auto cmdList = primeComputeQueue->GetCommandList();
+
+		cloudGenerator->PrimeCompute(cmdList, timer.DeltaTime());
+			
+		return primeComputeQueue->ExecuteCommandList(cmdList);
+	}
+}
+
 void MultiGPUNoiseApp::Draw(const GameTimer& gt)
 {
 	if (isResizing) return;
 
 	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 	
+
+	currentFrameResource->PrimeComputeParticleFenceValue = ComputeEmitters(timestampHeapIndex, primeComputeQueue);
+
+	const UINT lastComputeFence = currentFrameResource->CloudComputeFenceValue;
 	
-	std::shared_ptr<GCommandQueue> computeQueue;
-
-	//if(UseCrossAdapter)
-	//{
-	//	computeQueue = secondDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-	//}
-	//else
-	//{
-		computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-	//}
-
-	auto renderQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
-
-	//if (UseCrossSync)
-	//{
-	//	computeQueue->Wait(secondRenderFence, sharedRenderFenceValue);
-	//}
-	//else
-	//{
-		computeQueue->Wait(renderQueue);
-	//}
+	currentFrameResource->CloudComputeFenceValue = ComputeClouds(timestampHeapIndex);
 
 	
-	
-	{
-		const auto cmdList = computeQueue->GetCommandList();
-
-		cmdList->EndQuery(timestampHeapIndex);
-
-		cloudGenerator->Compute(cmdList);
-
-		cmdList->EndQuery(timestampHeapIndex + 1);
-		cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-		
-		/*for (auto emitter : crossEmitter)
-		{
-			emitter->Dispatch(cmdList);
-		}*/
-		
-		
-		currentFrameResource->ComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
-
-		/*if(UseCrossSync)
-		{
-			sharedComputeFenceValue = currentFrameResource->ComputeFenceValue;
-			secondComputeFence->Signal(sharedComputeFenceValue);
-		}*/
-	}
-	
-
-	{
-		const auto cmdList = renderQueue->GetCommandList();	
-		
-		
-		cmdList->EndQuery(timestampHeapIndex);
-		PopulateNormalMapCommands(cmdList);
-		PopulateAmbientMapCommands(cmdList);
-		PopulateShadowMapCommands(cmdList); 
-		PopulateForwardPathCommands(cmdList);
-		PopulateInitRenderTarget(cmdList, MainWindow->GetCurrentBackBuffer(),
-			&currentFrameResource->BackBufferRTVMemory, 0);
-		PopulateDrawFullQuadTexture(cmdList, cloudGenerator->GetCloudSRV(),
-			0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
-
-
-		cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-		cmdList->FlushResourceBarriers();
-		cmdList->EndQuery(timestampHeapIndex + 1);
-		cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-
-		/*if(UseCrossSync)
-		{
-			renderQueue->Wait(primeComputeFence, sharedComputeFenceValue);
-		}
-		else*/
-			renderQueue->Wait(computeQueue);
-		
-		currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
-
-		/*if (UseCrossSync)
-		{
-			sharedRenderFenceValue = currentFrameResource->PrimeRenderFenceValue;
-			primeRenderFence->Signal(sharedRenderFenceValue);
-		}*/
-	}
-
+	currentFrameResource->PrimeRenderFenceValue = RenderScene(timestampHeapIndex, lastComputeFence);
 	currentFrameResourceIndex = MainWindow->Present();
 }
 
@@ -405,6 +416,12 @@ void MultiGPUNoiseApp::InitDevices()
 	logQueue.Push(
 		L"\t\n Cross Adapter Texture Support: " + std::to_wstring(
 			secondDevice->IsCrossAdapterTextureSupported()));
+
+
+	primeComputeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	renderQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+	secondComputeQueue = secondDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
 }
 
 void MultiGPUNoiseApp::InitFrameResource()
@@ -604,7 +621,7 @@ void MultiGPUNoiseApp::InitRenderPaths()
 
 	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));
 
-	cloudGenerator = std::make_shared<CloudGenerator>(primeDevice, 4096, 4096);
+	cloudGenerator = std::make_shared<CloudGenerator>(primeDevice, secondDevice , 4096, 4096);
 
 	
 }
@@ -886,13 +903,13 @@ void MultiGPUNoiseApp::CreateGO()
 		}
 	}
 
-	/*auto particle = std::make_unique<GameObject>();
+	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up);
 	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 1);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
 	crossEmitter.push_back(emitter.get());
-	gameObjects.push_back(std::move(particle));*/
+	gameObjects.push_back(std::move(particle));
 
 	auto platform = std::make_unique<GameObject>();
 	platform->SetScale(0.2);
@@ -907,11 +924,11 @@ void MultiGPUNoiseApp::CreateGO()
 	rotater->GetTransform()->SetParent(platform->GetTransform().get());
 	rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 	rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
-	//rotater->AddComponent(std::make_shared<Rotater>(10));
+	rotater->AddComponent(std::make_shared<Rotater>(10));
 
 	auto camera = std::make_unique<GameObject>("MainCamera");
 	camera->GetTransform()->SetParent(rotater->GetTransform().get());
-	camera->AddComponent(std::make_shared<CameraController>());
+	//camera->AddComponent(std::make_shared<CameraController>());
 	camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
 	camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
 	camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
@@ -1035,13 +1052,12 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 		timeElapsed += 1.0f;
 
 		
-		const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (UseCrossAdapter ? (UseCrossSync ? L"3" : L"2") : L"1") + L"/3" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) +  L"/" + std::to_wstring(100);
+		const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (UseCrossAdapter ? L"2" : L"1") + L"/2" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" + std::to_wstring(100);
 
 		if (writeStaticticCount >= StatisticStepSecondsCount)
 		{
 			const std::wstring staticticStr =
-				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter) +
-				L"\nUse Cross Sync: " + std::to_wstring(UseCrossSync)
+				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
 				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
 				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
@@ -1075,25 +1091,13 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 			if(UseCrossAdapter == false)
 			{
 				Flush();
-				for (auto && emitter : crossEmitter)
-				{
-					emitter->EnableShared();
-				}
+				secondComputeQueue->SignalWithNewFenceValue(primeComputeQueue->GetFenceValue());
+				
 				UseCrossAdapter = true;
 			}
 			else
 			{
-				if(UseCrossSync == false)
-				{
-					Flush();
-					UseCrossSync = true;
-
-					primeRenderFence->Signal(currentFrameResource->PrimeRenderFenceValue);
-					primeComputeFence->Signal(currentFrameResource->ComputeFenceValue);
-					
-				}
-				else
-					IsStop = true;
+				IsStop = true;
 			}
 			
 		}
@@ -1120,7 +1124,7 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 void MultiGPUNoiseApp::LogWriting()
 {
 	const std::filesystem::path filePath(
-		L"SharedParticle " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
+		L"SharedCloudGenerator " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
 
 	const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
 

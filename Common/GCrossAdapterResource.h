@@ -19,6 +19,8 @@ class GCrossAdapterResource
 	
 public:
 
+	GCrossAdapterResource() {  }
+	
 	GCrossAdapterResource(D3D12_RESOURCE_DESC& desc, const std::shared_ptr<GDevice>& primeDevice,
 	                      const std::shared_ptr<GDevice>
 	                      & sharedDevice, const std::wstring& name = L"",

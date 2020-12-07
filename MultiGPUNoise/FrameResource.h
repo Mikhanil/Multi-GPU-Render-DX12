@@ -26,7 +26,7 @@ struct FrameResource
 
 
 	UINT64 PrimeRenderFenceValue = 0;
-	UINT64 PrimeCopyFenceValue = 0;
-	UINT64 ComputeFenceValue = 0;
+	UINT64 PrimeComputeParticleFenceValue = 0;
+	UINT64 CloudComputeFenceValue = 0;
 };
 

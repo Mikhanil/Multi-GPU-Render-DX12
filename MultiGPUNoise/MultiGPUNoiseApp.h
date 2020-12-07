@@ -37,6 +37,10 @@ protected:
 	                             UINT offsetRTV);
 	void PopulateDrawFullQuadTexture(std::shared_ptr<GCommandList> cmdList,
 	                             GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset, GraphicPSO& pso);
+	UINT64 ComputeEmitters(UINT timestampHeapIndex, std::shared_ptr<GCommandQueue> computeQueue);
+	UINT64 RenderScene(const UINT timestampHeapIndex,
+	                   UINT computeCloudFenceValue);
+	UINT64 ComputeClouds(UINT timestampHeapIndex) const;
 	void Draw(const GameTimer& gt) override;
 
 	void InitDevices();
@@ -67,6 +71,13 @@ protected:
 	std::shared_ptr<GDevice> secondDevice;
 
 	LockThreadQueue<std::wstring> logQueue{};
+
+
+	std::shared_ptr<GCommandQueue> primeComputeQueue;
+	std::shared_ptr<GCommandQueue> renderQueue;
+	std::shared_ptr<GCommandQueue> secondComputeQueue;
+	
+	
 	UINT64 primeGPURenderingTime = 0;
 	UINT64 secondGPURenderingTime = 0;
 
@@ -100,7 +111,7 @@ protected:
 	custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>();
 
 	bool UseCrossAdapter = false;
-	bool UseCrossSync = false;
+	
 	custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter*>();
 
 	std::shared_ptr<GTexture> NoiseTexture;
@@ -140,6 +151,8 @@ protected:
 	Vector3 mRotatedLightDirections[3];
 
 	DirectX::BoundingSphere mSceneBounds;
+
 	
+
 };
 

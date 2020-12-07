@@ -42,7 +42,7 @@ float rand(float2 c)
 
 
 
-static const float cloudscale = 1.1;
+static const float CloudScale = 1.1;
 static const float speed = 0.03;
 static const float clouddark = 0.5;
 static const float cloudlight = 0.3;
@@ -94,12 +94,12 @@ float4 PS(VertexOut pin) : SV_Target
 
 	
     float currentSpeed = worldBuffer.TotalTime * speed;
-    float q = fbm(uv * cloudscale * 0.5);
+    float q = fbm(uv * CloudScale * 0.5);
 
 	
     //ridged noise shape
     float r = 0.0;
-    uv *= cloudscale;
+    uv *= CloudScale;
     uv -= q - currentSpeed;
     float weight = 0.8;
     for (int i = 0; i < 8; i++)
@@ -112,7 +112,7 @@ float4 PS(VertexOut pin) : SV_Target
     //noise shape
     float f = 0.0;
     uv = p * float2(worldBuffer.RenderTargetSize.x / worldBuffer.RenderTargetSize.y, 1.0);
-    uv *= cloudscale;
+    uv *= CloudScale;
     uv -= q - currentSpeed;
     weight = 0.7;
     for (int i = 0; i < 8; i++)
@@ -128,7 +128,7 @@ float4 PS(VertexOut pin) : SV_Target
     float c = 0.0;
     currentSpeed = worldBuffer.TotalTime * speed * 2.0;
     uv = p * float2(worldBuffer.RenderTargetSize.x / worldBuffer.RenderTargetSize.y, 1.0);
-    uv *= cloudscale * 2.0;
+    uv *= CloudScale * 2.0;
     uv -= q - currentSpeed;
     weight = 0.4;
     for (int i = 0; i < 7; i++)
@@ -142,7 +142,7 @@ float4 PS(VertexOut pin) : SV_Target
     float c1 = 0.0;
     currentSpeed = worldBuffer.TotalTime * speed * 3.0;
     uv = p * float2(worldBuffer.RenderTargetSize.x / worldBuffer.RenderTargetSize.y, 1.0);
-    uv *= cloudscale * 3.0;
+    uv *= CloudScale * 3.0;
     uv -= q - currentSpeed;
     weight = 0.4;
     for (int i = 0; i < 7; i++)

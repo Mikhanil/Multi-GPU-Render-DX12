@@ -4,9 +4,11 @@
 
 void CloudGenerator::Initialize()
 {
-	uavDescriptor = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-	srvDescriptor = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	primeUavDescriptor = primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
+	srvDescriptor = primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
 
+	secondUavDescriptor = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	
 	int width = this->width;
 	int height = this->height;
 
@@ -33,16 +35,20 @@ void CloudGenerator::Initialize()
 	renderTargetDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 	renderTargetDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
-	generatedCloudTex = GTexture(device, renderTargetDesc, L"Generated Cloud");
+	primeCloudTex = GTexture(primeDevice, renderTargetDesc, L"Prime Generated Cloud");
 
+	secondCloudTex = GTexture(secondDevice, renderTargetDesc, L"Second Cloud Generated Tex");
+
+	crossAdapterCloudTex = GCrossAdapterResource(renderTargetDesc, primeDevice, secondDevice, L"Cross Adapter Cloud Tex");
+	
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 	uavDesc.Format = rtvFormat;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Texture2D.PlaneSlice = 0;
 	uavDesc.Texture2D.MipSlice = 0;
 	
-	generatedCloudTex.CreateUnorderedAccessView(&uavDesc, &uavDescriptor);
-
+	primeCloudTex.CreateUnorderedAccessView(&uavDesc, &primeUavDescriptor);
+	secondCloudTex.CreateUnorderedAccessView(&uavDesc, &secondUavDescriptor);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -53,47 +59,103 @@ void CloudGenerator::Initialize()
 	srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 	srvDesc.Texture2D.MipLevels = 1;
 	
-	generatedCloudTex.CreateShaderResourceView(&srvDesc, &srvDescriptor);
+	primeCloudTex.CreateShaderResourceView(&srvDesc, &srvDescriptor);
 
 
 	CD3DX12_DESCRIPTOR_RANGE textures[1];
 	textures[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
 
-	cloudGeneratedSignature.AddDescriptorParameter(&textures[0], 1);
-	cloudGeneratedSignature.Initialize(device);
+	primeCloudGeneratedSignature.AddConstantParameter(sizeof(CloudGeneratorData) / sizeof(float), 0, 0);
+	primeCloudGeneratedSignature.AddDescriptorParameter(&textures[0], 1);
+	primeCloudGeneratedSignature.Initialize(primeDevice);
 
 	cloudNoiseShader = GShader(L"Shaders\\CloudsNoiseCS.hlsl", ComputeShader, nullptr, "CS", "cs_5_1");
 
 	cloudNoiseShader.LoadAndCompile();
 
-	generatedPSO.SetRootSignature(cloudGeneratedSignature);
-	generatedPSO.SetShader(&cloudNoiseShader);
-	generatedPSO.Initialize(device);
+	primeGeneratedPSO.SetRootSignature(primeCloudGeneratedSignature);
+	primeGeneratedPSO.SetShader(&cloudNoiseShader);
+	primeGeneratedPSO.Initialize(primeDevice);
 
+
+	secondCloudGeneratedSignature.AddConstantParameter(sizeof(CloudGeneratorData) / sizeof(float), 0, 0);
+	secondCloudGeneratedSignature.AddDescriptorParameter(&textures[0], 1);
+	secondCloudGeneratedSignature.Initialize(secondDevice);
+
+	secondGeneratedPSO.SetRootSignature(secondCloudGeneratedSignature);
+	secondGeneratedPSO.SetShader(&cloudNoiseShader);
+	secondGeneratedPSO.Initialize(secondDevice);
+	
 	groupCountWidth = width / 32;
 	groupCountHeight = height / 32;
 }
 
-void CloudGenerator::Compute(const std::shared_ptr<GCommandList> cmdList)
+void CloudGenerator::PrimeCompute(const std::shared_ptr<GCommandList>& cmdList, const float deltaTime)
 {
-	cmdList->TransitionBarrier(generatedCloudTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	generatorParameters.TotalTime += deltaTime;
+	
+	cmdList->TransitionBarrier(primeCloudTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	cmdList->FlushResourceBarriers();
 	
-	cmdList->SetRootSignature(&cloudGeneratedSignature);
-	cmdList->SetDescriptorsHeap(&uavDescriptor);
-	cmdList->SetPipelineState(generatedPSO);
+	cmdList->SetRootSignature(&primeCloudGeneratedSignature);
+	cmdList->SetDescriptorsHeap(&primeUavDescriptor);
+	cmdList->SetPipelineState(primeGeneratedPSO);
 
-	cmdList->SetRootDescriptorTable(0, &uavDescriptor);
-
+	cmdList->SetRoot32BitConstants(0, sizeof(CloudGeneratorData) / sizeof(float), &generatorParameters, 0);
+	cmdList->SetRootDescriptorTable(1, &primeUavDescriptor);
+	
 	cmdList->Dispatch(groupCountWidth, groupCountHeight, 1);
 
-	cmdList->TransitionBarrier(generatedCloudTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+	cmdList->TransitionBarrier(primeCloudTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
 	cmdList->FlushResourceBarriers();	
 }
 
-CloudGenerator::CloudGenerator(const std::shared_ptr<GDevice> device, UINT width, UINT height): device(device), width(width), height(height)
+void CloudGenerator::PrimeCopy(const std::shared_ptr<GCommandList>& primeCmdList) const
+{
+	primeCmdList->CopyResource(primeCloudTex, crossAdapterCloudTex.GetPrimeResource());
+	primeCmdList->TransitionBarrier(primeCloudTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+	primeCmdList->FlushResourceBarriers();
+}
+
+void CloudGenerator::SecondCompute(const std::shared_ptr<GCommandList>& cmdList, float deltaTime)
+{
+	generatorParameters.TotalTime += deltaTime;
+
+	cmdList->TransitionBarrier(secondCloudTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	cmdList->FlushResourceBarriers();
+
+	cmdList->SetRootSignature(&secondCloudGeneratedSignature);
+	cmdList->SetDescriptorsHeap(&secondUavDescriptor);
+	cmdList->SetPipelineState(secondGeneratedPSO);
+
+	cmdList->SetRoot32BitConstants(0, sizeof(CloudGeneratorData) / sizeof(float), &generatorParameters, 0);
+	cmdList->SetRootDescriptorTable(1, &secondUavDescriptor);
+
+	cmdList->Dispatch(groupCountWidth, groupCountHeight, 1);
+
+	cmdList->CopyResource(crossAdapterCloudTex.GetSharedResource(), secondCloudTex);
+}
+
+
+CloudGenerator::CloudGenerator(const std::shared_ptr<GDevice> primeDevice, const std::shared_ptr<GDevice> secondDevice, UINT width, UINT height): primeDevice(primeDevice), secondDevice(secondDevice), width(width), height(height)
 {
 	Initialize();
+	
+	generatorParameters.CloudScale = 1.1;
+	generatorParameters.CloudSpeed = 0.003;
+	generatorParameters.CloudDark = 0.5;
+	generatorParameters.CloudLight = 0.3;
+
+	generatorParameters.CloudCover = 0.2;
+	generatorParameters.CloudAlpha = 8.0;
+	generatorParameters.SkyTint = 0.5;
+	generatorParameters.TotalTime = 0;
+
+	generatorParameters.SkyColor1 = Vector4(0.2, 0.4, 0.6, 1);
+	generatorParameters.SkyColor2 = Vector4(0.4, 0.7, 1.0, 1);
+	generatorParameters.CloudColor = Vector4(1.1, 1.1, 0.9, 1);
+
+	generatorParameters.RenderTargetSize = Vector2(height, width);
 }
 
 GDescriptor* CloudGenerator::GetCloudSRV()
@@ -103,5 +165,5 @@ GDescriptor* CloudGenerator::GetCloudSRV()
 
 GTexture& CloudGenerator::GetCloudTexture()
 {
-	return generatedCloudTex;
+	return primeCloudTex;
 }

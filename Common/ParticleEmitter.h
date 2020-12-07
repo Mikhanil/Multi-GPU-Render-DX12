@@ -30,7 +30,6 @@ class ParticleEmitter :
 	
 protected:
 	void Update() override;
-	void Draw(std::shared_ptr<GCommandList> cmdList, bool readCounter);
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 
 	double CalculateGroupCount(DWORD particleCount) const;

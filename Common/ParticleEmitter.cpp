@@ -189,15 +189,8 @@ void ParticleEmitter::Update()
 	}
 }
 
-void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList, bool readCounter)
-{
-	if (readCounter)
-	{
-		ParticlesAlive->ReadCounter(&emitterData.ParticlesAliveCount);
-	}	
-	
-	emitterData.ParticlesAliveCount = std::clamp(emitterData.ParticlesAliveCount, DWORD(0), emitterData.ParticlesTotalCount);
-	
+void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
+{	
 	cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	cmdList->TransitionBarrier(ParticlesAlive->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	cmdList->FlushResourceBarriers();
@@ -225,17 +218,17 @@ void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList, bool readCount
 	cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
 	cmdList->TransitionBarrier(ParticlesAlive->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
 	cmdList->FlushResourceBarriers();
-
 }
 
-void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
-{
-	Draw(cmdList, true);	
-}
 
 void ParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList) 
 {
 	isWorked = true;
+
+	ParticlesAlive->ReadCounter(&emitterData.ParticlesAliveCount);
+
+	emitterData.ParticlesAliveCount = std::clamp(emitterData.ParticlesAliveCount, DWORD(0), emitterData.ParticlesTotalCount);
+
 	
 	cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	cmdList->TransitionBarrier(ParticlesAlive->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

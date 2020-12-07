@@ -113,26 +113,20 @@ void CrossAdapterParticleEmitter::Update()
 }
 
 void CrossAdapterParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
-{	
-	if(UseSharedCompute)
+{
+	if (UseSharedCompute)
 	{
-		ParticlesAlive->ReadCounter(&primeParticleEmitter->emitterData.ParticlesAliveCount);
-		
-		cmdList->CopyResource(primeParticleEmitter->ParticlesPool->GetD3D12Resource(), CrossAdapterParticles->GetPrimeResource().GetD3D12Resource());
-		cmdList->CopyResource(primeParticleEmitter->ParticlesAlive->GetD3D12Resource(), CrossAdapterAliveIndexes->GetPrimeResource().GetD3D12Resource());
+		cmdList->CopyResource(primeParticleEmitter->ParticlesPool->GetD3D12Resource(),
+		                      CrossAdapterParticles->GetPrimeResource().GetD3D12Resource());
+		cmdList->CopyResource(primeParticleEmitter->ParticlesAlive->GetD3D12Resource(),
+		                      CrossAdapterAliveIndexes->GetPrimeResource().GetD3D12Resource());
+	}
 
-		primeParticleEmitter->Draw(cmdList, false);
-	}
-	else
-	{
-		primeParticleEmitter->Draw(cmdList, true);
-	}
-	
+	primeParticleEmitter->Draw(cmdList);
 }
 
 void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList)
-{
-	
+{	
 	if(DirtyActivated == Enable)
 	{
 		if (primeParticleEmitter->isWorked)
@@ -159,6 +153,8 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 	
 	if(UseSharedCompute)
 	{
+		ParticlesAlive->ReadCounter(&primeParticleEmitter->emitterData.ParticlesAliveCount);
+		
 		cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		cmdList->TransitionBarrier(ParticlesAlive->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		cmdList->TransitionBarrier(ParticlesDead->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -170,11 +166,7 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticlesPool, &updateDescriptors,	0);
 		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleDead, &updateDescriptors,	1);
 		cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &updateDescriptors,	2);
-
-		
-
-		
-		
+				
 		if (primeParticleEmitter->emitterData.ParticlesTotalCount > primeParticleEmitter->emitterData.ParticlesAliveCount)
 		{
 			const long check = (primeParticleEmitter->emitterData.ParticlesTotalCount - primeParticleEmitter->emitterData.ParticlesAliveCount);

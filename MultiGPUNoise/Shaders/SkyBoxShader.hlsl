@@ -45,14 +45,20 @@ float4 SKYMAP_PS(VertexOut pin) : SV_Target
     float height;
     float4 outputColor;
 
+    outputColor = ssaoMap.Sample(gsamAnisotropicWrap, pin.UV);
 
+	
+    return outputColor;
+	
     //Determine the position on the sky dome where this pixel is located.
     height = pin.PosL.y;
 
     //The value ranges from -1.0f to +1.0f so change it to only positive values.
     if (height > 0.0)
     {       
-        outputColor = lerp(centerColor, apexColor, height);
+       // outputColor = lerp(centerColor, apexColor, height);
+
+        outputColor = ssaoMap.Sample(gsamAnisotropicWrap, pin.UV);
     }
 	else
 	{
