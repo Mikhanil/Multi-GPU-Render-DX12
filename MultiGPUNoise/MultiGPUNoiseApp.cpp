@@ -174,10 +174,17 @@ void MultiGPUNoiseApp::PopulateForwardPathCommands(std::shared_ptr<GCommandList>
 		cmdList->
 			SetRootConstantBufferView(StandardShaderSlot::CameraData, *currentFrameResource->PrimePassConstantUploadBuffer);
 
-	
-		cmdList->SetDescriptorsHeap(cloudGenerator->GetCloudSRV());
-		cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, cloudGenerator->GetCloudSRV());
 
+		if (UseSecondApproach)
+		{
+			cmdList->SetDescriptorsHeap(cloudGeneratorV2->GetCloudSRV());
+			cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, cloudGeneratorV2->GetCloudSRV());
+		}
+		else
+		{
+			cmdList->SetDescriptorsHeap(cloudGenerator->GetCloudSRV());
+			cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, cloudGenerator->GetCloudSRV());
+		}
 		
 		cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::SkyBox));
 		PopulateDrawCommands(cmdList, (RenderMode::SkyBox));
@@ -269,18 +276,26 @@ UINT64 MultiGPUNoiseApp::RenderScene(const UINT timestampHeapIndex, UINT compute
 {
 	const auto cmdList = renderQueue->GetCommandList();			
 		
-	cmdList->EndQuery(timestampHeapIndex);		
-
-	if(UseCrossAdapter)
-	{
-		if(secondComputeQueue->IsFinish(computeCloudFenceValue))
-			cloudGenerator->PrimeCopy(cmdList);
-	}
-
+	cmdList->EndQuery(timestampHeapIndex);
 	
 	PopulateNormalMapCommands(cmdList);
 	PopulateAmbientMapCommands(cmdList);
-	PopulateShadowMapCommands(cmdList); 
+	PopulateShadowMapCommands(cmdList);
+
+	if (UseSecondApproach)
+	{
+		if (UseCrossAdapter)
+			cloudGeneratorV2->PrimeCopy(cmdList);
+	}
+	else
+	{
+		if (UseCrossAdapter)
+		{
+			if (secondComputeQueue->IsFinish(computeCloudFenceValue))
+				cloudGenerator->PrimeCopy(cmdList);
+		}
+	}
+	
 	PopulateForwardPathCommands(cmdList);
 	PopulateInitRenderTarget(cmdList, MainWindow->GetCurrentBackBuffer(),
 	                         &currentFrameResource->BackBufferRTVMemory, 0);
@@ -293,38 +308,77 @@ UINT64 MultiGPUNoiseApp::RenderScene(const UINT timestampHeapIndex, UINT compute
 	cmdList->EndQuery(timestampHeapIndex + 1);
 	cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
-	renderQueue->Wait(primeComputeQueue->GetFence(), currentFrameResource->PrimeComputeParticleFenceValue);
+	if(UseSecondApproach)
+	{
+		renderQueue->Wait(primeComputeQueue);
+		renderQueue->Wait(primeComputeFence, currentFrameResource->CloudComputeFenceValue);
+	}
+	else
+		renderQueue->Wait(primeComputeQueue->GetFence(), currentFrameResource->PrimeComputeParticleFenceValue);
 		
 	return renderQueue->ExecuteCommandList(cmdList);
 }
 
 UINT64 MultiGPUNoiseApp::ComputeClouds(const UINT timestampHeapIndex) const
 {
-	if(UseCrossAdapter)
+	if(UseSecondApproach)
 	{
-		if (currentFrameResource->CloudComputeFenceValue == 0 || secondComputeQueue->IsFinish(currentFrameResource->CloudComputeFenceValue))
+		if (UseCrossAdapter)
 		{
-
 			const auto cmdList = secondComputeQueue->GetCommandList();
 
 			cmdList->EndQuery(timestampHeapIndex);
 
-			cloudGenerator->SecondCompute(cmdList, timer.DeltaTime());
+			cloudGeneratorV2->SecondCompute(cmdList, deltaTimeCloud);
 
 			cmdList->EndQuery(timestampHeapIndex + 1);
 			cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
-			return secondComputeQueue->ExecuteCommandList(cmdList);
+			const auto fenceValue = secondComputeQueue->ExecuteCommandList(cmdList);
+
+			secondComputeQueue->Signal(secondComputeFence, fenceValue);
+			return  fenceValue;
 		}
-		return  currentFrameResource->CloudComputeFenceValue;
+		else
+		{
+			const auto cmdList = primeComputeQueue->GetCommandList();
+			cloudGeneratorV2->PrimeCompute(cmdList, deltaTimeCloud);
+
+			const auto fenceValue = primeComputeQueue->ExecuteCommandList(cmdList);
+
+			primeComputeQueue->Signal(primeComputeFence, fenceValue);
+
+			return fenceValue;
+		}
 	}
 	else
 	{
-		const auto cmdList = primeComputeQueue->GetCommandList();
+		if (UseCrossAdapter)
+		{
+			if (currentFrameResource->CloudComputeFenceValue == 0 || secondComputeQueue->IsFinish(currentFrameResource->CloudComputeFenceValue))
+			{
 
-		cloudGenerator->PrimeCompute(cmdList, timer.DeltaTime());
-			
-		return primeComputeQueue->ExecuteCommandList(cmdList);
+				const auto cmdList = secondComputeQueue->GetCommandList();
+
+				cmdList->EndQuery(timestampHeapIndex);
+
+				cloudGenerator->SecondCompute(cmdList, deltaTimeCloud);
+
+				cmdList->EndQuery(timestampHeapIndex + 1);
+				cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+				return secondComputeQueue->ExecuteCommandList(cmdList);
+			}
+			return  currentFrameResource->CloudComputeFenceValue;
+		}
+		else
+		{
+			const auto cmdList = primeComputeQueue->GetCommandList();
+
+			cloudGenerator->PrimeCompute(cmdList, deltaTimeCloud);
+
+			return primeComputeQueue->ExecuteCommandList(cmdList);
+		}
 	}
 }
 
@@ -622,6 +676,7 @@ void MultiGPUNoiseApp::InitRenderPaths()
 	shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));
 
 	cloudGenerator = std::make_shared<CloudGenerator>(primeDevice, secondDevice , 4096, 4096);
+	cloudGeneratorV2 = std::make_shared<CloudGenerator>(primeDevice, secondDevice , 512, 512);
 
 	
 }
@@ -905,7 +960,7 @@ void MultiGPUNoiseApp::CreateGO()
 
 	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up);
-	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 1);
+	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 0.06);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
 	crossEmitter.push_back(emitter.get());
@@ -924,15 +979,19 @@ void MultiGPUNoiseApp::CreateGO()
 	rotater->GetTransform()->SetParent(platform->GetTransform().get());
 	rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 	rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
-	rotater->AddComponent(std::make_shared<Rotater>(10));
 
 	auto camera = std::make_unique<GameObject>("MainCamera");
 	camera->GetTransform()->SetParent(rotater->GetTransform().get());
-	//camera->AddComponent(std::make_shared<CameraController>());
 	camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
 	camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
 	camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
 
+#if defined(DEBUG) || defined(_DEBUG)
+	camera->AddComponent(std::make_shared<CameraController>());
+#else
+	rotater->AddComponent(std::make_shared<Rotater>(10));
+#endif
+	
 	gameObjects.push_back(std::move(camera));
 	gameObjects.push_back(std::move(rotater));
 
@@ -1052,12 +1111,13 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 		timeElapsed += 1.0f;
 
 		
-		const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (UseCrossAdapter ? L"2" : L"1") + L"/2" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" + std::to_wstring(100);
+		const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + ( UseSecondApproach ? (UseCrossAdapter ? L"4" : L"3") : (UseCrossAdapter ? L"2" : L"1")) + L"/4" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" + std::to_wstring(100);
 
 		if (writeStaticticCount >= StatisticStepSecondsCount)
 		{
 			const std::wstring staticticStr =
 				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
+				+ L"\nUse Second Variant: " + std::to_wstring(UseSecondApproach)
 				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
 				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
 				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
@@ -1091,15 +1151,24 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 			if(UseCrossAdapter == false)
 			{
 				Flush();
-				secondComputeQueue->SignalWithNewFenceValue(primeComputeQueue->GetFenceValue());
+				
+				if(UseSecondApproach == false)
+					secondComputeQueue->SignalWithNewFenceValue(primeComputeQueue->GetFenceValue());
 				
 				UseCrossAdapter = true;
 			}
 			else
 			{
-				IsStop = true;
-			}
-			
+				Flush();
+				
+				if(UseSecondApproach)				
+					IsStop = true;
+				else
+				{
+					UseSecondApproach = true;
+					UseCrossAdapter = false;
+				}
+			}			
 		}
 		else
 		{
@@ -1124,7 +1193,7 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 void MultiGPUNoiseApp::LogWriting()
 {
 	const std::filesystem::path filePath(
-		L"SharedCloudGenerator " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
+		L"SharedCloudGeneratorV2 " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
 
 	const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
 

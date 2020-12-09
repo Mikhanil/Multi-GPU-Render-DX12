@@ -142,7 +142,7 @@ CloudGenerator::CloudGenerator(const std::shared_ptr<GDevice> primeDevice, const
 	Initialize();
 	
 	generatorParameters.CloudScale = 1.1;
-	generatorParameters.CloudSpeed = 0.003;
+	generatorParameters.CloudSpeed = 0.006;
 	generatorParameters.CloudDark = 0.5;
 	generatorParameters.CloudLight = 0.3;
 

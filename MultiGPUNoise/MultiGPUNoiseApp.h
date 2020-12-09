@@ -102,6 +102,7 @@ protected:
 	const int StatisticStepSecondsCount = 120;
 
 	std::shared_ptr<CloudGenerator> cloudGenerator;
+	std::shared_ptr<CloudGenerator> cloudGeneratorV2;
 	std::shared_ptr<ShadowMap> shadowPath;
 	std::shared_ptr<SSAO> ambientPrimePath;
 	std::shared_ptr<SSAA> antiAliasingPrimePath;
@@ -110,7 +111,10 @@ protected:
 
 	custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>();
 
+	const float deltaTimeCloud = 1.0f / 60.0f;
+	
 	bool UseCrossAdapter = false;
+	bool UseSecondApproach = false;
 	
 	custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter*>();
 
