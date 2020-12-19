@@ -16,49 +16,12 @@ void ParticleEmitter::DescriptorInitialize()
 {
 	particlesComputeDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-	uavDesc.Buffer.FirstElement = 0;
-	uavDesc.Buffer.NumElements = ParticlesPool->GetElementCount();
-	uavDesc.Buffer.StructureByteStride = ParticlesPool->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = 0;
-
-	ParticlesPool->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 0);
-
-	uavDesc.Buffer.NumElements = ParticlesDead->GetElementCount();
-	uavDesc.Buffer.StructureByteStride = ParticlesDead->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = ParticlesDead->GetBufferSize() - sizeof(DWORD);
-	ParticlesDead->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 1, ParticlesDead->GetD3D12Resource());
-	ParticlesAlive->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 2, ParticlesAlive->GetD3D12Resource());
-
-	uavDesc.Buffer.NumElements = InjectedParticles->GetElementCount();
-	uavDesc.Buffer.StructureByteStride = InjectedParticles->GetStride();
-	uavDesc.Buffer.CounterOffsetInBytes = 0;
-	InjectedParticles->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 3);	
-
-
 	particlesRenderDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 + Atlas.size());
 	
+
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = emitterData.ParticlesTotalCount;
-	srvDesc.Buffer.StructureByteStride = ParticlesPool->GetStride();
-
-	ParticlesPool->CreateShaderResourceView(&srvDesc, &particlesRenderDescriptors, 0);
-
-	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = ParticlesAlive->GetElementCount();
-	srvDesc.Buffer.StructureByteStride = ParticlesAlive->GetStride();
-	ParticlesAlive->CreateShaderResourceView(&srvDesc, &particlesRenderDescriptors, 1);
-
-
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	for (int i = 0; i < Atlas.size(); ++i)
 	{
@@ -72,15 +35,41 @@ void ParticleEmitter::DescriptorInitialize()
 		srvDesc.Texture2D.MipLevels = desc.MipLevels;
 
 		texture->CreateShaderResourceView(&srvDesc, &particlesRenderDescriptors, 2 + i);
-	}
-
-	
-	
+	}	
 }
 
 void ParticleEmitter::BufferInitialize()
 {
-	objectPositionBuffer = std::make_shared<ConstantUploadBuffer<ObjectConstants>>(device, 1, L"Emitter Position");
+	
+	
+	if(objectPositionBuffer == nullptr)
+		objectPositionBuffer = std::make_shared<ConstantUploadBuffer<ObjectConstants>>(device, 1, L"Emitter Position");
+
+	if (ParticlesPool)
+	{
+		ParticlesPool->Reset();
+		ParticlesPool.reset();
+	}
+
+	if (InjectedParticles)
+	{
+		InjectedParticles->Reset();
+		InjectedParticles.reset();
+	}
+
+	if (ParticlesAlive)
+	{
+		ParticlesAlive->Reset();
+		ParticlesAlive.reset();
+	}
+
+	if (ParticlesDead)
+	{
+		ParticlesDead->Reset();
+		ParticlesDead.reset();
+	}
+	
+	
 	ParticlesPool = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticlesTotalCount, L"Particles Pool Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	InjectedParticles = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticleInjectCount, L"Injected Particle Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(device, emitterData.ParticlesTotalCount, L"Particles Alive Index Buffer");
@@ -109,9 +98,66 @@ void ParticleEmitter::BufferInitialize()
 
 	ParticlesDead->ReadCounter(&emitterData.ParticlesAliveCount);
 	ParticlesAlive->ReadCounter(&emitterData.ParticlesAliveCount);
-	
+
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = ParticlesPool->GetElementCount();
+	uavDesc.Buffer.StructureByteStride = ParticlesPool->GetStride();
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+
+	ParticlesPool->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 0);
+
+	uavDesc.Buffer.NumElements = ParticlesDead->GetElementCount();
+	uavDesc.Buffer.StructureByteStride = ParticlesDead->GetStride();
+	uavDesc.Buffer.CounterOffsetInBytes = ParticlesDead->GetBufferSize() - sizeof(DWORD);
+	ParticlesDead->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 1, ParticlesDead->GetD3D12Resource());
+	ParticlesAlive->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 2, ParticlesAlive->GetD3D12Resource());
+
+	uavDesc.Buffer.NumElements = InjectedParticles->GetElementCount();
+	uavDesc.Buffer.StructureByteStride = InjectedParticles->GetStride();
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	InjectedParticles->CreateUnorderedAccessView(&uavDesc, &particlesComputeDescriptors, 3);
+
+
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = emitterData.ParticlesTotalCount;
+	srvDesc.Buffer.StructureByteStride = ParticlesPool->GetStride();
+
+	ParticlesPool->CreateShaderResourceView(&srvDesc, &particlesRenderDescriptors, 0);
+
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = ParticlesAlive->GetElementCount();
+	srvDesc.Buffer.StructureByteStride = ParticlesAlive->GetStride();
+	ParticlesAlive->CreateShaderResourceView(&srvDesc, &particlesRenderDescriptors, 1);
+
+
+	newParticles.resize(InjectedParticles->GetElementCount());
 }
 
+void ParticleEmitter::ChangeParticleCount(UINT count)
+{
+	emitterData.ParticlesTotalCount = count;
+	emitterData.Color = DirectX::Colors::Blue;
+	emitterData.Size = Vector2::One * 5.0f;
+	emitterData.DeltaTime = 1.0f / 60.0f;
+	emitterData.Force = Vector3(0, 9.8f, 0) * -1;
+	emitterData.SimulatedGroupCount = CalculateGroupCount(count);
+	emitterData.UseTexture = true;
+	emitterData.ParticleInjectCount = count / 16;
+	emitterData.InjectedGroupCount = CalculateGroupCount(emitterData.ParticleInjectCount);
+
+	BufferInitialize();
+}
 
 
 ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, DWORD particleCount)
@@ -169,12 +215,13 @@ ParticleEmitter::ParticleEmitter(std::shared_ptr<GDevice> device, DWORD particle
 	
 	PSOInitialize();
 
+	DescriptorInitialize();
+	
 	BufferInitialize();
 
-	DescriptorInitialize();
 
 
-	newParticles.resize(InjectedParticles->GetElementCount());
+	
 }
 
 void ParticleEmitter::Update()

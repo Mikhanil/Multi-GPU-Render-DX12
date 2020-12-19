@@ -204,10 +204,12 @@ void MultiGPUNoiseApp::PopulateForwardPathCommands(std::shared_ptr<GCommandList>
 		PopulateDrawCommands(cmdList, (RenderMode::Transparent));
 
 
-		cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
-		                                   *currentFrameResource->PrimePassConstantUploadBuffer.get(), 0);
-		PopulateDrawCommands(cmdList, RenderMode::Particle);
-
+		if (!IsCalibration)
+		{
+			cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+				*currentFrameResource->PrimePassConstantUploadBuffer.get(), 0);
+			PopulateDrawCommands(cmdList, RenderMode::Particle);
+		}
 
 		cmdList->TransitionBarrier(antiAliasingPrimePath->GetRenderTarget(),
 		                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -282,6 +284,7 @@ UINT64 MultiGPUNoiseApp::RenderScene(const UINT timestampHeapIndex, UINT compute
 	PopulateAmbientMapCommands(cmdList);
 	PopulateShadowMapCommands(cmdList);
 
+	
 	if (UseSecondApproach)
 	{
 		if (UseCrossAdapter)
@@ -314,7 +317,7 @@ UINT64 MultiGPUNoiseApp::RenderScene(const UINT timestampHeapIndex, UINT compute
 		renderQueue->Wait(primeComputeFence, currentFrameResource->CloudComputeFenceValue);
 	}
 	else
-		renderQueue->Wait(primeComputeQueue->GetFence(), currentFrameResource->PrimeComputeParticleFenceValue);
+		renderQueue->Wait(primeComputeQueue);
 		
 	return renderQueue->ExecuteCommandList(cmdList);
 }
@@ -381,6 +384,259 @@ UINT64 MultiGPUNoiseApp::ComputeClouds(const UINT timestampHeapIndex) const
 		}
 	}
 }
+
+void MultiGPUNoiseApp::Calibration()
+{
+	static const UINT64 runs = 6;
+	static const float calibrationTickTime = 10.0f;
+
+	IsCalibration = true;
+
+	MainWindow->SetWindowTitle(L"Calibration ");
+	
+	int textureSize = 1024;
+
+	const int textureSizeStep = 64;
+	
+	timer.Stop();
+	timer.Reset();
+	timer.Start();
+
+	cloudGeneratorV2->ChangeTextureSize(textureSize, textureSize);	
+			
+	const float epsilon = 5 / 100.0f;
+
+	UINT64 emptyGpuWorkAvarageFPS;
+	while(true)
+	{
+		emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs, calibrationTickTime);
+		Flush();
+
+		UINT64 cloudCalibrateAvarageFPS = CalibrateCloudTextureSizeWork(runs, calibrationTickTime);
+		Flush();		
+
+		if(cloudCalibrateAvarageFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) > emptyGpuWorkAvarageFPS)
+		{
+			emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs * 2, calibrationTickTime );
+			Flush();
+
+			cloudCalibrateAvarageFPS = CalibrateCloudTextureSizeWork(runs * 2, calibrationTickTime );
+			Flush();		
+			
+			if (cloudCalibrateAvarageFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) > emptyGpuWorkAvarageFPS)
+			{
+				logQueue.Push(L"\n Cloud Texture Size for second approach: " + std::to_wstring(textureSize));
+				break;
+			}
+		}
+		else
+		{
+			textureSize -= textureSizeStep;
+
+			if (textureSize < textureSizeStep)
+			{
+				logQueue.Push(L"\nCalibration error");
+				IsStop = true;
+				IsCalibration = false;
+				return;
+			}
+
+			cloudGeneratorV2->ChangeTextureSize(textureSize, textureSize);
+		}
+	}	
+		
+	UseCrossAdapter = false;
+	UseSecondApproach = false;
+
+	UINT particleCount = 15000;
+	const UINT particlesPerTick = particleCount / 10;
+
+	for (auto && emitter : crossEmitter)
+	{
+		emitter->ChangeParticleCount(particleCount);
+	}
+
+	while (true)
+	{
+		emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs, calibrationTickTime);
+		Flush();
+		
+		UINT64 particleComputeFPS = GPUParticleWorkFPS(runs, calibrationTickTime);
+		Flush();
+
+		if(particleComputeFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) >= emptyGpuWorkAvarageFPS)
+		{
+			particleComputeFPS = GPUParticleWorkFPS(runs * 2, calibrationTickTime);
+			Flush();
+
+			emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs * 2, calibrationTickTime);
+			Flush();
+
+			
+			if (particleComputeFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) >= emptyGpuWorkAvarageFPS) {
+				logQueue.Push(L"\n Particle count for second approach: " + std::to_wstring(particleCount));
+				break;
+			}
+		}
+
+		particleCount -= particlesPerTick;
+
+		if(particleCount == 0)
+		{
+			logQueue.Push(L"\nCalibration error");
+			IsStop = true;
+			IsCalibration = false;
+			return;
+		}
+		
+		for (auto&& emitter : crossEmitter)
+		{
+			emitter->ChangeParticleCount(particleCount);
+		}
+	}
+
+	for (auto&& emitter : crossEmitter)
+	{
+		emitter->ChangeParticleCount(particleCount);
+	}
+	
+
+	IsCalibration = false;
+
+	frameCount = 0;
+	timeElapsed = 0.0f;
+}
+
+void MultiGPUNoiseApp::GPUEmptyWork()
+{
+	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
+
+	currentFrameResource->PrimeRenderFenceValue = RenderScene(timestampHeapIndex, 0);
+
+	currentFrameResourceIndex = MainWindow->Present();
+}
+
+UINT64 MultiGPUNoiseApp::GPUEmptyWorkFPS(UINT64 runs, float runTime)
+{
+	UseCrossAdapter = false;
+	UseSecondApproach = false;
+	
+	UINT64 emptyWorkFps = 0;
+	for (int i = 0; i < runs; ++i)
+	{
+		frameCount = 0;
+		timeElapsed = 0.0f;
+		timer.Stop();
+		timer.Reset();
+		timer.Start();
+		
+		float currentTime = 0.0f;
+		while (currentTime <= runTime)
+		{
+			CalculateFrameStats();
+			Update(timer);
+
+			GPUEmptyWork();
+
+			timer.Tick();
+
+			currentTime += timer.DeltaTime();
+		}
+
+		emptyWorkFps += frameCount;
+	}
+
+	return emptyWorkFps / runs;
+}
+
+void MultiGPUNoiseApp::CalibrateCloudWork()
+{
+	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
+
+	currentFrameResource->CloudComputeFenceValue = ComputeClouds(timestampHeapIndex);
+	
+	currentFrameResource->PrimeRenderFenceValue = RenderScene(timestampHeapIndex, 0);
+
+	currentFrameResourceIndex = MainWindow->Present();
+}
+
+UINT64 MultiGPUNoiseApp::CalibrateCloudTextureSizeWork(UINT64 runs, float runTime)
+{	
+	UseCrossAdapter = true;
+	UseSecondApproach = true;
+	
+	UINT64 emptyWorkFps = 0;
+	for (int i = 0; i < runs; ++i)
+	{
+		frameCount = 0;
+		timeElapsed = 0.0f;
+		timer.Stop();
+		timer.Reset();
+		timer.Start();
+		
+		float currentTime = 0.0f;
+		while (currentTime <= runTime)
+		{
+			CalculateFrameStats();
+			Update(timer);
+
+			CalibrateCloudWork();
+
+			timer.Tick();
+
+			currentTime += timer.DeltaTime();
+		}
+
+		emptyWorkFps += frameCount;
+	}
+
+	return emptyWorkFps / runs;
+}
+
+void MultiGPUNoiseApp::GPUParticleWork()
+{
+	const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
+
+	currentFrameResource->PrimeComputeParticleFenceValue = ComputeEmitters(timestampHeapIndex, primeComputeQueue);
+	
+	currentFrameResource->PrimeRenderFenceValue = RenderScene(timestampHeapIndex, 0);
+
+	currentFrameResourceIndex = MainWindow->Present();
+}
+
+UINT64 MultiGPUNoiseApp::GPUParticleWorkFPS(UINT64 runs, float runTime)
+{
+	UseCrossAdapter = false;
+	UseSecondApproach = false;
+
+	UINT64 emptyWorkFps = 0;
+	for (int i = 0; i < runs; ++i)
+	{
+		frameCount = 0;
+		timeElapsed = 0.0f;
+		timer.Stop();
+		timer.Reset();
+		timer.Start();
+
+		float currentTime = 0.0f;
+		while (currentTime <= runTime)
+		{
+			CalculateFrameStats();
+			Update(timer);
+
+			GPUParticleWork();
+
+			timer.Tick();
+
+			currentTime += timer.DeltaTime();
+		}
+
+		emptyWorkFps += frameCount;
+	}
+
+	return emptyWorkFps / runs;
+}
+
 
 void MultiGPUNoiseApp::Draw(const GameTimer& gt)
 {
@@ -960,7 +1216,7 @@ void MultiGPUNoiseApp::CreateGO()
 
 	auto particle = std::make_unique<GameObject>();
 	particle->GetTransform()->SetPosition(Vector3::Up);
-	const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 100000 * 0.06);
+	const auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 100000 * 0.06);
 	particle->AddComponent(emitter);
 	typedRenderer[RenderMode::Particle].push_back(emitter);
 	crossEmitter.push_back(emitter.get());
@@ -1110,83 +1366,90 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 		frameCount = 0;
 		timeElapsed += 1.0f;
 
-		
-		const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + ( UseSecondApproach ? (UseCrossAdapter ? L"4" : L"3") : (UseCrossAdapter ? L"2" : L"1")) + L"/4" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" + std::to_wstring(100);
-
-		if (writeStaticticCount >= StatisticStepSecondsCount)
+		if (!IsCalibration)
 		{
-			const std::wstring staticticStr =
-				L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
-				+ L"\nUse Second Variant: " + std::to_wstring(UseSecondApproach)
-				+ L"\n\tMin FPS:" + std::to_wstring(minFps)
-				+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
-				+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
-				+ L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
-				+ L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
-				+ L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
-				+ L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
-				+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin)
-				+L"\n\tMax Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMax) +
-				+L"\n\tMin Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMin) +
-				+L"\n\tMax Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMax)
-				+ L"\n\tMin Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMin);
 
-			logQueue.Push(staticticStr);
+			const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (UseSecondApproach ? (UseCrossAdapter ? L"4" : L"3") : (UseCrossAdapter ? L"2" : L"1")) + L"/4" + L" Progress: " + std::to_wstring((static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" + std::to_wstring(100);
 
-
-			writeStaticticCount = 0;
-			minFps = std::numeric_limits<float>::max();
-			minMspf = std::numeric_limits<float>::max();
-			maxFps = std::numeric_limits<float>::min();
-			maxMspf = std::numeric_limits<float>::min();
-			primeGPUTimeMax = std::numeric_limits<UINT64>::min();
-			primeGPUTimeMin = std::numeric_limits<UINT64>::max();
-			secondGPUTimeMax = std::numeric_limits<UINT64>::min();
-			secondGPUTimeMin = std::numeric_limits<UINT64>::max();
-			primeGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
-			primeGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
-			secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
-			secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
-
-			if(UseCrossAdapter == false)
+			if (writeStaticticCount >= StatisticStepSecondsCount)
 			{
-				Flush();
-				
-				if(UseSecondApproach == false)
-					secondComputeQueue->SignalWithNewFenceValue(primeComputeQueue->GetFenceValue());
-				
-				UseCrossAdapter = true;
+				const std::wstring staticticStr =
+					L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
+					+ L"\nUse Second Variant: " + std::to_wstring(UseSecondApproach)
+					+ L"\n\tMin FPS:" + std::to_wstring(minFps)
+					+ L"\n\tMin MSPF:" + std::to_wstring(minMspf)
+					+ L"\n\tMax FPS:" + std::to_wstring(maxFps)
+					+ L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
+					+ L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
+					+L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
+					+L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
+					+ L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin)
+					+ L"\n\tMax Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMax) +
+					+L"\n\tMin Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMin) +
+					+L"\n\tMax Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMax)
+					+ L"\n\tMin Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMin);
+
+				logQueue.Push(staticticStr);
+
+
+				writeStaticticCount = 0;
+				minFps = std::numeric_limits<float>::max();
+				minMspf = std::numeric_limits<float>::max();
+				maxFps = std::numeric_limits<float>::min();
+				maxMspf = std::numeric_limits<float>::min();
+				primeGPUTimeMax = std::numeric_limits<UINT64>::min();
+				primeGPUTimeMin = std::numeric_limits<UINT64>::max();
+				secondGPUTimeMax = std::numeric_limits<UINT64>::min();
+				secondGPUTimeMin = std::numeric_limits<UINT64>::max();
+				primeGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
+				primeGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
+				secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
+				secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
+
+				if (UseCrossAdapter == false)
+				{
+					Flush();
+
+					if (UseSecondApproach == false)
+						secondComputeQueue->SignalWithNewFenceValue(primeComputeQueue->GetFenceValue());
+
+					UseCrossAdapter = true;
+				}
+				else
+				{
+					Flush();
+
+					if (UseSecondApproach)
+						IsStop = true;
+					else
+					{
+						UseSecondApproach = true;
+						UseCrossAdapter = false;
+					}
+				}
 			}
 			else
 			{
-				Flush();
-				
-				if(UseSecondApproach)				
-					IsStop = true;
-				else
-				{
-					UseSecondApproach = true;
-					UseCrossAdapter = false;
-				}
-			}			
+				const std::wstring staticticStr =
+					L"\n\tFPS:" + std::to_wstring(fps)
+					+ L"\n\tMSPF:" + std::to_wstring(mspf)
+					+ L"\n\tPrime GPU Rendering Time:" + std::to_wstring(primeGPURenderingTime)
+					+ L"\n\tSecond GPU Rendering Time:" + std::to_wstring(secondGPURenderingTime)
+					+ L"\n\tPrime GPU Computing Time:" + std::to_wstring(primeGPUComputingTime)
+					+ L"\n\tSecond GPU Computing Time:" + std::to_wstring(secondGPUComputingTime);
+
+				logQueue.Push(staticticStr);
+
+				writeStaticticCount++;
+			}
+
+
+			MainWindow->SetWindowTitle(title);
 		}
 		else
 		{
-			const std::wstring staticticStr =
-				L"\n\tFPS:" + std::to_wstring(fps)
-				+ L"\n\tMSPF:" + std::to_wstring(mspf)
-				+ L"\n\tPrime GPU Rendering Time:" + std::to_wstring(primeGPURenderingTime)
-				+ L"\n\tSecond GPU Rendering Time:" + std::to_wstring(secondGPURenderingTime)
-				+ L"\n\tPrime GPU Computing Time:" + std::to_wstring(primeGPUComputingTime)
-				+ L"\n\tSecond GPU Computing Time:" + std::to_wstring(secondGPUComputingTime);
-
-			logQueue.Push(staticticStr);
-
-			writeStaticticCount++;
+			MainWindow->SetWindowTitle(L"Calibration " + std::to_wstring(timer.TotalTime()));
 		}
-
-		
-		MainWindow->SetWindowTitle(title);
 	}
 }
 
@@ -1223,11 +1486,21 @@ void MultiGPUNoiseApp::LogWriting()
 	fileSteam.close();
 }
 
+
+
 int MultiGPUNoiseApp::Run()
 {
 	MSG msg = {nullptr};
 
 	timer.Reset();
+
+	Calibration();	
+	
+	timer.Stop();
+	timer.Reset();
+	timer.Start();
+
+	
 
 	while (msg.message != WM_QUIT)
 	{

@@ -44,10 +44,13 @@ class CrossAdapterParticleEmitter :    public Emitter
 	
 public:
 	void InitPSO(std::shared_ptr<GDevice> otherDevice);
+	void CreateBuffers();
 	CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, DWORD particleCount);
 	void Update() override;;
 	void Draw(std::shared_ptr<GCommandList> cmdList) override;
 	void Dispatch(std::shared_ptr<GCommandList> cmdList) override;
+
+	void ChangeParticleCount(UINT count);
 
 	void EnableShared();;
 

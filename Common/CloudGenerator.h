@@ -60,6 +60,7 @@ class CloudGenerator
 
 	UINT groupCountWidth{};
 	UINT groupCountHeight{};
+
 	
 	void Initialize();
 	
@@ -70,6 +71,8 @@ public:
 
 	GTexture& GetCloudTexture();
 
+	void ChangeTextureSize(int width, int height);
+	
 	void PrimeCompute(const std::shared_ptr<GCommandList>& cmdList, float deltaTime);
 
 	void PrimeCopy(const std::shared_ptr<GCommandList>& primeCmdList) const;

@@ -33,23 +33,61 @@ void CrossAdapterParticleEmitter::InitPSO(std::shared_ptr<GDevice> otherDevice)
 	updatePSO->Initialize(secondDevice);
 }
 
-CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, DWORD particleCount): secondDevice(otherDevice)
-{
-	this->device = primeDevice;
+void CrossAdapterParticleEmitter::CreateBuffers()
+{	
+	if(ParticlesPool)
+	{
+		ParticlesPool->Reset();
+		ParticlesPool.reset();
+	}
+
+	if (InjectedParticles)
+	{
+		InjectedParticles->Reset();
+		InjectedParticles.reset();
+	}
+
+	if (ParticlesAlive)
+	{
+		ParticlesAlive->Reset();
+		ParticlesAlive.reset();
+	}
+
+	if (ParticlesDead)
+	{
+		ParticlesDead->Reset();
+		ParticlesDead.reset();
+	}
+
+	if (CrossAdapterAliveIndexes)
+	{
+		CrossAdapterAliveIndexes->Reset();
+		CrossAdapterAliveIndexes.reset();
+	}
 	
-	primeParticleEmitter = std::make_shared<ParticleEmitter>(primeDevice, particleCount);
+	if (CrossAdapterDeadIndexes)
+	{
+		CrossAdapterDeadIndexes->Reset();
+		CrossAdapterDeadIndexes.reset();
+	}
+
+	if (CrossAdapterParticles)
+	{
+		CrossAdapterParticles->Reset();
+		CrossAdapterParticles.reset();
+	}
 	
-	ParticlesPool = std::make_shared<GBuffer>(otherDevice,  sizeof(ParticleData), primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Pool Buffer",D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	InjectedParticles = std::make_shared<GBuffer>(otherDevice,  sizeof(ParticleData), primeParticleEmitter->emitterData.ParticleInjectCount, L"Second Injected Particle Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Alive Index Buffer");
-	ParticlesDead = std::make_shared<CounteredStructBuffer<DWORD>>(otherDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Dead Index Buffer");
+	ParticlesPool = std::make_shared<GBuffer>(secondDevice,  sizeof(ParticleData), primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Pool Buffer",D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	InjectedParticles = std::make_shared<GBuffer>(secondDevice,  sizeof(ParticleData), primeParticleEmitter->emitterData.ParticleInjectCount, L"Second Injected Particle Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(secondDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Alive Index Buffer");
+	ParticlesDead = std::make_shared<CounteredStructBuffer<DWORD>>(secondDevice, primeParticleEmitter->emitterData.ParticlesTotalCount, L"Second Particles Dead Index Buffer");
 
 	auto desc = ParticlesAlive->GetD3D12ResourceDesc();
-	CrossAdapterAliveIndexes = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Alive Index Buffer");
-	CrossAdapterDeadIndexes = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Dead Index Buffer");
+	CrossAdapterAliveIndexes = std::make_shared<GCrossAdapterResource>(desc, device, secondDevice, L"Cross Adapter Particle Alive Index Buffer");
+	CrossAdapterDeadIndexes = std::make_shared<GCrossAdapterResource>(desc, device, secondDevice, L"Cross Adapter Particle Dead Index Buffer");
 
 	desc = ParticlesPool->GetD3D12ResourceDesc();
-	CrossAdapterParticles = std::make_shared<GCrossAdapterResource>(desc, primeDevice, otherDevice, L"Cross Adapter Particle Buffer");
+	CrossAdapterParticles = std::make_shared<GCrossAdapterResource>(desc, device, secondDevice, L"Cross Adapter Particle Buffer");
 	
 	
 	newParticles.resize(InjectedParticles->GetElementCount());
@@ -62,7 +100,7 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
 			deadIndex.push_back(i);
 		}
 
-		auto queue = otherDevice->GetCommandQueue();
+		auto queue = secondDevice->GetCommandQueue();
 		auto cmdList = queue->GetCommandList();
 
 		ParticlesDead->LoadData(deadIndex.data(), cmdList);
@@ -73,14 +111,7 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
 
 		queue->ExecuteCommandList(cmdList);
 		queue->Flush();
-	}
-
-	
-	CompileComputeShaders();
-	
-	InitPSO(otherDevice);
-	
-	updateDescriptors = otherDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+	}	
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -103,6 +134,24 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
 	uavDesc.Buffer.StructureByteStride = InjectedParticles->GetStride();
 	uavDesc.Buffer.CounterOffsetInBytes = 0;
 	InjectedParticles->CreateUnorderedAccessView(&uavDesc, &updateDescriptors, 3);
+}
+
+CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> otherDevice, DWORD particleCount): secondDevice(otherDevice)
+{
+	this->device = primeDevice;
+
+	
+	CompileComputeShaders();
+
+	InitPSO(otherDevice);
+
+
+	updateDescriptors = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
+
+	primeParticleEmitter = std::make_shared<ParticleEmitter>(primeDevice, particleCount);
+
+	
+	CreateBuffers();
 	
 }
 
@@ -221,6 +270,13 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
 		cmdList->CopyResource(CrossAdapterAliveIndexes->GetPrimeResource().GetD3D12Resource(), primeParticleEmitter->ParticlesAlive->GetD3D12Resource());
 		cmdList->CopyResource(CrossAdapterDeadIndexes->GetPrimeResource().GetD3D12Resource(), primeParticleEmitter->ParticlesDead->GetD3D12Resource());
 	}
+}
+
+void CrossAdapterParticleEmitter::ChangeParticleCount(UINT count)
+{
+	primeParticleEmitter->ChangeParticleCount(count);
+
+	CreateBuffers();
 }
 
 void CrossAdapterParticleEmitter::EnableShared()

@@ -16,8 +16,12 @@ class GCrossAdapterResource
 	std::shared_ptr<GResource> primeResource;
 	std::shared_ptr<GResource> sharedResource;
 	ComPtr<ID3D12Heap> crossAdapterResourceHeap[2];
+
+	bool isInit = false;
 	
 public:
+
+	bool IsInit() const;
 
 	GCrossAdapterResource() {  }
 	
@@ -30,6 +34,7 @@ public:
 	const GResource& GetPrimeResource() const;
 
 	const GResource& GetSharedResource() const;
+	void Reset();
 
 	void Resize(UINT newWidth, UINT newHeight);
 };

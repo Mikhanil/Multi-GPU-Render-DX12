@@ -57,6 +57,13 @@ protected:
 	void CreateGO();
 	void CalculateFrameStats();
 	void LogWriting();
+	void Calibration();
+	void GPUEmptyWork();
+	UINT64 GPUEmptyWorkFPS(UINT64 runs, float runTime);
+	void CalibrateCloudWork();
+	UINT64 CalibrateCloudTextureSizeWork(UINT64 runs, float runTime);
+	void GPUParticleWork();
+	UINT64 GPUParticleWorkFPS(UINT64 runs, float runTime);
 	void UpdateMaterials();
 	void UpdateShadowTransform(const GameTimer& gt);
 	void UpdateShadowPassCB(const GameTimer& gt);
@@ -112,11 +119,12 @@ protected:
 	custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>();
 
 	const float deltaTimeCloud = 1.0f / 60.0f;
-	
+
+	bool IsCalibration = true;
 	bool UseCrossAdapter = false;
 	bool UseSecondApproach = false;
 	
-	custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter*>();
+	custom_vector<ParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<ParticleEmitter*>();
 
 	std::shared_ptr<GTexture> NoiseTexture;
 	GDescriptor noiseDescriptors;

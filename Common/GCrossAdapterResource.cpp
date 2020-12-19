@@ -5,6 +5,11 @@
 #include "GDevice.h"
 #include "GResource.h"
 
+bool GCrossAdapterResource::IsInit() const
+{
+	return isInit;
+}
+
 GCrossAdapterResource::GCrossAdapterResource(D3D12_RESOURCE_DESC& desc, const std::shared_ptr<GDevice>& primeDevice,
                                              const std::shared_ptr<GDevice>& sharedDevice, const std::wstring& name,
                                              const D3D12_RESOURCE_STATES initialState,
@@ -46,6 +51,8 @@ GCrossAdapterResource::GCrossAdapterResource(D3D12_RESOURCE_DESC& desc, const st
 	primeResource = std::make_shared<GResource>(primeDevice, desc, crossAdapterResourceHeap[0], name, clearValue, initialState);
 
 	sharedResource = std::make_shared<GResource>(sharedDevice, desc, crossAdapterResourceHeap[1], name + L" Shared");
+
+    isInit = true;
 }
 
 const GResource& GCrossAdapterResource::GetPrimeResource() const
@@ -56,6 +63,25 @@ const GResource& GCrossAdapterResource::GetPrimeResource() const
 const GResource& GCrossAdapterResource::GetSharedResource() const
 {
 	return *sharedResource.get();
+}
+
+void GCrossAdapterResource::Reset()
+{
+	if(!isInit) return;
+	
+	if(primeResource)
+	{
+        primeResource->Reset();
+        primeResource.reset();
+	}
+
+	if(sharedResource)
+	{
+        sharedResource->Reset();
+        sharedResource.reset();
+	}
+
+    isInit = false;
 }
 
 void GCrossAdapterResource::Resize(UINT newWidth, UINT newHeight)
