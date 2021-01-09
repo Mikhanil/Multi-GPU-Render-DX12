@@ -164,7 +164,9 @@ protected:
 
 	DirectX::BoundingSphere mSceneBounds;
 
-	
+	GameObject* iRotaster;
+	Vector3 initialPosition;
+	Vector3 initialRotation;
 
 };
 

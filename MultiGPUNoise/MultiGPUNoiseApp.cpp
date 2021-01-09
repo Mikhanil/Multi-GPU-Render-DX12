@@ -409,19 +409,27 @@ void MultiGPUNoiseApp::Calibration()
 	UINT64 emptyGpuWorkAvarageFPS;
 	while(true)
 	{
+		iRotaster->GetTransform()->SetPosition(initialPosition);
+		iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 		emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs, calibrationTickTime);
 		Flush();
 
+		iRotaster->GetTransform()->SetPosition(initialPosition);
+		iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 		UINT64 cloudCalibrateAvarageFPS = CalibrateCloudTextureSizeWork(runs, calibrationTickTime);
-		Flush();		
+		Flush();
 
 		if(cloudCalibrateAvarageFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) > emptyGpuWorkAvarageFPS)
 		{
+			iRotaster->GetTransform()->SetPosition(initialPosition);
+			iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 			emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs * 2, calibrationTickTime );
 			Flush();
 
+			iRotaster->GetTransform()->SetPosition(initialPosition);
+			iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 			cloudCalibrateAvarageFPS = CalibrateCloudTextureSizeWork(runs * 2, calibrationTickTime );
-			Flush();		
+			Flush();
 			
 			if (cloudCalibrateAvarageFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) > emptyGpuWorkAvarageFPS)
 			{
@@ -443,6 +451,7 @@ void MultiGPUNoiseApp::Calibration()
 
 			cloudGeneratorV2->ChangeTextureSize(textureSize, textureSize);
 		}
+
 	}	
 		
 	UseCrossAdapter = false;
@@ -458,17 +467,25 @@ void MultiGPUNoiseApp::Calibration()
 
 	while (true)
 	{
+		iRotaster->GetTransform()->SetPosition(initialPosition);
+		iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 		emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs, calibrationTickTime);
 		Flush();
-		
+
+		iRotaster->GetTransform()->SetPosition(initialPosition);
+		iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 		UINT64 particleComputeFPS = GPUParticleWorkFPS(runs, calibrationTickTime);
 		Flush();
 
 		if(particleComputeFPS + std::round((emptyGpuWorkAvarageFPS * epsilon)) >= emptyGpuWorkAvarageFPS)
 		{
+			iRotaster->GetTransform()->SetPosition(initialPosition);
+			iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 			particleComputeFPS = GPUParticleWorkFPS(runs * 2, calibrationTickTime);
 			Flush();
 
+			iRotaster->GetTransform()->SetPosition(initialPosition);
+			iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 			emptyGpuWorkAvarageFPS = GPUEmptyWorkFPS(runs * 2, calibrationTickTime);
 			Flush();
 
@@ -499,7 +516,8 @@ void MultiGPUNoiseApp::Calibration()
 	{
 		emitter->ChangeParticleCount(particleCount);
 	}
-	
+	iRotaster->GetTransform()->SetPosition(initialPosition);
+	iRotaster->GetTransform()->SetEulerRotate(initialRotation);
 
 	IsCalibration = false;
 
@@ -1236,6 +1254,10 @@ void MultiGPUNoiseApp::CreateGO()
 	rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
 	rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
 
+	iRotaster = rotater.get();
+	initialPosition = rotater->GetTransform()->GetLocalPosition();
+	initialRotation = rotater->GetTransform()->GetEulerAngels();
+	
 	auto camera = std::make_unique<GameObject>("MainCamera");
 	camera->GetTransform()->SetParent(rotater->GetTransform().get());
 	camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
@@ -1414,10 +1436,18 @@ void MultiGPUNoiseApp::CalculateFrameStats()
 						secondComputeQueue->SignalWithNewFenceValue(primeComputeQueue->GetFenceValue());
 
 					UseCrossAdapter = true;
+
+					iRotaster->GetTransform()->SetPosition(initialPosition);
+					iRotaster->GetTransform()->SetEulerRotate(initialRotation);
+					
 				}
 				else
 				{
 					Flush();
+
+					iRotaster->GetTransform()->SetPosition(initialPosition);
+					iRotaster->GetTransform()->SetEulerRotate(initialRotation);
+					
 
 					if (UseSecondApproach)
 						IsStop = true;

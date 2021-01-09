@@ -33,6 +33,7 @@ public:
 	void AdjustEulerRotation(float roll, float pitch, float yaw);
 
 	[[nodiscard]] Vector3 GetWorldPosition() const;
+	Vector3 GetLocalPosition() const;
 
 	[[nodiscard]] Vector3 GetScale() const;
 
@@ -66,6 +67,7 @@ public:
 
 	void SetWorldMatrix(const Matrix& mat);
 
+	
 private:
 
 	Matrix world = Matrix::Identity;

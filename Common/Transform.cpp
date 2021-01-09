@@ -183,6 +183,11 @@ Vector3 Transform::GetWorldPosition() const
 	return Vector3(world.m[3]);
 }
 
+Vector3 Transform::GetLocalPosition() const
+{
+	return localPosition;
+}
+
 Vector3 Transform::GetScale() const
 {
 	return localScale;
