@@ -7,25 +7,25 @@ This project was taken as the basis for the graphics engine developed in the tea
 Several interaction algorithms have been implemented:
 
 ## Shared Shadow Map
-![SSM](https://media.discordapp.net/attachments/190175905824374784/864151422445944842/unknown.png)
+![SSM](Readme/SharedShadowMap.png)
 # Result
-![SSMResult](https://media.discordapp.net/attachments/190175905824374784/864151896842567680/unknown.png)
+![SSMResult](Readme/SharedShadowMapResult.png)
 
 ## Shared User Interface Blending
-![SUIB](https://media.discordapp.net/attachments/190175905824374784/864152276481343578/unknown.png)
+![SUIB](Readme/SharedUserInterface.png)
 # Result
-![SUIBResult](https://media.discordapp.net/attachments/190175905824374784/864152448770637864/unknown.png)
+![SUIBResult](Readme/SharedUserInterfaceResult.png)
 
 ## Shared Particle System
-![SPS](https://media.discordapp.net/attachments/190175905824374784/864153137799888946/unknown.png)
+![SPS](Readme/SharedParticleSystem.png)
 
 
 ## Shared Hybrid Compute
-![SHC](https://media.discordapp.net/attachments/190175905824374784/864153312567754772/unknown.png)
+![SHC](Readme/SharedHybridCompute.png)
 # Result with full shared
-![SHCResult](https://media.discordapp.net/attachments/190175905824374784/864153400563466290/unknown.png?width=1036&height=557)
+![SHCResult](Readme/SharedHybridComputeFullSharedResult.png)
 # Result with scaled resource
-![SHCResult1](https://media.discordapp.net/attachments/190175905824374784/864153503207260170/unknown.png?width=1088&height=538)
+![SHCResult1](Readme/SharedHybridComputeScaledResResult.png)
 
 
 For the project you need:
