@@ -13,80 +13,78 @@ using namespace Utils;
 class Transform : public Component
 {
 public:
-	Transform(Vector3 pos, Quaternion rot, Vector3 scale);
+    Transform(Vector3 pos, Quaternion rot, Vector3 scale);
 
-	Transform();
+    Transform();
 
-	void SetPosition(const Vector3& pos);
+    void SetPosition(const Vector3& pos);
 
-	void SetScale(const Vector3& s);
+    void SetScale(const Vector3& s);
 
-	void SetEulerRotate(const Vector3& eulerAngl);
-	void SetRadianRotate(const Vector3& radianAngl);
+    void SetEulerRotate(const Vector3& eulerAngl);
+    void SetRadianRotate(const Vector3& radianAngl);
 
-	void AdjustPosition(const Vector3& pos);
+    void AdjustPosition(const Vector3& pos);
 
-	void AdjustPosition(float x, float y, float z);
+    void AdjustPosition(float x, float y, float z);
 
-	void AdjustEulerRotation(const Vector3& eulerAngl);
+    void AdjustEulerRotation(const Vector3& eulerAngl);
 
-	void AdjustEulerRotation(float roll, float pitch, float yaw);
+    void AdjustEulerRotation(float roll, float pitch, float yaw);
 
-	[[nodiscard]] Vector3 GetWorldPosition() const;
-	Vector3 GetLocalPosition() const;
+    [[nodiscard]] Vector3 GetWorldPosition() const;
+    Vector3 GetLocalPosition() const;
 
-	[[nodiscard]] Vector3 GetScale() const;
+    [[nodiscard]] Vector3 GetScale() const;
 
-	[[nodiscard]] Quaternion GetQuaternionRotate() const;
-	[[nodiscard]] Vector3 GetEulerAngels() const;;
+    [[nodiscard]] Quaternion GetQuaternionRotate() const;
+    [[nodiscard]] Vector3 GetEulerAngels() const;;
 
-	Matrix TextureTransform = Matrix::CreateScale(Vector3::One);
-	Matrix worldTranspose;
+    Matrix TextureTransform = Matrix::CreateScale(Vector3::One);
+    Matrix worldTranspose;
 
-	bool IsDirty() const;
+    bool IsDirty() const;
 
-	void Update() override;;
-	void Draw(std::shared_ptr<PEPEngine::Graphics::GCommandList> cmdList) override;;
+    void Update() override;;
+    void Draw(std::shared_ptr<GCommandList> cmdList) override;;
 
-	void SetParent(Transform* transform);
+    void SetParent(Transform* transform);
 
-	Vector3 GetForwardVector() const;
+    Vector3 GetForwardVector() const;
 
-	Vector3 GetBackwardVector() const;
+    Vector3 GetBackwardVector() const;
 
-	Vector3 GetRightVector() const;
+    Vector3 GetRightVector() const;
 
-	Vector3 GetLeftVector() const;
+    Vector3 GetLeftVector() const;
 
-	Vector3 GetUpVector() const;
+    Vector3 GetUpVector() const;
 
-	Vector3 GetDownVector() const;
+    Vector3 GetDownVector() const;
 
-	Matrix GetWorldMatrix() const;
-	Matrix MakeLocalToParent() const;
+    Matrix GetWorldMatrix() const;
+    Matrix MakeLocalToParent() const;
 
-	void SetWorldMatrix(const Matrix& mat);
+    void SetWorldMatrix(const Matrix& mat);
 
-	
 private:
+    Matrix world = Matrix::Identity;
 
-	Matrix world = Matrix::Identity;
 
+    Matrix MakeParentToLocal() const;
+    Matrix CalculateWorldMatrix() const;
 
-	Matrix MakeParentToLocal() const;
-	Matrix CalculateWorldMatrix() const;
+    static UINT gConstantUploadBufferIndex;
 
-	static UINT gConstantUploadBufferIndex;
+    Transform* Parent = nullptr;
 
-	Transform* Parent = nullptr;
+    UINT bufferIndex = -1;
+    int NumFramesDirty = globalCountFrameResources;
 
-	UINT bufferIndex = -1;
-	int NumFramesDirty = globalCountFrameResources;
+    Vector3 localPosition = Vector3::Zero;
 
-	Vector3 localPosition = Vector3::Zero;
+    Vector3 localEulerAngles = Vector3::Zero;
 
-	Vector3 localEulerAngles = Vector3::Zero;
-
-	Quaternion localRotate = Quaternion::Identity;
-	Vector3 localScale = Vector3::One;
+    Quaternion localRotate = Quaternion::Identity;
+    Vector3 localScale = Vector3::One;
 };

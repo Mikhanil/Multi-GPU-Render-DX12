@@ -32,113 +32,107 @@ using namespace Allocator;
 using namespace Utils;
 
 
-
 namespace Common
 {
-	class Window;
+    class Window;
 
-	class D3DApp
-	{
-	protected:
+    class D3DApp
+    {
+    protected:
+        KeyboardDevice keyboard;
+        Mousepad mouse;
+        std::shared_ptr<Camera> camera = nullptr;
 
+        D3DApp(HINSTANCE hInstance);
+        D3DApp(const D3DApp& rhs) = delete;
+        D3DApp& operator=(const D3DApp& rhs) = delete;
+        virtual ~D3DApp();
 
-		KeyboardDevice keyboard;
-		Mousepad mouse;
-		std::shared_ptr<Camera> camera = nullptr;
-		
-		D3DApp(HINSTANCE hInstance);
-		D3DApp(const D3DApp& rhs) = delete;
-		D3DApp& operator=(const D3DApp& rhs) = delete;
-		virtual ~D3DApp();
+    public:
+        KeyboardDevice* GetKeyboard();
 
-	public:
+        Mousepad* GetMouse();
 
-		KeyboardDevice* GetKeyboard();
-
-		Mousepad* GetMouse();
-
-		Camera* GetMainCamera() const;
-		
-
-		static void Destroy();
-
-		std::shared_ptr<Window> CreateRenderWindow(std::shared_ptr<GDevice> device, const std::wstring& windowName, int clientWidth,
-		                                           int clientHeight, bool vSync = true);
-
-		void DestroyWindow(const std::wstring& windowName) const;
-
-		static void DestroyWindow(std::shared_ptr<Window> window);
-
-		static std::shared_ptr<Window> GetWindowByName(const std::wstring& windowName);
+        Camera* GetMainCamera() const;
 
 
-		static void Quit(int exitCode = 0);
+        static void Destroy();
 
-		void virtual  Flush();
+        std::shared_ptr<Window> CreateRenderWindow(std::shared_ptr<GDevice> device, const std::wstring& windowName,
+                                                   int clientWidth,
+                                                   int clientHeight, bool vSync = true);
 
-		GameTimer* GetTimer();
+        void DestroyWindow(const std::wstring& windowName) const;
 
-		static D3DApp& GetApp();
+        static void DestroyWindow(const std::shared_ptr<Window>& window);
 
-		HINSTANCE AppInst() const;
-		std::shared_ptr<Window> MainWnd() const;
-		float AspectRatio() const;
-
-		bool Get4xMsaaState() const;
-		void Set4xMsaaState(bool value);
-
-		int virtual Run();
-
-		virtual bool Initialize();
-		virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-		uint64_t GetFrameCount() const
-		{
-			return frameCount;
-		}
-
-	protected:
-
-		virtual void OnResize();
-		virtual void Update(const GameTimer& gt) = 0;
-		virtual void Draw(const GameTimer& gt) = 0;
-
-	protected:
+        static std::shared_ptr<Window> GetWindowByName(const std::wstring& windowName);
 
 
-		WNDCLASS windowClass;
-		std::shared_ptr<Window> MainWindow;
+        static void Quit(int exitCode = 0);
 
-		std::wstring fpsStr;
-		std::wstring mainWindowCaption = L"d3d App";
+        void virtual Flush();
+
+        GameTimer* GetTimer();
+
+        static D3DApp& GetApp();
+
+        HINSTANCE AppInst() const;
+        std::shared_ptr<Window> MainWnd() const;
+        float AspectRatio() const;
+
+        bool Get4xMsaaState() const;
+        void Set4xMsaaState(bool value);
+
+        int virtual Run();
+
+        virtual bool Initialize();
+        virtual LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+        uint64_t GetFrameCount() const
+        {
+            return frameCount;
+        }
+
+    protected:
+        virtual void OnResize();
+        virtual void Update(const GameTimer& gt) = 0;
+        virtual void Draw(const GameTimer& gt) = 0;
 
 
-		static D3DApp* instance;
-		HINSTANCE appInstance = nullptr;
+        WNDCLASS windowClass;
+        std::shared_ptr<Window> MainWindow;
 
-		bool isAppPaused = false;
-		bool isMinimized = false;
-		bool isMaximized = false;
-		bool isResizing = false;
-		bool isFullscreen = false;
+        std::wstring fpsStr;
+        std::wstring mainWindowCaption = L"d3d App";
 
 
-		bool isM4xMsaa = false;
-		UINT m4xMsaaQuality = 0;
+        static D3DApp* instance;
+        HINSTANCE appInstance = nullptr;
+
+        bool isAppPaused = false;
+        bool isMinimized = false;
+        bool isMaximized = false;
+        bool isResizing = false;
+        bool isFullscreen = false;
 
 
-		uint64_t frameCount = 0;
-		float timeElapsed = 0.0f;
-		GameTimer timer;
-
-		bool virtual InitMainWindow();
+        bool isM4xMsaa = false;
+        UINT m4xMsaaQuality = 0;
 
 
-		bool InitDirect3D();
+        uint64_t frameCount = 0;
+        float timeElapsed = 0.0f;
+        GameTimer timer;
+
+        bool virtual InitMainWindow();
 
 
-		void virtual CalculateFrameStats();
+        bool InitDirect3D();
 
-		void LogAdapters();
-	};
+
+        void virtual CalculateFrameStats();
+
+        void LogAdapters();
+    };
 }

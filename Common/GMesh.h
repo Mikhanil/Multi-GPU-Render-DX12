@@ -17,32 +17,28 @@ class GModel;
 
 class GMesh
 {
-	friend GModel;	
+    friend GModel;
 
-	std::shared_ptr<NativeMesh> mesh;
-	
-	
-	std::shared_ptr<GMeshBuffer> vertexBuffer = nullptr;
-	std::shared_ptr<GMeshBuffer> indexBuffer = nullptr;
+    std::shared_ptr<NativeMesh> mesh;
+
+
+    std::shared_ptr<GMeshBuffer> vertexBuffer = nullptr;
+    std::shared_ptr<GMeshBuffer> indexBuffer = nullptr;
+
 public:
+    std::shared_ptr<NativeMesh> GetMeshData() const;
 
-	std::shared_ptr<NativeMesh> GetMeshData() const;
-	
-	D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveType() const;
-	
-	D3D12_VERTEX_BUFFER_VIEW* GetVertexView() const;
-	
-	D3D12_INDEX_BUFFER_VIEW* GetIndexView() const;
+    D3D12_PRIMITIVE_TOPOLOGY GetPrimitiveType() const;
 
+    D3D12_VERTEX_BUFFER_VIEW* GetVertexView() const;
 
-	GMesh(const std::shared_ptr<NativeMesh>& data, std::shared_ptr<GCommandList>& cmdList);
+    D3D12_INDEX_BUFFER_VIEW* GetIndexView() const;
 
 
-	void Draw(std::shared_ptr<GCommandList> cmdList) const;
+    GMesh(const std::shared_ptr<NativeMesh>& data, std::shared_ptr<GCommandList>& cmdList);
 
-	std::wstring GetName() const;
+
+    void Draw(const std::shared_ptr<GCommandList>& cmdList) const;
+
+    std::wstring GetName() const;
 };
-
-
-
-

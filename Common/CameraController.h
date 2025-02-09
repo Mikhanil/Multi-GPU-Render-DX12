@@ -6,20 +6,20 @@ class Mousepad;
 class KeyboardDevice;
 
 using namespace DirectX::SimpleMath;
+
 class CameraController :
-	public Component
+    public Component
 {
-	KeyboardDevice* keyboard;
-	Mousepad* mouse;
+    KeyboardDevice* keyboard;
+    Mousepad* mouse;
 
 
-	double xMouseSpeed = 100;
-	double yMouseSpeed = 70;
+    double xMouseSpeed = 100;
+    double yMouseSpeed = 70;
 
 public:
+    CameraController();
 
-	CameraController();
-
-	void Update() override;;
-	void Draw(std::shared_ptr<PEPEngine::Graphics::GCommandList> cmdList) override;;
+    void Update() override;;
+    void Draw(std::shared_ptr<PEPEngine::Graphics::GCommandList> cmdList) override;;
 };

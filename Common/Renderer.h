@@ -6,10 +6,10 @@
 class Renderer : public Component
 {
 public:
+    Renderer(): Component()
+    {
+    } ;
 
-	Renderer(): Component() {} ;
-
-	void Update() override = 0;
-	void Draw(std::shared_ptr<GCommandList> cmdList) override = 0;
+    void Update() override = 0;
+    void Draw(std::shared_ptr<GCommandList> cmdList) override = 0;
 };
-

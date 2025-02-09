@@ -6,9 +6,9 @@
 
 void Rotater::Update()
 {
-	const float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
-	
-	auto tr = gameObject->GetTransform();
-	
-	tr->AdjustEulerRotation(Vector3(speed * dt, 0, 0));
+    const float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
+
+    auto tr = gameObject->GetTransform();
+
+    tr->AdjustEulerRotation(Vector3(speed * dt, 0, 0));
 }

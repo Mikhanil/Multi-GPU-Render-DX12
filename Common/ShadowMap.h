@@ -13,38 +13,37 @@ using namespace Utils;
 class ShadowMap
 {
 public:
-	ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height);
-	ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height, GTexture& texture);
+    ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height);
+    ShadowMap(std::shared_ptr<GDevice> device, UINT width, UINT height, GTexture& texture);
 
-	ShadowMap(const ShadowMap& rhs) = delete;
-	ShadowMap& operator=(const ShadowMap& rhs) = delete;
-	~ShadowMap();
+    ShadowMap(const ShadowMap& rhs) = delete;
+    ShadowMap& operator=(const ShadowMap& rhs) = delete;
+    ~ShadowMap();
 
-	UINT Width() const;
-	UINT Height() const;
-	GTexture& GetTexture();
+    UINT Width() const;
+    UINT Height() const;
+    GTexture& GetTexture();
 
-	GDescriptor* GetSrv();
-	GDescriptor* GetDsv();
+    GDescriptor* GetSrv();
+    GDescriptor* GetDsv();
 
-	void OnResize(UINT newWidth, UINT newHeight);
+    void OnResize(UINT newWidth, UINT newHeight);
 
-	void PopulatePreRenderCommands(std::shared_ptr<GCommandList>& cmdList);
-
-private:
-	void BuildViews();
-	void BuildResource();
+    void PopulatePreRenderCommands(std::shared_ptr<GCommandList>& cmdList);
 
 private:
-	std::shared_ptr<GDevice> device;
+    void BuildViews();
+    void BuildResource();
 
-	D3D12_VIEWPORT viewport;
-	D3D12_RECT scissorRect;
+    std::shared_ptr<GDevice> device;
 
-	UINT width = 0;
-	UINT height = 0;
+    D3D12_VIEWPORT viewport;
+    D3D12_RECT scissorRect;
 
-	GDescriptor srvMemory;	
-	GDescriptor dsvMemory;
-	GTexture shadowMap;
+    UINT width = 0;
+    UINT height = 0;
+
+    GDescriptor srvMemory;
+    GDescriptor dsvMemory;
+    GTexture shadowMap;
 };

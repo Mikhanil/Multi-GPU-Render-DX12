@@ -9,13 +9,14 @@ using namespace Allocator;
 class KeyboardDevice;
 
 class ObjectMover :
-	public Component
+    public Component
 {
-	KeyboardDevice* keyboard;
+    KeyboardDevice* keyboard;
 
-	void Draw(std::shared_ptr<GCommandList> cmdList) override;;
+    void Draw(std::shared_ptr<GCommandList> cmdList) override;;
 
-	void Update() override;;
+    void Update() override;;
+
 public:
-	ObjectMover();;
+    ObjectMover();;
 };

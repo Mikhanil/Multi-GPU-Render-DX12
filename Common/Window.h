@@ -16,96 +16,94 @@ using namespace Utils;
 
 namespace Common
 {
-	class Window
-	{
-	public:
+    class Window
+    {
+    public:
+        HWND GetWindowHandle() const;
 
-		HWND GetWindowHandle() const;
+        void Destroy();
 
-		void Destroy();
+        const std::wstring& GetWindowName() const;
 
-		const std::wstring& GetWindowName() const;
-
-		int GetClientWidth() const;
-		int GetClientHeight() const;
-
-
-		bool IsVSync() const;
-		void SetVSync(bool vSync);
+        int GetClientWidth() const;
+        int GetClientHeight() const;
 
 
-		bool IsFullScreen() const;
-		void SetFullscreen(bool fullscreen);
-
-		void Show();
-
-		void Hide();
-
-		UINT GetCurrentBackBufferIndex() const;
-
-		UINT Present();
-		void Initialize();		
-
-		GTexture& GetCurrentBackBuffer();
+        bool IsVSync() const;
+        void SetVSync(bool vSync);
 
 
-		void SetHeight(int height);
+        bool IsFullScreen() const;
+        void SetFullscreen(bool fullscreen);
 
-		void SetWidth(int width);
+        void Show();
 
+        void Hide();
 
-		float AspectRatio() const;
+        UINT GetCurrentBackBufferIndex() const;
 
-		GTexture& GetBackBuffer(UINT i);
+        UINT Present();
+        void Initialize();
 
-		void SetWindowTitle(std::wstring text) const;
-	protected:
-
-		friend class D3DApp;
-
-		Window() = delete;
-		Window(std::shared_ptr<GDevice> device,WNDCLASS hwnd, const std::wstring& windowName, int clientWidth, int clientHeight, bool vSync);
-		virtual ~Window();
+        GTexture& GetCurrentBackBuffer();
 
 
-		virtual void OnUpdate();
-		void CalculateFrameStats();
-		virtual void OnRender();
-		void ResetTimer();
+        void SetHeight(int height);
 
-		virtual void OnResize();
-
-		ComPtr<IDXGISwapChain4> GetSwapChain();
+        void SetWidth(int width);
 
 
-	private:
+        float AspectRatio() const;
 
-		int frameCnt = 0;
-		
-		HANDLE swapChainEvent;
+        GTexture& GetBackBuffer(UINT i);
+
+        void SetWindowTitle(const std::wstring& text) const;
+
+    protected:
+        friend class D3DApp;
+
+        Window() = delete;
+        Window(std::shared_ptr<GDevice> device, WNDCLASS hwnd, const std::wstring& windowName, int clientWidth,
+               int clientHeight, bool vSync);
+        virtual ~Window();
 
 
-		Window(const Window& copy) = delete;
-		Window& operator=(const Window& other) = delete;
+        virtual void OnUpdate();
+        void CalculateFrameStats();
+        virtual void OnRender();
+        void ResetTimer();
 
-		WNDCLASS windowClass;
-		HWND hWnd;
-		std::wstring windowName;
-		int width;
-		int height;
-		bool vSync;
-		bool fullscreen;
-		
-		
-		ComPtr<IDXGISwapChain4> CreateSwapChain();
-		ComPtr<IDXGISwapChain4> swapChain;		
-	
-		std::shared_ptr<GDevice> device;
-		std::vector<GTexture> backBuffers;
-		
+        virtual void OnResize();
 
-		UINT currentBackBufferIndex;
+        ComPtr<IDXGISwapChain4> GetSwapChain();
 
-		RECT windowRect;
-	};
+    private:
+        int frameCnt = 0;
+
+        HANDLE swapChainEvent;
+
+
+        Window(const Window& copy) = delete;
+        Window& operator=(const Window& other) = delete;
+
+        WNDCLASS windowClass;
+        HWND hWnd;
+        std::wstring windowName;
+        int width;
+        int height;
+        bool vSync;
+        bool fullscreen;
+
+
+        ComPtr<IDXGISwapChain4> CreateSwapChain();
+        ComPtr<IDXGISwapChain4> swapChain;
+
+        std::shared_ptr<GDevice> device;
+        std::vector<GTexture> backBuffers;
+
+
+        UINT currentBackBufferIndex;
+
+        RECT windowRect;
+    };
 }

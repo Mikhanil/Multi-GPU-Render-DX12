@@ -14,38 +14,38 @@ using namespace DirectX::SimpleMath;
 
 class Camera : public Component
 {
-	void Draw(std::shared_ptr<GCommandList> cmdList) override
-	{
-	};
-	void Update() override;
+    void Draw(std::shared_ptr<GCommandList> cmdList) override
+    {
+    };
+    void Update() override;
 
-	void CreateProjection();
+    void CreateProjection();
 
-	Matrix view = Matrix::Identity;
-	Matrix projection = Matrix::Identity;
+    Matrix view = Matrix::Identity;
+    Matrix projection = Matrix::Identity;
 
-	float fov = 60;
-	float aspectRatio = 0;
-	float nearZ = 0.1;
-	float farZ = 10000;
+    float fov = 60;
+    float aspectRatio = 0;
+    float nearZ = 0.1;
+    float farZ = 10000;
 
-	Vector3 focusPosition = Vector3::Zero;
+    Vector3 focusPosition = Vector3::Zero;
 
 
-	int NumFramesDirty = globalCountFrameResources;
+    int NumFramesDirty = globalCountFrameResources;
+
 public:
+    const Vector3& GetFocusPosition() const;
 
-	const Vector3& GetFocusPosition() const;
+    Camera(float aspect);;
 
-	Camera(float aspect);;
+    void SetAspectRatio(float aspect);
 
-	void SetAspectRatio(float aspect);
+    void SetFov(float fov);
 
-	void SetFov(float fov);
+    float GetFov() const;
 
-	float GetFov() const;
+    const Matrix& GetViewMatrix() const;
 
-	const Matrix& GetViewMatrix() const;
-
-	const Matrix& GetProjectionMatrix() const;
+    const Matrix& GetProjectionMatrix() const;
 };

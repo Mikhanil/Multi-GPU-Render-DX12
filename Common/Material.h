@@ -16,84 +16,83 @@ using namespace Utils;
 
 class Material
 {
-	static UINT materialIndexGlobal;
+    static UINT materialIndexGlobal;
 
-	UINT materialIndex = -1;
+    UINT materialIndex = -1;
 
-	std::wstring Name;
+    std::wstring Name;
 
-	RenderMode::Mode type = RenderMode::Opaque;
+    RenderMode type = RenderMode::Opaque;
 
-	MaterialConstants matConstants{};
+    MaterialConstants matConstants{};
 
-	UINT NumFramesDirty = globalCountFrameResources;
+    UINT NumFramesDirty = globalCountFrameResources;
 
-	std::shared_ptr<GTexture> diffuseMap = nullptr;
-	std::shared_ptr<GTexture> normalMap = nullptr;
+    std::shared_ptr<GTexture> diffuseMap = nullptr;
+    std::shared_ptr<GTexture> normalMap = nullptr;
 
 
-	UINT DiffuseMapIndex = -1;
-	UINT NormalMapIndex = -1;
+    UINT DiffuseMapIndex = -1;
+    UINT NormalMapIndex = -1;
 
-	CD3DX12_GPU_DESCRIPTOR_HANDLE gpuTextureHandle;
-	CD3DX12_CPU_DESCRIPTOR_HANDLE cpuTextureHandle;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE gpuTextureHandle;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE cpuTextureHandle;
 
 public:
+    UINT GetMaterialIndex()
+    {
+        return materialIndex;
+    }
 
-	UINT GetMaterialIndex()
-	{
-		return materialIndex;
-	}
+    void SetMaterialIndex(UINT index)
+    {
+        materialIndex = index;
+    }
 
-	void SetMaterialIndex(UINT index)
-	{
-		materialIndex = index;
-	}
+    std::shared_ptr<GTexture> GetDiffuseTexture() const
+    {
+        return diffuseMap;
+    }
 
-	std::shared_ptr<GTexture> GetDiffuseTexture() const
-	{
-		return diffuseMap;
-	}
+    std::shared_ptr<GTexture> GetNormalTexture() const
+    {
+        return normalMap;
+    }
 
-	std::shared_ptr<GTexture> GetNormalTexture() const
-	{
-		return normalMap;
-	}
+    UINT GetDiffuseMapIndex() const
+    {
+        return DiffuseMapIndex;
+    }
 
-	UINT GetDiffuseMapIndex() const
-	{
-		return DiffuseMapIndex;
-	}
+    UINT GetNormalMapDiffuseIndex() const
+    {
+        return NormalMapIndex;
+    }
 
-	UINT GetNormalMapDiffuseIndex() const
-	{
-		return NormalMapIndex;
-	}
+    MaterialConstants& GetMaterialConstantData();
 
-	MaterialConstants& GetMaterialConstantData();
+    UINT GetIndex() const;
 
-	UINT GetIndex() const;
+    void SetDirty();
 
-	void SetDirty();
+    RenderMode GetPSO() const;
 
-	RenderMode::Mode GetPSO() const;
+    void SetNormalMap(const std::shared_ptr<GTexture>& texture, UINT index);
 
-	void SetNormalMap(std::shared_ptr<GTexture> texture, UINT index);
+    void SetType(RenderMode pso);
 
-	void SetType(RenderMode::Mode pso);
+    void SetDiffuseTexture(const std::shared_ptr<GTexture>& texture, UINT index);
 
-	void SetDiffuseTexture(std::shared_ptr<GTexture> texture, UINT index);
+    Material(std::wstring name, RenderMode pso = RenderMode::Opaque);
 
-	Material(std::wstring name, RenderMode::Mode pso = RenderMode::Opaque);
+    void InitMaterial(GDescriptor* textureHeap);
 
-	void InitMaterial(GDescriptor* textureHeap);
+    void Update();
 
-	void Update();
+    std::wstring& GetName();
 
-	std::wstring& GetName();
-
-	Vector4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
-	Vector3 FresnelR0 = {0.01f, 0.01f, 0.01f};
-	float Roughness = .25f;
-	Matrix MatTransform = Matrix::Identity;
+    Vector4 DiffuseAlbedo = DirectX::XMFLOAT4(DirectX::Colors::White);
+    Vector3 FresnelR0 = {0.01f, 0.01f, 0.01f};
+    float Roughness = .25f;
+    Matrix MatTransform = Matrix::Identity;
 };
