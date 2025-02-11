@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup Label="ProjectConfigurations">
+        <ProjectConfiguration Include="Debug|Win32">
+            <Configuration>Debug</Configuration>
+            <Platform>Win32</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Release|Win32">
+            <Configuration>Release</Configuration>
+            <Platform>Win32</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Debug|x64">
+            <Configuration>Debug</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+        <ProjectConfiguration Include="Release|x64">
+            <Configuration>Release</Configuration>
+            <Platform>x64</Platform>
+        </ProjectConfiguration>
+    </ItemGroup>
+    <PropertyGroup Label="Globals">
+        <VCProjectVersion>16.0</VCProjectVersion>
+        <Keyword>Win32Proj</Keyword>
+        <ProjectGuid>{9c7aa41e-e73e-4d27-bdbe-1d1209a6f6b8}</ProjectGuid>
+        <RootNamespace>IMGUIMultiGPU</RootNamespace>
+        <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    </PropertyGroup>
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props"/>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>true</UseDebugLibraries>
+        <PlatformToolset>v143</PlatformToolset>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>false</UseDebugLibraries>
+        <PlatformToolset>v143</PlatformToolset>
+        <WholeProgramOptimization>true</WholeProgramOptimization>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>true</UseDebugLibraries>
+        <PlatformToolset>v143</PlatformToolset>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+        <ConfigurationType>Application</ConfigurationType>
+        <UseDebugLibraries>false</UseDebugLibraries>
+        <PlatformToolset>v143</PlatformToolset>
+        <WholeProgramOptimization>true</WholeProgramOptimization>
+        <CharacterSet>Unicode</CharacterSet>
+    </PropertyGroup>
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props"/>
+    <ImportGroup Label="ExtensionSettings">
+    </ImportGroup>
+    <ImportGroup Label="Shared">
+    </ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+    </ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+    </ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+    </ImportGroup>
+    <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform"/>
+    </ImportGroup>
+    <PropertyGroup Label="UserMacros"/>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+        <LinkIncremental>true</LinkIncremental>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+        <LinkIncremental>false</LinkIncremental>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <LinkIncremental>true</LinkIncremental>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <LinkIncremental>false</LinkIncremental>
+    </PropertyGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>false</ConformanceMode>
+            <LanguageStandard>stdcpp17</LanguageStandard>
+            <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <MultiProcessorCompilation>true</MultiProcessorCompilation>
+        </ClCompile>
+        <Link>
+            <SubSystem>Windows</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <FunctionLevelLinking>true</FunctionLevelLinking>
+            <IntrinsicFunctions>true</IntrinsicFunctions>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>false</ConformanceMode>
+            <LanguageStandard>stdcpp17</LanguageStandard>
+            <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <MultiProcessorCompilation>true</MultiProcessorCompilation>
+        </ClCompile>
+        <Link>
+            <SubSystem>Windows</SubSystem>
+            <EnableCOMDATFolding>true</EnableCOMDATFolding>
+            <OptimizeReferences>true</OptimizeReferences>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>false</ConformanceMode>
+            <LanguageStandard>stdcpp17</LanguageStandard>
+            <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <MultiProcessorCompilation>true</MultiProcessorCompilation>
+        </ClCompile>
+        <Link>
+            <SubSystem>Windows</SubSystem>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+    </ItemDefinitionGroup>
+    <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <FunctionLevelLinking>true</FunctionLevelLinking>
+            <IntrinsicFunctions>true</IntrinsicFunctions>
+            <SDLCheck>true</SDLCheck>
+            <PreprocessorDefinitions>NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <ConformanceMode>false</ConformanceMode>
+            <LanguageStandard>stdcpp17</LanguageStandard>
+            <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <MultiProcessorCompilation>true</MultiProcessorCompilation>
+        </ClCompile>
+        <Link>
+            <SubSystem>Windows</SubSystem>
+            <EnableCOMDATFolding>true</EnableCOMDATFolding>
+            <OptimizeReferences>true</OptimizeReferences>
+            <GenerateDebugInformation>true</GenerateDebugInformation>
+        </Link>
+    </ItemDefinitionGroup>
+    <ItemGroup>
+        <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_dx12.cpp"/>
+        <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_win32.cpp"/>
+        <ClCompile Include="..\Submodule\imgui\imgui.cpp"/>
+        <ClCompile Include="..\Submodule\imgui\imgui_demo.cpp"/>
+        <ClCompile Include="..\Submodule\imgui\imgui_draw.cpp"/>
+        <ClCompile Include="..\Submodule\imgui\imgui_tables.cpp"/>
+        <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp"/>
+        <ClCompile Include="FrameResource.cpp"/>
+        <ClCompile Include="HybridNoiseApp.cpp" />
+        <ClCompile Include="Source.cpp"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Common\Common.vcxproj">
+            <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
+        </ProjectReference>
+        <ProjectReference Include="..\\Allocator\Allocator.vcxproj">
+            <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
+        </ProjectReference>
+        <ProjectReference Include="..\\Graphics\Graphics.vcxproj">
+            <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
+        </ProjectReference>
+        <ProjectReference Include="..\\Utils\Utils.vcxproj">
+            <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
+        </ProjectReference>
+    </ItemGroup>
+    <ItemGroup>
+        <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_dx12.h"/>
+        <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_win32.h"/>
+        <ClInclude Include="..\Submodule\imgui\imconfig.h"/>
+        <ClInclude Include="..\Submodule\imgui\imgui.h">
+            <DeploymentContent>false</DeploymentContent>
+        </ClInclude>
+        <ClInclude Include="..\Submodule\imgui\imgui_internal.h"/>
+        <ClInclude Include="..\Submodule\imgui\imstb_rectpack.h"/>
+        <ClInclude Include="..\Submodule\imgui\imstb_textedit.h"/>
+        <ClInclude Include="..\Submodule\imgui\imstb_truetype.h"/>
+        <ClInclude Include="FrameResource.h"/>
+        <ClInclude Include="HybridNoiseApp.h" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="packages.config"/>
+        <None Include="Shaders\Common.hlsl">
+            <FileType>Document</FileType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\Default.hlsl">
+            <FileType>Document</FileType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\DrawNormals.hlsl">
+            <FileType>Document</FileType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS</EntryPointName>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\LightingUtil.hlsl">
+            <FileType>Document</FileType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Library</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\MipMapCS.hlsl">
+            <FileType>Document</FileType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+        </None>
+        <None Include="Shaders\Quad.hlsl">
+            <FileType>Document</FileType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\Shadows.hlsl">
+            <FileType>Document</FileType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\SkyBoxShader.hlsl">
+            <FileType>Document</FileType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\Ssao.hlsl">
+            <FileType>Document</FileType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\SsaoBlur.hlsl">
+            <FileType>Document</FileType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+        <None Include="Shaders\TreeSprite.hlsl">
+            <FileType>Document</FileType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+            <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+        </None>
+    </ItemGroup>
+    <ItemGroup>
+        <FxCompile Include="Shaders\CloudsNoiseCS.hlsl">
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS</EntryPointName>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CS</EntryPointName>
+        </FxCompile>
+        <FxCompile Include="Shaders\ComputeParticle.hlsl">
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+        </FxCompile>
+        <None Include="Shaders\ParticleCommon.hlsl">
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <FileType>Document</FileType>
+        </None>
+        <FxCompile Include="Shaders\NoiseDraw.hlsl">
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS</EntryPointName>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+        </FxCompile>
+        <FxCompile Include="Shaders\ParticleDraw.hlsl">
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+            <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+            <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS</EntryPointName>
+            <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+            <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</EnableUnboundedDescriptorTables>
+            <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EnableUnboundedDescriptorTables>
+            <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</EnableUnboundedDescriptorTables>
+            <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableUnboundedDescriptorTables>
+        </FxCompile>
+    </ItemGroup>
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
+    <ImportGroup Label="ExtensionTargets">
+        <Import Project="..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets" Condition="Exists('..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')"/>
+        <Import Project="..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets" Condition="Exists('..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')"/>
+        <Import Project="..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets" Condition="Exists('..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets')"/>
+        <Import Project="..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')"/>
+    </ImportGroup>
+    <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+        <PropertyGroup>
+            <ErrorText>Данный проект ссылается на пакеты NuGet, отсутствующие на этом компьютере. Используйте восстановление пакетов NuGet, чтобы скачать их. Дополнительную информацию см. по адресу: http://go.microsoft.com/fwlink/?LinkID=322105. Отсутствует следующий файл: {0}.</ErrorText>
+        </PropertyGroup>
+        <Error Condition="!Exists('..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets'))"/>
+        <Error Condition="!Exists('..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets'))"/>
+        <Error Condition="!Exists('..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets'))"/>
+        <Error Condition="!Exists('..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))"/>
+    </Target>
+</Project>

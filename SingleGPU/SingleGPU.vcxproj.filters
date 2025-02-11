@@ -24,13 +24,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include="Shaders\Common.hlsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\LightingUtil.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
