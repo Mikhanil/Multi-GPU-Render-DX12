@@ -14,7 +14,7 @@ D3D12_RECT SSAA::GetRect() const
     return scissorRect;
 }
 
-void SSAA::SetMultiplier(UINT multi, UINT newWidth, UINT newHeight)
+void SSAA::SetMultiplier(const UINT multi, const UINT newWidth, const UINT newHeight)
 {
     ResolutionMultiplier = multi;
     OnResize(newWidth, newHeight);
@@ -141,8 +141,8 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
     depthMap.CreateDepthStencilView(&dsvDesc, &dsvMemory);
 }
 
-SSAA::SSAA(const std::shared_ptr<GDevice>& device, UINT multiplier, UINT width,
-           UINT height): ResolutionMultiplier(multiplier), device(device)
+SSAA::SSAA(const std::shared_ptr<GDevice>& device, const UINT multiplier, const UINT width,
+           const UINT height): ResolutionMultiplier(multiplier), device(device)
 {
     srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
     rtvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);

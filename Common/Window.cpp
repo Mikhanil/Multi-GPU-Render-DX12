@@ -14,7 +14,7 @@
 
 namespace Common
 {
-    LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    LRESULT CALLBACK WndProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
     {
         return D3DApp::GetApp().MsgProc(hwnd, msg, wParam, lParam);
     }
@@ -64,7 +64,7 @@ namespace Common
         return vSync;
     }
 
-    void Window::SetVSync(bool vSync)
+    void Window::SetVSync(const bool vSync)
     {
         this->vSync = vSync;
     }
@@ -145,12 +145,12 @@ namespace Common
         return backBuffers[currentBackBufferIndex];
     }
 
-    void Window::SetHeight(int height)
+    void Window::SetHeight(const int height)
     {
         this->height = height;
     }
 
-    void Window::SetWidth(int width)
+    void Window::SetWidth(const int width)
     {
         this->width = width;
     }
@@ -160,7 +160,7 @@ namespace Common
         return static_cast<float>(width) / height;
     }
 
-    GTexture& Window::GetBackBuffer(UINT i)
+    GTexture& Window::GetBackBuffer(const UINT i)
     {
         return backBuffers[i];
     }

@@ -13,7 +13,7 @@ namespace PEPEngine::Utils
     class ConcurrentQueue
     {
     public:
-        ConcurrentQueue(size_t buffer_size)
+        ConcurrentQueue(const size_t buffer_size)
             : buffer_(new cell_t[buffer_size])
               , buffer_mask_(buffer_size - 1)
         {

@@ -19,7 +19,7 @@ protected:
     std::shared_ptr<GModel> model;
 
 
-    void Draw(std::shared_ptr<GCommandList> cmdList) override;
+    void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
 
     void Update() override;
 

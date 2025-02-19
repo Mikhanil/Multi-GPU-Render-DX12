@@ -7,7 +7,7 @@
 #include "Transform.h"
 
 
-void ModelRenderer::Draw(std::shared_ptr<GCommandList> cmdList)
+void ModelRenderer::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
     for (int i = 0; i < model->GetMeshesCount(); ++i)
     {

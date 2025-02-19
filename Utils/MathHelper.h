@@ -18,12 +18,12 @@ namespace PEPEngine::Utils
         }
 
         // Returns random float in [a, b).
-        static float RandF(float a, float b)
+        static float RandF(const float a, const float b)
         {
             return a + RandF() * (b - a);
         }
 
-        static int Rand(int a, int b)
+        static int Rand(const int a, const int b)
         {
             return a + rand() % ((b - a) + 1);
         }
@@ -55,7 +55,7 @@ namespace PEPEngine::Utils
         // Returns the polar angle of the point (x,y) in [0, 2*PI).
         static float AngleFromXY(float x, float y);
 
-        static DirectX::XMVECTOR SphericalToCartesian(float radius, float theta, float phi)
+        static DirectX::XMVECTOR SphericalToCartesian(const float radius, const float theta, const float phi)
         {
             return DirectX::XMVectorSet(
                 radius * sinf(phi) * cosf(theta),

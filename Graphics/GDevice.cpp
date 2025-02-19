@@ -39,7 +39,7 @@ namespace PEPEngine::Graphics
         CloseHandle(handle);
     }
 
-    static D3D12_COMMAND_LIST_TYPE GQueueTypeToCommandListType(GQueueType queueType)
+    static D3D12_COMMAND_LIST_TYPE GQueueTypeToCommandListType(const GQueueType queueType)
     {
         switch (queueType)
         {
@@ -255,7 +255,7 @@ namespace PEPEngine::Graphics
         return graphicAllocators[type]->Allocate(descriptorCount);
     }
 
-    std::shared_ptr<GCommandQueue> GDevice::GetCommandQueue(const GQueueType type) const
+    std::shared_ptr<GCommandQueue>& GDevice::GetCommandQueue(const GQueueType type)
     {
         return queues[static_cast<int>(type)];
     }

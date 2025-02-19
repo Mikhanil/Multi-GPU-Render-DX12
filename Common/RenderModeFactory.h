@@ -27,7 +27,7 @@ public:
 
     static std::shared_ptr<GShader> GetShader(const std::string& name);
 
-    std::shared_ptr<GraphicPSO> GetPSO(RenderMode type)
+    std::shared_ptr<GraphicPSO> GetPSO(const RenderMode type)
     {
         return PSO[type];
     }

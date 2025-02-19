@@ -29,17 +29,17 @@ const Vector3& Camera::GetFocusPosition() const
     return focusPosition;
 }
 
-Camera::Camera(float aspect): aspectRatio(aspect)
+Camera::Camera(const float aspect): aspectRatio(aspect)
 {
 }
 
-void Camera::SetAspectRatio(float aspect)
+void Camera::SetAspectRatio(const float aspect)
 {
     aspectRatio = aspect;
     NumFramesDirty = globalCountFrameResources;
 }
 
-void Camera::SetFov(float fov)
+void Camera::SetFov(const float fov)
 {
     this->fov = fov;
     NumFramesDirty = globalCountFrameResources;

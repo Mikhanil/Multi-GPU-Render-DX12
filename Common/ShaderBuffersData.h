@@ -30,10 +30,10 @@ struct Vertex
     }
 
     Vertex(
-        float px, float py, float pz,
-        float nx, float ny, float nz,
-        float tx, float ty, float tz,
-        float u, float v) :
+        const float px, const float py, const float pz,
+        const float nx, const float ny, const float nz,
+        const float tx, const float ty, const float tz,
+        const float u, const float v) :
         Position(px, py, pz),
         Normal(nx, ny, nz),
         TexCord(u, v),

@@ -45,8 +45,7 @@ public:
 
     bool IsDirty() const;
 
-    void Update() override;;
-    void Draw(std::shared_ptr<GCommandList> cmdList) override;;
+    void Update() override;
 
     void SetParent(Transform* transform);
 

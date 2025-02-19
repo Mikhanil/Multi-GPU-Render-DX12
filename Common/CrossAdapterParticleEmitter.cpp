@@ -177,7 +177,7 @@ void CrossAdapterParticleEmitter::Update()
     primeParticleEmitter->Update();
 }
 
-void CrossAdapterParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
+void CrossAdapterParticleEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
     if (UseSharedCompute)
     {
@@ -190,7 +190,7 @@ void CrossAdapterParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
     primeParticleEmitter->Draw(cmdList);
 }
 
-void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList)
+void CrossAdapterParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList)
 {
     if (DirtyActivated == Enable)
     {
@@ -306,7 +306,7 @@ void CrossAdapterParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList
     }
 }
 
-void CrossAdapterParticleEmitter::ChangeParticleCount(UINT count)
+void CrossAdapterParticleEmitter::ChangeParticleCount(const UINT count)
 {
     primeParticleEmitter->ChangeParticleCount(count);
 

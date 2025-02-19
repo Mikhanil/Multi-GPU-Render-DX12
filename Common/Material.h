@@ -44,7 +44,7 @@ public:
         return materialIndex;
     }
 
-    void SetMaterialIndex(UINT index)
+    void SetMaterialIndex(const UINT index)
     {
         materialIndex = index;
     }

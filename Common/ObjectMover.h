@@ -13,8 +13,6 @@ class ObjectMover :
 {
     KeyboardDevice* keyboard;
 
-    void Draw(std::shared_ptr<GCommandList> cmdList) override;;
-
     void Update() override;;
 
 public:

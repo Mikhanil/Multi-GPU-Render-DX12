@@ -89,8 +89,7 @@ namespace PEPEngine::Graphics
                          DWORD access = GENERIC_ALL, LPCWSTR name = L"") const;
 
 
-        std::shared_ptr<GCommandQueue> GetCommandQueue(
-            GQueueType type = GQueueType::Graphics) const;
+        std::shared_ptr<GCommandQueue>& GetCommandQueue(GQueueType type = GQueueType::Graphics);
 
         UINT GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE type) const;
 

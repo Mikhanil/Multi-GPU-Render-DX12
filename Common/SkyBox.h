@@ -17,6 +17,6 @@ public:
            GDescriptor* srvMemory, UINT offset = 0);
 
 protected:
-    void Draw(std::shared_ptr<GCommandList> cmdList) override;
+    void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
     void Update() override;;;
 };

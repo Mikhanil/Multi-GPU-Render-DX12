@@ -9,7 +9,7 @@ MouseEvent::MouseEvent()
 {
 }
 
-MouseEvent::MouseEvent(EventType type, int x, int y)
+MouseEvent::MouseEvent(const EventType type, const int x, const int y)
     :
     type(type),
     x(x),
@@ -42,61 +42,61 @@ int MouseEvent::GetPosY() const
     return this->y;
 }
 
-void Mousepad::OnLeftPressed(int x, int y)
+void Mousepad::OnLeftPressed(const int x, const int y)
 {
     this->leftIsDown = true;
     MouseEvent me(MouseEvent::EventType::LPress, x, y);
     this->eventBuffer.push(me);
 }
 
-void Mousepad::OnLeftReleased(int x, int y)
+void Mousepad::OnLeftReleased(const int x, const int y)
 {
     this->leftIsDown = false;
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::LRelease, x, y));
 }
 
-void Mousepad::OnRightPressed(int x, int y)
+void Mousepad::OnRightPressed(const int x, const int y)
 {
     this->rightIsDown = true;
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::RPress, x, y));
 }
 
-void Mousepad::OnRightReleased(int x, int y)
+void Mousepad::OnRightReleased(const int x, const int y)
 {
     this->rightIsDown = false;
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::RRelease, x, y));
 }
 
-void Mousepad::OnMiddlePressed(int x, int y)
+void Mousepad::OnMiddlePressed(const int x, const int y)
 {
     this->mbuttonDown = true;
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::MPress, x, y));
 }
 
-void Mousepad::OnMiddleReleased(int x, int y)
+void Mousepad::OnMiddleReleased(const int x, const int y)
 {
     this->mbuttonDown = false;
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::MRelease, x, y));
 }
 
-void Mousepad::OnWheelUp(int x, int y)
+void Mousepad::OnWheelUp(const int x, const int y)
 {
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::WheelUp, x, y));
 }
 
-void Mousepad::OnWheelDown(int x, int y)
+void Mousepad::OnWheelDown(const int x, const int y)
 {
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::WheelDown, x, y));
 }
 
-void Mousepad::OnMouseMove(int x, int y)
+void Mousepad::OnMouseMove(const int x, const int y)
 {
     this->x = x;
     this->y = y;
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::Move, x, y));
 }
 
-void Mousepad::OnMouseMoveRaw(int x, int y)
+void Mousepad::OnMouseMoveRaw(const int x, const int y)
 {
     this->eventBuffer.push(MouseEvent(MouseEvent::EventType::RAW_MOVE, x, y));
 }

@@ -19,10 +19,6 @@ void Light::Update()
     }
 }
 
-void Light::Draw(std::shared_ptr<GCommandList> cmdList)
-{
-}
-
 LightData Light::GetData() const
 {
     return lightData;
@@ -42,7 +38,7 @@ DirectX::XMFLOAT3 Light::Direction() const
     return direction;
 }
 
-void Light::Direction(DirectX::XMFLOAT3 direct)
+void Light::Direction(const DirectX::XMFLOAT3 direct)
 {
     direction = direct;
     NumFramesDirty = globalCountFrameResources;
@@ -53,13 +49,13 @@ DirectX::XMFLOAT3 Light::Strength() const
     return strength;
 }
 
-void Light::Strength(DirectX::XMFLOAT3 strength)
+void Light::Strength(const DirectX::XMFLOAT3 strength)
 {
     this->strength = strength;
     NumFramesDirty = globalCountFrameResources;
 }
 
-void Light::FalloffStart(float start)
+void Light::FalloffStart(const float start)
 {
     falloffStart = start;
     NumFramesDirty = globalCountFrameResources;
@@ -70,7 +66,7 @@ float Light::FalloffStart() const
     return falloffStart;
 }
 
-void Light::FalloffEnd(float end)
+void Light::FalloffEnd(const float end)
 {
     falloffEnd = end;
     NumFramesDirty = globalCountFrameResources;
@@ -81,7 +77,7 @@ float Light::FalloffEnd() const
     return falloffEnd;
 }
 
-void Light::SpotPower(float power)
+void Light::SpotPower(const float power)
 {
     spotPower = power;
     NumFramesDirty = globalCountFrameResources;

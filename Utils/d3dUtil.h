@@ -198,31 +198,31 @@ namespace PEPEngine
         * Retrieved: January 13, 2016
         **************************************************************************/
         template <typename T>
-        T AlignUpWithMask(T value, size_t mask)
+        T AlignUpWithMask(T value, const size_t mask)
         {
             return static_cast<T>((static_cast<size_t>(value) + mask) & ~mask);
         }
 
         template <typename T>
-        T AlignDownWithMask(T value, size_t mask)
+        T AlignDownWithMask(T value, const size_t mask)
         {
             return static_cast<T>(static_cast<size_t>(value) & ~mask);
         }
 
         template <typename T>
-        T AlignUp(T value, size_t alignment)
+        T AlignUp(T value, const size_t alignment)
         {
             return AlignUpWithMask(value, alignment - 1);
         }
 
         template <typename T>
-        T AlignDown(T value, size_t alignment)
+        T AlignDown(T value, const size_t alignment)
         {
             return AlignDownWithMask(value, alignment - 1);
         }
 
         template <typename T>
-        bool IsAligned(T value, size_t alignment)
+        bool IsAligned(T value, const size_t alignment)
         {
             return 0 == (static_cast<size_t>(value) & (alignment - 1));
         }
@@ -278,7 +278,7 @@ namespace PEPEngine
         constexpr int globalCountFrameResources = 3;
 
 
-        static inline UINT Align(UINT size, UINT alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
+        static inline UINT Align(const UINT size, const UINT alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
         {
             return (size + alignment - 1) & ~(alignment - 1);
         }
@@ -291,7 +291,7 @@ namespace PEPEngine
         }
 
 
-        inline HRESULT ReadDataFromFile(LPCWSTR filename, byte** data, UINT* size)
+        inline HRESULT ReadDataFromFile(const LPCWSTR filename, byte** data, UINT* size)
         {
             using namespace Microsoft::WRL;
 
@@ -357,7 +357,7 @@ namespace PEPEngine
             }
         }
 
-        inline DXGI_FORMAT GetSRGBFormat(DXGI_FORMAT format)
+        inline DXGI_FORMAT GetSRGBFormat(const DXGI_FORMAT format)
         {
             DXGI_FORMAT srgbFormat = format;
 
@@ -432,7 +432,7 @@ namespace PEPEngine
 
             static std::string ToString(HRESULT hr);
 
-            static UINT CalcConstantBufferByteSize(UINT byteSize)
+            static UINT CalcConstantBufferByteSize(const UINT byteSize)
             {
                 // Constant buffers must be a multiple of the minimum hardware
                 // allocation size (usually 256 bytes).  So round up to nearest

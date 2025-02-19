@@ -43,17 +43,17 @@ inline std::shared_ptr<GModel> CreateModelFromGenerated(std::shared_ptr<GCommand
     return std::make_shared<GModel>(nativeModel, cmdList);
 }
 
-std::shared_ptr<GModel> AssetsLoader::GenerateSphere(const std::shared_ptr<GCommandList>& cmdList, float radius,
-                                                     UINT sliceCount,
-                                                     UINT stackCount)
+std::shared_ptr<GModel> AssetsLoader::GenerateSphere(const std::shared_ptr<GCommandList>& cmdList, const float radius,
+                                                     const UINT sliceCount,
+                                                     const UINT stackCount)
 {
     const GeometryGenerator::MeshData sphere = geoGen.CreateSphere(radius, sliceCount, stackCount);
 
     return CreateModelFromGenerated(cmdList, sphere, L"sphere");
 }
 
-std::shared_ptr<GModel> AssetsLoader::GenerateQuad(const std::shared_ptr<GCommandList>& cmdList, float x, float y, float w,
-                                                   float h, float depth)
+std::shared_ptr<GModel> AssetsLoader::GenerateQuad(const std::shared_ptr<GCommandList>& cmdList, const float x, const float y, const float w,
+                                                   const float h, const float depth)
 {
     const GeometryGenerator::MeshData genMesh = geoGen.CreateQuad(x, y, w, h, depth);
 
@@ -168,7 +168,7 @@ std::shared_ptr<GTexture> AssetsLoader::LoadTextureByAiMaterial(const aiMaterial
 
 std::shared_ptr<GTexture> AssetsLoader::LoadTextureByPath(const std::wstring& name,
                                                           const std::wstring& fullPath,
-                                                          const std::shared_ptr<GCommandList>& cmdList, TextureUsage usage)
+                                                          const std::shared_ptr<GCommandList>& cmdList, const TextureUsage usage)
 {
     const auto it = texturesMap.find(name);
     if (it != texturesMap.end()) return textures[it->second];
@@ -334,12 +334,12 @@ UINT AssetsLoader::GetMaterialIndex(const std::wstring& name)
     return it->second;
 }
 
-std::shared_ptr<GTexture> AssetsLoader::GetTexture(UINT index)
+std::shared_ptr<GTexture> AssetsLoader::GetTexture(const UINT index)
 {
     return textures[index];
 }
 
-std::shared_ptr<Material> AssetsLoader::GetMaterial(UINT index)
+std::shared_ptr<Material> AssetsLoader::GetMaterial(const UINT index)
 {
     return materials[index];
 }

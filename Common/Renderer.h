@@ -11,5 +11,5 @@ public:
     } ;
 
     void Update() override = 0;
-    void Draw(std::shared_ptr<GCommandList> cmdList) override = 0;
+    virtual void Draw(const std::shared_ptr<GCommandList>& cmdList) = 0;
 };

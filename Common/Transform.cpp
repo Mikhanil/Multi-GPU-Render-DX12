@@ -54,10 +54,6 @@ void Transform::Update()
     }
 }
 
-void Transform::Draw(std::shared_ptr<GCommandList> cmdList)
-{
-}
-
 void Transform::SetParent(Transform* transform)
 {
     Parent = transform;
@@ -166,7 +162,7 @@ void Transform::AdjustPosition(const Vector3& pos)
     SetPosition(localPosition + pos);
 }
 
-void Transform::AdjustPosition(float x, float y, float z)
+void Transform::AdjustPosition(const float x, const float y, const float z)
 {
     SetPosition(localPosition + Vector3(x, y, z));
 }
@@ -176,7 +172,7 @@ void Transform::AdjustEulerRotation(const Vector3& rot)
     SetEulerRotate(localEulerAngles + rot);
 }
 
-void Transform::AdjustEulerRotation(float roll, float pitch, float yaw)
+void Transform::AdjustEulerRotation(const float roll, const float pitch, const float yaw)
 {
     SetEulerRotate(localEulerAngles + Vector3(roll, pitch, yaw));
 }

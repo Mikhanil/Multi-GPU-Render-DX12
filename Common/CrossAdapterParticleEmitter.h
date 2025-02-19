@@ -45,8 +45,8 @@ public:
     CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, const std::shared_ptr<GDevice>& otherDevice,
                                 DWORD particleCount);
     void Update() override;;
-    void Draw(std::shared_ptr<GCommandList> cmdList) override;
-    void Dispatch(std::shared_ptr<GCommandList> cmdList) override;
+    void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
+    void Dispatch(const std::shared_ptr<GCommandList>& cmdList) override;
 
     void ChangeParticleCount(UINT count);
 

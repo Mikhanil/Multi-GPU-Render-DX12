@@ -32,29 +32,29 @@ void GameObject::Update()
     }
 }
 
-void GameObject::Draw(std::shared_ptr<GCommandList> cmdList)
+void GameObject::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
-    for (auto&& component : components)
+    if (auto& Render = GetRenderer())
     {
-        component->Draw(cmdList);
+        Render->Draw(cmdList);
     }
 }
 
-std::shared_ptr<Transform> GameObject::GetTransform() const
+std::shared_ptr<Transform>& GameObject::GetTransform()
 {
     return transform;
 }
 
-std::shared_ptr<ModelRenderer> GameObject::GetRenderer()
+std::shared_ptr<Renderer>& GameObject::GetRenderer()
 {
     if (renderer == nullptr)
     {
         for (auto&& component : components)
         {
-            const auto comp = dynamic_cast<ModelRenderer*>(component.get());
+            const auto comp = dynamic_cast<Renderer*>(component.get());
             if (comp)
             {
-                renderer = std::static_pointer_cast<ModelRenderer>(component);
+                renderer = std::static_pointer_cast<Renderer>(component);
                 break;
             }
         }
@@ -63,7 +63,7 @@ std::shared_ptr<ModelRenderer> GameObject::GetRenderer()
     return renderer;
 }
 
-void GameObject::SetScale(float scale) const
+void GameObject::SetScale(const float scale) const
 {
     transform->SetScale(Vector3(scale, scale, scale));
 }

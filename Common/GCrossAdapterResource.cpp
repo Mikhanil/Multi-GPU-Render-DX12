@@ -86,7 +86,7 @@ void GCrossAdapterResource::Reset()
     isInit = false;
 }
 
-void GCrossAdapterResource::Resize(UINT newWidth, UINT newHeight)
+void GCrossAdapterResource::Resize(const UINT newWidth, const UINT newHeight)
 {
     auto desc = primeResource->GetD3D12ResourceDesc();
     desc.Width = newWidth;

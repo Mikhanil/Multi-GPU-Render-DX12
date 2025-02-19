@@ -4,7 +4,7 @@
 #include "MathHelper.h"
 #include "Transform.h"
 
-double ParticleEmitter::CalculateGroupCount(DWORD particleCount) const
+double ParticleEmitter::CalculateGroupCount(const DWORD particleCount) const
 {
     auto numGroups = (particleCount % 1024 != 0) ? ((particleCount / 1024) + 1) : (particleCount / 1024);
     auto secondRoot = std::pow(static_cast<double>(numGroups), 1.0 / 2.0);
@@ -16,7 +16,7 @@ void ParticleEmitter::DescriptorInitialize()
 {
     particlesComputeDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 
-    particlesRenderDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2 + Atlas.size());
+    particlesRenderDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2u + Atlas.size());
 
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -81,7 +81,7 @@ void ParticleEmitter::BufferInitialize()
     {
         std::vector<UINT> deadIndex;
 
-        for (int i = 0; i < emitterData.ParticlesTotalCount; ++i)
+        for (UINT i = 0; i < emitterData.ParticlesTotalCount; ++i)
         {
             deadIndex.push_back(i);
         }
@@ -148,7 +148,7 @@ void ParticleEmitter::BufferInitialize()
     newParticles.resize(InjectedParticles->GetElementCount());
 }
 
-void ParticleEmitter::ChangeParticleCount(UINT count)
+void ParticleEmitter::ChangeParticleCount(const UINT count)
 {
     emitterData.ParticlesTotalCount = count;
     emitterData.Color = DirectX::Colors::Blue;
@@ -164,7 +164,7 @@ void ParticleEmitter::ChangeParticleCount(UINT count)
 }
 
 
-ParticleEmitter::ParticleEmitter(const std::shared_ptr<GDevice>& device, DWORD particleCount)
+ParticleEmitter::ParticleEmitter(const std::shared_ptr<GDevice>& device, const DWORD particleCount)
 {
     this->device = device;
 
@@ -237,7 +237,7 @@ void ParticleEmitter::Update()
     }
 }
 
-void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
+void ParticleEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
     cmdList->TransitionBarrier(ParticlesPool->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     cmdList->TransitionBarrier(ParticlesAlive->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -269,7 +269,7 @@ void ParticleEmitter::Draw(std::shared_ptr<GCommandList> cmdList)
 }
 
 
-void ParticleEmitter::Dispatch(std::shared_ptr<GCommandList> cmdList)
+void ParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList)
 {
     isWorked = true;
 

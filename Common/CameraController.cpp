@@ -75,6 +75,3 @@ void CameraController::Update()
     }
 }
 
-void CameraController::Draw(std::shared_ptr<GCommandList> cmdList)
-{
-}

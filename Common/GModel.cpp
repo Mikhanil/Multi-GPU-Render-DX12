@@ -9,12 +9,12 @@ UINT GModel::GetMeshesCount() const
     return model->GetMeshesCount();
 }
 
-std::shared_ptr<Material> GModel::GetMeshMaterial(UINT index)
+std::shared_ptr<Material> GModel::GetMeshMaterial(const UINT index)
 {
     return meshesMaterials[index];
 }
 
-std::shared_ptr<GMesh> GModel::GetMesh(UINT index)
+std::shared_ptr<GMesh> GModel::GetMesh(const UINT index)
 {
     return gmeshes[index];
 }
@@ -38,7 +38,7 @@ GModel::GModel(const std::shared_ptr<NativeModel>& model, std::shared_ptr<GComma
     }
 }
 
-void GModel::SetMeshMaterial(UINT index, const std::shared_ptr<Material>& material)
+void GModel::SetMeshMaterial(const UINT index, const std::shared_ptr<Material>& material)
 {
     meshesMaterials[index] = material;
 }

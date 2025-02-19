@@ -19,7 +19,7 @@ namespace PEPEngine::Allocator
                       "Linear size must be less or equal max value of the uint32_t");
 
     public:
-        void* Allocate(std::size_t size)
+        void* Allocate(const std::size_t size)
         {
             if (size > INIT_LINEAR_SIZE)
             {
@@ -48,7 +48,7 @@ namespace PEPEngine::Allocator
         }
 
 
-        void Deallocate(void* memory_ptr, std::size_t size)
+        void Deallocate(void* memory_ptr, const std::size_t size)
         {
             if ((!memory_ptr) || (size == 0u))
             {

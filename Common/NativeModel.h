@@ -15,8 +15,8 @@ class NativeMesh
     custom_vector<DWORD> indexes = MemoryAllocator::CreateVector<DWORD>();
 
 public:
-    NativeMesh(const Vertex* vertices, size_t vertexesCount, const DWORD* indices, size_t indexesCount,
-               D3D12_PRIMITIVE_TOPOLOGY topology = D3D10_PRIMITIVE_TOPOLOGY_UNDEFINED,
+    NativeMesh(const Vertex* vertices, const size_t vertexesCount, const DWORD* indices, const size_t indexesCount,
+               const D3D12_PRIMITIVE_TOPOLOGY topology = D3D10_PRIMITIVE_TOPOLOGY_UNDEFINED,
                std::wstring name = L"") : meshName(
                                               std::move(name)), topology(topology)
     {
@@ -79,7 +79,7 @@ public:
 
     std::wstring GetName() const { return name; };
 
-    std::shared_ptr<NativeMesh> GetMesh(UINT index)
+    std::shared_ptr<NativeMesh> GetMesh(const UINT index)
     {
         assert(index <= meshes.size());
 

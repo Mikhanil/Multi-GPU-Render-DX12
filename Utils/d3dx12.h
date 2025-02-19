@@ -46,10 +46,10 @@ struct CD3DX12_RECT : D3D12_RECT
     }
 
     explicit CD3DX12_RECT(
-        LONG Left,
-        LONG Top,
-        LONG Right,
-        LONG Bottom) noexcept
+        const LONG Left,
+        const LONG Top,
+        const LONG Right,
+        const LONG Bottom) noexcept
     {
         left = Left;
         top = Top;
@@ -69,12 +69,12 @@ struct CD3DX12_VIEWPORT : D3D12_VIEWPORT
     }
 
     explicit CD3DX12_VIEWPORT(
-        FLOAT topLeftX,
-        FLOAT topLeftY,
-        FLOAT width,
-        FLOAT height,
-        FLOAT minDepth = D3D12_MIN_DEPTH,
-        FLOAT maxDepth = D3D12_MAX_DEPTH) noexcept
+        const FLOAT topLeftX,
+        const FLOAT topLeftY,
+        const FLOAT width,
+        const FLOAT height,
+        const FLOAT minDepth = D3D12_MIN_DEPTH,
+        const FLOAT maxDepth = D3D12_MAX_DEPTH) noexcept
     {
         TopLeftX = topLeftX;
         TopLeftY = topLeftY;
@@ -86,11 +86,11 @@ struct CD3DX12_VIEWPORT : D3D12_VIEWPORT
 
     explicit CD3DX12_VIEWPORT(
         _In_ ID3D12Resource* pResource,
-        UINT mipSlice = 0,
-        FLOAT topLeftX = 0.0f,
-        FLOAT topLeftY = 0.0f,
-        FLOAT minDepth = D3D12_MIN_DEPTH,
-        FLOAT maxDepth = D3D12_MAX_DEPTH) noexcept
+        const UINT mipSlice = 0,
+        const FLOAT topLeftX = 0.0f,
+        const FLOAT topLeftY = 0.0f,
+        const FLOAT minDepth = D3D12_MIN_DEPTH,
+        const FLOAT maxDepth = D3D12_MAX_DEPTH) noexcept
     {
         auto Desc = pResource->GetDesc();
         const UINT64 SubresourceWidth = Desc.Width >> mipSlice;
@@ -135,8 +135,8 @@ struct CD3DX12_BOX : D3D12_BOX
     }
 
     explicit CD3DX12_BOX(
-        LONG Left,
-        LONG Right) noexcept
+        const LONG Left,
+        const LONG Right) noexcept
     {
         left = static_cast<UINT>(Left);
         top = 0;
@@ -147,10 +147,10 @@ struct CD3DX12_BOX : D3D12_BOX
     }
 
     explicit CD3DX12_BOX(
-        LONG Left,
-        LONG Top,
-        LONG Right,
-        LONG Bottom) noexcept
+        const LONG Left,
+        const LONG Top,
+        const LONG Right,
+        const LONG Bottom) noexcept
     {
         left = static_cast<UINT>(Left);
         top = static_cast<UINT>(Top);
@@ -161,12 +161,12 @@ struct CD3DX12_BOX : D3D12_BOX
     }
 
     explicit CD3DX12_BOX(
-        LONG Left,
-        LONG Top,
-        LONG Front,
-        LONG Right,
-        LONG Bottom,
-        LONG Back) noexcept
+        const LONG Left,
+        const LONG Top,
+        const LONG Front,
+        const LONG Right,
+        const LONG Bottom,
+        const LONG Back) noexcept
     {
         left = static_cast<UINT>(Left);
         top = static_cast<UINT>(Top);
@@ -213,20 +213,20 @@ struct CD3DX12_DEPTH_STENCIL_DESC : D3D12_DEPTH_STENCIL_DESC
     }
 
     explicit CD3DX12_DEPTH_STENCIL_DESC(
-        BOOL depthEnable,
-        D3D12_DEPTH_WRITE_MASK depthWriteMask,
-        D3D12_COMPARISON_FUNC depthFunc,
-        BOOL stencilEnable,
-        UINT8 stencilReadMask,
-        UINT8 stencilWriteMask,
-        D3D12_STENCIL_OP frontStencilFailOp,
-        D3D12_STENCIL_OP frontStencilDepthFailOp,
-        D3D12_STENCIL_OP frontStencilPassOp,
-        D3D12_COMPARISON_FUNC frontStencilFunc,
-        D3D12_STENCIL_OP backStencilFailOp,
-        D3D12_STENCIL_OP backStencilDepthFailOp,
-        D3D12_STENCIL_OP backStencilPassOp,
-        D3D12_COMPARISON_FUNC backStencilFunc) noexcept
+        const BOOL depthEnable,
+        const D3D12_DEPTH_WRITE_MASK depthWriteMask,
+        const D3D12_COMPARISON_FUNC depthFunc,
+        const BOOL stencilEnable,
+        const UINT8 stencilReadMask,
+        const UINT8 stencilWriteMask,
+        const D3D12_STENCIL_OP frontStencilFailOp,
+        const D3D12_STENCIL_OP frontStencilDepthFailOp,
+        const D3D12_STENCIL_OP frontStencilPassOp,
+        const D3D12_COMPARISON_FUNC frontStencilFunc,
+        const D3D12_STENCIL_OP backStencilFailOp,
+        const D3D12_STENCIL_OP backStencilDepthFailOp,
+        const D3D12_STENCIL_OP backStencilPassOp,
+        const D3D12_COMPARISON_FUNC backStencilFunc) noexcept
     {
         DepthEnable = depthEnable;
         DepthWriteMask = depthWriteMask;
@@ -290,21 +290,21 @@ struct CD3DX12_DEPTH_STENCIL_DESC1 : D3D12_DEPTH_STENCIL_DESC1
     }
 
     explicit CD3DX12_DEPTH_STENCIL_DESC1(
-        BOOL depthEnable,
-        D3D12_DEPTH_WRITE_MASK depthWriteMask,
-        D3D12_COMPARISON_FUNC depthFunc,
-        BOOL stencilEnable,
-        UINT8 stencilReadMask,
-        UINT8 stencilWriteMask,
-        D3D12_STENCIL_OP frontStencilFailOp,
-        D3D12_STENCIL_OP frontStencilDepthFailOp,
-        D3D12_STENCIL_OP frontStencilPassOp,
-        D3D12_COMPARISON_FUNC frontStencilFunc,
-        D3D12_STENCIL_OP backStencilFailOp,
-        D3D12_STENCIL_OP backStencilDepthFailOp,
-        D3D12_STENCIL_OP backStencilPassOp,
-        D3D12_COMPARISON_FUNC backStencilFunc,
-        BOOL depthBoundsTestEnable) noexcept
+        const BOOL depthEnable,
+        const D3D12_DEPTH_WRITE_MASK depthWriteMask,
+        const D3D12_COMPARISON_FUNC depthFunc,
+        const BOOL stencilEnable,
+        const UINT8 stencilReadMask,
+        const UINT8 stencilWriteMask,
+        const D3D12_STENCIL_OP frontStencilFailOp,
+        const D3D12_STENCIL_OP frontStencilDepthFailOp,
+        const D3D12_STENCIL_OP frontStencilPassOp,
+        const D3D12_COMPARISON_FUNC frontStencilFunc,
+        const D3D12_STENCIL_OP backStencilFailOp,
+        const D3D12_STENCIL_OP backStencilDepthFailOp,
+        const D3D12_STENCIL_OP backStencilPassOp,
+        const D3D12_COMPARISON_FUNC backStencilFunc,
+        const BOOL depthBoundsTestEnable) noexcept
     {
         DepthEnable = depthEnable;
         DepthWriteMask = depthWriteMask;
@@ -397,17 +397,17 @@ struct CD3DX12_RASTERIZER_DESC : D3D12_RASTERIZER_DESC
     }
 
     explicit CD3DX12_RASTERIZER_DESC(
-        D3D12_FILL_MODE fillMode,
-        D3D12_CULL_MODE cullMode,
-        BOOL frontCounterClockwise,
-        INT depthBias,
-        FLOAT depthBiasClamp,
-        FLOAT slopeScaledDepthBias,
-        BOOL depthClipEnable,
-        BOOL multisampleEnable,
-        BOOL antialiasedLineEnable,
-        UINT forcedSampleCount,
-        D3D12_CONSERVATIVE_RASTERIZATION_MODE conservativeRaster) noexcept
+        const D3D12_FILL_MODE fillMode,
+        const D3D12_CULL_MODE cullMode,
+        const BOOL frontCounterClockwise,
+        const INT depthBias,
+        const FLOAT depthBiasClamp,
+        const FLOAT slopeScaledDepthBias,
+        const BOOL depthClipEnable,
+        const BOOL multisampleEnable,
+        const BOOL antialiasedLineEnable,
+        const UINT forcedSampleCount,
+        const D3D12_CONSERVATIVE_RASTERIZATION_MODE conservativeRaster) noexcept
     {
         FillMode = fillMode;
         CullMode = cullMode;
@@ -434,8 +434,8 @@ struct CD3DX12_RESOURCE_ALLOCATION_INFO : D3D12_RESOURCE_ALLOCATION_INFO
     }
 
     CD3DX12_RESOURCE_ALLOCATION_INFO(
-        UINT64 size,
-        UINT64 alignment) noexcept
+        const UINT64 size,
+        const UINT64 alignment) noexcept
     {
         SizeInBytes = size;
         Alignment = alignment;
@@ -453,10 +453,10 @@ struct CD3DX12_HEAP_PROPERTIES : D3D12_HEAP_PROPERTIES
     }
 
     CD3DX12_HEAP_PROPERTIES(
-        D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
-        D3D12_MEMORY_POOL memoryPoolPreference,
-        UINT creationNodeMask = 1,
-        UINT nodeMask = 1) noexcept
+        const D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
+        const D3D12_MEMORY_POOL memoryPoolPreference,
+        const UINT creationNodeMask = 1,
+        const UINT nodeMask = 1) noexcept
     {
         Type = D3D12_HEAP_TYPE_CUSTOM;
         CPUPageProperty = cpuPageProperty;
@@ -466,9 +466,9 @@ struct CD3DX12_HEAP_PROPERTIES : D3D12_HEAP_PROPERTIES
     }
 
     explicit CD3DX12_HEAP_PROPERTIES(
-        D3D12_HEAP_TYPE type,
-        UINT creationNodeMask = 1,
-        UINT nodeMask = 1) noexcept
+        const D3D12_HEAP_TYPE type,
+        const UINT creationNodeMask = 1,
+        const UINT nodeMask = 1) noexcept
     {
         Type = type;
         CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -509,10 +509,10 @@ struct CD3DX12_HEAP_DESC : D3D12_HEAP_DESC
     }
 
     CD3DX12_HEAP_DESC(
-        UINT64 size,
+        const UINT64 size,
         const D3D12_HEAP_PROPERTIES& properties,
-        UINT64 alignment = 0,
-        D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
+        const UINT64 alignment = 0,
+        const D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
     {
         SizeInBytes = size;
         Properties = properties;
@@ -521,10 +521,10 @@ struct CD3DX12_HEAP_DESC : D3D12_HEAP_DESC
     }
 
     CD3DX12_HEAP_DESC(
-        UINT64 size,
-        D3D12_HEAP_TYPE type,
-        UINT64 alignment = 0,
-        D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
+        const UINT64 size,
+        const D3D12_HEAP_TYPE type,
+        const UINT64 alignment = 0,
+        const D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
     {
         SizeInBytes = size;
         Properties = CD3DX12_HEAP_PROPERTIES(type);
@@ -533,11 +533,11 @@ struct CD3DX12_HEAP_DESC : D3D12_HEAP_DESC
     }
 
     CD3DX12_HEAP_DESC(
-        UINT64 size,
-        D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
-        D3D12_MEMORY_POOL memoryPoolPreference,
-        UINT64 alignment = 0,
-        D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
+        const UINT64 size,
+        const D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
+        const D3D12_MEMORY_POOL memoryPoolPreference,
+        const UINT64 alignment = 0,
+        const D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
     {
         SizeInBytes = size;
         Properties = CD3DX12_HEAP_PROPERTIES(cpuPageProperty, memoryPoolPreference);
@@ -548,7 +548,7 @@ struct CD3DX12_HEAP_DESC : D3D12_HEAP_DESC
     CD3DX12_HEAP_DESC(
         const D3D12_RESOURCE_ALLOCATION_INFO& resAllocInfo,
         const D3D12_HEAP_PROPERTIES& properties,
-        D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
+        const D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
     {
         SizeInBytes = resAllocInfo.SizeInBytes;
         Properties = properties;
@@ -558,8 +558,8 @@ struct CD3DX12_HEAP_DESC : D3D12_HEAP_DESC
 
     CD3DX12_HEAP_DESC(
         const D3D12_RESOURCE_ALLOCATION_INFO& resAllocInfo,
-        D3D12_HEAP_TYPE type,
-        D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
+        const D3D12_HEAP_TYPE type,
+        const D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
     {
         SizeInBytes = resAllocInfo.SizeInBytes;
         Properties = CD3DX12_HEAP_PROPERTIES(type);
@@ -569,9 +569,9 @@ struct CD3DX12_HEAP_DESC : D3D12_HEAP_DESC
 
     CD3DX12_HEAP_DESC(
         const D3D12_RESOURCE_ALLOCATION_INFO& resAllocInfo,
-        D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
-        D3D12_MEMORY_POOL memoryPoolPreference,
-        D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
+        const D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
+        const D3D12_MEMORY_POOL memoryPoolPreference,
+        const D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_NONE) noexcept
     {
         SizeInBytes = resAllocInfo.SizeInBytes;
         Properties = CD3DX12_HEAP_PROPERTIES(cpuPageProperty, memoryPoolPreference);
@@ -609,7 +609,7 @@ struct CD3DX12_CLEAR_VALUE : D3D12_CLEAR_VALUE
     }
 
     CD3DX12_CLEAR_VALUE(
-        DXGI_FORMAT format,
+        const DXGI_FORMAT format,
         const FLOAT color[4]) noexcept
     {
         Format = format;
@@ -617,9 +617,9 @@ struct CD3DX12_CLEAR_VALUE : D3D12_CLEAR_VALUE
     }
 
     CD3DX12_CLEAR_VALUE(
-        DXGI_FORMAT format,
-        FLOAT depth,
-        UINT8 stencil) noexcept
+        const DXGI_FORMAT format,
+        const FLOAT depth,
+        const UINT8 stencil) noexcept
     {
         Format = format;
         memset(&Color, 0, sizeof(Color));
@@ -640,8 +640,8 @@ struct CD3DX12_RANGE : D3D12_RANGE
     }
 
     CD3DX12_RANGE(
-        SIZE_T begin,
-        SIZE_T end) noexcept
+        const SIZE_T begin,
+        const SIZE_T end) noexcept
     {
         Begin = begin;
         End = end;
@@ -659,8 +659,8 @@ struct CD3DX12_RANGE_UINT64 : D3D12_RANGE_UINT64
     }
 
     CD3DX12_RANGE_UINT64(
-        UINT64 begin,
-        UINT64 end) noexcept
+        const UINT64 begin,
+        const UINT64 end) noexcept
     {
         Begin = begin;
         End = end;
@@ -678,7 +678,7 @@ struct CD3DX12_SUBRESOURCE_RANGE_UINT64 : D3D12_SUBRESOURCE_RANGE_UINT64
     }
 
     CD3DX12_SUBRESOURCE_RANGE_UINT64(
-        UINT subresource,
+        const UINT subresource,
         const D3D12_RANGE_UINT64& range) noexcept
     {
         Subresource = subresource;
@@ -686,9 +686,9 @@ struct CD3DX12_SUBRESOURCE_RANGE_UINT64 : D3D12_SUBRESOURCE_RANGE_UINT64
     }
 
     CD3DX12_SUBRESOURCE_RANGE_UINT64(
-        UINT subresource,
-        UINT64 begin,
-        UINT64 end) noexcept
+        const UINT subresource,
+        const UINT64 begin,
+        const UINT64 end) noexcept
     {
         Subresource = subresource;
         Range.Begin = begin;
@@ -715,7 +715,7 @@ struct CD3DX12_SHADER_BYTECODE : D3D12_SHADER_BYTECODE
 
     CD3DX12_SHADER_BYTECODE(
         const void* _pShaderBytecode,
-        SIZE_T bytecodeLength) noexcept
+        const SIZE_T bytecodeLength) noexcept
     {
         pShaderBytecode = _pShaderBytecode;
         BytecodeLength = bytecodeLength;
@@ -733,10 +733,10 @@ struct CD3DX12_TILED_RESOURCE_COORDINATE : D3D12_TILED_RESOURCE_COORDINATE
     }
 
     CD3DX12_TILED_RESOURCE_COORDINATE(
-        UINT x,
-        UINT y,
-        UINT z,
-        UINT subresource) noexcept
+        const UINT x,
+        const UINT y,
+        const UINT z,
+        const UINT subresource) noexcept
     {
         X = x;
         Y = y;
@@ -756,11 +756,11 @@ struct CD3DX12_TILE_REGION_SIZE : D3D12_TILE_REGION_SIZE
     }
 
     CD3DX12_TILE_REGION_SIZE(
-        UINT numTiles,
-        BOOL useBox,
-        UINT width,
-        UINT16 height,
-        UINT16 depth) noexcept
+        const UINT numTiles,
+        const BOOL useBox,
+        const UINT width,
+        const UINT16 height,
+        const UINT16 depth) noexcept
     {
         NumTiles = numTiles;
         UseBox = useBox;
@@ -781,10 +781,10 @@ struct CD3DX12_SUBRESOURCE_TILING : D3D12_SUBRESOURCE_TILING
     }
 
     CD3DX12_SUBRESOURCE_TILING(
-        UINT widthInTiles,
-        UINT16 heightInTiles,
-        UINT16 depthInTiles,
-        UINT startTileIndexInOverallResource) noexcept
+        const UINT widthInTiles,
+        const UINT16 heightInTiles,
+        const UINT16 depthInTiles,
+        const UINT startTileIndexInOverallResource) noexcept
     {
         WidthInTiles = widthInTiles;
         HeightInTiles = heightInTiles;
@@ -804,9 +804,9 @@ struct CD3DX12_TILE_SHAPE : D3D12_TILE_SHAPE
     }
 
     CD3DX12_TILE_SHAPE(
-        UINT widthInTexels,
-        UINT heightInTexels,
-        UINT depthInTexels) noexcept
+        const UINT widthInTexels,
+        const UINT heightInTexels,
+        const UINT depthInTexels) noexcept
     {
         WidthInTexels = widthInTexels;
         HeightInTexels = heightInTexels;
@@ -826,10 +826,10 @@ struct CD3DX12_RESOURCE_BARRIER : D3D12_RESOURCE_BARRIER
 
     static CD3DX12_RESOURCE_BARRIER Transition(
         _In_ ID3D12Resource* pResource,
-        D3D12_RESOURCE_STATES stateBefore,
-        D3D12_RESOURCE_STATES stateAfter,
-        UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
-        D3D12_RESOURCE_BARRIER_FLAGS flags = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept
+        const D3D12_RESOURCE_STATES stateBefore,
+        const D3D12_RESOURCE_STATES stateAfter,
+        const UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+        const D3D12_RESOURCE_BARRIER_FLAGS flags = D3D12_RESOURCE_BARRIER_FLAG_NONE) noexcept
     {
         CD3DX12_RESOURCE_BARRIER result = {};
         D3D12_RESOURCE_BARRIER& barrier = result;
@@ -876,10 +876,10 @@ struct CD3DX12_PACKED_MIP_INFO : D3D12_PACKED_MIP_INFO
     }
 
     CD3DX12_PACKED_MIP_INFO(
-        UINT8 numStandardMips,
-        UINT8 numPackedMips,
-        UINT numTilesForPackedMips,
-        UINT startTileIndexInOverallResource) noexcept
+        const UINT8 numStandardMips,
+        const UINT8 numPackedMips,
+        const UINT numTilesForPackedMips,
+        const UINT startTileIndexInOverallResource) noexcept
     {
         NumStandardMips = numStandardMips;
         NumPackedMips = numPackedMips;
@@ -899,11 +899,11 @@ struct CD3DX12_SUBRESOURCE_FOOTPRINT : D3D12_SUBRESOURCE_FOOTPRINT
     }
 
     CD3DX12_SUBRESOURCE_FOOTPRINT(
-        DXGI_FORMAT format,
-        UINT width,
-        UINT height,
-        UINT depth,
-        UINT rowPitch) noexcept
+        const DXGI_FORMAT format,
+        const UINT width,
+        const UINT height,
+        const UINT depth,
+        const UINT rowPitch) noexcept
     {
         Format = format;
         Width = width;
@@ -914,7 +914,7 @@ struct CD3DX12_SUBRESOURCE_FOOTPRINT : D3D12_SUBRESOURCE_FOOTPRINT
 
     explicit CD3DX12_SUBRESOURCE_FOOTPRINT(
         const D3D12_RESOURCE_DESC& resDesc,
-        UINT rowPitch) noexcept
+        const UINT rowPitch) noexcept
     {
         Format = resDesc.Format;
         Width = static_cast<UINT>(resDesc.Width);
@@ -949,7 +949,7 @@ struct CD3DX12_TEXTURE_COPY_LOCATION : D3D12_TEXTURE_COPY_LOCATION
         PlacedFootprint = Footprint;
     }
 
-    CD3DX12_TEXTURE_COPY_LOCATION(_In_ ID3D12Resource* pRes, UINT Sub) noexcept
+    CD3DX12_TEXTURE_COPY_LOCATION(_In_ ID3D12Resource* pRes, const UINT Sub) noexcept
     {
         pResource = pRes;
         Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -969,22 +969,22 @@ struct CD3DX12_DESCRIPTOR_RANGE : D3D12_DESCRIPTOR_RANGE
     }
 
     CD3DX12_DESCRIPTOR_RANGE(
-        D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-        UINT numDescriptors,
-        UINT baseShaderRegister,
-        UINT registerSpace = 0,
-        UINT offsetInDescriptorsFromTableStart =
+        const D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+        const UINT numDescriptors,
+        const UINT baseShaderRegister,
+        const UINT registerSpace = 0,
+        const UINT offsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND) noexcept
     {
         Init(rangeType, numDescriptors, baseShaderRegister, registerSpace, offsetInDescriptorsFromTableStart);
     }
 
     void Init(
-        D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-        UINT numDescriptors,
-        UINT baseShaderRegister,
-        UINT registerSpace = 0,
-        UINT offsetInDescriptorsFromTableStart =
+        const D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+        const UINT numDescriptors,
+        const UINT baseShaderRegister,
+        const UINT registerSpace = 0,
+        const UINT offsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND) noexcept
     {
         Init(*this, rangeType, numDescriptors, baseShaderRegister, registerSpace, offsetInDescriptorsFromTableStart);
@@ -992,11 +992,11 @@ struct CD3DX12_DESCRIPTOR_RANGE : D3D12_DESCRIPTOR_RANGE
 
     static void Init(
         _Out_ D3D12_DESCRIPTOR_RANGE& range,
-        D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-        UINT numDescriptors,
-        UINT baseShaderRegister,
-        UINT registerSpace = 0,
-        UINT offsetInDescriptorsFromTableStart =
+        const D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+        const UINT numDescriptors,
+        const UINT baseShaderRegister,
+        const UINT registerSpace = 0,
+        const UINT offsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND) noexcept
     {
         range.RangeType = rangeType;
@@ -1018,14 +1018,14 @@ struct CD3DX12_ROOT_DESCRIPTOR_TABLE : D3D12_ROOT_DESCRIPTOR_TABLE
     }
 
     CD3DX12_ROOT_DESCRIPTOR_TABLE(
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* _pDescriptorRanges) noexcept
     {
         Init(numDescriptorRanges, _pDescriptorRanges);
     }
 
     void Init(
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* _pDescriptorRanges) noexcept
     {
         Init(*this, numDescriptorRanges, _pDescriptorRanges);
@@ -1033,7 +1033,7 @@ struct CD3DX12_ROOT_DESCRIPTOR_TABLE : D3D12_ROOT_DESCRIPTOR_TABLE
 
     static void Init(
         _Out_ D3D12_ROOT_DESCRIPTOR_TABLE& rootDescriptorTable,
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* _pDescriptorRanges) noexcept
     {
         rootDescriptorTable.NumDescriptorRanges = numDescriptorRanges;
@@ -1052,26 +1052,26 @@ struct CD3DX12_ROOT_CONSTANTS : D3D12_ROOT_CONSTANTS
     }
 
     CD3DX12_ROOT_CONSTANTS(
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0) noexcept
     {
         Init(num32BitValues, shaderRegister, registerSpace);
     }
 
     void Init(
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0) noexcept
     {
         Init(*this, num32BitValues, shaderRegister, registerSpace);
     }
 
     static void Init(
         _Out_ D3D12_ROOT_CONSTANTS& rootConstants,
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0) noexcept
     {
         rootConstants.Num32BitValues = num32BitValues;
         rootConstants.ShaderRegister = shaderRegister;
@@ -1090,20 +1090,20 @@ struct CD3DX12_ROOT_DESCRIPTOR : D3D12_ROOT_DESCRIPTOR
     }
 
     CD3DX12_ROOT_DESCRIPTOR(
-        UINT shaderRegister,
-        UINT registerSpace = 0) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0) noexcept
     {
         Init(shaderRegister, registerSpace);
     }
 
     void Init(
-        UINT shaderRegister,
-        UINT registerSpace = 0) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0) noexcept
     {
         Init(*this, shaderRegister, registerSpace);
     }
 
-    static void Init(_Out_ D3D12_ROOT_DESCRIPTOR& table, UINT shaderRegister, UINT registerSpace = 0) noexcept
+    static void Init(_Out_ D3D12_ROOT_DESCRIPTOR& table, const UINT shaderRegister, const UINT registerSpace = 0) noexcept
     {
         table.ShaderRegister = shaderRegister;
         table.RegisterSpace = registerSpace;
@@ -1122,9 +1122,9 @@ struct CD3DX12_ROOT_PARAMETER : D3D12_ROOT_PARAMETER
 
     static void InitAsDescriptorTable(
         _Out_ D3D12_ROOT_PARAMETER& rootParam,
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* pDescriptorRanges,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         rootParam.ShaderVisibility = visibility;
@@ -1133,10 +1133,10 @@ struct CD3DX12_ROOT_PARAMETER : D3D12_ROOT_PARAMETER
 
     static void InitAsConstants(
         _Out_ D3D12_ROOT_PARAMETER& rootParam,
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
         rootParam.ShaderVisibility = visibility;
@@ -1145,9 +1145,9 @@ struct CD3DX12_ROOT_PARAMETER : D3D12_ROOT_PARAMETER
 
     static void InitAsConstantBufferView(
         _Out_ D3D12_ROOT_PARAMETER& rootParam,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         rootParam.ShaderVisibility = visibility;
@@ -1156,9 +1156,9 @@ struct CD3DX12_ROOT_PARAMETER : D3D12_ROOT_PARAMETER
 
     static void InitAsShaderResourceView(
         _Out_ D3D12_ROOT_PARAMETER& rootParam,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
         rootParam.ShaderVisibility = visibility;
@@ -1167,9 +1167,9 @@ struct CD3DX12_ROOT_PARAMETER : D3D12_ROOT_PARAMETER
 
     static void InitAsUnorderedAccessView(
         _Out_ D3D12_ROOT_PARAMETER& rootParam,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
         rootParam.ShaderVisibility = visibility;
@@ -1177,42 +1177,42 @@ struct CD3DX12_ROOT_PARAMETER : D3D12_ROOT_PARAMETER
     }
 
     void InitAsDescriptorTable(
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE* pDescriptorRanges,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsDescriptorTable(*this, numDescriptorRanges, pDescriptorRanges, visibility);
     }
 
     void InitAsConstants(
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsConstants(*this, num32BitValues, shaderRegister, registerSpace, visibility);
     }
 
     void InitAsConstantBufferView(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsConstantBufferView(*this, shaderRegister, registerSpace, visibility);
     }
 
     void InitAsShaderResourceView(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsShaderResourceView(*this, shaderRegister, registerSpace, visibility);
     }
 
     void InitAsUnorderedAccessView(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsUnorderedAccessView(*this, shaderRegister, registerSpace, visibility);
     }
@@ -1229,19 +1229,19 @@ struct CD3DX12_STATIC_SAMPLER_DESC : D3D12_STATIC_SAMPLER_DESC
     }
 
     CD3DX12_STATIC_SAMPLER_DESC(
-        UINT shaderRegister,
-        D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
-        D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        FLOAT mipLODBias = 0,
-        UINT maxAnisotropy = 16,
-        D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-        D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE,
-        FLOAT minLOD = 0.f,
-        FLOAT maxLOD = D3D12_FLOAT32_MAX,
-        D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-        UINT registerSpace = 0) noexcept
+        const UINT shaderRegister,
+        const D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
+        const D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const FLOAT mipLODBias = 0,
+        const UINT maxAnisotropy = 16,
+        const D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        const D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE,
+        const FLOAT minLOD = 0.f,
+        const FLOAT maxLOD = D3D12_FLOAT32_MAX,
+        const D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+        const UINT registerSpace = 0) noexcept
     {
         Init(
             shaderRegister,
@@ -1261,19 +1261,19 @@ struct CD3DX12_STATIC_SAMPLER_DESC : D3D12_STATIC_SAMPLER_DESC
 
     static void Init(
         _Out_ D3D12_STATIC_SAMPLER_DESC& samplerDesc,
-        UINT shaderRegister,
-        D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
-        D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        FLOAT mipLODBias = 0,
-        UINT maxAnisotropy = 16,
-        D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-        D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE,
-        FLOAT minLOD = 0.f,
-        FLOAT maxLOD = D3D12_FLOAT32_MAX,
-        D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-        UINT registerSpace = 0) noexcept
+        const UINT shaderRegister,
+        const D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
+        const D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const FLOAT mipLODBias = 0,
+        const UINT maxAnisotropy = 16,
+        const D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        const D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE,
+        const FLOAT minLOD = 0.f,
+        const FLOAT maxLOD = D3D12_FLOAT32_MAX,
+        const D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+        const UINT registerSpace = 0) noexcept
     {
         samplerDesc.ShaderRegister = shaderRegister;
         samplerDesc.Filter = filter;
@@ -1291,19 +1291,19 @@ struct CD3DX12_STATIC_SAMPLER_DESC : D3D12_STATIC_SAMPLER_DESC
     }
 
     void Init(
-        UINT shaderRegister,
-        D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
-        D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-        FLOAT mipLODBias = 0,
-        UINT maxAnisotropy = 16,
-        D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-        D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE,
-        FLOAT minLOD = 0.f,
-        FLOAT maxLOD = D3D12_FLOAT32_MAX,
-        D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-        UINT registerSpace = 0) noexcept
+        const UINT shaderRegister,
+        const D3D12_FILTER filter = D3D12_FILTER_ANISOTROPIC,
+        const D3D12_TEXTURE_ADDRESS_MODE addressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const D3D12_TEXTURE_ADDRESS_MODE addressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const D3D12_TEXTURE_ADDRESS_MODE addressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+        const FLOAT mipLODBias = 0,
+        const UINT maxAnisotropy = 16,
+        const D3D12_COMPARISON_FUNC comparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        const D3D12_STATIC_BORDER_COLOR borderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE,
+        const FLOAT minLOD = 0.f,
+        const FLOAT maxLOD = D3D12_FLOAT32_MAX,
+        const D3D12_SHADER_VISIBILITY shaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+        const UINT registerSpace = 0) noexcept
     {
         Init(
             *this,
@@ -1334,11 +1334,11 @@ struct CD3DX12_ROOT_SIGNATURE_DESC : D3D12_ROOT_SIGNATURE_DESC
     }
 
     CD3DX12_ROOT_SIGNATURE_DESC(
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         Init(numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
@@ -1349,22 +1349,22 @@ struct CD3DX12_ROOT_SIGNATURE_DESC : D3D12_ROOT_SIGNATURE_DESC
     }
 
     void Init(
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         Init(*this, numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
 
     static void Init(
         _Out_ D3D12_ROOT_SIGNATURE_DESC& desc,
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         desc.NumParameters = numParameters;
         desc.pParameters = _pParameters;
@@ -1385,24 +1385,24 @@ struct CD3DX12_DESCRIPTOR_RANGE1 : D3D12_DESCRIPTOR_RANGE1
     }
 
     CD3DX12_DESCRIPTOR_RANGE1(
-        D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-        UINT numDescriptors,
-        UINT baseShaderRegister,
-        UINT registerSpace = 0,
-        D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
-        UINT offsetInDescriptorsFromTableStart =
+        const D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+        const UINT numDescriptors,
+        const UINT baseShaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
+        const UINT offsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND) noexcept
     {
         Init(rangeType, numDescriptors, baseShaderRegister, registerSpace, flags, offsetInDescriptorsFromTableStart);
     }
 
     void Init(
-        D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-        UINT numDescriptors,
-        UINT baseShaderRegister,
-        UINT registerSpace = 0,
-        D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
-        UINT offsetInDescriptorsFromTableStart =
+        const D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+        const UINT numDescriptors,
+        const UINT baseShaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
+        const UINT offsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND) noexcept
     {
         Init(*this, rangeType, numDescriptors, baseShaderRegister, registerSpace, flags,
@@ -1411,12 +1411,12 @@ struct CD3DX12_DESCRIPTOR_RANGE1 : D3D12_DESCRIPTOR_RANGE1
 
     static void Init(
         _Out_ D3D12_DESCRIPTOR_RANGE1& range,
-        D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
-        UINT numDescriptors,
-        UINT baseShaderRegister,
-        UINT registerSpace = 0,
-        D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
-        UINT offsetInDescriptorsFromTableStart =
+        const D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
+        const UINT numDescriptors,
+        const UINT baseShaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
+        const UINT offsetInDescriptorsFromTableStart =
             D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND) noexcept
     {
         range.RangeType = rangeType;
@@ -1439,14 +1439,14 @@ struct CD3DX12_ROOT_DESCRIPTOR_TABLE1 : D3D12_ROOT_DESCRIPTOR_TABLE1
     }
 
     CD3DX12_ROOT_DESCRIPTOR_TABLE1(
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE1* _pDescriptorRanges) noexcept
     {
         Init(numDescriptorRanges, _pDescriptorRanges);
     }
 
     void Init(
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE1* _pDescriptorRanges) noexcept
     {
         Init(*this, numDescriptorRanges, _pDescriptorRanges);
@@ -1454,7 +1454,7 @@ struct CD3DX12_ROOT_DESCRIPTOR_TABLE1 : D3D12_ROOT_DESCRIPTOR_TABLE1
 
     static void Init(
         _Out_ D3D12_ROOT_DESCRIPTOR_TABLE1& rootDescriptorTable,
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_opt_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE1* _pDescriptorRanges) noexcept
     {
         rootDescriptorTable.NumDescriptorRanges = numDescriptorRanges;
@@ -1473,26 +1473,26 @@ struct CD3DX12_ROOT_DESCRIPTOR1 : D3D12_ROOT_DESCRIPTOR1
     }
 
     CD3DX12_ROOT_DESCRIPTOR1(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) noexcept
     {
         Init(shaderRegister, registerSpace, flags);
     }
 
     void Init(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) noexcept
     {
         Init(*this, shaderRegister, registerSpace, flags);
     }
 
     static void Init(
         _Out_ D3D12_ROOT_DESCRIPTOR1& table,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE) noexcept
     {
         table.ShaderRegister = shaderRegister;
         table.RegisterSpace = registerSpace;
@@ -1512,9 +1512,9 @@ struct CD3DX12_ROOT_PARAMETER1 : D3D12_ROOT_PARAMETER1
 
     static void InitAsDescriptorTable(
         _Out_ D3D12_ROOT_PARAMETER1& rootParam,
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE1* pDescriptorRanges,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         rootParam.ShaderVisibility = visibility;
@@ -1523,10 +1523,10 @@ struct CD3DX12_ROOT_PARAMETER1 : D3D12_ROOT_PARAMETER1
 
     static void InitAsConstants(
         _Out_ D3D12_ROOT_PARAMETER1& rootParam,
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
         rootParam.ShaderVisibility = visibility;
@@ -1535,10 +1535,10 @@ struct CD3DX12_ROOT_PARAMETER1 : D3D12_ROOT_PARAMETER1
 
     static void InitAsConstantBufferView(
         _Out_ D3D12_ROOT_PARAMETER1& rootParam,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
         rootParam.ShaderVisibility = visibility;
@@ -1547,10 +1547,10 @@ struct CD3DX12_ROOT_PARAMETER1 : D3D12_ROOT_PARAMETER1
 
     static void InitAsShaderResourceView(
         _Out_ D3D12_ROOT_PARAMETER1& rootParam,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
         rootParam.ShaderVisibility = visibility;
@@ -1559,10 +1559,10 @@ struct CD3DX12_ROOT_PARAMETER1 : D3D12_ROOT_PARAMETER1
 
     static void InitAsUnorderedAccessView(
         _Out_ D3D12_ROOT_PARAMETER1& rootParam,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_UAV;
         rootParam.ShaderVisibility = visibility;
@@ -1570,45 +1570,45 @@ struct CD3DX12_ROOT_PARAMETER1 : D3D12_ROOT_PARAMETER1
     }
 
     void InitAsDescriptorTable(
-        UINT numDescriptorRanges,
+        const UINT numDescriptorRanges,
         _In_reads_(numDescriptorRanges) const D3D12_DESCRIPTOR_RANGE1* pDescriptorRanges,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsDescriptorTable(*this, numDescriptorRanges, pDescriptorRanges, visibility);
     }
 
     void InitAsConstants(
-        UINT num32BitValues,
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT num32BitValues,
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsConstants(*this, num32BitValues, shaderRegister, registerSpace, visibility);
     }
 
     void InitAsConstantBufferView(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsConstantBufferView(*this, shaderRegister, registerSpace, flags, visibility);
     }
 
     void InitAsShaderResourceView(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsShaderResourceView(*this, shaderRegister, registerSpace, flags, visibility);
     }
 
     void InitAsUnorderedAccessView(
-        UINT shaderRegister,
-        UINT registerSpace = 0,
-        D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
-        D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
+        const UINT shaderRegister,
+        const UINT registerSpace = 0,
+        const D3D12_ROOT_DESCRIPTOR_FLAGS flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE,
+        const D3D12_SHADER_VISIBILITY visibility = D3D12_SHADER_VISIBILITY_ALL) noexcept
     {
         InitAsUnorderedAccessView(*this, shaderRegister, registerSpace, flags, visibility);
     }
@@ -1637,21 +1637,21 @@ struct CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC : D3D12_VERSIONED_ROOT_SIGNATURE_DE
     }
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         Init_1_0(numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC(
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER1* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         Init_1_1(numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
@@ -1662,22 +1662,22 @@ struct CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC : D3D12_VERSIONED_ROOT_SIGNATURE_DE
     }
 
     void Init_1_0(
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         Init_1_0(*this, numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
 
     static void Init_1_0(
         _Out_ D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc,
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_0;
         desc.Desc_1_0.NumParameters = numParameters;
@@ -1688,22 +1688,22 @@ struct CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC : D3D12_VERSIONED_ROOT_SIGNATURE_DE
     }
 
     void Init_1_1(
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER1* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         Init_1_1(*this, numParameters, _pParameters, numStaticSamplers, _pStaticSamplers, flags);
     }
 
     static void Init_1_1(
         _Out_ D3D12_VERSIONED_ROOT_SIGNATURE_DESC& desc,
-        UINT numParameters,
+        const UINT numParameters,
         _In_reads_opt_(numParameters) const D3D12_ROOT_PARAMETER1* _pParameters,
-        UINT numStaticSamplers = 0,
+        const UINT numStaticSamplers = 0,
         _In_reads_opt_(numStaticSamplers) const D3D12_STATIC_SAMPLER_DESC* _pStaticSamplers = nullptr,
-        D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
+        const D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE) noexcept
     {
         desc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
         desc.Desc_1_1.NumParameters = numParameters;
@@ -1727,24 +1727,24 @@ struct CD3DX12_CPU_DESCRIPTOR_HANDLE : D3D12_CPU_DESCRIPTOR_HANDLE
     CD3DX12_CPU_DESCRIPTOR_HANDLE(CD3DX12_DEFAULT) noexcept { ptr = 0; }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other,
-                                  INT offsetScaledByIncrementSize) noexcept
+                                  const INT offsetScaledByIncrementSize) noexcept
     {
         InitOffsetted(other, offsetScaledByIncrementSize);
     }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other, INT offsetInDescriptors,
-                                  UINT descriptorIncrementSize) noexcept
+    CD3DX12_CPU_DESCRIPTOR_HANDLE(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& other, const INT offsetInDescriptors,
+                                  const UINT descriptorIncrementSize) noexcept
     {
         InitOffsetted(other, offsetInDescriptors, descriptorIncrementSize);
     }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE& Offset(INT offsetInDescriptors, UINT descriptorIncrementSize) noexcept
+    CD3DX12_CPU_DESCRIPTOR_HANDLE& Offset(const INT offsetInDescriptors, const UINT descriptorIncrementSize) noexcept
     {
         ptr = static_cast<SIZE_T>(INT64(ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
         return *this;
     }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE& Offset(INT offsetScaledByIncrementSize) noexcept
+    CD3DX12_CPU_DESCRIPTOR_HANDLE& Offset(const INT offsetScaledByIncrementSize) noexcept
     {
         ptr = static_cast<SIZE_T>(INT64(ptr) + INT64(offsetScaledByIncrementSize));
         return *this;
@@ -1766,25 +1766,25 @@ struct CD3DX12_CPU_DESCRIPTOR_HANDLE : D3D12_CPU_DESCRIPTOR_HANDLE
         return *this;
     }
 
-    void InitOffsetted(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& base, INT offsetScaledByIncrementSize) noexcept
+    void InitOffsetted(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& base, const INT offsetScaledByIncrementSize) noexcept
     {
         InitOffsetted(*this, base, offsetScaledByIncrementSize);
     }
 
-    void InitOffsetted(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& base, INT offsetInDescriptors,
-                       UINT descriptorIncrementSize) noexcept
+    void InitOffsetted(_In_ const D3D12_CPU_DESCRIPTOR_HANDLE& base, const INT offsetInDescriptors,
+                       const UINT descriptorIncrementSize) noexcept
     {
         InitOffsetted(*this, base, offsetInDescriptors, descriptorIncrementSize);
     }
 
     static void InitOffsetted(_Out_ D3D12_CPU_DESCRIPTOR_HANDLE& handle, _In_ const D3D12_CPU_DESCRIPTOR_HANDLE& base,
-                              INT offsetScaledByIncrementSize) noexcept
+                              const INT offsetScaledByIncrementSize) noexcept
     {
         handle.ptr = static_cast<SIZE_T>(INT64(base.ptr) + INT64(offsetScaledByIncrementSize));
     }
 
     static void InitOffsetted(_Out_ D3D12_CPU_DESCRIPTOR_HANDLE& handle, _In_ const D3D12_CPU_DESCRIPTOR_HANDLE& base,
-                              INT offsetInDescriptors, UINT descriptorIncrementSize) noexcept
+                              const INT offsetInDescriptors, const UINT descriptorIncrementSize) noexcept
     {
         handle.ptr = static_cast<SIZE_T>(INT64(base.ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
     }
@@ -1803,24 +1803,24 @@ struct CD3DX12_GPU_DESCRIPTOR_HANDLE : D3D12_GPU_DESCRIPTOR_HANDLE
     CD3DX12_GPU_DESCRIPTOR_HANDLE(CD3DX12_DEFAULT) noexcept { ptr = 0; }
 
     CD3DX12_GPU_DESCRIPTOR_HANDLE(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other,
-                                  INT offsetScaledByIncrementSize) noexcept
+                                  const INT offsetScaledByIncrementSize) noexcept
     {
         InitOffsetted(other, offsetScaledByIncrementSize);
     }
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other, INT offsetInDescriptors,
-                                  UINT descriptorIncrementSize) noexcept
+    CD3DX12_GPU_DESCRIPTOR_HANDLE(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& other, const INT offsetInDescriptors,
+                                  const UINT descriptorIncrementSize) noexcept
     {
         InitOffsetted(other, offsetInDescriptors, descriptorIncrementSize);
     }
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE& Offset(INT offsetInDescriptors, UINT descriptorIncrementSize) noexcept
+    CD3DX12_GPU_DESCRIPTOR_HANDLE& Offset(const INT offsetInDescriptors, const UINT descriptorIncrementSize) noexcept
     {
         ptr = static_cast<UINT64>(INT64(ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
         return *this;
     }
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE& Offset(INT offsetScaledByIncrementSize) noexcept
+    CD3DX12_GPU_DESCRIPTOR_HANDLE& Offset(const INT offsetScaledByIncrementSize) noexcept
     {
         ptr = static_cast<UINT64>(INT64(ptr) + INT64(offsetScaledByIncrementSize));
         return *this;
@@ -1842,40 +1842,40 @@ struct CD3DX12_GPU_DESCRIPTOR_HANDLE : D3D12_GPU_DESCRIPTOR_HANDLE
         return *this;
     }
 
-    void InitOffsetted(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& base, INT offsetScaledByIncrementSize) noexcept
+    void InitOffsetted(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& base, const INT offsetScaledByIncrementSize) noexcept
     {
         InitOffsetted(*this, base, offsetScaledByIncrementSize);
     }
 
-    void InitOffsetted(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& base, INT offsetInDescriptors,
-                       UINT descriptorIncrementSize) noexcept
+    void InitOffsetted(_In_ const D3D12_GPU_DESCRIPTOR_HANDLE& base, const INT offsetInDescriptors,
+                       const UINT descriptorIncrementSize) noexcept
     {
         InitOffsetted(*this, base, offsetInDescriptors, descriptorIncrementSize);
     }
 
     static void InitOffsetted(_Out_ D3D12_GPU_DESCRIPTOR_HANDLE& handle, _In_ const D3D12_GPU_DESCRIPTOR_HANDLE& base,
-                              INT offsetScaledByIncrementSize) noexcept
+                              const INT offsetScaledByIncrementSize) noexcept
     {
         handle.ptr = static_cast<UINT64>(INT64(base.ptr) + INT64(offsetScaledByIncrementSize));
     }
 
     static void InitOffsetted(_Out_ D3D12_GPU_DESCRIPTOR_HANDLE& handle, _In_ const D3D12_GPU_DESCRIPTOR_HANDLE& base,
-                              INT offsetInDescriptors, UINT descriptorIncrementSize) noexcept
+                              const INT offsetInDescriptors, const UINT descriptorIncrementSize) noexcept
     {
         handle.ptr = static_cast<UINT64>(INT64(base.ptr) + INT64(offsetInDescriptors) * INT64(descriptorIncrementSize));
     }
 };
 
 //------------------------------------------------------------------------------------------------
-constexpr UINT D3D12CalcSubresource(UINT MipSlice, UINT ArraySlice, UINT PlaneSlice, UINT MipLevels,
-                                    UINT ArraySize) noexcept
+constexpr UINT D3D12CalcSubresource(const UINT MipSlice, const UINT ArraySlice, const UINT PlaneSlice, const UINT MipLevels,
+                                    const UINT ArraySize) noexcept
 {
     return MipSlice + ArraySlice * MipLevels + PlaneSlice * MipLevels * ArraySize;
 }
 
 //------------------------------------------------------------------------------------------------
 template <typename T, typename U, typename V>
-void D3D12DecomposeSubresource(UINT Subresource, UINT MipLevels, UINT ArraySize, _Out_ T& MipSlice, _Out_ U& ArraySlice,
+void D3D12DecomposeSubresource(const UINT Subresource, const UINT MipLevels, const UINT ArraySize, _Out_ T& MipSlice, _Out_ U& ArraySlice,
                                _Out_ V& PlaneSlice) noexcept
 {
     MipSlice = static_cast<T>(Subresource % MipLevels);
@@ -1886,7 +1886,7 @@ void D3D12DecomposeSubresource(UINT Subresource, UINT MipLevels, UINT ArraySize,
 //------------------------------------------------------------------------------------------------
 inline UINT8 D3D12GetFormatPlaneCount(
     _In_ ID3D12Device* pDevice,
-    DXGI_FORMAT Format
+    const DXGI_FORMAT Format
 ) noexcept
 {
     D3D12_FEATURE_DATA_FORMAT_INFO formatInfo = {Format, 0};
@@ -1908,17 +1908,17 @@ struct CD3DX12_RESOURCE_DESC : D3D12_RESOURCE_DESC
     }
 
     CD3DX12_RESOURCE_DESC(
-        D3D12_RESOURCE_DIMENSION dimension,
-        UINT64 alignment,
-        UINT64 width,
-        UINT height,
-        UINT16 depthOrArraySize,
-        UINT16 mipLevels,
-        DXGI_FORMAT format,
-        UINT sampleCount,
-        UINT sampleQuality,
-        D3D12_TEXTURE_LAYOUT layout,
-        D3D12_RESOURCE_FLAGS flags) noexcept
+        const D3D12_RESOURCE_DIMENSION dimension,
+        const UINT64 alignment,
+        const UINT64 width,
+        const UINT height,
+        const UINT16 depthOrArraySize,
+        const UINT16 mipLevels,
+        const DXGI_FORMAT format,
+        const UINT sampleCount,
+        const UINT sampleQuality,
+        const D3D12_TEXTURE_LAYOUT layout,
+        const D3D12_RESOURCE_FLAGS flags) noexcept
     {
         Dimension = dimension;
         Alignment = alignment;
@@ -1935,59 +1935,59 @@ struct CD3DX12_RESOURCE_DESC : D3D12_RESOURCE_DESC
 
     static CD3DX12_RESOURCE_DESC Buffer(
         const D3D12_RESOURCE_ALLOCATION_INFO& resAllocInfo,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) noexcept
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) noexcept
     {
         return CD3DX12_RESOURCE_DESC(D3D12_RESOURCE_DIMENSION_BUFFER, resAllocInfo.Alignment, resAllocInfo.SizeInBytes,
                                      1, 1, 1, DXGI_FORMAT_UNKNOWN, 1, 0, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, flags);
     }
 
     static CD3DX12_RESOURCE_DESC Buffer(
-        UINT64 width,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        UINT64 alignment = 0) noexcept
+        const UINT64 width,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC(D3D12_RESOURCE_DIMENSION_BUFFER, alignment, width, 1, 1, 1,
                                      DXGI_FORMAT_UNKNOWN, 1, 0, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, flags);
     }
 
     static CD3DX12_RESOURCE_DESC Tex1D(
-        DXGI_FORMAT format,
-        UINT64 width,
-        UINT16 arraySize = 1,
-        UINT16 mipLevels = 0,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        UINT64 alignment = 0) noexcept
+        const DXGI_FORMAT format,
+        const UINT64 width,
+        const UINT16 arraySize = 1,
+        const UINT16 mipLevels = 0,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC(D3D12_RESOURCE_DIMENSION_TEXTURE1D, alignment, width, 1, arraySize,
                                      mipLevels, format, 1, 0, layout, flags);
     }
 
     static CD3DX12_RESOURCE_DESC Tex2D(
-        DXGI_FORMAT format,
-        UINT64 width,
-        UINT height,
-        UINT16 arraySize = 1,
-        UINT16 mipLevels = 0,
-        UINT sampleCount = 1,
-        UINT sampleQuality = 0,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        UINT64 alignment = 0) noexcept
+        const DXGI_FORMAT format,
+        const UINT64 width,
+        const UINT height,
+        const UINT16 arraySize = 1,
+        const UINT16 mipLevels = 0,
+        const UINT sampleCount = 1,
+        const UINT sampleQuality = 0,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC(D3D12_RESOURCE_DIMENSION_TEXTURE2D, alignment, width, height, arraySize,
                                      mipLevels, format, sampleCount, sampleQuality, layout, flags);
     }
 
     static CD3DX12_RESOURCE_DESC Tex3D(
-        DXGI_FORMAT format,
-        UINT64 width,
-        UINT height,
-        UINT16 depth,
-        UINT16 mipLevels = 0,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        UINT64 alignment = 0) noexcept
+        const DXGI_FORMAT format,
+        const UINT64 width,
+        const UINT height,
+        const UINT16 depth,
+        const UINT16 mipLevels = 0,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC(D3D12_RESOURCE_DIMENSION_TEXTURE3D, alignment, width, height, depth,
                                      mipLevels, format, 1, 0, layout, flags);
@@ -2013,7 +2013,7 @@ struct CD3DX12_RESOURCE_DESC : D3D12_RESOURCE_DESC
         return MipLevels * ArraySize() * PlaneCount(pDevice);
     }
 
-    UINT CalcSubresource(UINT MipSlice, UINT ArraySlice, UINT PlaneSlice) noexcept
+    UINT CalcSubresource(const UINT MipSlice, const UINT ArraySlice, const UINT PlaneSlice) noexcept
     {
         return D3D12CalcSubresource(MipSlice, ArraySlice, PlaneSlice, MipLevels, ArraySize());
     }
@@ -2050,20 +2050,20 @@ struct CD3DX12_RESOURCE_DESC1 : D3D12_RESOURCE_DESC1
     }
 
     CD3DX12_RESOURCE_DESC1(
-        D3D12_RESOURCE_DIMENSION dimension,
-        UINT64 alignment,
-        UINT64 width,
-        UINT height,
-        UINT16 depthOrArraySize,
-        UINT16 mipLevels,
-        DXGI_FORMAT format,
-        UINT sampleCount,
-        UINT sampleQuality,
-        D3D12_TEXTURE_LAYOUT layout,
-        D3D12_RESOURCE_FLAGS flags,
-        UINT samplerFeedbackMipRegionWidth = 0,
-        UINT samplerFeedbackMipRegionHeight = 0,
-        UINT samplerFeedbackMipRegionDepth = 0) noexcept
+        const D3D12_RESOURCE_DIMENSION dimension,
+        const UINT64 alignment,
+        const UINT64 width,
+        const UINT height,
+        const UINT16 depthOrArraySize,
+        const UINT16 mipLevels,
+        const DXGI_FORMAT format,
+        const UINT sampleCount,
+        const UINT sampleQuality,
+        const D3D12_TEXTURE_LAYOUT layout,
+        const D3D12_RESOURCE_FLAGS flags,
+        const UINT samplerFeedbackMipRegionWidth = 0,
+        const UINT samplerFeedbackMipRegionHeight = 0,
+        const UINT samplerFeedbackMipRegionDepth = 0) noexcept
     {
         Dimension = dimension;
         Alignment = alignment;
@@ -2083,7 +2083,7 @@ struct CD3DX12_RESOURCE_DESC1 : D3D12_RESOURCE_DESC1
 
     static CD3DX12_RESOURCE_DESC1 Buffer(
         const D3D12_RESOURCE_ALLOCATION_INFO& resAllocInfo,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) noexcept
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE) noexcept
     {
         return CD3DX12_RESOURCE_DESC1(D3D12_RESOURCE_DIMENSION_BUFFER, resAllocInfo.Alignment, resAllocInfo.SizeInBytes,
                                       1, 1, 1, DXGI_FORMAT_UNKNOWN, 1, 0, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, flags, 0, 0,
@@ -2091,41 +2091,41 @@ struct CD3DX12_RESOURCE_DESC1 : D3D12_RESOURCE_DESC1
     }
 
     static CD3DX12_RESOURCE_DESC1 Buffer(
-        UINT64 width,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        UINT64 alignment = 0) noexcept
+        const UINT64 width,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC1(D3D12_RESOURCE_DIMENSION_BUFFER, alignment, width, 1, 1, 1,
                                       DXGI_FORMAT_UNKNOWN, 1, 0, D3D12_TEXTURE_LAYOUT_ROW_MAJOR, flags, 0, 0, 0);
     }
 
     static CD3DX12_RESOURCE_DESC1 Tex1D(
-        DXGI_FORMAT format,
-        UINT64 width,
-        UINT16 arraySize = 1,
-        UINT16 mipLevels = 0,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        UINT64 alignment = 0) noexcept
+        const DXGI_FORMAT format,
+        const UINT64 width,
+        const UINT16 arraySize = 1,
+        const UINT16 mipLevels = 0,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC1(D3D12_RESOURCE_DIMENSION_TEXTURE1D, alignment, width, 1, arraySize,
                                       mipLevels, format, 1, 0, layout, flags, 0, 0, 0);
     }
 
     static CD3DX12_RESOURCE_DESC1 Tex2D(
-        DXGI_FORMAT format,
-        UINT64 width,
-        UINT height,
-        UINT16 arraySize = 1,
-        UINT16 mipLevels = 0,
-        UINT sampleCount = 1,
-        UINT sampleQuality = 0,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        UINT64 alignment = 0,
-        UINT samplerFeedbackMipRegionWidth = 0,
-        UINT samplerFeedbackMipRegionHeight = 0,
-        UINT samplerFeedbackMipRegionDepth = 0) noexcept
+        const DXGI_FORMAT format,
+        const UINT64 width,
+        const UINT height,
+        const UINT16 arraySize = 1,
+        const UINT16 mipLevels = 0,
+        const UINT sampleCount = 1,
+        const UINT sampleQuality = 0,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        const UINT64 alignment = 0,
+        const UINT samplerFeedbackMipRegionWidth = 0,
+        const UINT samplerFeedbackMipRegionHeight = 0,
+        const UINT samplerFeedbackMipRegionDepth = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC1(D3D12_RESOURCE_DIMENSION_TEXTURE2D, alignment, width, height, arraySize,
                                       mipLevels, format, sampleCount, sampleQuality, layout, flags,
@@ -2134,14 +2134,14 @@ struct CD3DX12_RESOURCE_DESC1 : D3D12_RESOURCE_DESC1
     }
 
     static CD3DX12_RESOURCE_DESC1 Tex3D(
-        DXGI_FORMAT format,
-        UINT64 width,
-        UINT height,
-        UINT16 depth,
-        UINT16 mipLevels = 0,
-        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-        D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        UINT64 alignment = 0) noexcept
+        const DXGI_FORMAT format,
+        const UINT64 width,
+        const UINT height,
+        const UINT16 depth,
+        const UINT16 mipLevels = 0,
+        const D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+        const D3D12_TEXTURE_LAYOUT layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        const UINT64 alignment = 0) noexcept
     {
         return CD3DX12_RESOURCE_DESC1(D3D12_RESOURCE_DIMENSION_TEXTURE3D, alignment, width, height, depth,
                                       mipLevels, format, 1, 0, layout, flags, 0, 0, 0);
@@ -2167,7 +2167,7 @@ struct CD3DX12_RESOURCE_DESC1 : D3D12_RESOURCE_DESC1
         return MipLevels * ArraySize() * PlaneCount(pDevice);
     }
 
-    UINT CalcSubresource(UINT MipSlice, UINT ArraySlice, UINT PlaneSlice) noexcept
+    UINT CalcSubresource(const UINT MipSlice, const UINT ArraySlice, const UINT PlaneSlice) noexcept
     {
         return D3D12CalcSubresource(MipSlice, ArraySlice, PlaneSlice, MipLevels, ArraySize());
     }
@@ -2214,9 +2214,9 @@ struct CD3DX12_VIEW_INSTANCING_DESC : D3D12_VIEW_INSTANCING_DESC
     }
 
     explicit CD3DX12_VIEW_INSTANCING_DESC(
-        UINT InViewInstanceCount,
+        const UINT InViewInstanceCount,
         const D3D12_VIEW_INSTANCE_LOCATION* InViewInstanceLocations,
-        D3D12_VIEW_INSTANCING_FLAGS InFlags) noexcept
+        const D3D12_VIEW_INSTANCING_FLAGS InFlags) noexcept
     {
         ViewInstanceCount = InViewInstanceCount;
         pViewInstanceLocations = InViewInstanceLocations;
@@ -2229,9 +2229,9 @@ struct CD3DX12_VIEW_INSTANCING_DESC : D3D12_VIEW_INSTANCING_DESC
 inline void MemcpySubresource(
     _In_ const D3D12_MEMCPY_DEST* pDest,
     _In_ const D3D12_SUBRESOURCE_DATA* pSrc,
-    SIZE_T RowSizeInBytes,
-    UINT NumRows,
-    UINT NumSlices) noexcept
+    const SIZE_T RowSizeInBytes,
+    const UINT NumRows,
+    const UINT NumSlices) noexcept
 {
     for (UINT z = 0; z < NumSlices; ++z)
     {
@@ -2250,8 +2250,8 @@ inline void MemcpySubresource(
 // Returns required size of a buffer to be used for data upload
 inline UINT64 GetRequiredIntermediateSize(
     _In_ ID3D12Resource* pDestinationResource,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) UINT NumSubresources) noexcept
+    _In_range_(0, D3D12_REQ_SUBRESOURCES) const UINT FirstSubresource,
+    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) const UINT NumSubresources) noexcept
 {
     auto Desc = pDestinationResource->GetDesc();
     UINT64 RequiredSize = 0;
@@ -2271,9 +2271,9 @@ inline UINT64 UpdateSubresources(
     _In_ ID3D12GraphicsCommandList* pCmdList,
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) UINT NumSubresources,
-    UINT64 RequiredSize,
+    _In_range_(0, D3D12_REQ_SUBRESOURCES) const UINT FirstSubresource,
+    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) const UINT NumSubresources,
+    const UINT64 RequiredSize,
     _In_reads_(NumSubresources) const D3D12_PLACED_SUBRESOURCE_FOOTPRINT* pLayouts,
     _In_reads_(NumSubresources) const UINT* pNumRows,
     _In_reads_(NumSubresources) const UINT64* pRowSizesInBytes,
@@ -2332,9 +2332,9 @@ inline UINT64 UpdateSubresources(
     _In_ ID3D12GraphicsCommandList* pCmdList,
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
-    UINT64 IntermediateOffset,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES) UINT FirstSubresource,
-    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) UINT NumSubresources,
+    const UINT64 IntermediateOffset,
+    _In_range_(0, D3D12_REQ_SUBRESOURCES) const UINT FirstSubresource,
+    _In_range_(0, D3D12_REQ_SUBRESOURCES - FirstSubresource) const UINT NumSubresources,
     _In_reads_(NumSubresources) const D3D12_SUBRESOURCE_DATA* pSrcData) noexcept
 {
     UINT64 RequiredSize = 0;
@@ -2372,9 +2372,9 @@ UINT64 UpdateSubresources(
     _In_ ID3D12GraphicsCommandList* pCmdList,
     _In_ ID3D12Resource* pDestinationResource,
     _In_ ID3D12Resource* pIntermediate,
-    UINT64 IntermediateOffset,
-    _In_range_(0, MaxSubresources) UINT FirstSubresource,
-    _In_range_(1, MaxSubresources - FirstSubresource) UINT NumSubresources,
+    const UINT64 IntermediateOffset,
+    _In_range_(0, MaxSubresources) const UINT FirstSubresource,
+    _In_range_(1, MaxSubresources - FirstSubresource) const UINT NumSubresources,
     _In_reads_(NumSubresources) const D3D12_SUBRESOURCE_DATA* pSrcData) noexcept
 {
     UINT64 RequiredSize = 0;
@@ -2394,7 +2394,7 @@ UINT64 UpdateSubresources(
 }
 
 //------------------------------------------------------------------------------------------------
-constexpr bool D3D12IsLayoutOpaque(D3D12_TEXTURE_LAYOUT Layout) noexcept
+constexpr bool D3D12IsLayoutOpaque(const D3D12_TEXTURE_LAYOUT Layout) noexcept
 {
     return Layout == D3D12_TEXTURE_LAYOUT_UNKNOWN || Layout == D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
 }
@@ -2417,7 +2417,7 @@ ID3D12CommandList* const* CommandListCast(t_CommandListType* const* pp) noexcept
 // 1.1 is not supported.
 inline HRESULT D3DX12SerializeVersionedRootSignature(
     _In_ const D3D12_VERSIONED_ROOT_SIGNATURE_DESC* pRootSignatureDesc,
-    D3D_ROOT_SIGNATURE_VERSION MaxVersion,
+    const D3D_ROOT_SIGNATURE_VERSION MaxVersion,
     _Outptr_ ID3DBlob** ppBlob,
     _Always_(_Outptr_opt_result_maybenull_) ID3DBlob** ppErrorBlob) noexcept
 {
@@ -2559,7 +2559,7 @@ struct CD3DX12_RT_FORMAT_ARRAY : D3D12_RT_FORMAT_ARRAY
     {
     }
 
-    explicit CD3DX12_RT_FORMAT_ARRAY(_In_reads_(NumFormats) const DXGI_FORMAT* pFormats, UINT NumFormats) noexcept
+    explicit CD3DX12_RT_FORMAT_ARRAY(_In_reads_(NumFormats) const DXGI_FORMAT* pFormats, const UINT NumFormats) noexcept
     {
         NumRenderTargets = NumFormats;
         memcpy(RTFormats, pFormats, sizeof(RTFormats));
@@ -3231,8 +3231,8 @@ struct CD3DX12_PIPELINE_STATE_STREAM2_PARSE_HELPER : ID3DX12PipelineParserCallba
     }
 
     // ID3DX12PipelineParserCallbacks
-    void FlagsCb(D3D12_PIPELINE_STATE_FLAGS Flags) override { PipelineStream.Flags = Flags; }
-    void NodeMaskCb(UINT NodeMask) override { PipelineStream.NodeMask = NodeMask; }
+    void FlagsCb(const D3D12_PIPELINE_STATE_FLAGS Flags) override { PipelineStream.Flags = Flags; }
+    void NodeMaskCb(const UINT NodeMask) override { PipelineStream.NodeMask = NodeMask; }
 
     void RootSignatureCb(ID3D12RootSignature* pRootSignature) override
     {
@@ -3244,12 +3244,12 @@ struct CD3DX12_PIPELINE_STATE_STREAM2_PARSE_HELPER : ID3DX12PipelineParserCallba
         PipelineStream.InputLayout = InputLayout;
     }
 
-    void IBStripCutValueCb(D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue) override
+    void IBStripCutValueCb(const D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue) override
     {
         PipelineStream.IBStripCutValue = IBStripCutValue;
     }
 
-    void PrimitiveTopologyTypeCb(D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType) override
+    void PrimitiveTopologyTypeCb(const D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType) override
     {
         PipelineStream.PrimitiveTopologyType = PrimitiveTopologyType;
     }
@@ -3286,7 +3286,7 @@ struct CD3DX12_PIPELINE_STATE_STREAM2_PARSE_HELPER : ID3DX12PipelineParserCallba
         SeenDSS = true;
     }
 
-    void DSVFormatCb(DXGI_FORMAT DSVFormat) override
+    void DSVFormatCb(const DXGI_FORMAT DSVFormat) override
     {
         PipelineStream.DSVFormat = DSVFormat;
         if (!SeenDSS && DSVFormat != DXGI_FORMAT_UNKNOWN)
@@ -3303,7 +3303,7 @@ struct CD3DX12_PIPELINE_STATE_STREAM2_PARSE_HELPER : ID3DX12PipelineParserCallba
 
     void RTVFormatsCb(const D3D12_RT_FORMAT_ARRAY& RTVFormats) override { PipelineStream.RTVFormats = RTVFormats; }
     void SampleDescCb(const DXGI_SAMPLE_DESC& SampleDesc) override { PipelineStream.SampleDesc = SampleDesc; }
-    void SampleMaskCb(UINT SampleMask) override { PipelineStream.SampleMask = SampleMask; }
+    void SampleMaskCb(const UINT SampleMask) override { PipelineStream.SampleMask = SampleMask; }
 
     void ViewInstancingCb(const D3D12_VIEW_INSTANCING_DESC& ViewInstancingDesc) override
     {
@@ -3332,8 +3332,8 @@ struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : ID3DX12PipelineParserCallbac
     }
 
     // ID3DX12PipelineParserCallbacks
-    void FlagsCb(D3D12_PIPELINE_STATE_FLAGS Flags) override { PipelineStream.Flags = Flags; }
-    void NodeMaskCb(UINT NodeMask) override { PipelineStream.NodeMask = NodeMask; }
+    void FlagsCb(const D3D12_PIPELINE_STATE_FLAGS Flags) override { PipelineStream.Flags = Flags; }
+    void NodeMaskCb(const UINT NodeMask) override { PipelineStream.NodeMask = NodeMask; }
 
     void RootSignatureCb(ID3D12RootSignature* pRootSignature) override
     {
@@ -3345,12 +3345,12 @@ struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : ID3DX12PipelineParserCallbac
         PipelineStream.InputLayout = InputLayout;
     }
 
-    void IBStripCutValueCb(D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue) override
+    void IBStripCutValueCb(const D3D12_INDEX_BUFFER_STRIP_CUT_VALUE IBStripCutValue) override
     {
         PipelineStream.IBStripCutValue = IBStripCutValue;
     }
 
-    void PrimitiveTopologyTypeCb(D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType) override
+    void PrimitiveTopologyTypeCb(const D3D12_PRIMITIVE_TOPOLOGY_TYPE PrimitiveTopologyType) override
     {
         PipelineStream.PrimitiveTopologyType = PrimitiveTopologyType;
     }
@@ -3385,7 +3385,7 @@ struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : ID3DX12PipelineParserCallbac
         SeenDSS = true;
     }
 
-    void DSVFormatCb(DXGI_FORMAT DSVFormat) override
+    void DSVFormatCb(const DXGI_FORMAT DSVFormat) override
     {
         PipelineStream.DSVFormat = DSVFormat;
         if (!SeenDSS && DSVFormat != DXGI_FORMAT_UNKNOWN)
@@ -3402,7 +3402,7 @@ struct CD3DX12_PIPELINE_STATE_STREAM_PARSE_HELPER : ID3DX12PipelineParserCallbac
 
     void RTVFormatsCb(const D3D12_RT_FORMAT_ARRAY& RTVFormats) override { PipelineStream.RTVFormats = RTVFormats; }
     void SampleDescCb(const DXGI_SAMPLE_DESC& SampleDesc) override { PipelineStream.SampleDesc = SampleDesc; }
-    void SampleMaskCb(UINT SampleMask) override { PipelineStream.SampleMask = SampleMask; }
+    void SampleMaskCb(const UINT SampleMask) override { PipelineStream.SampleMask = SampleMask; }
 
     void ViewInstancingCb(const D3D12_VIEW_INSTANCING_DESC& ViewInstancingDesc) override
     {
@@ -3416,7 +3416,7 @@ private:
 };
 
 inline D3D12_PIPELINE_STATE_SUBOBJECT_TYPE D3DX12GetBaseSubobjectType(
-    D3D12_PIPELINE_STATE_SUBOBJECT_TYPE SubobjectType) noexcept
+    const D3D12_PIPELINE_STATE_SUBOBJECT_TYPE SubobjectType) noexcept
 {
     switch (SubobjectType)
     {
@@ -3688,12 +3688,12 @@ public:
         Init(D3D12_STATE_OBJECT_TYPE_COLLECTION);
     }
 
-    CD3DX12_STATE_OBJECT_DESC(D3D12_STATE_OBJECT_TYPE Type) noexcept
+    CD3DX12_STATE_OBJECT_DESC(const D3D12_STATE_OBJECT_TYPE Type) noexcept
     {
         Init(Type);
     }
 
-    void SetStateObjectType(D3D12_STATE_OBJECT_TYPE Type) noexcept { m_Desc.Type = Type; }
+    void SetStateObjectType(const D3D12_STATE_OBJECT_TYPE Type) noexcept { m_Desc.Type = Type; }
 
     operator const D3D12_STATE_OBJECT_DESC&()
     {
@@ -3771,7 +3771,7 @@ public:
     }
 
 private:
-    D3D12_STATE_SUBOBJECT* TrackSubobject(D3D12_STATE_SUBOBJECT_TYPE Type, void* pDesc)
+    D3D12_STATE_SUBOBJECT* TrackSubobject(const D3D12_STATE_SUBOBJECT_TYPE Type, void* pDesc)
     {
         SUBOBJECT_WRAPPER Subobject;
         Subobject.pSubobjectArrayLocation = nullptr;
@@ -3782,7 +3782,7 @@ private:
         return &m_SubobjectList.back();
     }
 
-    void Init(D3D12_STATE_OBJECT_TYPE Type) noexcept
+    void Init(const D3D12_STATE_OBJECT_TYPE Type) noexcept
     {
         SetStateObjectType(Type);
         m_Desc.pSubobjects = nullptr;
@@ -3809,7 +3809,7 @@ private:
     class StringContainer
     {
     public:
-        LPCWSTR LocalCopy(LPCWSTR string, bool bSingleString = false)
+        LPCWSTR LocalCopy(const LPCWSTR string, const bool bSingleString = false)
         {
             if (string)
             {
@@ -3902,9 +3902,9 @@ public:
     }
 
     void DefineExport(
-        LPCWSTR Name,
-        LPCWSTR ExportToRename = nullptr,
-        D3D12_EXPORT_FLAGS Flags = D3D12_EXPORT_FLAG_NONE)
+        const LPCWSTR Name,
+        const LPCWSTR ExportToRename = nullptr,
+        const D3D12_EXPORT_FLAGS Flags = D3D12_EXPORT_FLAG_NONE)
     {
         D3D12_EXPORT_DESC Export;
         Export.Name = m_Strings.LocalCopy(Name);
@@ -3924,7 +3924,7 @@ public:
         }
     }
 
-    void DefineExports(const LPCWSTR* Exports, UINT N)
+    void DefineExports(const LPCWSTR* Exports, const UINT N)
     {
         for (UINT i = 0; i < N; i++)
         {
@@ -3978,9 +3978,9 @@ public:
     }
 
     void DefineExport(
-        LPCWSTR Name,
-        LPCWSTR ExportToRename = nullptr,
-        D3D12_EXPORT_FLAGS Flags = D3D12_EXPORT_FLAG_NONE)
+        const LPCWSTR Name,
+        const LPCWSTR ExportToRename = nullptr,
+        const D3D12_EXPORT_FLAGS Flags = D3D12_EXPORT_FLAG_NONE)
     {
         D3D12_EXPORT_DESC Export;
         Export.Name = m_Strings.LocalCopy(Name);
@@ -4000,7 +4000,7 @@ public:
         }
     }
 
-    void DefineExports(const LPCWSTR* Exports, UINT N)
+    void DefineExports(const LPCWSTR* Exports, const UINT N)
     {
         for (UINT i = 0; i < N; i++)
         {
@@ -4054,7 +4054,7 @@ public:
         m_Desc.pSubobjectToAssociate = &SubobjectToAssociate;
     }
 
-    void AddExport(LPCWSTR Export)
+    void AddExport(const LPCWSTR Export)
     {
         m_Desc.NumExports++;
         m_Exports.push_back(m_Strings.LocalCopy(Export));
@@ -4070,7 +4070,7 @@ public:
         }
     }
 
-    void AddExports(const LPCWSTR* Exports, UINT N)
+    void AddExports(const LPCWSTR* Exports, const UINT N)
     {
         for (UINT i = 0; i < N; i++)
         {
@@ -4117,12 +4117,12 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void SetSubobjectNameToAssociate(LPCWSTR SubobjectToAssociate)
+    void SetSubobjectNameToAssociate(const LPCWSTR SubobjectToAssociate)
     {
         m_Desc.SubobjectToAssociate = m_SubobjectName.LocalCopy(SubobjectToAssociate, true);
     }
 
-    void AddExport(LPCWSTR Export)
+    void AddExport(const LPCWSTR Export)
     {
         m_Desc.NumExports++;
         m_Exports.push_back(m_Strings.LocalCopy(Export));
@@ -4138,7 +4138,7 @@ public:
         }
     }
 
-    void AddExports(const LPCWSTR* Exports, UINT N)
+    void AddExports(const LPCWSTR* Exports, const UINT N)
     {
         for (UINT i = 0; i < N; i++)
         {
@@ -4187,24 +4187,24 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void SetHitGroupExport(LPCWSTR exportName)
+    void SetHitGroupExport(const LPCWSTR exportName)
     {
         m_Desc.HitGroupExport = m_Strings[0].LocalCopy(exportName, true);
     }
 
-    void SetHitGroupType(D3D12_HIT_GROUP_TYPE Type) noexcept { m_Desc.Type = Type; }
+    void SetHitGroupType(const D3D12_HIT_GROUP_TYPE Type) noexcept { m_Desc.Type = Type; }
 
-    void SetAnyHitShaderImport(LPCWSTR importName)
+    void SetAnyHitShaderImport(const LPCWSTR importName)
     {
         m_Desc.AnyHitShaderImport = m_Strings[1].LocalCopy(importName, true);
     }
 
-    void SetClosestHitShaderImport(LPCWSTR importName)
+    void SetClosestHitShaderImport(const LPCWSTR importName)
     {
         m_Desc.ClosestHitShaderImport = m_Strings[2].LocalCopy(importName, true);
     }
 
-    void SetIntersectionShaderImport(LPCWSTR importName)
+    void SetIntersectionShaderImport(const LPCWSTR importName)
     {
         m_Desc.IntersectionShaderImport = m_Strings[3].LocalCopy(importName, true);
     }
@@ -4251,7 +4251,7 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void Config(UINT MaxPayloadSizeInBytes, UINT MaxAttributeSizeInBytes) noexcept
+    void Config(const UINT MaxPayloadSizeInBytes, const UINT MaxAttributeSizeInBytes) noexcept
     {
         m_Desc.MaxPayloadSizeInBytes = MaxPayloadSizeInBytes;
         m_Desc.MaxAttributeSizeInBytes = MaxAttributeSizeInBytes;
@@ -4292,7 +4292,7 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void Config(UINT MaxTraceRecursionDepth) noexcept
+    void Config(const UINT MaxTraceRecursionDepth) noexcept
     {
         m_Desc.MaxTraceRecursionDepth = MaxTraceRecursionDepth;
     }
@@ -4332,7 +4332,7 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void Config(UINT MaxTraceRecursionDepth, D3D12_RAYTRACING_PIPELINE_FLAGS Flags) noexcept
+    void Config(const UINT MaxTraceRecursionDepth, const D3D12_RAYTRACING_PIPELINE_FLAGS Flags) noexcept
     {
         m_Desc.MaxTraceRecursionDepth = MaxTraceRecursionDepth;
         m_Desc.Flags = Flags;
@@ -4453,7 +4453,7 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void SetFlags(D3D12_STATE_OBJECT_FLAGS Flags) noexcept
+    void SetFlags(const D3D12_STATE_OBJECT_FLAGS Flags) noexcept
     {
         m_Desc.Flags = Flags;
     }
@@ -4493,7 +4493,7 @@ public:
         AddToStateObject(ContainingStateObject);
     }
 
-    void SetNodeMask(UINT NodeMask) noexcept
+    void SetNodeMask(const UINT NodeMask) noexcept
     {
         m_Desc.NodeMask = NodeMask;
     }

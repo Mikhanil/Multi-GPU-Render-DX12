@@ -24,7 +24,7 @@ SkyBox::SkyBox(const std::shared_ptr<GDevice>& device, const std::shared_ptr<GMo
     skyMapTexture.CreateShaderResourceView(&srvDesc, srvMemory, offset);
 }
 
-void SkyBox::Draw(std::shared_ptr<GCommandList> cmdList)
+void SkyBox::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
     cmdList->GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
 

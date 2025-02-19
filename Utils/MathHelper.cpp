@@ -10,7 +10,7 @@ namespace PEPEngine::Utils
     const float MathHelper::Infinity = FLT_MAX;
     const float MathHelper::Pi = 3.1415926535f;
 
-    float MathHelper::AngleFromXY(float x, float y)
+    float MathHelper::AngleFromXY(const float x, const float y)
     {
         float theta = 0.0f;
 
@@ -54,7 +54,7 @@ namespace PEPEngine::Utils
         }
     }
 
-    XMVECTOR MathHelper::RandHemisphereUnitVec3(XMVECTOR n)
+    XMVECTOR MathHelper::RandHemisphereUnitVec3(const XMVECTOR n)
     {
         XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
         XMVECTOR Zero = XMVectorZero();
@@ -80,7 +80,7 @@ namespace PEPEngine::Utils
         }
     }
 
-    SimpleMath::Vector3 MathHelper::ToEulerAngles(SimpleMath::Quaternion q)
+    SimpleMath::Vector3 MathHelper::ToEulerAngles(const SimpleMath::Quaternion q)
     {
         SimpleMath::Vector3 angles;
 

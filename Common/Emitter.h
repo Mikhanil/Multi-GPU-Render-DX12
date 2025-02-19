@@ -23,5 +23,5 @@ protected:
     std::shared_ptr<GDevice> device;
 
 public:
-    virtual void Dispatch(std::shared_ptr<GCommandList> cmdList) = 0;
+    virtual void Dispatch(const std::shared_ptr<GCommandList>& cmdList) = 0;
 };

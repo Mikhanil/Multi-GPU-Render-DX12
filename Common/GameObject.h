@@ -27,17 +27,32 @@ public:
 
     void virtual Update();
 
-    void virtual Draw(std::shared_ptr<GCommandList> cmdList);
+    void virtual Draw(const std::shared_ptr<GCommandList>& cmdList);
 
-    std::shared_ptr<Transform> GetTransform() const;
+    std::shared_ptr<Transform>& GetTransform();
 
-    std::shared_ptr<ModelRenderer> GetRenderer();
-
-    template <class T = Component>
-    void AddComponent(std::shared_ptr<T> component);
+    std::shared_ptr<Renderer>& GetRenderer();
 
     template <class T = Component>
-    std::shared_ptr<T> GetComponent();
+    void AddComponent(std::shared_ptr<T> component)
+    {
+        component->gameObject = this;
+        components.push_back(component);
+    }
+
+    template <class T = Component>
+    inline std::shared_ptr<T> GetComponent()
+    {
+        for (auto&& component : components)
+        {
+            auto ptr = component.get();
+            if (dynamic_cast<T*>(ptr) != nullptr)
+            {
+                return std::static_pointer_cast<T>(component);
+            }
+        }
+        return nullptr;
+    }
 
     void SetScale(float scale) const;
 
@@ -48,27 +63,6 @@ public:
 protected:
     custom_vector<std::shared_ptr<Component>> components = MemoryAllocator::CreateVector<std::shared_ptr<Component>>();
     std::shared_ptr<Transform> transform = nullptr;
-    std::shared_ptr<ModelRenderer> renderer = nullptr;
+    std::shared_ptr<Renderer> renderer = nullptr;
     std::string name;
 };
-
-template <class T = Component>
-void GameObject::AddComponent(std::shared_ptr<T> component)
-{
-    component->gameObject = this;
-    components.push_back(component);
-}
-
-template <class T = Component>
-std::shared_ptr<T> GameObject::GetComponent()
-{
-    for (auto&& component : components)
-    {
-        auto ptr = component.get();
-        if (dynamic_cast<T*>(ptr) != nullptr)
-        {
-            return std::static_pointer_cast<T>(component);
-        }
-    }
-    return nullptr;
-}

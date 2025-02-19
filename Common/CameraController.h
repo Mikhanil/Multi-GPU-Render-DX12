@@ -14,12 +14,11 @@ class CameraController :
     Mousepad* mouse;
 
 
-    double xMouseSpeed = 100;
-    double yMouseSpeed = 70;
+    float xMouseSpeed = 100;
+    float yMouseSpeed = 70;
 
 public:
     CameraController();
 
-    void Update() override;;
-    void Draw(std::shared_ptr<PEPEngine::Graphics::GCommandList> cmdList) override;;
+    void Update() override;
 };

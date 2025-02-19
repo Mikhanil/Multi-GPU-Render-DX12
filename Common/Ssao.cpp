@@ -17,7 +17,7 @@ using namespace Microsoft::WRL;
 SSAO::SSAO(
     const std::shared_ptr<GDevice>& device,
     const std::shared_ptr<GCommandList>& cmdList,
-    UINT width, UINT height): device(device)
+    const UINT width, const UINT height): device(device)
 
 {
     normalMapSrvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
@@ -126,7 +126,7 @@ void SSAO::GetOffsetVectors(Vector4 offsets[14])
     std::copy(&mOffsets[0], &mOffsets[14], &offsets[0]);
 }
 
-std::vector<float> SSAO::CalcGaussWeights(float sigma)
+std::vector<float> SSAO::CalcGaussWeights(const float sigma)
 {
     float twoSigma2 = 2.0f * sigma * sigma;
 
@@ -231,7 +231,7 @@ void SSAO::SetPipelineData(GraphicPSO& ssaoPso, GraphicPSO& ssaoBlurPso)
     mBlurPso = ssaoBlurPso;
 }
 
-void SSAO::OnResize(UINT newWidth, UINT newHeight)
+void SSAO::OnResize(const UINT newWidth, const UINT newHeight)
 {
     if (mRenderTargetWidth != newWidth || mRenderTargetHeight != newHeight)
     {
@@ -254,7 +254,7 @@ void SSAO::OnResize(UINT newWidth, UINT newHeight)
 void SSAO::ComputeSsao(
     const std::shared_ptr<GCommandList>& cmdList,
     const std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>& currFrame,
-    int blurCount)
+    const int blurCount)
 {
     cmdList->SetViewports(&mViewport, 1);
     cmdList->SetScissorRects(&mScissorRect, 1);
@@ -309,7 +309,7 @@ void SSAO::ClearAmbiantMap(
 }
 
 void SSAO::BlurAmbientMap(const std::shared_ptr<GCommandList>& cmdList,
-                          const std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>& currFrame, int blurCount)
+                          const std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>& currFrame, const int blurCount)
 {
     cmdList->SetPipelineState(mBlurPso);
 
@@ -322,7 +322,7 @@ void SSAO::BlurAmbientMap(const std::shared_ptr<GCommandList>& cmdList,
     }
 }
 
-void SSAO::BlurAmbientMap(const std::shared_ptr<GCommandList>& cmdList, bool horzBlur)
+void SSAO::BlurAmbientMap(const std::shared_ptr<GCommandList>& cmdList, const bool horzBlur)
 {
     GTexture output;
     size_t inputSrv;

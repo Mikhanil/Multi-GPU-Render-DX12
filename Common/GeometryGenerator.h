@@ -13,7 +13,7 @@ using namespace PEPEngine;
 using namespace Allocator;
 
 
-static void CalculateTangent(UINT i1, UINT i2, UINT i3, Vertex* vertices)
+static void CalculateTangent(const UINT i1, const UINT i2, const UINT i3, Vertex* vertices)
 {
     UINT idx[3];
     idx[0] = i1;
@@ -44,7 +44,7 @@ static void CalculateTangent(UINT i1, UINT i2, UINT i3, Vertex* vertices)
     vertices[i3].TangentU = Vector3(tangent[2].x, tangent[2].y, tangent[2].z);
 }
 
-static void RecalculateTangent(DWORD* indices, size_t indexesCount, Vertex* vertices)
+static void RecalculateTangent(DWORD* indices, const size_t indexesCount, Vertex* vertices)
 {
     for (UINT i = 0; i < indexesCount - 3; i += 3)
     {

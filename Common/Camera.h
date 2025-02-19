@@ -14,9 +14,6 @@ using namespace DirectX::SimpleMath;
 
 class Camera : public Component
 {
-    void Draw(std::shared_ptr<GCommandList> cmdList) override
-    {
-    };
     void Update() override;
 
     void CreateProjection();
@@ -26,7 +23,7 @@ class Camera : public Component
 
     float fov = 60;
     float aspectRatio = 0;
-    float nearZ = 0.1;
+    float nearZ = 0.1f;
     float farZ = 10000;
 
     Vector3 focusPosition = Vector3::Zero;

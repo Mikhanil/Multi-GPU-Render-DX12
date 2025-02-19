@@ -59,7 +59,7 @@ GTexture& ShadowMap::GetTexture()
 }
 
 
-void ShadowMap::OnResize(UINT newWidth, UINT newHeight)
+void ShadowMap::OnResize(const UINT newWidth, const UINT newHeight)
 {
     if ((width != newWidth) || (height != newHeight))
     {

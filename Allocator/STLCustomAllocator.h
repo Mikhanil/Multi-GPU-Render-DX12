@@ -97,14 +97,14 @@ namespace PEPEngine::Allocator
     }
 
     template <typename T, class AllocationStrategy>
-    T* STLCustomAllocator<T, AllocationStrategy>::allocate(std::size_t count_objects)
+    T* STLCustomAllocator<T, AllocationStrategy>::allocate(const std::size_t count_objects)
     {
         assert(strategy && "Not initialized allocation strategy");
         return static_cast<T*>(strategy->Allocate(count_objects * sizeof(T)));
     }
 
     template <typename T, class AllocationStrategy>
-    void STLCustomAllocator<T, AllocationStrategy>::deallocate(void* memory_ptr, std::size_t count_objects)
+    void STLCustomAllocator<T, AllocationStrategy>::deallocate(void* memory_ptr, const std::size_t count_objects)
     {
         assert(strategy && "Not initialized allocation strategy");
         strategy->Deallocate(memory_ptr, count_objects * sizeof(T));

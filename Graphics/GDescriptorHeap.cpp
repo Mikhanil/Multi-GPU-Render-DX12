@@ -6,7 +6,7 @@
 
 namespace PEPEngine::Graphics
 {
-    static std::wstring HeapTypeToWString(D3D12_DESCRIPTOR_HEAP_TYPE type)
+    static std::wstring HeapTypeToWString(const D3D12_DESCRIPTOR_HEAP_TYPE type)
     {
         switch (type)
         {

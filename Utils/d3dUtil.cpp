@@ -8,8 +8,8 @@ namespace PEPEngine::Utils
 {
     using Microsoft::WRL::ComPtr;
 
-    DxException::DxException(HRESULT hr, const std::wstring& functionName, const std::wstring& filename,
-                             int lineNumber, const std::wstring& message) :
+    DxException::DxException(const HRESULT hr, const std::wstring& functionName, const std::wstring& filename,
+                             const int lineNumber, const std::wstring& message) :
         ErrorCode(hr),
         FunctionName(functionName),
         Filename(filename),
@@ -21,7 +21,7 @@ namespace PEPEngine::Utils
     {
     }
 
-    bool d3dUtil::IsKeyDown(int vkeyCode)
+    bool d3dUtil::IsKeyDown(const int vkeyCode)
     {
         return (GetAsyncKeyState(vkeyCode) & 0x8000) != 0;
     }

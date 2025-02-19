@@ -30,7 +30,7 @@ class ParticleEmitter :
 
 protected:
     void Update() override;
-    void Draw(std::shared_ptr<GCommandList> cmdList) override;
+    void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
 
     double CalculateGroupCount(DWORD particleCount) const;
 
@@ -41,5 +41,5 @@ public:
     void ChangeParticleCount(UINT count);
 
     ParticleEmitter(const std::shared_ptr<GDevice>& primeDevice, DWORD particleCount = 100);
-    void Dispatch(std::shared_ptr<GCommandList> cmdList) override;
+    void Dispatch(const std::shared_ptr<GCommandList>& cmdList) override;
 };

@@ -25,7 +25,7 @@ namespace Common
     static WindowNameMap gs_WindowByName = MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<Window>>();
 
     LRESULT CALLBACK
-    MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    MainWndProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
     {
         return D3DApp::GetApp().MsgProc(hwnd, msg, wParam, lParam);
     }
@@ -53,7 +53,7 @@ namespace Common
         return *instance;
     }
 
-    D3DApp::D3DApp(HINSTANCE hInstance)
+    D3DApp::D3DApp(const HINSTANCE hInstance)
         : appInstance(hInstance)
     {
         // Windows 10 Creators update adds Per Monitor V2 DPI awareness context.
@@ -109,7 +109,7 @@ namespace Common
         MakeWindow() = default;
 
         MakeWindow(const std::shared_ptr<GDevice>& device, const WNDCLASS& classWindow, const std::wstring& windowName,
-                   int clientWidth, int clientHeight, bool vSync)
+                   const int clientWidth, const int clientHeight, const bool vSync)
             : Window(device, classWindow, windowName, clientWidth, clientHeight, vSync)
         {
         }
@@ -153,7 +153,7 @@ namespace Common
         return window;
     }
 
-    void D3DApp::Quit(int exitCode)
+    void D3DApp::Quit(const int exitCode)
     {
         PostQuitMessage(exitCode);
     }
@@ -190,7 +190,7 @@ namespace Common
         return isM4xMsaa;
     }
 
-    void D3DApp::Set4xMsaaState(bool value)
+    void D3DApp::Set4xMsaaState(const bool value)
     {
         if (isM4xMsaa != value)
         {
@@ -268,7 +268,7 @@ namespace Common
 
 
     // Remove a window from our window lists.
-    static void RemoveWindow(HWND hWnd)
+    static void RemoveWindow(const HWND hWnd)
     {
         auto windowIter = gs_Windows.find(hWnd);
         if (windowIter != gs_Windows.end())
@@ -280,7 +280,7 @@ namespace Common
     }
 
 
-    LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    LRESULT D3DApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
     {
         WindowPtr pWindow;
         {

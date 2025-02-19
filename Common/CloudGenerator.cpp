@@ -139,7 +139,7 @@ void CloudGenerator::PrimeCopy(const std::shared_ptr<GCommandList>& primeCmdList
     primeCmdList->FlushResourceBarriers();
 }
 
-void CloudGenerator::SecondCompute(const std::shared_ptr<GCommandList>& cmdList, float deltaTime)
+void CloudGenerator::SecondCompute(const std::shared_ptr<GCommandList>& cmdList, const float deltaTime)
 {
     generatorParameters.TotalTime += deltaTime;
 
@@ -159,7 +159,7 @@ void CloudGenerator::SecondCompute(const std::shared_ptr<GCommandList>& cmdList,
 
 
 CloudGenerator::CloudGenerator(const std::shared_ptr<GDevice>& primeDevice, const std::shared_ptr<GDevice>& secondDevice,
-                               UINT width, UINT height): primeDevice(primeDevice), secondDevice(secondDevice),
+                               const UINT width, const UINT height): primeDevice(primeDevice), secondDevice(secondDevice),
                                                          width(width), height(height)
 {
     Initialize();

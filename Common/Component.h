@@ -16,5 +16,4 @@ public:
     Component();
 
     virtual void Update() = 0;
-    virtual void Draw(std::shared_ptr<PEPEngine::Graphics::GCommandList> cmdList) = 0;
 };

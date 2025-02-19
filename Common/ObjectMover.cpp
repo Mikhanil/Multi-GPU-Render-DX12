@@ -7,10 +7,6 @@
 
 using namespace DirectX::SimpleMath;
 
-void ObjectMover::Draw(std::shared_ptr<GCommandList> cmdList)
-{
-}
-
 void ObjectMover::Update()
 {
     const float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
