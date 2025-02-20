@@ -25,7 +25,7 @@ using namespace DirectX::SimpleMath;
 
 namespace Common
 {
-    SampleApp::SampleApp(HINSTANCE hInstance)
+    SampleApp::SampleApp(const HINSTANCE hInstance)
         : D3DApp(hInstance), loader(AssetsLoader(GDeviceFactory::GetDevice()))
     {
         mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
@@ -144,7 +144,7 @@ namespace Common
         return true;
     }
 
-    LRESULT SampleApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+    LRESULT SampleApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
     {
         switch (msg)
         {
@@ -465,7 +465,7 @@ namespace Common
     {
         if (isResizing) return;
 
-        //GDeviceFactory::GetDevice()->Flush();
+        GDeviceFactory::GetDevice()->Flush();
         auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
 
         auto cmdList = commandQueue->GetCommandList();
