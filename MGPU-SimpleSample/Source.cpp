@@ -4,7 +4,7 @@
 
 using namespace Common;
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
+int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,
                    PSTR cmdLine, int showCmd)
 {
     // Enable run-time memory check for debug builds.

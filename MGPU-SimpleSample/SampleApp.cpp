@@ -5,7 +5,7 @@
 #include "GCrossAdapterResource.h"
 #include "GDeviceFactory.h"
 
-SampleApp::SampleApp(HINSTANCE hInstance): D3DApp(hInstance)
+SampleApp::SampleApp(const HINSTANCE hInstance): D3DApp(hInstance)
 {
 }
 
