@@ -20,7 +20,7 @@ using namespace PEPEngine;
 using namespace Utils;
 using namespace Graphics;
 
-HybridShadowApp::HybridShadowApp(HINSTANCE hInstance): D3DApp(hInstance), gpuTimes{}, fullRect()
+HybridShadowApp::HybridShadowApp(const HINSTANCE hInstance): D3DApp(hInstance), gpuTimes{}, fullRect()
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 200;
@@ -574,7 +574,7 @@ void HybridShadowApp::SortGO()
     }
 }
 
-std::shared_ptr<Renderer> HybridShadowApp::CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model)
+std::shared_ptr<Renderer> HybridShadowApp::CreateRenderer(const UINT deviceIndex, std::shared_ptr<GModel> model)
 {
     auto renderer = std::make_shared<ModelRenderer>(devices[deviceIndex], model);
     return renderer;
@@ -1159,7 +1159,7 @@ void HybridShadowApp::UpdateSsaoCB(const GameTimer& gt)
     }
 }
 
-void HybridShadowApp::PopulateShadowMapCommands(GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList)
+void HybridShadowApp::PopulateShadowMapCommands(const GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList)
 {
     if (UseOnlyPrime)
     {
@@ -1336,7 +1336,7 @@ void HybridShadowApp::PopulateForwardPathCommands(const std::shared_ptr<GCommand
     }
 }
 
-void HybridShadowApp::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList,
+void HybridShadowApp::PopulateDrawCommands(const GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList,
                                         RenderMode type)
 {
     for (auto&& renderer : typedRenderer[adapterIndex][(int)type])
@@ -1346,7 +1346,7 @@ void HybridShadowApp::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::sh
 }
 
 void HybridShadowApp::PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList,
-                                           GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
+                                           GTexture& renderTarget, GDescriptor* rtvMemory, const UINT offsetRTV)
 {
     cmdList->SetViewports(&fullViewport, 1);
     cmdList->SetScissorRects(&fullRect, 1);
@@ -1538,7 +1538,7 @@ void HybridShadowApp::Flush()
     }
 }
 
-LRESULT HybridShadowApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT HybridShadowApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
     return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
 }

@@ -57,7 +57,7 @@ protected:
     void inline PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void inline PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void inline PopulateForwardPathCommands(const std::shared_ptr<GCommandList>& cmdList);
-    void inline PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList,
+    void inline PopulateDrawCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList,
                                      RenderMode type);
     void inline PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList, GTexture& renderTarget,
                                         GDescriptor* rtvMemory, UINT
