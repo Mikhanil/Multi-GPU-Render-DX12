@@ -4,10 +4,10 @@
 #include "GDevice.h"
 #include "GDescriptor.h"
 
-SplitFrameResource::SplitFrameResource(std::shared_ptr<GDevice>* devices, UINT deviceCount, UINT passCount,
+SplitFrameResource::SplitFrameResource(std::shared_ptr<GDevice>* devices, const UINT deviceCount, UINT passCount,
                                        UINT materialCount)
 {
-    for (auto i = 0; i < deviceCount; ++i)
+    for (UINT i = 0; i < deviceCount; ++i)
     {
         PassConstantUploadBuffers.push_back(
             std::make_shared<ConstantUploadBuffer<PassConstants>>(devices[i], passCount,

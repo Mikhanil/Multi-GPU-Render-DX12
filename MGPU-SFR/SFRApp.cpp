@@ -15,7 +15,7 @@
 using namespace PEPEngine;
 using namespace Utils;
 
-SFRApp::SFRApp(HINSTANCE hInstance): D3DApp(hInstance)
+SFRApp::SFRApp(const HINSTANCE hInstance): D3DApp(hInstance)
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 175;
@@ -53,7 +53,7 @@ void SFRApp::InitDevices()
 
         typedRenderer.push_back(MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>());
 
-        for (int i = 0; i < RenderMode::Count; ++i)
+        for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
         {
             typedRenderer[typedRenderer.size() - 1].push_back(
                 MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
@@ -271,7 +271,7 @@ void SFRApp::InitRenderPaths()
 {
     for (int i = 0; i < GraphicAdapterCount; ++i)
     {
-        auto commandQueue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+        auto commandQueue = devices[i]->GetCommandQueue(GQueueType::Graphics);
         auto cmdList = commandQueue->GetCommandList();
 
         shadowPaths.push_back(std::make_shared<ShadowMap>(devices[i], 4096, 4096));
@@ -294,7 +294,7 @@ void SFRApp::InitRenderPaths()
 void SFRApp::LoadStudyTexture()
 {
     {
-        auto queue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+        auto queue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Copy);
 
         auto cmdList = queue->GetCommandList();
 
@@ -364,7 +364,7 @@ void SFRApp::LoadStudyTexture()
 
 void SFRApp::LoadModels()
 {
-    auto queue = devices[GraphicAdapterPrimary]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    auto queue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Copy);
     auto cmdList = queue->GetCommandList();
 
     auto nano = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
@@ -443,7 +443,7 @@ void SFRApp::MipMasGenerate()
                 }
             }
 
-            const auto computeQueue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+            const auto computeQueue = devices[i]->GetCommandQueue(GQueueType::Compute);
             auto computeList = computeQueue->GetCommandList();
             GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
             computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -480,7 +480,7 @@ void SFRApp::DublicateResource()
         logQueue.Push(std::wstring(L"\nStart Dublicate Resource for " + devices[i]->GetName()));
         try
         {
-            auto queue = devices[i]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+            auto queue = devices[i]->GetCommandQueue(GQueueType::Copy);
             auto cmdList = queue->GetCommandList();
 
 
@@ -577,7 +577,7 @@ void SFRApp::SortGO()
     }
 }
 
-std::shared_ptr<Renderer> SFRApp::CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model)
+std::shared_ptr<Renderer> SFRApp::CreateRenderer(const UINT deviceIndex, std::shared_ptr<GModel> model)
 {
     auto renderer = std::make_shared<ModelRenderer>(devices[deviceIndex], model);
     return renderer;
@@ -590,7 +590,7 @@ void SFRApp::AddMultiDeviceOpaqueRenderComponent(GameObject* object, const std::
     {
         auto renderer = CreateRenderer(i, models[i][modelName]);
         object->AddComponent(renderer);
-        typedRenderer[i][RenderMode::OpaqueAlphaDrop].push_back(renderer);
+        typedRenderer[i][(int)RenderMode::OpaqueAlphaDrop].push_back(renderer);
     }
 }
 
@@ -606,7 +606,7 @@ void SFRApp::CreateGO()
                                                  &srvTexturesMemory[i], assets[i].GetTextureIndex(L"skyTex"));
 
         skySphere->AddComponent(renderer);
-        typedRenderer[i][RenderMode::SkyBox].push_back((renderer));
+        typedRenderer[i][(int)RenderMode::SkyBox].push_back((renderer));
     }
     gameObjects.push_back(std::move(skySphere));
 
@@ -616,8 +616,8 @@ void SFRApp::CreateGO()
         auto renderer = std::make_shared<ModelRenderer>(devices[i], models[i][L"quad"]);
         renderer->SetModel(models[i][L"quad"]);
         quadRitem->AddComponent(renderer);
-        typedRenderer[i][RenderMode::Debug].push_back(renderer);
-        typedRenderer[i][RenderMode::Quad].push_back(renderer);
+        typedRenderer[i][(int)RenderMode::Debug].push_back(renderer);
+        typedRenderer[i][(int)RenderMode::Quad].push_back(renderer);
     }
     gameObjects.push_back(std::move(quadRitem));
 
@@ -895,7 +895,7 @@ void SFRApp::UpdateMaterials()
 
 void SFRApp::Update(const GameTimer& gt)
 {
-    const auto commandQueue = devices[GraphicAdapterSecond]->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    const auto commandQueue = devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics);
 
     auto olderIndex = currentFrameResourceIndex > globalCountFrameResources ? 0 : currentFrameResourceIndex;
     {
@@ -1114,12 +1114,12 @@ void SFRApp::UpdateSsaoCB(const GameTimer& gt)
     }
 }
 
-void SFRApp::PopulateShadowMapCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList)
+void SFRApp::PopulateShadowMapCommands(const GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList)
 {
     //Draw Shadow Map
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
-        cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+        cmdList->SetRootSignature(*rootSignatures[adapterIndex].get());
 
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[adapterIndex]);
@@ -1140,12 +1140,12 @@ void SFRApp::PopulateShadowMapCommands(GraphicsAdapter adapterIndex, std::shared
     }
 }
 
-void SFRApp::PopulateNormalMapCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList)
+void SFRApp::PopulateNormalMapCommands(const GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList)
 {
     //Draw Normals
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
-        cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+        cmdList->SetRootSignature(*rootSignatures[adapterIndex].get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[adapterIndex]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
@@ -1181,28 +1181,28 @@ void SFRApp::PopulateNormalMapCommands(GraphicsAdapter adapterIndex, const std::
     }
 }
 
-void SFRApp::PopulateAmbientMapCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList)
+void SFRApp::PopulateAmbientMapCommands(const GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList)
 {
     //Draw Ambient
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
-        cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+        cmdList->SetRootSignature(*rootSignatures[adapterIndex].get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[adapterIndex]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
 
-        cmdList->SetRootSignature(ssaoRootSignatures[adapterIndex].get());
+        cmdList->SetRootSignature(*ssaoRootSignatures[adapterIndex].get());
         ambientPaths[adapterIndex]->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffers[adapterIndex],
                                                 3);
     }
 }
 
-void SFRApp::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList)
+void SFRApp::PopulateForwardPathCommands(const GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList)
 {
     //Forward Path with SSAA
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory[adapterIndex]);
-        cmdList->SetRootSignature(rootSignatures[adapterIndex].get());
+        cmdList->SetRootSignature(*rootSignatures[adapterIndex].get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[adapterIndex]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory[adapterIndex]);
@@ -1271,17 +1271,17 @@ void SFRApp::PopulateForwardPathCommands(GraphicsAdapter adapterIndex, const std
     }
 }
 
-void SFRApp::PopulateDrawCommands(GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList,
+void SFRApp::PopulateDrawCommands(const GraphicsAdapter adapterIndex, std::shared_ptr<GCommandList> cmdList,
                                          RenderMode type)
 {
-    for (auto&& renderer : typedRenderer[adapterIndex][type])
+    for (auto&& renderer : typedRenderer[adapterIndex][(int)type])
     {
         renderer->Draw(cmdList);
     }
 }
 
-void SFRApp::PopulateDrawQuadCommand(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList,
-                                            GTexture& renderTarget, GDescriptor* rtvMemory, UINT offsetRTV)
+void SFRApp::PopulateDrawQuadCommand(const GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList,
+                                            GTexture& renderTarget, GDescriptor* rtvMemory, const UINT offsetRTV)
 {
     cmdList->SetViewports(&fullViewport, 1);
     cmdList->SetScissorRects(&adapterRects[adapterIndex], 1);
@@ -1591,7 +1591,7 @@ int SFRApp::Run()
 
             for (auto&& device : devices)
             {
-                device->ResetAllocator(frameCount);
+                device->ResetAllocators(frameCount);
             }
         }
     }
@@ -1609,7 +1609,7 @@ void SFRApp::Flush()
     }
 }
 
-LRESULT SFRApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT SFRApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
     switch (msg)
     {
