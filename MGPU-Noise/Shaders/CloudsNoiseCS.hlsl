@@ -78,6 +78,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
     uv *= generatorBuffer.CloudScale;
     uv -= q - currentSpeed;
     float weight = 0.8;
+    [unrool]
     for (int i = 0; i < 8; i++)
     {
         r += abs(weight * noise(uv));
@@ -91,6 +92,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
     uv *= generatorBuffer.CloudScale;
     uv -= q - currentSpeed;
     weight = 0.7;
+    [unrool]
     for (int i = 0; i < 8; i++)
     {
         f += weight * noise(uv);
@@ -107,6 +109,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
     uv *= generatorBuffer.CloudScale * 2.0;
     uv -= q - currentSpeed;
     weight = 0.4;
+    [unrool]
     for (int i = 0; i < 7; i++)
     {
         c += weight * noise(uv);
@@ -121,6 +124,7 @@ void CS(uint3 DTid : SV_DispatchThreadID)
     uv *= generatorBuffer.CloudScale * 3.0;
     uv -= q - currentSpeed;
     weight = 0.4;
+    [unrool]
     for (int i = 0; i < 7; i++)
     {
         c1 += abs(weight * noise(uv));

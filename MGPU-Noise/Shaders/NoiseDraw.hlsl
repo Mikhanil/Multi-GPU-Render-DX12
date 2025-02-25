@@ -102,6 +102,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale;
     uv -= q - currentSpeed;
     float weight = 0.8;
+    [unrool]
     for (int i = 0; i < 8; i++)
     {
         r += abs(weight * noise(uv));
@@ -115,6 +116,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale;
     uv -= q - currentSpeed;
     weight = 0.7;
+    [unrool]
     for (int i = 0; i < 8; i++)
     {
         f += weight * noise(uv);
@@ -131,6 +133,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale * 2.0;
     uv -= q - currentSpeed;
     weight = 0.4;
+    [unrool]
     for (int i = 0; i < 7; i++)
     {
         c += weight * noise(uv);
@@ -145,6 +148,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale * 3.0;
     uv -= q - currentSpeed;
     weight = 0.4;
+    [unrool]
     for (int i = 0; i < 7; i++)
     {
         c1 += abs(weight * noise(uv));

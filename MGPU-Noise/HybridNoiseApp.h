@@ -28,16 +28,16 @@ protected:
     void Update(const GameTimer& gt) override;
     void PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList);;
     void PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList);
-    void PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList);
+    void PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList) const;
     void PopulateForwardPathCommands(const std::shared_ptr<GCommandList>& cmdList);
-    void PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
-                              RenderMode type);
-    void PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& cmdList, GTexture& renderTarget, GDescriptor* rtvMemory,
-                                  UINT offsetRTV);
+    void PopulateDrawCommands(const std::shared_ptr<GCommandList>& cmdList,
+                              RenderMode type) const;
+    void PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& cmdList, const GTexture& renderTarget, const GDescriptor* rtvMemory,
+                                  UINT offsetRTV) const;
     void PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandList>& cmdList,
-                                     GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset,
-                                     GraphicPSO& pso);
-    UINT64 ComputeEmitters(UINT timestampHeapIndex, const std::shared_ptr<GCommandQueue>& computeQueue);
+                                     const GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset,
+                                     const GraphicPSO& pso);
+    UINT64 ComputeEmitters(UINT timestampHeapIndex, const std::shared_ptr<GCommandQueue>& computeQueue) const;
     UINT64 RenderScene(UINT timestampHeapIndex,
                        UINT computeCloudFenceValue);
     UINT64 ComputeClouds(UINT timestampHeapIndex) const;
@@ -64,11 +64,11 @@ protected:
     UINT64 CalibrateCloudTextureSizeWork(UINT64 runs, float runTime);
     void GPUParticleWork();
     UINT64 GPUParticleWorkFPS(UINT64 runs, float runTime);
-    void UpdateMaterials();
+    void UpdateMaterials() const;
     void UpdateShadowTransform(const GameTimer& gt);
     void UpdateShadowPassCB(const GameTimer& gt);
     void UpdateMainPassCB(const GameTimer& gt);
-    void UpdateSsaoCB(const GameTimer& gt);
+    void UpdateSsaoCB(const GameTimer& gt) const;
     bool InitMainWindow() override;
     void OnResize() override;
     void Flush() override;

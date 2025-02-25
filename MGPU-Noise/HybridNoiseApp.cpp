@@ -17,7 +17,7 @@
 #include "Transform.h"
 #include "Window.h"
 
-HybridNoiseApp::HybridNoiseApp(HINSTANCE hInstance): D3DApp(hInstance)
+HybridNoiseApp::HybridNoiseApp(const HINSTANCE hInstance): D3DApp(hInstance)
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 200;
@@ -35,10 +35,10 @@ void HybridNoiseApp::Update(const GameTimer& gt)
     primeGPURenderingTime = primeDevice->GetCommandQueue()->GetTimestamp(olderIndex);
     secondGPURenderingTime = secondDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 
-    primeGPUComputingTime = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetTimestamp(olderIndex);
-    secondGPUComputingTime = secondDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE)->GetTimestamp(olderIndex);
+    primeGPUComputingTime = primeDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
+    secondGPUComputingTime = secondDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
 
-    const auto commandQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    const auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
 
     currentFrameResource = frameResources[currentFrameResourceIndex];
 
@@ -73,7 +73,7 @@ void HybridNoiseApp::Update(const GameTimer& gt)
 
 void HybridNoiseApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList)
 {
-    cmdList->SetRootSignature(primeDeviceSignature.get());
+    cmdList->SetRootSignature(*primeDeviceSignature.get());
     cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                        *currentFrameResource->MaterialBuffer, 1);
     cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
@@ -95,7 +95,7 @@ void HybridNoiseApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandLis
     //Draw Normals
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory);
-        cmdList->SetRootSignature(primeDeviceSignature.get());
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffer);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
@@ -131,17 +131,17 @@ void HybridNoiseApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandLis
     }
 }
 
-void HybridNoiseApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList)
+void HybridNoiseApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList) const
 {
     //Draw Ambient
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory);
-        cmdList->SetRootSignature(primeDeviceSignature.get());
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffer);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
-        cmdList->SetRootSignature(ssaoPrimeRootSignature.get());
+        cmdList->SetRootSignature(*ssaoPrimeRootSignature.get());
         ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
     }
 }
@@ -150,7 +150,7 @@ void HybridNoiseApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandL
 {
     //Forward Path with SSAA
     {
-        cmdList->SetRootSignature(primeDeviceSignature.get());
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffer);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
@@ -218,17 +218,16 @@ void HybridNoiseApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandL
     }
 }
 
-void HybridNoiseApp::PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
-                                            RenderMode type)
+void HybridNoiseApp::PopulateDrawCommands(const std::shared_ptr<GCommandList>& cmdList, RenderMode type) const
 {
-    for (auto&& renderer : typedRenderer[type])
+    for (auto&& renderer : typedRenderer[static_cast<int>(type)])
     {
         renderer->Draw(cmdList);
     }
 }
 
-void HybridNoiseApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& cmdList, GTexture& renderTarget,
-                                                GDescriptor* rtvMemory, UINT offsetRTV)
+void HybridNoiseApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& cmdList, const GTexture& renderTarget,
+                                                const GDescriptor* rtvMemory, const UINT offsetRTV) const
 {
     cmdList->SetViewports(&fullViewport, 1);
     cmdList->SetScissorRects(&fullRect, 1);
@@ -241,10 +240,10 @@ void HybridNoiseApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList
 }
 
 void HybridNoiseApp::PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandList>& cmdList,
-                                                   GDescriptor* renderTextureSRVMemory,
-                                                   UINT renderTextureMemoryOffset, GraphicPSO& pso)
+                                                   const GDescriptor* renderTextureSRVMemory,
+                                                   const UINT renderTextureMemoryOffset, const GraphicPSO& pso)
 {
-    cmdList->SetRootSignature(primeDeviceSignature.get());
+    cmdList->SetRootSignature(*primeDeviceSignature.get());
     cmdList->SetDescriptorsHeap(renderTextureSRVMemory);
 
     cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
@@ -254,7 +253,7 @@ void HybridNoiseApp::PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandL
 }
 
 
-UINT64 HybridNoiseApp::ComputeEmitters(const UINT timestampHeapIndex, const std::shared_ptr<GCommandQueue>& computeQueue)
+UINT64 HybridNoiseApp::ComputeEmitters(const UINT timestampHeapIndex, const std::shared_ptr<GCommandQueue>& computeQueue) const
 {
     primeComputeQueue->Wait(renderQueue);
 
@@ -274,7 +273,7 @@ UINT64 HybridNoiseApp::ComputeEmitters(const UINT timestampHeapIndex, const std:
     return computeQueue->ExecuteCommandList(cmdList);
 }
 
-UINT64 HybridNoiseApp::RenderScene(const UINT timestampHeapIndex, UINT computeCloudFenceValue)
+UINT64 HybridNoiseApp::RenderScene(const UINT timestampHeapIndex, const UINT computeCloudFenceValue)
 {
     const auto cmdList = renderQueue->GetCommandList();
 
@@ -525,7 +524,7 @@ void HybridNoiseApp::GPUEmptyWork()
     currentFrameResourceIndex = MainWindow->Present();
 }
 
-UINT64 HybridNoiseApp::GPUEmptyWorkFPS(UINT64 runs, float runTime)
+UINT64 HybridNoiseApp::GPUEmptyWorkFPS(const UINT64 runs, const float runTime)
 {
     UseCrossAdapter = false;
     UseSecondApproach = false;
@@ -569,7 +568,7 @@ void HybridNoiseApp::CalibrateCloudWork()
     currentFrameResourceIndex = MainWindow->Present();
 }
 
-UINT64 HybridNoiseApp::CalibrateCloudTextureSizeWork(UINT64 runs, float runTime)
+UINT64 HybridNoiseApp::CalibrateCloudTextureSizeWork(const UINT64 runs, const float runTime)
 {
     UseCrossAdapter = true;
     UseSecondApproach = true;
@@ -613,7 +612,7 @@ void HybridNoiseApp::GPUParticleWork()
     currentFrameResourceIndex = MainWindow->Present();
 }
 
-UINT64 HybridNoiseApp::GPUParticleWorkFPS(UINT64 runs, float runTime)
+UINT64 HybridNoiseApp::GPUParticleWorkFPS(const UINT64 runs, const float runTime)
 {
     UseCrossAdapter = false;
     UseSecondApproach = false;
@@ -717,7 +716,7 @@ void HybridNoiseApp::InitDevices()
     assets = std::make_shared<AssetsLoader>(primeDevice);
 
 
-    for (int i = 0; i < RenderMode::Count; ++i)
+    for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
     {
         typedRenderer.push_back(
             MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
@@ -737,10 +736,10 @@ void HybridNoiseApp::InitDevices()
             secondDevice->IsCrossAdapterTextureSupported()));
 
 
-    primeComputeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
-    renderQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
+    renderQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
 
-    secondComputeQueue = secondDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+    secondComputeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
 }
 
 void HybridNoiseApp::InitFrameResource()
@@ -915,7 +914,7 @@ void HybridNoiseApp::InitSRVMemoryAndMaterials()
 
 void HybridNoiseApp::InitRenderPaths()
 {
-    auto commandQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
     auto cmdList = commandQueue->GetCommandList();
 
     ambientPrimePath = (std::make_shared<SSAO>(
@@ -939,7 +938,7 @@ void HybridNoiseApp::InitRenderPaths()
 
 void HybridNoiseApp::LoadStudyTexture()
 {
-    auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    auto queue = primeDevice->GetCommandQueue(GQueueType::Copy);
 
     const auto cmdList = queue->GetCommandList();
 
@@ -1008,7 +1007,7 @@ void HybridNoiseApp::LoadStudyTexture()
 
 void HybridNoiseApp::LoadModels()
 {
-    auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    auto queue = primeDevice->GetCommandQueue(GQueueType::Copy);
     const auto cmdList = queue->GetCommandList();
 
     auto nano = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
@@ -1085,7 +1084,7 @@ void HybridNoiseApp::MipMasGenerate()
             }
         }
 
-        const auto computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+        const auto computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
         auto computeList = computeQueue->GetCommandList();
         GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
         computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -1147,7 +1146,7 @@ void HybridNoiseApp::CreateGO()
                                                        assets->GetTextureIndex(L"skyTex"));
 
         skySphere->AddComponent(renderer);
-        typedRenderer[RenderMode::SkyBox].push_back((renderer));
+        typedRenderer[(int)RenderMode::SkyBox].push_back((renderer));
     }
     gameObjects.push_back(std::move(skySphere));
 
@@ -1157,8 +1156,8 @@ void HybridNoiseApp::CreateGO()
                                                         models[L"quad"]);
         renderer->SetModel(models[L"quad"]);
         quadRitem->AddComponent(renderer);
-        typedRenderer[RenderMode::Debug].push_back(renderer);
-        typedRenderer[RenderMode::Quad].push_back(renderer);
+        typedRenderer[(int)RenderMode::Debug].push_back(renderer);
+        typedRenderer[(int)RenderMode::Quad].push_back(renderer);
     }
     gameObjects.push_back(std::move(quadRitem));
 
@@ -1177,7 +1176,7 @@ void HybridNoiseApp::CreateGO()
         nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
         auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"nano"]);
         nano->AddComponent(renderer);
-        typedRenderer[RenderMode::Opaque].push_back(renderer);
+        typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
         gameObjects.push_back(std::move(nano));
 
 
@@ -1187,7 +1186,7 @@ void HybridNoiseApp::CreateGO()
         doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"doom"]);
         doom->AddComponent(renderer);
-        typedRenderer[RenderMode::Opaque].push_back(renderer);
+        typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
         gameObjects.push_back(std::move(doom));
     }
 
@@ -1200,7 +1199,7 @@ void HybridNoiseApp::CreateGO()
                 Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
             auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"atlas"]);
             atlas->AddComponent(renderer);
-            typedRenderer[RenderMode::Opaque].push_back(renderer);
+            typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
             gameObjects.push_back(std::move(atlas));
 
 
@@ -1209,7 +1208,7 @@ void HybridNoiseApp::CreateGO()
                 Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
             renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"pbody"]);
             pbody->AddComponent(renderer);
-            typedRenderer[RenderMode::Opaque].push_back(renderer);
+            typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
             gameObjects.push_back(std::move(pbody));
         }
     }
@@ -1218,7 +1217,7 @@ void HybridNoiseApp::CreateGO()
     particle->GetTransform()->SetPosition(Vector3::Up);
     const auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 100000 * 0.06);
     particle->AddComponent(emitter);
-    typedRenderer[RenderMode::Particle].push_back(emitter);
+    typedRenderer[(int)RenderMode::Particle].push_back(emitter);
     crossEmitter.push_back(emitter.get());
     gameObjects.push_back(std::move(particle));
 
@@ -1228,7 +1227,7 @@ void HybridNoiseApp::CreateGO()
     platform->GetTransform()->SetPosition(Vector3::Backward * -130);
     auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
     platform->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
 
     auto rotater = std::make_unique<GameObject>();
@@ -1263,7 +1262,7 @@ void HybridNoiseApp::CreateGO()
     stair->GetTransform()->SetPosition(Vector3::Left * 700);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"stair"]);
     stair->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
 
     auto columns = std::make_unique<GameObject>();
@@ -1273,7 +1272,7 @@ void HybridNoiseApp::CreateGO()
     columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"columns"]);
     columns->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
     auto fountain = std::make_unique<GameObject>();
     fountain->SetScale(0.005);
@@ -1281,7 +1280,7 @@ void HybridNoiseApp::CreateGO()
     fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"fountain"]);
     fountain->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
     gameObjects.push_back(std::move(platform));
     gameObjects.push_back(std::move(stair));
@@ -1294,7 +1293,7 @@ void HybridNoiseApp::CreateGO()
     mountDragon->GetTransform()->SetPosition(Vector3::Right * -960 + Vector3::Up * 45 + Vector3::Backward * 775);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"mountDragon"]);
     mountDragon->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
     gameObjects.push_back(std::move(mountDragon));
 
 
@@ -1303,7 +1302,7 @@ void HybridNoiseApp::CreateGO()
     desertDragon->GetTransform()->SetPosition(Vector3::Right * 960 + Vector3::Up * -5 + Vector3::Backward * 775);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"desertDragon"]);
     desertDragon->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
     gameObjects.push_back(std::move(desertDragon));
 
     auto griffon = std::make_unique<GameObject>();
@@ -1312,7 +1311,7 @@ void HybridNoiseApp::CreateGO()
     griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
     griffon->AddComponent(renderer);
-    typedRenderer[RenderMode::OpaqueAlphaDrop].push_back(renderer);
+    typedRenderer[(int)RenderMode::OpaqueAlphaDrop].push_back(renderer);
     gameObjects.push_back(std::move(griffon));
 
     griffon = std::make_unique<GameObject>();
@@ -1321,7 +1320,7 @@ void HybridNoiseApp::CreateGO()
     griffon->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
     griffon->AddComponent(renderer);
-    typedRenderer[RenderMode::OpaqueAlphaDrop].push_back(renderer);
+    typedRenderer[(int)RenderMode::OpaqueAlphaDrop].push_back(renderer);
     gameObjects.push_back(std::move(griffon));
 
     logQueue.Push(std::wstring(L"\nFinish create GO"));
@@ -1545,15 +1544,15 @@ int HybridNoiseApp::Run()
                 //Sleep(100);
             }
 
-            primeDevice->ResetAllocator(frameCount);
-            secondDevice->ResetAllocator(frameCount);
+            primeDevice->ResetAllocators(frameCount);
+            secondDevice->ResetAllocators(frameCount);
         }
     }
 
     return static_cast<int>(msg.wParam);
 }
 
-void HybridNoiseApp::UpdateMaterials()
+void HybridNoiseApp::UpdateMaterials() const
 {
     {
         auto currentMaterialBuffer = currentFrameResource->MaterialBuffer;
@@ -1697,7 +1696,7 @@ void HybridNoiseApp::UpdateMainPassCB(const GameTimer& gt)
     currentPassCB->CopyData(0, mainPassCB);
 }
 
-void HybridNoiseApp::UpdateSsaoCB(const GameTimer& gt)
+void HybridNoiseApp::UpdateSsaoCB(const GameTimer& gt) const
 {
     SsaoConstants ssaoCB;
 
@@ -1793,7 +1792,7 @@ void HybridNoiseApp::Flush()
     secondDevice->Flush();
 }
 
-LRESULT HybridNoiseApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT HybridNoiseApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
     switch (msg)
     {
