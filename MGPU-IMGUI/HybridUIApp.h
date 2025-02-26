@@ -87,7 +87,7 @@ protected:
 
     const int StatisticStepSecondsCount = 120;
 
-
+    std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
     GTexture secondDeviceUITexture;
     GDescriptor secondDeviceUIBackBufferRTV;
     std::shared_ptr<GCrossAdapterResource> crossAdapterUITexture;

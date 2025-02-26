@@ -14,7 +14,7 @@
 #include "Transform.h"
 #include "Window.h"
 
-HybridUIApp::HybridUIApp(HINSTANCE hInstance): D3DApp(hInstance)
+HybridUIApp::HybridUIApp(const HINSTANCE hInstance): D3DApp(hInstance)
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 200;
@@ -32,7 +32,7 @@ void HybridUIApp::Update(const GameTimer& gt)
     primeGPURenderingTime = primeDevice->GetCommandQueue()->GetTimestamp(olderIndex);
     secondGPURenderingTime = secondDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 
-    const auto commandQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    const auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
 
     currentFrameResource = frameResources[currentFrameResourceIndex];
 
@@ -67,7 +67,7 @@ void HybridUIApp::Update(const GameTimer& gt)
 
 void HybridUIApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList)
 {
-    //cmdList->SetRootSignature(primeDeviceSignature.get());
+    //cmdList->SetRootSignature(*primeDeviceSignature.get());
     cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                        *currentFrameResource->MaterialBuffer, 1);
     cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
@@ -76,8 +76,7 @@ void HybridUIApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdLis
 
     shadowPath->PopulatePreRenderCommands(cmdList);
 
-    cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque),
-                              *primeDeviceSignature.get());
+    cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque));
     PopulateDrawCommands(cmdList, RenderMode::Opaque);
     PopulateDrawCommands(cmdList, RenderMode::OpaqueAlphaDrop);
 
@@ -90,7 +89,7 @@ void HybridUIApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandList>&
     //Draw Normals
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory);
-        //cmdList->SetRootSignature(primeDeviceSignature.get());
+        //cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffer);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
@@ -114,11 +113,9 @@ void HybridUIApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandList>&
         cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
         cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantUploadBuffer);
 
-        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque),
-                                  *primeDeviceSignature.get());
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
         PopulateDrawCommands(cmdList, RenderMode::Opaque);
-        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaqueDrop),
-                                  *primeDeviceSignature.get());
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaqueDrop));
         PopulateDrawCommands(cmdList, RenderMode::OpaqueAlphaDrop);
 
 
@@ -133,12 +130,12 @@ void HybridUIApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>
     //Draw Ambient
     {
         cmdList->SetDescriptorsHeap(&srvTexturesMemory);
-        //cmdList->SetRootSignature(primeDeviceSignature.get());
+        //cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffer);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
 
-        cmdList->SetRootSignature(ssaoPrimeRootSignature.get(), *primeDeviceSignature.get());
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
         ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
     }
 }
@@ -174,20 +171,16 @@ void HybridUIApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandList
         cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
 
 
-        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::SkyBox),
-                                  *primeDeviceSignature.get());
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::SkyBox));
         PopulateDrawCommands(cmdList, (RenderMode::SkyBox));
 
-        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Opaque),
-                                  *primeDeviceSignature.get());
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Opaque));
         PopulateDrawCommands(cmdList, (RenderMode::Opaque));
 
-        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::OpaqueAlphaDrop),
-                                  *primeDeviceSignature.get());
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::OpaqueAlphaDrop));
         PopulateDrawCommands(cmdList, (RenderMode::OpaqueAlphaDrop));
 
-        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Transparent),
-                                  *primeDeviceSignature.get());
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Transparent));
         PopulateDrawCommands(cmdList, (RenderMode::Transparent));
 
 
@@ -201,14 +194,14 @@ void HybridUIApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandList
 void HybridUIApp::PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
                                          RenderMode type)
 {
-    for (auto&& renderer : typedRenderer[type])
+    for (auto&& renderer : typedRenderer[(int)type])
     {
         renderer->Draw(cmdList);
     }
 }
 
 void HybridUIApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& cmdList, GTexture& renderTarget,
-                                             GDescriptor* rtvMemory, UINT offsetRTV)
+                                             GDescriptor* rtvMemory, const UINT offsetRTV)
 {
     cmdList->SetViewports(&fullViewport, 1);
     cmdList->SetScissorRects(&fullRect, 1);
@@ -221,7 +214,7 @@ void HybridUIApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& 
 }
 
 void HybridUIApp::PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandList>& cmdList,
-                                                GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset,
+                                                GDescriptor* renderTextureSRVMemory, const UINT renderTextureMemoryOffset,
                                                 GraphicPSO& pso)
 {
     cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
@@ -266,7 +259,7 @@ void HybridUIApp::Draw(const GameTimer& gt)
             currentFrameResource->SecondRenderFenceValue = secondRenderQueue->ExecuteCommandList(cmdList);
         }
 
-        auto copyPrimeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+        auto copyPrimeQueue = primeDevice->GetCommandQueue(GQueueType::Copy);
 
         if (currentFrameResource->PrimeCopyFenceValue == 0 || copyPrimeQueue->IsFinish(
             currentFrameResource->PrimeCopyFenceValue))
@@ -368,7 +361,7 @@ void HybridUIApp::InitDevices()
     assets = std::make_shared<AssetsLoader>(primeDevice);
 
 
-    for (int i = 0; i < RenderMode::Count; ++i)
+    for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
     {
         typedRenderer.push_back(
             MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
@@ -421,6 +414,63 @@ void HybridUIApp::InitRootSignature()
 
 
     logQueue.Push(std::wstring(L"\nInit RootSignature for " + primeDevice->GetName()));
+
+    ssaoPrimeRootSignature = std::make_shared<GRootSignature>();
+
+    CD3DX12_DESCRIPTOR_RANGE texTable0;
+    texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE texTable1;
+    texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+
+    ssaoPrimeRootSignature->AddConstantBufferParameter(0);
+    ssaoPrimeRootSignature->AddConstantParameter(1, 1);
+    ssaoPrimeRootSignature->AddDescriptorParameter(&texTable0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    ssaoPrimeRootSignature->AddDescriptorParameter(&texTable1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+        0, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+    const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+        1, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+    const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
+        2, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressW
+        0.0f,
+        0,
+        D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE);
+
+    const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+        3, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+    std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> staticSamplers =
+    {
+        pointClamp, linearClamp, depthMapSam, linearWrap
+    };
+
+    for (auto&& sampler : staticSamplers)
+    {
+        ssaoPrimeRootSignature->AddStaticSampler(sampler);
+    }
+
+    ssaoPrimeRootSignature->Initialize(primeDevice);
 }
 
 void HybridUIApp::InitPipeLineResource()
@@ -506,7 +556,7 @@ void HybridUIApp::InitSRVMemoryAndMaterials()
 
 void HybridUIApp::InitRenderPaths()
 {
-    auto commandQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_DIRECT);
+    auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
     auto cmdList = commandQueue->GetCommandList();
 
     ambientPrimePath = (std::make_shared<SSAO>(
@@ -545,7 +595,7 @@ void HybridUIApp::InitRenderPaths()
 
 void HybridUIApp::LoadStudyTexture()
 {
-    auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    auto queue = primeDevice->GetCommandQueue(GQueueType::Copy);
 
     const auto cmdList = queue->GetCommandList();
 
@@ -614,7 +664,7 @@ void HybridUIApp::LoadStudyTexture()
 
 void HybridUIApp::LoadModels()
 {
-    auto queue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COPY);
+    auto queue = primeDevice->GetCommandQueue(GQueueType::Copy);
     auto cmdList = queue->GetCommandList();
 
     auto nano = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
@@ -692,7 +742,7 @@ void HybridUIApp::MipMasGenerate()
                 }
             }
 
-            const auto computeQueue = primeDevice->GetCommandQueue(D3D12_COMMAND_LIST_TYPE_COMPUTE);
+            const auto computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
             auto computeList = computeQueue->GetCommandList();
             GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
             computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -755,7 +805,7 @@ void HybridUIApp::CreateGO()
                                                  assets->GetTextureIndex(L"skyTex"));
 
         skySphere->AddComponent(renderer);
-        typedRenderer[RenderMode::SkyBox].push_back((renderer));
+        typedRenderer[(int)RenderMode::SkyBox].push_back((renderer));
     }
     gameObjects.push_back(std::move(skySphere));
 
@@ -765,8 +815,8 @@ void HybridUIApp::CreateGO()
                                                         models[L"quad"]);
         renderer->SetModel(models[L"quad"]);
         quadRitem->AddComponent(renderer);
-        typedRenderer[RenderMode::Debug].push_back(renderer);
-        typedRenderer[RenderMode::Quad].push_back(renderer);
+        typedRenderer[(int)RenderMode::Debug].push_back(renderer);
+        typedRenderer[(int)RenderMode::Quad].push_back(renderer);
     }
     gameObjects.push_back(std::move(quadRitem));
 
@@ -785,7 +835,7 @@ void HybridUIApp::CreateGO()
         nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
         auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"nano"]);
         nano->AddComponent(renderer);
-        typedRenderer[RenderMode::Opaque].push_back(renderer);
+        typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
         gameObjects.push_back(std::move(nano));
 
 
@@ -795,7 +845,7 @@ void HybridUIApp::CreateGO()
         doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"doom"]);
         doom->AddComponent(renderer);
-        typedRenderer[RenderMode::Opaque].push_back(renderer);
+        typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
         gameObjects.push_back(std::move(doom));
     }
 
@@ -808,7 +858,7 @@ void HybridUIApp::CreateGO()
                 Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
             auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"atlas"]);
             atlas->AddComponent(renderer);
-            typedRenderer[RenderMode::Opaque].push_back(renderer);
+            typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
             gameObjects.push_back(std::move(atlas));
 
 
@@ -817,7 +867,7 @@ void HybridUIApp::CreateGO()
                 Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
             renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"pbody"]);
             pbody->AddComponent(renderer);
-            typedRenderer[RenderMode::Opaque].push_back(renderer);
+            typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
             gameObjects.push_back(std::move(pbody));
         }
     }
@@ -829,7 +879,7 @@ void HybridUIApp::CreateGO()
     platform->GetTransform()->SetPosition(Vector3::Backward * -130);
     auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
     platform->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
 
     auto rotater = std::make_unique<GameObject>();
@@ -855,7 +905,7 @@ void HybridUIApp::CreateGO()
     stair->GetTransform()->SetPosition(Vector3::Left * 700);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"stair"]);
     stair->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
 
     auto columns = std::make_unique<GameObject>();
@@ -865,7 +915,7 @@ void HybridUIApp::CreateGO()
     columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"columns"]);
     columns->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
     auto fountain = std::make_unique<GameObject>();
     fountain->SetScale(0.005);
@@ -873,7 +923,7 @@ void HybridUIApp::CreateGO()
     fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"fountain"]);
     fountain->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
 
     gameObjects.push_back(std::move(platform));
     gameObjects.push_back(std::move(stair));
@@ -886,7 +936,7 @@ void HybridUIApp::CreateGO()
     mountDragon->GetTransform()->SetPosition(Vector3::Right * -960 + Vector3::Up * 45 + Vector3::Backward * 775);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"mountDragon"]);
     mountDragon->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
     gameObjects.push_back(std::move(mountDragon));
 
 
@@ -895,7 +945,7 @@ void HybridUIApp::CreateGO()
     desertDragon->GetTransform()->SetPosition(Vector3::Right * 960 + Vector3::Up * -5 + Vector3::Backward * 775);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"desertDragon"]);
     desertDragon->AddComponent(renderer);
-    typedRenderer[RenderMode::Opaque].push_back(renderer);
+    typedRenderer[(int)RenderMode::Opaque].push_back(renderer);
     gameObjects.push_back(std::move(desertDragon));
 
     auto griffon = std::make_unique<GameObject>();
@@ -904,7 +954,7 @@ void HybridUIApp::CreateGO()
     griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
     griffon->AddComponent(renderer);
-    typedRenderer[RenderMode::OpaqueAlphaDrop].push_back(renderer);
+    typedRenderer[(int)RenderMode::OpaqueAlphaDrop].push_back(renderer);
     gameObjects.push_back(std::move(griffon));
 
     griffon = std::make_unique<GameObject>();
@@ -913,7 +963,7 @@ void HybridUIApp::CreateGO()
     griffon->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
     griffon->AddComponent(renderer);
-    typedRenderer[RenderMode::OpaqueAlphaDrop].push_back(renderer);
+    typedRenderer[(int)RenderMode::OpaqueAlphaDrop].push_back(renderer);
     gameObjects.push_back(std::move(griffon));
 
     logQueue.Push(std::wstring(L"\nFinish create GO"));
@@ -1073,8 +1123,8 @@ int HybridUIApp::Run()
                 //Sleep(100);
             }
 
-            primeDevice->ResetAllocator(frameCount);
-            secondDevice->ResetAllocator(frameCount);
+            primeDevice->ResetAllocators(frameCount);
+            secondDevice->ResetAllocators(frameCount);
         }
     }
 
@@ -1339,7 +1389,7 @@ void HybridUIApp::Flush()
     secondDevice->Flush();
 }
 
-LRESULT HybridUIApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT HybridUIApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
     UIPath->MsgProc(hwnd, msg, wParam, lParam);
 

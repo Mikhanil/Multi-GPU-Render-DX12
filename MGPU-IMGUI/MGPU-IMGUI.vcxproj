@@ -164,16 +164,16 @@
         <ClCompile Include="UILayer.cpp"/>
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\Common\Common.vcxproj">
+        <ProjectReference Include="$(SolutionDir)\Common\Common.vcxproj">
             <Project>{af7045dc-b376-4cf0-955b-e52fcf1c1385}</Project>
         </ProjectReference>
-        <ProjectReference Include="..\Allocator\Allocator.vcxproj">
+        <ProjectReference Include="$(SolutionDir)\Allocator\Allocator.vcxproj">
             <Project>{ecb7ffae-36ae-4fca-80a7-9d95cdf1fb43}</Project>
         </ProjectReference>
-        <ProjectReference Include="..\Graphics\Graphics.vcxproj">
+        <ProjectReference Include="$(SolutionDir)\Graphics\Graphics.vcxproj">
             <Project>{b68f46c2-46c5-4ba6-8bcf-b908b34d653d}</Project>
         </ProjectReference>
-        <ProjectReference Include="..\Utils\Utils.vcxproj">
+        <ProjectReference Include="$(SolutionDir)\Utils\Utils.vcxproj">
             <Project>{5540756e-9246-4b5b-8b62-0cef11bd2ba6}</Project>
         </ProjectReference>
     </ItemGroup>
@@ -197,18 +197,18 @@
     </ItemGroup>
     <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets"/>
     <ImportGroup Label="ExtensionTargets">
-        <Import Project="..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets" Condition="Exists('..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')"/>
-        <Import Project="..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets" Condition="Exists('..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')"/>
-        <Import Project="..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets" Condition="Exists('..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets')"/>
-        <Import Project="..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')"/>
+        <Import Project="$(SolutionDir)\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets" Condition="Exists('$(SolutionDir)\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')"/>
+        <Import Project="$(SolutionDir)\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets" Condition="Exists('$(SolutionDir)\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')"/>
+        <Import Project="$(SolutionDir)\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets" Condition="Exists('$(SolutionDir)\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets')"/>
+        <Import Project="$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')"/>
     </ImportGroup>
     <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
         <PropertyGroup>
             <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them. For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
         </PropertyGroup>
-        <Error Condition="!Exists('..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets'))"/>
-        <Error Condition="!Exists('..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets'))"/>
-        <Error Condition="!Exists('..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets'))"/>
-        <Error Condition="!Exists('..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))"/>
+        <Error Condition="!Exists('$(SolutionDir)\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets'))"/>
+        <Error Condition="!Exists('$(SolutionDir)\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets'))"/>
+        <Error Condition="!Exists('$(SolutionDir)\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\packages\directxtk12_uwp.2024.10.29.1\build\native\directxtk12_uwp.targets'))"/>
+        <Error Condition="!Exists('$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))"/>
     </Target>
 </Project>
