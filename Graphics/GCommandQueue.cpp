@@ -206,7 +206,7 @@ namespace PEPEngine::Graphics
             d3d12CommandLists.push_back(commandList->GetGraphicsCommandList().Get());
 
             if (pendingCommandList != nullptr)
-                toBeQueued.push_back(pendingCommandList);
+                toBeQueued.emplace_back(pendingCommandList);
 
             toBeQueued.push_back(commandList);
         }
@@ -218,7 +218,7 @@ namespace PEPEngine::Graphics
         GResourceStateTracker::Unlock();
 
         // Queue command lists for reuse.
-        for (const auto commandList : toBeQueued)
+        for (const auto& commandList : toBeQueued)
         {
             m_InFlightCommandLists.Push({fenceValue, commandList});
         }
@@ -241,7 +241,7 @@ namespace PEPEngine::Graphics
         commandQueue->Wait(otherFence.Get(), otherFenceValue);
     }
 
-    ComPtr<ID3D12CommandQueue> GCommandQueue::GetD3D12CommandQueue() const
+    ComPtr<ID3D12CommandQueue>& GCommandQueue::GetD3D12CommandQueue()
     {
         return commandQueue;
     }

@@ -45,7 +45,7 @@ namespace PEPEngine::Graphics
         void Wait(const std::shared_ptr<GCommandQueue>& other) const;
         void Wait(const ComPtr<ID3D12Fence>& otherFence, UINT64 otherFenceValue) const;
 
-        ComPtr<ID3D12CommandQueue> GetD3D12CommandQueue() const;
+        ComPtr<ID3D12CommandQueue>& GetD3D12CommandQueue();
 
         void StartPixEvent(const std::wstring& message) const;
 

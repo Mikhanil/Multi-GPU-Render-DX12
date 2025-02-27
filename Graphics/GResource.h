@@ -69,5 +69,6 @@ namespace PEPEngine::Graphics
         ComPtr<ID3D12Resource> dxResource;
         std::unique_ptr<D3D12_CLEAR_VALUE> clearValue;
         std::wstring resourceName;
+        D3D12_RESOURCE_DESC description;
     };
 }
