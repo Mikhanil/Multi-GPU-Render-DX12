@@ -1,40 +1,51 @@
 #include "pch.h"
-#include "Emitter.h"
+#include "FluidEmitter.h"
 
-#include "MathHelper.h"
-
-ParticleData Emitter::GenerateParticle()
+ParticleData FluidEmitter::GenerateParticle()
 {
-    ParticleData tempParticle;
-    tempParticle.Position = Vector3(MathHelper::RandF(-1, 1), MathHelper::RandF(-1, 1), MathHelper::RandF(-1, 1));
-    tempParticle.Velocity = Vector3(MathHelper::RandF(-5, 5), MathHelper::RandF(30, 50),
-                                    MathHelper::RandF(-5, 5));
-    tempParticle.TotalLifeTime = MathHelper::RandF(10.0, 15.0);
-    tempParticle.LiveTime = tempParticle.TotalLifeTime;
-    tempParticle.TextureIndex = 0;
-    return tempParticle;
+    return ParticleData{};
 }
 
-void Emitter::CompileComputeShaders()
+void FluidEmitter::CompileComputeShaders()
 {
-    D3D_SHADER_MACRO defines[] =
-    {
-        "INJECTION", "1",
-        nullptr, nullptr
-    };
-
-    injectedShader = std::move(
-        std::make_shared<GShader>(L"Shaders\\ComputeParticle.hlsl", ComputeShader, defines, "CS", "cs_5_1"));
-    injectedShader->LoadAndCompile();
-
-    defines[0] = {"SIMULATION", "1"};
-
-    simulatedShader = std::move(
-        std::make_shared<GShader>(L"Shaders\\ComputeParticle.hlsl", ComputeShader, defines, "CS", "cs_5_1"));
-    simulatedShader->LoadAndCompile();
+    computeKernels[EKernels::ExternalForces] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "ExternalForces", "cs_5_1"));
+    computeKernels[EKernels::ExternalForces]->LoadAndCompile();
+    
+    computeKernels[EKernels::UpdateSpatialHash] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "UpdateSpatialHash", "cs_5_1"));
+    computeKernels[EKernels::UpdateSpatialHash]->LoadAndCompile();
+    
+    computeKernels[EKernels::Reorder] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "Reorder", "cs_5_1"));
+    computeKernels[EKernels::Reorder]->LoadAndCompile();
+    
+    computeKernels[EKernels::ReorderCopyBack] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "ReorderCopyBack", "cs_5_1"));
+    computeKernels[EKernels::ReorderCopyBack]->LoadAndCompile();
+    
+    computeKernels[EKernels::CalculateDensities] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "CalculateDensities", "cs_5_1"));
+    computeKernels[EKernels::CalculateDensities]->LoadAndCompile();
+    
+    computeKernels[EKernels::CalculatePressureForce] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "CalculatePressureForce", "cs_5_1"));
+    computeKernels[EKernels::CalculatePressureForce]->LoadAndCompile();
+    
+    computeKernels[EKernels::CalculateViscosity] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "CalculateViscosity", "cs_5_1"));
+    computeKernels[EKernels::CalculateViscosity]->LoadAndCompile();
+    
+    computeKernels[EKernels::UpdatePositions] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "UpdatePositions", "cs_5_1"));
+    computeKernels[EKernels::UpdatePositions]->LoadAndCompile();
+    
+    computeKernels[EKernels::UpdateDensityTexture] = std::move(
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "UpdateDensityTexture", "cs_5_1"));
+    computeKernels[EKernels::UpdateDensityTexture]->LoadAndCompile();
 }
 
-void Emitter::PSOInitialize()
+void FluidEmitter::PSOInitialize()
 {
     if (renderPSO == nullptr)
     {
@@ -102,34 +113,29 @@ void Emitter::PSOInitialize()
         renderPSO->Initialize(device);
     }
 
-    if (computeSignature == nullptr)
+    if (computePSOs.empty())
     {
-        CD3DX12_DESCRIPTOR_RANGE range[4];
-        range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
-        range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1);
-        range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 2);
-        range[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 3);
 
         computeSignature = std::make_shared<GRootSignature>();
-        computeSignature->AddConstantParameter(sizeof(EmitterData) / sizeof(float), 0); // EmitterData		
-        computeSignature->AddDescriptorParameter(&range[0], 1);
-        computeSignature->AddDescriptorParameter(&range[1], 1);
-        computeSignature->AddDescriptorParameter(&range[2], 1);
-        computeSignature->AddDescriptorParameter(&range[3], 1);
+        computeSignature->AddConstantBufferParameter(0);
+        
+        CD3DX12_DESCRIPTOR_RANGE ranges[3];
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 6, 0);
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 6);
+        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 7);
+        
+        computeSignature->AddDescriptorParameter(ranges, 3);
+
         computeSignature->Initialize(device);
 
         CompileComputeShaders();
 
-
-        injectedPSO = std::make_shared<ComputePSO>();
-        injectedPSO->SetRootSignature(*computeSignature.get());
-        injectedPSO->SetShader(injectedShader.get());
-        injectedPSO->Initialize(device);
-
-
-        simulatedPSO = std::make_shared<ComputePSO>();
-        simulatedPSO->SetRootSignature(*computeSignature.get());
-        simulatedPSO->SetShader(simulatedShader.get());
-        simulatedPSO->Initialize(device);
+        for (int8_t kernel = EKernels::ExternalForces; kernel < EKernels::Count; kernel++)
+        {
+            computePSOs[static_cast<EKernels>(kernel)] = std::make_shared<ComputePSO>();
+            computePSOs[static_cast<EKernels>(kernel)]->SetRootSignature(*computeSignature.get());
+            computePSOs[static_cast<EKernels>(kernel)]->SetShader(computeKernels[static_cast<EKernels>(kernel)].get());
+            computePSOs[static_cast<EKernels>(kernel)]->Initialize(device);
+        }
     }
 }

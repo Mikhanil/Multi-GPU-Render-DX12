@@ -160,6 +160,10 @@
         <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp"/>
         <ClCompile Include="FrameResource.cpp"/>
         <ClCompile Include="HybridParticleApp.cpp"/>
+        <None Include="Shaders\FluidMath.hlsl" />
+        <None Include="Shaders\FluidSimulation.hlsl" />
+        <None Include="Shaders\SpatialHash.hlsl" />
+        <None Include="Shaders\FluidParticleDraw.hlsl" />
         <ClCompile Include="Source.cpp"/>
     </ItemGroup>
     <ItemGroup>

@@ -233,6 +233,8 @@ void CrossAdapterParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& 
 
         cmdList->SetDescriptorsHeap(&updateDescriptors);
 
+        cmdList->SetPipelineState(*injectPSO.get());
+
         cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticlesPool, &updateDescriptors, 0);
         cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleDead, &updateDescriptors, 1);
         cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &updateDescriptors, 2);

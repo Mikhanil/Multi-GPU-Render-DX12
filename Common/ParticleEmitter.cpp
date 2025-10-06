@@ -175,7 +175,7 @@ ParticleEmitter::ParticleEmitter(const std::shared_ptr<GDevice>& device, const D
     emitterData.Color = DirectX::Colors::Blue;
     emitterData.Size = Vector2::One * 5.0f;
     emitterData.DeltaTime = 1.0f / 60.0f;
-    emitterData.Force = Vector3(0, 9.8f, 0) * -1;
+    emitterData.Force = Vector3(10, 9.8f, 0) * -1;
     emitterData.SimulatedGroupCount = CalculateGroupCount(particleCount);
     emitterData.UseTexture = true;
 

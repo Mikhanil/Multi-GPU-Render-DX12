@@ -185,6 +185,8 @@
     <ClInclude Include="CrossAdapterParticleEmitter.h" />
     <ClInclude Include="d3dApp.h" />
     <ClInclude Include="Emitter.h" />
+    <ClInclude Include="FluidEmitter.h" />
+    <ClInclude Include="FluidSimulationData.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GCrossAdapterResource.h" />
@@ -199,6 +201,7 @@
     <ClInclude Include="NativeModel.h" />
     <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="ParticleEmitter.h" />
+    <ClInclude Include="FluidParticleEmitter.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Rotater.h" />
@@ -222,6 +225,7 @@
     <ClCompile Include="CrossAdapterParticleEmitter.cpp" />
     <ClCompile Include="d3dApp.cpp" />
     <ClCompile Include="Emitter.cpp" />
+    <ClCompile Include="FluidEmitter.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
@@ -235,6 +239,7 @@
     <ClCompile Include="NativeModel.cpp" />
     <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="ParticleEmitter.cpp" />
+    <ClCompile Include="FluidParticleEmitter.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
