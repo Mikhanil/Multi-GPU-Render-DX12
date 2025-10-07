@@ -1,31 +1,56 @@
-cbuffer SimulationConstants : register(b0)
-{  
-	uint numParticles;
-	float gravity;
-	float deltaTime;
-	float simTime;
-	float collisionDamping;
-	float smoothingRadius;
-	float targetDensity;
-	float pressureMultiplier;
-	float nearPressureMultiplier;
-	float viscosityStrength;
-	float edgeForce;
-	float edgeForceDst;
-	float3 boundsSize;
-	float _padding0;
+#define RED   float4(1, 0, 0, 1)
+#define GREEN float4(0, 1, 0, 1)
+#define BLUE  float4(0, 0, 1, 1)
+#define MAX_SPEED 20.0f
 
-	float4x4 localToWorld;
-	float4x4 worldToLocal;
-
-	float2 interactionInputPoint;
-	float interactionInputStrength;
-	float interactionInputRadius;
-
-	// Volume texture settings
-	uint3 densityMapSize;
+static const float2 quadVertices[] = {
+	float2(-0.5, -0.5),
+	float2( 0.5, -0.5),
+	float2( 0.5,  0.5),
+	float2(-0.5,  0.5),
 };
 
-RWStructuredBuffer<float3> ParticlePositions : register(t0);
-RWStructuredBuffer<float3> ParticleVelocities: register(t1);
+cbuffer Transform : register(b0)
+{
+	float4x4 ViewProj;
 
+	float3 billboardUp;
+	float _padding0;
+
+	float3 billboardRight;
+	float _padding1;
+
+	float size;
+	float3 _padding2;
+}
+
+StructuredBuffer<float3> ParticlePositions : register(t0);
+StructuredBuffer<float3> ParticleVelocities: register(t1);
+
+struct VSOut
+{
+	float4 Position : SV_Position;
+	uint InstanceId;
+};
+
+VSOut VS(uint VertexId : SV_VertexID, uint InstanceId : SV_InstanceID)
+{
+	VSOut res;
+
+	float2 quadPos = quadVertices[VertexId];
+	float3 center = ParticlePositions[InstanceId];
+	float3 offset = billboardRight * (quadPos.x * size)
+					+ billboardUp * (quadPos.y * size);
+
+	float3 worldPos = center + offset;
+	res.Position = mul(float4(worldPos, 1), ViewProj);
+	res.InstanceId = InstanceId;
+
+	return res;
+}
+
+float4 PS(VSOut input) : SV_Target0
+{
+	float speed = length(ParticleVelocities[input.InstanceId]);
+	return saturate(lerp(BLUE, RED, speed / MAX_SPEED));
+}

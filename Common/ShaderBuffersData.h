@@ -172,6 +172,23 @@ struct alignas(sizeof(Vector4)) EmitterData
     Vector3 Padding3;
 };
 
+struct alignas(16) FluidParticleDrawData
+{
+    Matrix ViewProj;
+    // 16 bytes
+    
+    Vector3 BillboardUp;
+    float _padding0;
+    // 16 bytes
+    
+    Vector3 BillboardRight;
+    float _padding1;
+    // 16 bytes
+    
+    float size;
+    float _padding2[3];
+};
+
 class StandardShaderSlot
 {
 public:

@@ -4,7 +4,7 @@
 
 using namespace DirectX::SimpleMath;
 
-alignas (16) struct FluidSimulationData
+struct alignas(16) FluidSimulationData
 {
 	uint32_t numParticles;
 	float gravity;

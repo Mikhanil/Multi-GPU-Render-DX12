@@ -44,7 +44,7 @@ RWStructuredBuffer<float2> Densities            : register(u3); // Density, Near
 // Spatial hashing
 RWStructuredBuffer<uint> SpatialKeys    : register(u4);
 RWStructuredBuffer<uint> SpatialOffsets : register(u5);
-RWStructuredBuffer<uint> SortedIndices  : register(u6);
+StructuredBuffer<uint> SortedIndices  : register(u6);
 
 RWStructuredBuffer<float3> Debug        : register(u7);
 
