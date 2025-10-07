@@ -50,29 +50,26 @@ void FluidEmitter::PSOInitialize()
     if (renderPSO == nullptr)
     {
         auto vertexShader = std::move(
-            std::make_shared<GShader>(L"Shaders\\ParticleDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+            std::make_shared<GShader>(L"Shaders\\FluidParticleDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
         vertexShader->LoadAndCompile();
 
         auto pixelShader = std::move(
-            std::make_shared<GShader>(L"Shaders\\ParticleDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+            std::make_shared<GShader>(L"Shaders\\FluidParticleDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
         pixelShader->LoadAndCompile();
 
-        auto geometryShader = std::move(
-            std::make_shared<GShader>(L"Shaders\\ParticleDraw.hlsl", PixelShader, nullptr, "GS", "gs_5_1"));
-        geometryShader->LoadAndCompile();
-
+        /*
         CD3DX12_DESCRIPTOR_RANGE range[3];
         range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1);
         range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 1);
         range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Atlas.size(), 2, 1);
+        */
+
+        CD3DX12_DESCRIPTOR_RANGE range[1];
+        range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
 
         renderSignature = std::make_shared<GRootSignature>();
-        renderSignature->AddConstantBufferParameter(0); // Object position		
-        renderSignature->AddConstantBufferParameter(1); // World Data
-        renderSignature->AddConstantParameter(sizeof(EmitterData) / sizeof(float), 0, 1); //EmitterData
-        renderSignature->AddDescriptorParameter(&range[0], 1); //Particles
-        renderSignature->AddDescriptorParameter(&range[1], 1); //Particles Render Index
-        renderSignature->AddDescriptorParameter(&range[2], 1); //Particles Render Index
+        renderSignature->AddConstantParameter(sizeof(FluidParticleDrawData) / sizeof(float), 0);
+        renderSignature->AddDescriptorParameter(range, 1); //Particles' positions and velocities 
         renderSignature->Initialize(device);
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC renderPSODesc;
@@ -82,12 +79,12 @@ void FluidEmitter::PSOInitialize()
         renderPSODesc.pRootSignature = renderSignature->GetNativeSignature().Get();
         renderPSODesc.VS = vertexShader->GetShaderResource();
         renderPSODesc.PS = pixelShader->GetShaderResource();
-        renderPSODesc.GS = geometryShader->GetShaderResource();
         renderPSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        renderPSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
         renderPSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         renderPSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
         renderPSODesc.SampleMask = UINT_MAX;
-        renderPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+        renderPSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
         renderPSODesc.NumRenderTargets = 1;
         renderPSODesc.RTVFormats[0] = GetSRGBFormat(BackBufferFormat);
         renderPSODesc.SampleDesc.Count = 1;

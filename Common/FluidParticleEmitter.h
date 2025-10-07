@@ -6,13 +6,19 @@
 
 class FluidParticleEmitter : public FluidEmitter
 {
-	friend class CrossAdapterParticleFluidEmitter;
-
-
-	FluidSimulationData simData={};
+	friend class CrossAdapterFluidParticleEmitter;
 public:
-	void ChangeParticleCount(const DWORD newParticleCount);
-	
+	//void ChangeParticleCount(const DWORD newParticleCount);
+
 	FluidParticleEmitter(const std::shared_ptr<GDevice>& primeDevice, DWORD particleCount = 10000);
 	void Dispatch(const std::shared_ptr<GCommandList>& cmdList) override;
+
+protected:
+	
+	
+private:
+	std::shared_ptr<ConstantUploadBuffer<GBuffer>> someData;
+	
+	FluidSimulationData simData={};
+
 };
