@@ -11,7 +11,7 @@ CameraController::CameraController()
     mouse = app.GetMouse();
 }
 
-void CameraController::Update()
+void CameraController::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     while (!keyboard->CharBufferIsEmpty())
     {

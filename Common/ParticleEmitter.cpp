@@ -228,7 +228,7 @@ ParticleEmitter::ParticleEmitter(const std::shared_ptr<GDevice>& device, const D
     BufferInitialize();
 }
 
-void ParticleEmitter::Update()
+void ParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     const auto transform = gameObject->GetTransform();
 

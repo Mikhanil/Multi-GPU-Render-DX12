@@ -13,7 +13,7 @@ class ObjectMover :
 {
     KeyboardDevice* keyboard;
 
-    void Update() override;;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;;
 
 public:
     ObjectMover();;

@@ -18,10 +18,7 @@ cbuffer Transform : register(b0)
 	float _padding0;
 
 	float3 billboardRight;
-	float _padding1;
-
 	float size;
-	float3 _padding2;
 }
 
 StructuredBuffer<float3> ParticlePositions : register(t0);

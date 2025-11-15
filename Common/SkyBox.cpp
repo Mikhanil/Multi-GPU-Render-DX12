@@ -38,7 +38,7 @@ void SkyBox::Draw(const std::shared_ptr<GCommandList>& cmdList)
     }
 }
 
-void SkyBox::Update()
+void SkyBox::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     const auto transform = gameObject->GetTransform();
 

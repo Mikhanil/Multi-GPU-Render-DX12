@@ -164,7 +164,10 @@
         <None Include="Shaders\FluidSimulation.hlsl" />
         <None Include="Shaders\SpatialHash.hlsl" />
         <None Include="Shaders\FluidParticleDraw.hlsl" />
-        <ClCompile Include="Source.cpp"/>
+        <None Include="Shaders\Helpers\GPUSort\CountingSort.hlsl" />
+        <None Include="Shaders\Helpers\GPUSort\PrefixSum.hlsl" />
+        <None Include="Shaders\Helpers\SpacialOffsets.hlsl" />
+        <ClCompile Include="Source.cpp" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="$(SolutionDir)\Common\Common.vcxproj">
@@ -181,21 +184,22 @@
         </ProjectReference>
     </ItemGroup>
     <ItemGroup>
-        <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_dx12.h"/>
-        <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_win32.h"/>
-        <ClInclude Include="..\Submodule\imgui\imconfig.h"/>
+        <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_dx12.h" />
+        <ClInclude Include="..\Submodule\imgui\backends\imgui_impl_win32.h" />
+        <ClInclude Include="..\Submodule\imgui\imconfig.h" />
         <ClInclude Include="..\Submodule\imgui\imgui.h">
             <DeploymentContent>false</DeploymentContent>
         </ClInclude>
-        <ClInclude Include="..\Submodule\imgui\imgui_internal.h"/>
-        <ClInclude Include="..\Submodule\imgui\imstb_rectpack.h"/>
-        <ClInclude Include="..\Submodule\imgui\imstb_textedit.h"/>
-        <ClInclude Include="..\Submodule\imgui\imstb_truetype.h"/>
-        <ClInclude Include="FrameResource.h"/>
-        <ClInclude Include="HybridParticleApp.h"/>
+        <ClInclude Include="..\Submodule\imgui\imgui_internal.h" />
+        <ClInclude Include="..\Submodule\imgui\imstb_rectpack.h" />
+        <ClInclude Include="..\Submodule\imgui\imstb_textedit.h" />
+        <ClInclude Include="..\Submodule\imgui\imstb_truetype.h" />
+        <ClInclude Include="FrameResource.h" />
+        <ClInclude Include="HybridParticleApp.h" />
+        <ClInclude Include="ParticleSpawner.h" />
     </ItemGroup>
     <ItemGroup>
-        <None Include="packages.config"/>
+        <None Include="packages.config" />
         <None Include="Shaders\Common.hlsl">
             <FileType>Document</FileType>
             <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Library</ShaderType>

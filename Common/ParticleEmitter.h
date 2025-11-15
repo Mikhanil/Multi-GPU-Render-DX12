@@ -29,7 +29,7 @@ class ParticleEmitter :
     bool isWorked = false;
 
 protected:
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
 
     double CalculateGroupCount(DWORD particleCount) const;

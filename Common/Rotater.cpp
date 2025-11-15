@@ -4,7 +4,7 @@
 #include "Transform.h"
 
 
-void Rotater::Update()
+void Rotater::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     const float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
 

@@ -44,7 +44,7 @@ public:
     void CreateBuffers();
     CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice, const std::shared_ptr<GDevice>& otherDevice,
                                 DWORD particleCount);
-    void Update() override;;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;;
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
     void Dispatch(const std::shared_ptr<GCommandList>& cmdList) override;
 

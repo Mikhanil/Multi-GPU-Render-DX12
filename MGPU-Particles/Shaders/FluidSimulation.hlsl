@@ -11,26 +11,29 @@ cbuffer SimulationConstants : register(b0)
     float gravity;
     float deltaTime;
     float simTime;
+    // 16 bytes
     float collisionDamping;
     float smoothingRadius;
     float targetDensity;
     float pressureMultiplier;
+    // 16 bytes
     float nearPressureMultiplier;
     float viscosityStrength;
-    float edgeForce;
-    float edgeForceDst;
+    float2 _padding0;
+    // 16 bytes
     float3 boundsSize;
-    float _padding0;
+    float _padding1;
+    // 16 bytes
 
     float4x4 localToWorld;
+    // 16 bytes
     float4x4 worldToLocal;
+    // 16 bytes
 
     float2 interactionInputPoint;
     float interactionInputStrength;
     float interactionInputRadius;
-
-    // Volume texture settings
-    uint3 densityMapSize;
+    // 16 bytes
 };
 
 // ConstantBuffer<SimulationConstants> constants : register(b0);
@@ -41,15 +44,14 @@ RWStructuredBuffer<float3> PredictedPositions   : register(u1);
 RWStructuredBuffer<float3> Velocities           : register(u2);
 RWStructuredBuffer<float2> Densities            : register(u3); // Density, Near Density
 
+RWStructuredBuffer<float3> SortTarget_Positions             : register(u4);
+RWStructuredBuffer<float3> SortTarget_PredictedPositions    : register(u5);
+RWStructuredBuffer<float3> SortTarget_Velocities            : register(u6);
+
 // Spatial hashing
-RWStructuredBuffer<uint> SpatialKeys    : register(u4);
-RWStructuredBuffer<uint> SpatialOffsets : register(u5);
-StructuredBuffer<uint> SortedIndices  : register(u6);
-
-RWStructuredBuffer<float3> Debug        : register(u7);
-
-RWTexture3D<float> DensityMap           : register(u8);
-
+RWStructuredBuffer<uint>    SpatialKeys    : register(u7);
+RWStructuredBuffer<uint>    SpatialOffsets : register(u8);
+StructuredBuffer<uint>      SortedIndices  : register(t0);
 
 float PressureFromDensity(float density)
 {
@@ -125,11 +127,6 @@ void UpdateSpatialHash(uint3 id : SV_DispatchThreadID)
 
     SpatialKeys[id.x] = key;
 }
-
-
-RWStructuredBuffer<float3> SortTarget_Positions;
-RWStructuredBuffer<float3> SortTarget_PredictedPositions;
-RWStructuredBuffer<float3> SortTarget_Velocities;
 
 [numthreads(ThreadGroupSize, 1, 1)]
 void Reorder(uint3 id : SV_DispatchThreadID)
@@ -392,6 +389,7 @@ void UpdatePositions(uint3 id : SV_DispatchThreadID)
     Velocities[id.x] = vel;
 }
 
+/*
 [numthreads(8, 8, 8)]
 void UpdateDensityTexture(uint3 id : SV_DispatchThreadID)
 {
@@ -403,4 +401,5 @@ void UpdateDensityTexture(uint3 id : SV_DispatchThreadID)
     float3 worldPos = (texturePos - 0.5) * boundsSize;
     DensityMap[id] = CalculateDensitiesAtPoint(worldPos)[0];
 }
+*/
 

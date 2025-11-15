@@ -10,6 +10,6 @@ public:
     {
     } ;
 
-    void Update() override = 0;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override = 0;
     virtual void Draw(const std::shared_ptr<GCommandList>& cmdList) = 0;
 };

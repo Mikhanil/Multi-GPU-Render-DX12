@@ -21,7 +21,7 @@ protected:
 
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
 
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 
 public:
     ModelRenderer(const std::shared_ptr<GDevice>& device, const std::shared_ptr<GModel>& model);

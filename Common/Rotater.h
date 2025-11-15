@@ -14,7 +14,7 @@ public:
     }
 
 private:
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 
     const float time = 2;
     float currentTime = 0;

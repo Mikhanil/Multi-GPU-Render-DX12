@@ -29,6 +29,7 @@ namespace PEPEngine::Graphics
         Quad,
         UI,
         Particle,
+        Fluid,
         Count
     };
 

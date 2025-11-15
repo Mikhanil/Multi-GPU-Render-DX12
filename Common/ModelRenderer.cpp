@@ -19,7 +19,7 @@ void ModelRenderer::Draw(const std::shared_ptr<GCommandList>& cmdList)
     }
 }
 
-void ModelRenderer::Update()
+void ModelRenderer::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     const auto transform = gameObject->GetTransform();
 

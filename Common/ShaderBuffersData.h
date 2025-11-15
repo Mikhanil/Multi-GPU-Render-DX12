@@ -172,21 +172,19 @@ struct alignas(sizeof(Vector4)) EmitterData
     Vector3 Padding3;
 };
 
+// 24 total DWORDS meaning 24 slots
 struct alignas(16) FluidParticleDrawData
 {
     Matrix ViewProj;
-    // 16 bytes
+    // 16 bytes (actually, 64 bytes, 16 root signature slots)
     
     Vector3 BillboardUp;
     float _padding0;
-    // 16 bytes
+    // 16 bytes (4 more slots)
     
     Vector3 BillboardRight;
-    float _padding1;
-    // 16 bytes
-    
     float size;
-    float _padding2[3];
+    // 16 bytes // 4 slots
 };
 
 class StandardShaderSlot

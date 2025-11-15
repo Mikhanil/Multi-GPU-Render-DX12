@@ -14,7 +14,7 @@ using namespace DirectX::SimpleMath;
 
 class Camera : public Component
 {
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 
     void CreateProjection();
 

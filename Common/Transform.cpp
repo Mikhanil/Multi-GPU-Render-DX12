@@ -20,7 +20,7 @@ bool Transform::IsDirty() const
     return NumFramesDirty > 0;
 }
 
-void Transform::Update()
+void Transform::Update(const PEPEngine::Utils::GameTimer* gt)
 {
 #if defined(_DEBUG)
     if (gameObject->GetName() == "MainCamera")

@@ -10,7 +10,7 @@ SplineController::SplineController(const BezierCurve& curve, float speed)
 {
 }
 
-void SplineController::Update()
+void SplineController::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     if (!m_isPlaying) return;
     if (m_currentOffset > 1.0f) {

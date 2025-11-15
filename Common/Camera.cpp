@@ -3,7 +3,7 @@
 #include "GameObject.h"
 #include "Transform.h"
 
-void Camera::Update()
+void Camera::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     auto transform = gameObject->GetTransform();
 

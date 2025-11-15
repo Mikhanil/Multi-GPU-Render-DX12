@@ -2,6 +2,7 @@
 #include "AssetsLoader.h"
 #include "CrossAdapterParticleEmitter.h"
 #include "d3dApp.h"
+#include "FluidParticleEmitter.h"
 #include "Renderer.h"
 #include "RenderModeFactory.h"
 #include "ShadowMap.h"
@@ -105,6 +106,8 @@ protected:
     bool UseCrossSync = false;
     custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter
         *>();
+
+    std::shared_ptr<FluidParticleEmitter> fluidParticleEmitter;
 
     ComPtr<ID3D12Fence> primeComputeFence;
     ComPtr<ID3D12Fence> secondComputeFence;

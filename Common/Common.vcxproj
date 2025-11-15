@@ -191,6 +191,8 @@
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GCrossAdapterResource.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="GPUCountingSort.h" />
+    <ClInclude Include="GPUPrefixSum.h" />
     <ClInclude Include="KeyboardDevice.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
@@ -209,6 +211,8 @@
     <ClInclude Include="RenderModeFactory.h" />
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="SkyBox.h" />
+    <ClInclude Include="SpacialHash.h" />
+    <ClInclude Include="SpacialOffsetsCalculator.h" />
     <ClInclude Include="SplineController.h" />
     <ClInclude Include="SSAA.h" />
     <ClInclude Include="Ssao.h" />
@@ -229,6 +233,8 @@
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="GPUCountingSort.cpp" />
+    <ClCompile Include="GPUPrefixSum.cpp" />
     <ClCompile Include="KeyboardDevice.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -250,6 +256,8 @@
     <ClCompile Include="RenderModeFactory.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="SkyBox.cpp" />
+    <ClCompile Include="SpacialHash.cpp" />
+    <ClCompile Include="SpacialOffsetsCalculator.cpp" />
     <ClCompile Include="SplineController.cpp" />
     <ClCompile Include="SSAA.cpp" />
     <ClCompile Include="Ssao.cpp" />

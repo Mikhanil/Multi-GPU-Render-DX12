@@ -7,7 +7,7 @@
 
 using namespace DirectX::SimpleMath;
 
-void ObjectMover::Update()
+void ObjectMover::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     const float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
 

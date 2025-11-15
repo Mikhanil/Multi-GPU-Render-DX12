@@ -60,7 +60,7 @@ void HybridParticleApp::Update(const GameTimer& gt)
 
     for (auto& e : gameObjects)
     {
-        e->Update();
+        e->Update(&gt);
     }
 
     UpdateMaterials();
@@ -279,6 +279,8 @@ void HybridParticleApp::Draw(const GameTimer& gt)
         {
             emitter->Dispatch(cmdList);
         }
+
+        fluidParticleEmitter->Dispatch(cmdList, gt);
 
         cmdList->EndQuery(timestampHeapIndex + 1);
         cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
@@ -891,6 +893,24 @@ void HybridParticleApp::CreateGO()
     typedRenderer[static_cast<int>(RenderMode::Particle)].push_back(emitter);
     crossEmitter.push_back(emitter.get());
     gameObjects.push_back(std::move(particle));
+
+    ParticleSpawner::SpawnRegion spawnRegion;
+    spawnRegion.Center = Vector3::Up;
+    spawnRegion.Size = 3.f;
+    
+    auto fluidSim = std::make_unique<GameObject>();
+    fluidSim->GetTransform()->SetPosition(Vector3::Up);
+    ParticleSpawner spawner;
+    spawner.ParticleSpawnDensity = 500;
+    spawner.SpawnRegions.push_back(spawnRegion);
+
+    FluidSimulationData simData;
+    simData.localToWorld = fluidSim->GetTransform()->GetWorldMatrix();
+    simData.worldToLocal = simData.localToWorld.Invert();
+    fluidParticleEmitter = std::make_shared<FluidParticleEmitter>(primeDevice, simData, spawner);
+    fluidSim->AddComponent(fluidParticleEmitter);
+    typedRenderer[static_cast<int>(RenderMode::Fluid)].push_back(emitter);
+    gameObjects.push_back(std::move(fluidSim));
 
     auto platform = std::make_unique<GameObject>();
     platform->SetScale(0.2);

@@ -24,11 +24,11 @@ GameObject(std::string name, Vector3 position, Vector3 scale, Quaternion rotate)
     AddComponent(transform);
 }
 
-void GameObject::Update()
+void GameObject::Update(const GameTimer* gt)
 {
     for (auto& component : components)
     {
-        component->Update();
+        component->Update(gt);
     }
 }
 

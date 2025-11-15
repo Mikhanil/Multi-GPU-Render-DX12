@@ -25,7 +25,7 @@ public:
 
     GameObject(std::string name, Vector3 position, Vector3 scale, Quaternion rotate);
 
-    void virtual Update();
+    void virtual Update(const GameTimer* gt = nullptr);
 
     void virtual Draw(const std::shared_ptr<GCommandList>& cmdList);
 

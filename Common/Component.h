@@ -6,6 +6,11 @@
 
 #include "GCommandList.h"
 
+namespace PEPEngine::Utils
+{
+    class GameTimer;
+}
+
 class GameObject;
 
 class Component
@@ -15,5 +20,5 @@ public:
 
     Component();
 
-    virtual void Update() = 0;
+    virtual void Update(const PEPEngine::Utils::GameTimer* gt = nullptr) = 0;
 };

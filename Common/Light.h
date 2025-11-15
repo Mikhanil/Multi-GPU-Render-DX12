@@ -16,7 +16,7 @@ class Light : public Component
     int NumFramesDirty = globalCountFrameResources;
     LightData lightData{};
 
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 
     DirectX::XMFLOAT3 strength = {0.5f, 0.5f, 0.5f};
     DirectX::XMFLOAT3 direction = {0, 0, 0};

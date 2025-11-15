@@ -18,5 +18,5 @@ public:
 
 protected:
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
-    void Update() override;;;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 };

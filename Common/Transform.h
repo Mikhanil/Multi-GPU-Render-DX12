@@ -45,7 +45,7 @@ public:
 
     bool IsDirty() const;
 
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 
     void SetParent(Transform* transform);
 

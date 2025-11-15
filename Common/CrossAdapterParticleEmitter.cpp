@@ -171,10 +171,10 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
     CreateBuffers();
 }
 
-void CrossAdapterParticleEmitter::Update()
+void CrossAdapterParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     primeParticleEmitter->gameObject = this->gameObject;
-    primeParticleEmitter->Update();
+    primeParticleEmitter->Update(gt);
 }
 
 void CrossAdapterParticleEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)

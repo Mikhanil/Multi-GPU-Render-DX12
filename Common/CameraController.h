@@ -20,5 +20,5 @@ class CameraController :
 public:
     CameraController();
 
-    void Update() override;
+    void Update(const PEPEngine::Utils::GameTimer* gt) override;
 };

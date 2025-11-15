@@ -4,7 +4,7 @@
 #include "Transform.h"
 
 
-void Light::Update()
+void Light::Update(const PEPEngine::Utils::GameTimer* gt)
 {
     if (NumFramesDirty > 0)
     {

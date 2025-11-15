@@ -1,9 +1,12 @@
 static const float PI = 3.1415926;
 
-const float K_SpikyPow2;
-const float K_SpikyPow3;
-const float K_SpikyPow2Grad;
-const float K_SpikyPow3Grad;
+cbuffer SpikyKernels : register(b1)
+{
+	float K_SpikyPow2;
+	float K_SpikyPow3;
+	float K_SpikyPow2Grad;
+	float K_SpikyPow3Grad;
+}
 
 float LinearKernel(float dst, float radius)
 {
