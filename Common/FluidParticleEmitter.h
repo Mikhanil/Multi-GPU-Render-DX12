@@ -27,37 +27,6 @@ protected:
 
     void RunSimulationStep(const std::shared_ptr<GCommandList>& cmdList);
 protected:
-    struct EComputeBufferOffsets
-    {
-        enum Enum : uint8_t
-        {
-            PositionsBufferOffset,
-            PredictedPositionsBufferOffset,
-            VelocityBufferOffset,
-            DensityBufferOffset,
-
-            SortTarget_PositionsBufferOffset,
-            SortTarget_PredictedPositionsBufferOffset,
-            SortTarget_VelocityBufferOffset,
-            
-            SpatialHash_SpatialKeysOffset,
-            SpatialHash_SpatialOffsetsOffset,
-            SpatialHash_SpatialIndicesOffset,
-
-            BufferCount
-        };
-    };
-
-    struct EDrawBufferOffsets
-    {
-        enum Enum : uint8_t
-        {
-            PositionsBufferOffset,
-            VelocityBufferOffset,
-            
-            BufferCount
-        };
-    };
 private:
     FluidParticleDrawData m_drawData;
 

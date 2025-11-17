@@ -1,14 +1,14 @@
 #include "pch.h"
 #include "SpacialHash.h"
 
-void SpatialHash::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t size)
+void SpatialHash::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count)
 {
     m_Device = device;
 
-    m_CountingSort.Initialize(device);
+    m_CountingSort.Initialize(device, count);
     m_OffsetsCalculator.Initialize(device);
     
-    CreateBuffers(size);
+    CreateBuffers(count);
 }
 
 void SpatialHash::Resize(size_t newSize)
@@ -40,7 +40,7 @@ bool SpatialHash::TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride
     {
         if (buffer && buffer->IsValid())
             buffer->Reset();
-        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count);
+        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count, L"", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         return true;
     }

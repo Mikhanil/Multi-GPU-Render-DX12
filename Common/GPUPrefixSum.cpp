@@ -4,11 +4,10 @@
 using namespace PEPEngine;
 using namespace PEPEngine::Graphics;
 
-void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device)
+void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, uint32_t count)
 {
     m_Device = device;
 
-    // uint item count at register(b0)
     m_RootSignature.AddConstantParameter(1, 0);
     
     CD3DX12_DESCRIPTOR_RANGE range[2];
@@ -28,6 +27,45 @@ void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice
     m_BlockCombinePSO.SetRootSignature(m_RootSignature);
     m_BlockCombinePSO.SetShader(m_BlockCombineShader.get());
     m_BlockCombinePSO.Initialize(device);
+
+    int numGroups = count;
+    int offsets = 0;
+    while (true)
+    {
+        m_FreeBuffersOffsets.insert({numGroups, offsets});
+        std::wstring bufferName = L"PrefixSumBuffer::" + std::to_wstring(numGroups);
+        m_FreeBuffers.insert({numGroups,
+            std::make_shared<GBuffer>(
+                device,
+                sizeof(uint32_t),
+                numGroups,
+                bufferName.c_str(),
+                D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+                )
+        });
+
+        if (numGroups == 1)
+            break;
+        numGroups = ceil(numGroups / 2.f / c_ThreadGroupSize);
+        offsets++;
+
+    } 
+
+    computeDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FreeBuffers.size());
+    
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+    uavDesc.Buffer.FirstElement = 0;
+    
+    for (auto& [numGroups, buffer] : m_FreeBuffers)
+    {
+        uavDesc.Buffer.NumElements = buffer->GetElementCount();
+        uavDesc.Buffer.StructureByteStride = buffer->GetStride();
+        buffer->CreateUnorderedAccessView(&uavDesc, &computeDescriptors, m_FreeBuffersOffsets[numGroups]);
+    }
+    
 }
 
 void GPUPrefixSum::Run(
@@ -39,65 +77,12 @@ void GPUPrefixSum::Run(
 
     if (isInitialRun)
     {
-        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-        uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-        uavDesc.Buffer.FirstElement = 0;
-        uavDesc.Buffer.NumElements = elements->GetElementCount();
-        uavDesc.Buffer.StructureByteStride = elements->GetStride();
-        uavDesc.Buffer.CounterOffsetInBytes = 0;
-
-        elements->CreateUnorderedAccessView(&uavDesc, &computeDescriptors, 0);
         m_InitialElementsBuffer = elements;
     }
 
-    std::shared_ptr<GBuffer> groupSumBuffer;
-    if (m_FreeBuffers.find(numGroups) == m_FreeBuffers.end())
-    {
-        groupSumBuffer = std::make_shared<GBuffer>(m_Device, sizeof(uint32_t), numGroups);
-
-        // need to add one to facilitate the descriptor for the buffer that is the input buffer. 
-        m_FreeBuffersOffsets.insert({numGroups, m_FreeBuffers.size() + 1});
-        m_FreeBuffers.insert({ numGroups, groupSumBuffer });
-
-        // alright, so here I just don't care that it's weird to recreate the descriptor heap
-        // after each iteration, this code should not run often, it should run only once
-        // (or maybe like 5 times) on 400k particles in original simulation this portion ran only
-        // 4 times
-
-        // need to add one to facilitate the descriptor for the buffer that is the input buffer. 
-        computeDescriptors = m_Device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FreeBuffers.size() + 1);
-        
-        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-        uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-        uavDesc.Buffer.FirstElement = 0;
-        uavDesc.Buffer.NumElements = m_InitialElementsBuffer->GetElementCount();
-        uavDesc.Buffer.StructureByteStride = m_InitialElementsBuffer->GetStride();
-        uavDesc.Buffer.CounterOffsetInBytes = 0;
-        m_InitialElementsBuffer->CreateUnorderedAccessView(&uavDesc, &computeDescriptors, 0);
-
-        size_t i = 1;
-        for (auto& [_numGroups, buffer] : m_FreeBuffers)
-        {
-            uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-            uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-            uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-            uavDesc.Buffer.FirstElement = 0;
-            uavDesc.Buffer.NumElements = buffer->GetElementCount();
-            uavDesc.Buffer.StructureByteStride = buffer->GetStride();
-            uavDesc.Buffer.CounterOffsetInBytes = 0;
-
-            buffer->CreateUnorderedAccessView(&uavDesc, &computeDescriptors, i);
-            i++;
-        }
-    }
-    else
-    {
-        groupSumBuffer = m_FreeBuffers[numGroups];
-    }
+    std::shared_ptr<GBuffer>& groupSumBuffer = m_FreeBuffers[numGroups];
+    if (!groupSumBuffer)
+        throw std::runtime_error("Failed to find appropriate GPU buffer!");
 
     commandList->TransitionBarrier(elements->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     commandList->TransitionBarrier(groupSumBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -105,16 +90,15 @@ void GPUPrefixSum::Run(
     commandList->FlushResourceBarriers();
 
     commandList->SetDescriptorsHeap(&computeDescriptors);
-    commandList->SetPipelineState(m_BlockScanPSO);
+    commandList->SetRootSignature(m_RootSignature);
 
-    // this thing is weird but here i set this to 0 if the 
-    commandList->SetRootDescriptorTable(RSSlots::ElementsBufferSlot, &computeDescriptors, 0);
-    
+    commandList->SetRoot32BitConstant(RSSlots::ItemCountSlot, elements->GetElementCount(), 0);
+    commandList->SetRootDescriptorTable(RSSlots::ElementsBufferSlot, &computeDescriptors, m_FreeBuffersOffsets[elements->GetElementCount()]);
     commandList->SetRootDescriptorTable(RSSlots::GroupSumsBufferSlot, &computeDescriptors,
                                     m_FreeBuffersOffsets.at(numGroups));
 
-    commandList->SetRoot32BitConstant(0, elements->GetElementCount(), 0);
 
+    commandList->SetPipelineState(m_BlockScanPSO);
     commandList->Dispatch(numGroups, 1, 1);
 
     if (numGroups > 1)

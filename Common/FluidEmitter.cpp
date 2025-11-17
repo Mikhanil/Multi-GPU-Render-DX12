@@ -38,7 +38,7 @@ void FluidEmitter::CompileComputeShaders()
 
 void FluidEmitter::PSOInitialize()
 {
-    if (renderPSO == nullptr)
+    if (m_renderPSO == nullptr)
     {
         auto vertexShader = std::move(
             std::make_shared<GShader>(L"Shaders\\FluidParticleDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
@@ -59,16 +59,16 @@ void FluidEmitter::PSOInitialize()
         range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
         range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 
-        renderSignature.AddConstantParameter(sizeof(FluidParticleDrawData) / sizeof(float), 0);
-        renderSignature.AddDescriptorParameter(&range[0], 1); //Particles positions 
-        renderSignature.AddDescriptorParameter(&range[1], 1); //Particles velocities 
-        renderSignature.Initialize(m_device);
+        m_renderSignature.AddConstantParameter(sizeof(FluidParticleDrawData) / sizeof(float), 0);
+        m_renderSignature.AddDescriptorParameter(&range[0], 1); //Particles positions 
+        m_renderSignature.AddDescriptorParameter(&range[1], 1); //Particles velocities 
+        m_renderSignature.Initialize(m_device);
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC renderPSODesc;
 
         ZeroMemory(&renderPSODesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
         renderPSODesc.InputLayout = {nullptr, 0};
-        renderPSODesc.pRootSignature = renderSignature.GetNativeSignature().Get();
+        renderPSODesc.pRootSignature = m_renderSignature.GetNativeSignature().Get();
         renderPSODesc.VS = vertexShader->GetShaderResource();
         renderPSODesc.PS = pixelShader->GetShaderResource();
         renderPSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -83,8 +83,8 @@ void FluidEmitter::PSOInitialize()
         renderPSODesc.SampleDesc.Quality = 0;
         renderPSODesc.DSVFormat = DepthStencilFormat;
 
-        renderPSO = std::make_shared<GraphicPSO>(RenderMode::Particle);
-        renderPSO->SetPsoDesc(renderPSODesc);
+        m_renderPSO = std::make_shared<GraphicPSO>(RenderMode::Particle);
+        m_renderPSO->SetPsoDesc(renderPSODesc);
         {
             D3D12_RENDER_TARGET_BLEND_DESC blendDesc = {};
             blendDesc.BlendEnable = true;
@@ -97,9 +97,10 @@ void FluidEmitter::PSOInitialize()
             blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             blendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
             blendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-            renderPSO->SetRenderTargetBlendState(0, blendDesc);
+            m_renderPSO->SetRenderTargetBlendState(0, blendDesc);
         }
-        renderPSO->Initialize(m_device);
+        m_renderPSO->Initialize(m_device);
+        m_renderPSO->GetPSO()->SetName(L"FluidParticleDraw");
     }
 
     if (computePSOs.empty())
@@ -135,12 +136,13 @@ void FluidEmitter::PSOInitialize()
 
         CompileComputeShaders();
 
-        for (uint8_t kernel = EKernels::ExternalForces; kernel < EKernels::Count; kernel++)
+        for (auto kernel : EKernels::All)
         {
             computePSOs[kernel] = std::make_shared<ComputePSO>();
             computePSOs[kernel]->SetRootSignature(computeSignature);
             computePSOs[kernel]->SetShader(computeKernels[kernel].get());
             computePSOs[kernel]->Initialize(m_device);
+            computePSOs[kernel]->GetPSO()->SetName(EKernels::ToWide(kernel).c_str());
         }
     }
 }

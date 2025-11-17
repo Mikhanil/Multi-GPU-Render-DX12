@@ -6,7 +6,7 @@
 #include "GRootSignature.h"
 
 
-void GPUCountingSort::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device)
+void GPUCountingSort::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count)
 {
     m_Device = device;
     
@@ -40,7 +40,11 @@ void GPUCountingSort::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDev
 
     m_ComputeDescriptors = m_Device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
     
-    scan.Initialize(device);
+    TryCreateBuffer(m_SortedItemsBuffer, sizeof(UINT), count);
+    TryCreateBuffer(m_SortedKeysBuffer, sizeof(UINT), count);
+    TryCreateBuffer(m_CountsBuffer, sizeof(UINT), count);
+    
+    scan.Initialize(device, count);
 }
 
 void GPUCountingSort::Run(
@@ -52,10 +56,6 @@ void GPUCountingSort::Run(
     UINT count = itemsBuffer->GetElementCount();
     const size_t numGroupsX = ceil(static_cast<float>(count) / static_cast<float>(256));
 
-    // these return false if the buffer already exist, i don't care about it really
-    TryCreateBuffer(m_SortedItemsBuffer, sizeof(UINT), count);
-    TryCreateBuffer(m_SortedKeysBuffer, sizeof(UINT), count);
-    TryCreateBuffer(m_CountsBuffer, sizeof(UINT), count);
     if (!m_bDescriptorsInitialized)
         InitializeDescriptors(itemsBuffer, keysBuffer);
 
@@ -75,7 +75,7 @@ void GPUCountingSort::Run(
     commandList->SetRootDescriptorTable(ESortSlots::InputItemsSlot,     &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);
     commandList->SetRootDescriptorTable(ESortSlots::InputKeysSlot,      &m_ComputeDescriptors, EBufferOffsets::KeysBuffer);
     commandList->SetRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedItemsBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
+    commandList->SetRootDescriptorTable(ESortSlots::SortedKeysSlot,     &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
     commandList->SetRootDescriptorTable(ESortSlots::CountsSlot,         &m_ComputeDescriptors, EBufferOffsets::CountsBuffer);
 
     {
@@ -107,7 +107,7 @@ void GPUCountingSort::Run(
     commandList->SetRootDescriptorTable(ESortSlots::InputItemsSlot,     &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);
     commandList->SetRootDescriptorTable(ESortSlots::InputKeysSlot,      &m_ComputeDescriptors, EBufferOffsets::KeysBuffer);
     commandList->SetRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedItemsBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
+    commandList->SetRootDescriptorTable(ESortSlots::SortedKeysSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
     commandList->SetRootDescriptorTable(ESortSlots::CountsSlot,         &m_ComputeDescriptors, EBufferOffsets::CountsBuffer);
 
     commandList->SetPipelineState(*m_PSOs[EKernels::ScatterOutput]);
@@ -173,8 +173,9 @@ bool GPUCountingSort::TryCreateBuffer(std::shared_ptr<PEPEngine::Graphics::GBuff
                         || buffer->GetElementCount() != count;
     if (createNewBuffer)
     {
-        buffer->Reset();
-        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count);
+        if (buffer && buffer->IsValid())
+            buffer->Reset();
+        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count, L"", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         m_bDescriptorsInitialized = false;
         return true;
@@ -195,6 +196,7 @@ void GPUCountingSort::InitializeDescriptors(const BufferPtr& itemsBuffer, const 
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
     uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     uavDesc.Buffer.FirstElement = 0;
+    
     uavDesc.Buffer.NumElements = itemsBuffer->GetElementCount();
     uavDesc.Buffer.StructureByteStride = itemsBuffer->GetStride();
     itemsBuffer->CreateUnorderedAccessView(&uavDesc, &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);

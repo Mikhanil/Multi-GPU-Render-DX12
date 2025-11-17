@@ -8,7 +8,7 @@ class SpatialHash
 public:
     SpatialHash() = default;
     
-    void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t size);
+    void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count);
 
     void Resize(size_t newSize);
 

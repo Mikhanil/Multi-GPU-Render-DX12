@@ -23,8 +23,7 @@ class GPUCountingSort
 	
 	struct EKernels
 	{
-		// this shit is so i could iterate easily not by casting non-stop like a madman
-		enum : uint8_t 
+		enum Enum : uint8_t 
 		{
 			ClearCounts,
 			CalculateCounts,
@@ -59,7 +58,7 @@ class GPUCountingSort
 
 public:
 	GPUCountingSort() = default;
-	void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device);
+	void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count);
 
 	void Run(
 		const std::shared_ptr<PEPEngine::Graphics::GCommandList>& commandList,

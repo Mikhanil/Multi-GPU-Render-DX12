@@ -27,7 +27,7 @@ StructuredBuffer<float3> ParticleVelocities: register(t1);
 struct VSOut
 {
 	float4 Position : SV_Position;
-	uint InstanceId;
+	uint InstanceId : SV_InstanceID;
 };
 
 VSOut VS(uint VertexId : SV_VertexID, uint InstanceId : SV_InstanceID)

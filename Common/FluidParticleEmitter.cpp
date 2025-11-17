@@ -11,6 +11,8 @@ FluidParticleEmitter::FluidParticleEmitter(
 {
     m_device = primeDevice;
 
+    PSOInitialize();
+
     m_simData = simData;
 
     m_spawnData = particleSpawner.GetSpawnData();
@@ -34,8 +36,10 @@ void FluidParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
     
     m_drawData.ViewProj = viewMat * projMat;
     m_drawData.BillboardUp = Vector3::TransformNormal(Vector3::Up, invView);
+    m_drawData.BillboardUp.Normalize();
     m_drawData.BillboardRight = Vector3::TransformNormal(Vector3::Right, invView);
-    m_drawData.size = 0.3f;
+    m_drawData.BillboardRight.Normalize();
+    m_drawData.size = 1.f;
 }
 
 void FluidParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList, const GameTimer& gt)
@@ -58,13 +62,13 @@ void FluidParticleEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
     cmdList->TransitionBarrier(m_velocityBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     cmdList->FlushResourceBarriers();
 
-    cmdList->SetRootSignature(renderSignature);
-    cmdList->SetPipelineState(*renderPSO);
+    cmdList->SetRootSignature(m_renderSignature);
+    cmdList->SetPipelineState(*m_renderPSO);
     cmdList->SetDescriptorsHeap(&m_graphicsDescriptors);
     
-    cmdList->SetRoot32BitConstants(0, sizeof(FluidParticleDrawData), &m_drawData, 0);
-    cmdList->SetRootDescriptorTable(1, &m_graphicsDescriptors, 0);
-    cmdList->SetRootDescriptorTable(2, &m_graphicsDescriptors, 1);
+    cmdList->SetRoot32BitConstants (0, sizeof(FluidParticleDrawData) / sizeof(float), &m_drawData, 0);
+    cmdList->SetRootDescriptorTable(1, &m_graphicsDescriptors, EDrawBufferOffsets::PositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(2, &m_graphicsDescriptors, EDrawBufferOffsets::VelocityBufferOffset);
 
     cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     cmdList->Draw(4, m_simData.numParticles);
@@ -125,7 +129,7 @@ void FluidParticleEmitter::InitializeBuffers()
 
     m_sortTargetPositionsBuffer             = std::make_shared<GBuffer>(m_device, sizeof(Vector3), numParticles, L"SortTargetPositionsBuffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     m_sortTargetVelocityBuffer              = std::make_shared<GBuffer>(m_device, sizeof(Vector3), numParticles, L"SortTargetVelocityBuffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    m_sortTargetPredictedPositionsBuffer    = std::make_shared<GBuffer>(m_device, sizeof(Vector2), numParticles, L"SortTargetPredictedPositionsBuffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    m_sortTargetPredictedPositionsBuffer    = std::make_shared<GBuffer>(m_device, sizeof(Vector3), numParticles, L"SortTargetPredictedPositionsBuffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
     {
         auto queue = m_device->GetCommandQueue();
@@ -160,6 +164,10 @@ void FluidParticleEmitter::InitializeDescriptors()
         uavDesc.Buffer.StructureByteStride = m_positionsBuffer->GetStride();
         m_positionsBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::PositionsBufferOffset);
         
+        uavDesc.Buffer.NumElements = m_predictedPositionsBuffer->GetElementCount();
+        uavDesc.Buffer.StructureByteStride = m_predictedPositionsBuffer->GetStride();
+        m_predictedPositionsBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::PredictedPositionsBufferOffset);
+        
         uavDesc.Buffer.NumElements = m_velocityBuffer->GetElementCount();
         uavDesc.Buffer.StructureByteStride = m_velocityBuffer->GetStride();
         m_velocityBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::VelocityBufferOffset);
@@ -168,26 +176,17 @@ void FluidParticleEmitter::InitializeDescriptors()
         uavDesc.Buffer.StructureByteStride = m_densityBuffer->GetStride();
         m_densityBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::DensityBufferOffset);
         
-        uavDesc.Buffer.NumElements = m_predictedPositionsBuffer->GetElementCount();
-        uavDesc.Buffer.StructureByteStride = m_predictedPositionsBuffer->GetStride();
-        m_predictedPositionsBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::PredictedPositionsBufferOffset);
-        
         uavDesc.Buffer.NumElements = m_sortTargetPositionsBuffer->GetElementCount();
         uavDesc.Buffer.StructureByteStride = m_sortTargetPositionsBuffer->GetStride();
         m_sortTargetPositionsBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
 
         uavDesc.Buffer.NumElements = m_sortTargetVelocityBuffer->GetElementCount();
         uavDesc.Buffer.StructureByteStride = m_sortTargetVelocityBuffer->GetStride();
-        m_sortTargetVelocityBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
+        m_sortTargetVelocityBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
         
         uavDesc.Buffer.NumElements = m_sortTargetPredictedPositionsBuffer->GetElementCount();
         uavDesc.Buffer.StructureByteStride = m_sortTargetPredictedPositionsBuffer->GetStride();
         m_sortTargetPredictedPositionsBuffer->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
-
-        const auto& spatialIndices = m_spatialHash.GetSpatialIndices();
-        uavDesc.Buffer.NumElements = spatialIndices->GetElementCount();
-        uavDesc.Buffer.StructureByteStride = spatialIndices->GetStride();
-        spatialIndices->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
 
         const auto& spatialKeys = m_spatialHash.GetSpatialKeys();
         uavDesc.Buffer.NumElements = spatialKeys->GetElementCount();
@@ -198,6 +197,19 @@ void FluidParticleEmitter::InitializeDescriptors()
         uavDesc.Buffer.NumElements = spatialOffsets->GetElementCount();
         uavDesc.Buffer.StructureByteStride = spatialOffsets->GetStride();
         spatialOffsets->CreateUnorderedAccessView(&uavDesc, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
+
+        const auto& spatialIndices = m_spatialHash.GetSpatialIndices();
+        
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+        srvDesc.Buffer.FirstElement = 0;
+    
+        srvDesc.Buffer.NumElements = spatialIndices->GetElementCount();
+        srvDesc.Buffer.StructureByteStride = spatialIndices->GetStride();
+        spatialIndices->CreateShaderResourceView(&srvDesc, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
     }
 
     {
@@ -229,7 +241,7 @@ void FluidParticleEmitter::UpdateSettings(float stepDeltaTime, float frameDeltaT
     }
 
     m_simData.deltaTime = stepDeltaTime;
-    
+    m_simulationSettingsBuffer->CopyData(0, m_simData);
 }
 
 void FluidParticleEmitter::UpdateSmoothingConstants()
@@ -263,24 +275,20 @@ void FluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GCommandList>
 
     cmdList->SetDescriptorsHeap(&m_computeDescriptors);
     cmdList->SetRootSignature(computeSignature);
+    
+    cmdList->SetRootConstantBufferView(ERootSignatureSlots::SimulationSettingsSlot, *m_simulationSettingsBuffer.get());
+    cmdList->SetRoot32BitConstants(ERootSignatureSlots::SmoothingConstantsSlot, 4, &m_smoothingConstants, 0);
 
-    auto setDescriptors = [&](const std::shared_ptr<GCommandList>& comList)
-    {
-        comList->SetRootConstantBufferView(ERootSignatureSlots::SimulationSettingsSlot, *m_simulationSettingsBuffer.get());
-        comList->SetRoot32BitConstants(ERootSignatureSlots::SmoothingConstantsSlot, 4, &m_smoothingConstants, 0);
-
-        comList->SetRootDescriptorTable(ERootSignatureSlots::PositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::PositionsBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::VelocityBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::VelocityBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::PredictedPositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::PredictedPositionsBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::DensityBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::DensityBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_PositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_VelocityBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialIndicesSlot, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
-        comList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialKeysSlot, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
-    };
-    setDescriptors(cmdList);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::PositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::PositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::VelocityBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::VelocityBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::PredictedPositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::PredictedPositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::DensityBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::DensityBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_PositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_VelocityBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot, &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialIndicesSlot, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialKeysSlot, &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
 
     {
         cmdList->SetPipelineState(*computePSOs[EKernels::ExternalForces].get());
@@ -291,7 +299,6 @@ void FluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GCommandList>
         cmdList->FlushResourceBarriers();
     }
 
-
     {
         cmdList->SetPipelineState(*computePSOs[EKernels::UpdateSpatialHash].get());
         cmdList->Dispatch(GroupSize, 1, 1);
@@ -301,8 +308,25 @@ void FluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GCommandList>
     }
 
     m_spatialHash.Run(cmdList);
+    
+    cmdList->TransitionBarrier(m_spatialHash.GetSpatialIndices()->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    
+    cmdList->SetDescriptorsHeap(&m_computeDescriptors);
+    cmdList->SetRootSignature(computeSignature);
+    
+    cmdList->SetRootConstantBufferView(ERootSignatureSlots::SimulationSettingsSlot, *m_simulationSettingsBuffer.get());
+    cmdList->SetRoot32BitConstants(ERootSignatureSlots::SmoothingConstantsSlot, 4, &m_smoothingConstants, 0);
 
-    setDescriptors(cmdList);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::PositionsBufferSlot,                       &m_computeDescriptors, EComputeBufferOffsets::PositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::PredictedPositionsBufferSlot,              &m_computeDescriptors, EComputeBufferOffsets::PredictedPositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::VelocityBufferSlot,                        &m_computeDescriptors, EComputeBufferOffsets::VelocityBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::DensityBufferSlot,                         &m_computeDescriptors, EComputeBufferOffsets::DensityBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_PositionsBufferSlot,            &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot,   &m_computeDescriptors, EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SortTarget_VelocityBufferSlot,             &m_computeDescriptors, EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialKeysSlot,               &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot,            &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
+    cmdList->SetRootDescriptorTable(ERootSignatureSlots::SpatialHash_SpatialIndicesSlot,            &m_computeDescriptors, EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
     
     {
         cmdList->SetPipelineState(*computePSOs[EKernels::Reorder].get());

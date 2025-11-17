@@ -7,14 +7,15 @@ class GPUPrefixSum
 {
     enum RSSlots : UINT
     {
+        ItemCountSlot,
         ElementsBufferSlot,
         GroupSumsBufferSlot,
-        ItemCountSlot
+        RSSlotsCount
     };
 public:
     GPUPrefixSum() = default;
     
-    void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device);
+    void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, uint32_t count);
     
     void Run(
         const std::shared_ptr<PEPEngine::Graphics::GCommandList>& commandList,
