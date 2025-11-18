@@ -23,13 +23,17 @@ void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice
     m_BlockScanPSO.SetRootSignature(m_RootSignature);
     m_BlockScanPSO.SetShader(m_BlockScanShader.get());
     m_BlockScanPSO.Initialize(device);
+    m_BlockScanPSO.GetPSO()->SetName(L"PrefixSum::BlockScan");
     
     m_BlockCombinePSO.SetRootSignature(m_RootSignature);
     m_BlockCombinePSO.SetShader(m_BlockCombineShader.get());
     m_BlockCombinePSO.Initialize(device);
+    m_BlockCombinePSO.GetPSO()->SetName(L"PrefixSum::BlockCombine");
 
-    int numGroups = count;
-    int offsets = 0;
+    m_FreeBuffersOffsets.insert({count, 0});
+    
+    uint32_t numGroups = ceil(count / 2.f / c_ThreadGroupSize);
+    uint32_t offsets = 1;
     while (true)
     {
         m_FreeBuffersOffsets.insert({numGroups, offsets});
@@ -48,10 +52,9 @@ void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice
             break;
         numGroups = ceil(numGroups / 2.f / c_ThreadGroupSize);
         offsets++;
-
     } 
 
-    computeDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FreeBuffers.size());
+    computeDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, m_FreeBuffers.size() + 1);
     
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -75,9 +78,20 @@ void GPUPrefixSum::Run(
 {
     int numGroups = ceil(elements->GetElementCount() / 2.f / c_ThreadGroupSize);
 
-    if (isInitialRun)
+    if (!m_InitialElementsBuffer)
     {
         m_InitialElementsBuffer = elements;
+        
+        D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+        uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+        uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+        uavDesc.Buffer.FirstElement = 0;
+        uavDesc.Buffer.NumElements = elements->GetElementCount();
+        uavDesc.Buffer.StructureByteStride = elements->GetStride();
+
+        m_InitialElementsBuffer->CreateUnorderedAccessView(&uavDesc, &computeDescriptors, 0);
+        m_FreeBuffers.insert({elements->GetElementCount(), elements});
     }
 
     std::shared_ptr<GBuffer>& groupSumBuffer = m_FreeBuffers[numGroups];
@@ -101,6 +115,9 @@ void GPUPrefixSum::Run(
     commandList->SetPipelineState(m_BlockScanPSO);
     commandList->Dispatch(numGroups, 1, 1);
 
+    commandList->UAVBarrier(elements->GetD3D12Resource(), true);
+    commandList->UAVBarrier(groupSumBuffer->GetD3D12Resource(), true);
+    
     if (numGroups > 1)
     {
         Run(commandList, groupSumBuffer, false);
@@ -111,7 +128,8 @@ void GPUPrefixSum::Run(
                                         m_FreeBuffersOffsets.at(numGroups));
         
         commandList->SetRoot32BitConstant(0, elements->GetElementCount(), 0);
-        
+
+        commandList->SetPipelineState(m_BlockCombinePSO);
         commandList->Dispatch(numGroups, 1, 1);
     }
 

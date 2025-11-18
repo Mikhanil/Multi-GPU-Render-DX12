@@ -1,7 +1,9 @@
 #include "pch.h"
 #include "FluidParticleEmitter.h"
 
+#include "GameObject.h"
 #include "GameTimer.h"
+#include "Transform.h"
 #include "../MGPU-Particles/HybridParticleApp.h"
 
 FluidParticleEmitter::FluidParticleEmitter(
@@ -33,21 +35,25 @@ void FluidParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
     auto& projMat = cam->GetProjectionMatrix();
 
     auto invView = viewMat.Invert();
-    
+
+    //Matrix::Decompose()
+
+    Vector3 right(invView._11, invView._12, invView._13);
+    Vector3 up(invView._21, invView._22, invView._23);
+
     m_drawData.ViewProj = viewMat * projMat;
-    m_drawData.BillboardUp = Vector3::TransformNormal(Vector3::Up, invView);
-    m_drawData.BillboardUp.Normalize();
-    m_drawData.BillboardRight = Vector3::TransformNormal(Vector3::Right, invView);
-    m_drawData.BillboardRight.Normalize();
-    m_drawData.size = 1.f;
+    up.Normalize(m_drawData.BillboardUp);
+    right.Normalize(m_drawData.BillboardRight);
+    m_drawData.size = 0.1f;
 }
 
 void FluidParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList, const GameTimer& gt)
 {
     float deltaTime = gt.DeltaTime();
-
+    float maxDeltaTime = m_maxTimeStepFps > 0 ? 1 / m_maxTimeStepFps : FLT_MAX;
+    float dt = std::min(deltaTime, maxDeltaTime);
     float subStepDeltaTime = deltaTime / m_iterationsPerFrame;
-    UpdateSettings(subStepDeltaTime, deltaTime);
+    UpdateSettings(subStepDeltaTime, dt);
 
     for (int i = 0; i < m_iterationsPerFrame; i++)
     {
@@ -136,8 +142,8 @@ void FluidParticleEmitter::InitializeBuffers()
         auto cmdList = queue->GetCommandList();
 
         m_positionsBuffer->LoadData(m_spawnData.Points.data(), cmdList);
-        m_velocityBuffer->LoadData(m_spawnData.Velocities.data(), cmdList);
         m_predictedPositionsBuffer->LoadData(m_spawnData.Points.data(), cmdList);
+        m_velocityBuffer->LoadData(m_spawnData.Velocities.data(), cmdList);
 
         cmdList->TransitionBarrier(m_positionsBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(m_velocityBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
@@ -255,7 +261,7 @@ void FluidParticleEmitter::UpdateSmoothingConstants()
 
 void FluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GCommandList>& cmdList)
 {
-    const size_t GroupSize = ceil(m_simData.numParticles / 256.f);
+    const size_t GroupSize = ceil(m_simData.numParticles / 512.f);
 
     {
         cmdList->TransitionBarrier(m_positionsBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -349,16 +355,6 @@ void FluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GCommandList>
     }
 
     {
-        cmdList->SetPipelineState(*computePSOs[EKernels::ReorderCopyBack].get());
-        cmdList->Dispatch(GroupSize, 1, 1);
-
-        cmdList->UAVBarrier(m_positionsBuffer->GetD3D12Resource());
-        cmdList->UAVBarrier(m_velocityBuffer->GetD3D12Resource());
-        cmdList->UAVBarrier(m_predictedPositionsBuffer->GetD3D12Resource());
-        cmdList->FlushResourceBarriers();
-    }
-
-    {
         cmdList->SetPipelineState(*computePSOs[EKernels::CalculateDensities].get());
         cmdList->Dispatch(GroupSize, 1, 1);
 
@@ -374,7 +370,7 @@ void FluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GCommandList>
         cmdList->FlushResourceBarriers();
     }
 
-    if (m_simData.viscosityStrength != 0.0f)
+    if (m_simData.viscosityStrength > 0.0f)
     {
         cmdList->SetPipelineState(*computePSOs[EKernels::CalculateViscosity].get());
         cmdList->Dispatch(GroupSize, 1, 1);

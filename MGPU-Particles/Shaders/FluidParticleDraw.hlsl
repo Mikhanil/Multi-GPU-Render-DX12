@@ -6,8 +6,8 @@
 static const float2 quadVertices[] = {
 	float2(-0.5, -0.5),
 	float2( 0.5, -0.5),
-	float2( 0.5,  0.5),
 	float2(-0.5,  0.5),
+	float2( 0.5,  0.5),
 };
 
 cbuffer Transform : register(b0)
@@ -40,7 +40,7 @@ VSOut VS(uint VertexId : SV_VertexID, uint InstanceId : SV_InstanceID)
 					+ billboardUp * (quadPos.y * size);
 
 	float3 worldPos = center + offset;
-	res.Position = mul(float4(worldPos, 1), ViewProj);
+	res.Position = mul(ViewProj, float4(worldPos, 1));
 	res.InstanceId = InstanceId;
 
 	return res;

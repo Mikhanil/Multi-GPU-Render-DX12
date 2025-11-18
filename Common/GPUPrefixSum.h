@@ -30,7 +30,7 @@ private:
     bool m_areDescriptorsAllocated = false;
     size_t m_particleCount = 0;
     
-    int c_ThreadGroupSize{256};
+    int c_ThreadGroupSize{512};
     
     std::unordered_map<int, std::shared_ptr<PEPEngine::Graphics::GBuffer>> m_FreeBuffers;
     std::unordered_map<int, int> m_FreeBuffersOffsets;

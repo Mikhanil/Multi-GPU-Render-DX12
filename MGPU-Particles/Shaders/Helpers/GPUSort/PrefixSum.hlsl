@@ -1,4 +1,4 @@
-static const uint GROUP_SIZE = 256;
+static const uint GROUP_SIZE = 512;
 static const uint ITEMS_PER_GROUP = 2 * GROUP_SIZE; // 2 items processed per thread
 
 cbuffer inputBuffer						: register(b0)

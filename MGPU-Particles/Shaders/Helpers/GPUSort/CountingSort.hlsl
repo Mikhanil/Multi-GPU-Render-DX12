@@ -10,7 +10,7 @@ RWStructuredBuffer<uint> SortedKeys     : register(u3);
 
 RWStructuredBuffer<uint> Counts         : register(u4);
 
-static const int GroupSize = 256;
+static const int GroupSize = 512;
 
 [numthreads(GroupSize, 1, 1)]
 void ClearCounts(uint3 id : SV_DispatchThreadID)

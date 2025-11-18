@@ -171,7 +171,6 @@ void HybridParticleApp::PopulateForwardPathCommands(const std::shared_ptr<GComma
                                   antiAliasingPrimePath->GetDSV());
 
 
-        /*
         cmdList->
             SetRootConstantBufferView(StandardShaderSlot::CameraData,
                                       *currentFrameResource->PrimePassConstantUploadBuffer);
@@ -193,6 +192,7 @@ void HybridParticleApp::PopulateForwardPathCommands(const std::shared_ptr<GComma
         PopulateDrawCommands(cmdList, (RenderMode::Transparent));
 
 
+        /*
         cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
                                            *currentFrameResource->PrimePassConstantUploadBuffer.get(), 0);
         PopulateDrawCommands(cmdList, RenderMode::Particle);
@@ -896,19 +896,21 @@ void HybridParticleApp::CreateGO()
     gameObjects.push_back(std::move(particle));
 
     ParticleSpawner::SpawnRegion spawnRegion;
-    spawnRegion.Center = Vector3::Up * 5.f;
-    spawnRegion.Size = 4.f;
+    spawnRegion.Center = Vector3::Up * 15.f;
+    spawnRegion.Size = 10.f;
     
     auto fluidSim = std::make_unique<GameObject>();
-    fluidSim->GetTransform()->SetPosition(Vector3::Up * 5.f);
+    fluidSim->GetTransform()->SetPosition(Vector3::Up * 15.f);
+    fluidSim->SetScale(18.f);
     ParticleSpawner spawner;
-    spawner.ParticleSpawnDensity = 500;
+    spawner.ParticleSpawnDensity = 1000;
     spawner.SpawnRegions.push_back(spawnRegion);
 
     FluidSimulationData simData;
     simData.localToWorld = fluidSim->GetTransform()->GetWorldMatrix();
     simData.worldToLocal = simData.localToWorld.Invert();
-    
+    simData.viscosityStrength = 0.f;
+
     fluidParticleEmitter = std::make_shared<FluidParticleEmitter>(primeDevice, simData, spawner);
     fluidSim->AddComponent(fluidParticleEmitter);
     typedRenderer[static_cast<int>(RenderMode::Fluid)].push_back(fluidParticleEmitter);
@@ -930,14 +932,14 @@ void HybridParticleApp::CreateGO()
     rotater->AddComponent(std::make_shared<Rotater>(10));
 
     auto camera = std::make_unique<GameObject>("MainCamera");
-    camera->GetTransform()->SetParent(rotater->GetTransform().get());
-    //camera->AddComponent(std::make_shared<CameraController>());
+    //camera->GetTransform()->SetParent(rotater->GetTransform().get());
+    camera->AddComponent(std::make_shared<CameraController>());
     camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
-    camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
+    camera->GetTransform()->SetPosition(Vector3(-20, 20, -15));
     camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
 
     gameObjects.push_back(std::move(camera));
-    gameObjects.push_back(std::move(rotater));
+    //gameObjects.push_back(std::move(rotater));
 
 
     auto stair = std::make_unique<GameObject>();

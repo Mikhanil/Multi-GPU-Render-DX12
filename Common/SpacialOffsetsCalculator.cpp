@@ -24,12 +24,12 @@ void SpacialOffsetsCalculator::Initialize(const std::shared_ptr<PEPEngine::Graph
     m_InitPSO.SetRootSignature(m_RootSignature);
     m_InitPSO.SetShader(m_InitShader.get());
     m_InitPSO.Initialize(device);
-    m_InitPSO.GetPSO()->SetName(L"SpatialOffsetCalculation::InitPSO");
+    m_InitPSO.GetPSO()->SetName(L"SpatialOffsetCalculation::Init");
     
     m_CalcPSO.SetRootSignature(m_RootSignature);
     m_CalcPSO.SetShader(m_CalcShader.get());
     m_CalcPSO.Initialize(device);
-    m_CalcPSO.GetPSO()->SetName(L"SpatialOffsetCalculation::CalcPSO");
+    m_CalcPSO.GetPSO()->SetName(L"SpatialOffsetCalculation::CalculateOffsets");
 }
 
 void SpacialOffsetsCalculator::Run(
@@ -42,7 +42,7 @@ void SpacialOffsetsCalculator::Run(
     if (!m_bDescriptorsInitialized)
         CreateDescriptors(sortedKeys, offsets);
     
-    const size_t GroupCount = ceil(sortedKeys->GetElementCount() / 256.f); 
+    const size_t GroupCount = ceil(sortedKeys->GetElementCount() / 512.f); 
     
     commandList->TransitionBarrier(sortedKeys->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     commandList->TransitionBarrier(offsets->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

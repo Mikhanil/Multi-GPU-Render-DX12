@@ -1,7 +1,7 @@
 #include "./FluidMath.hlsl"
 #include "./SpatialHash.hlsl"
 
-static const int ThreadGroupSize = 256;
+static const int ThreadGroupSize = 512;
 
 // Settings
 //struct SimulationConstants

@@ -87,9 +87,10 @@ X(UpdatePositions)
         {
             switch (e)
             {
-#define X(name) case name: return #name;
+#define X(name) case name: return "FluidSim::" #name;
                 EKERNELS_LIST
 #undef X
+            default: return "";
             }
         }
 

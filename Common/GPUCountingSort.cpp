@@ -30,19 +30,20 @@ void GPUCountingSort::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDev
 
     CompileShaders();
 
-    for (uint8_t kernel = EKernels::ClearCounts; kernel < EKernels::NumKernels; kernel++)
+    for (auto kernel : EKernels::All)
     {
         m_PSOs[kernel] = std::make_shared<PEPEngine::Graphics::ComputePSO>();
         m_PSOs[kernel]->SetRootSignature(m_SortSignature);
         m_PSOs[kernel]->SetShader(m_Shaders[kernel].get());
         m_PSOs[kernel]->Initialize(device);
+        m_PSOs[kernel]->GetPSO()->SetName(EKernels::ToWide(kernel).c_str());
     }
 
     m_ComputeDescriptors = m_Device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 5);
     
-    TryCreateBuffer(m_SortedItemsBuffer, sizeof(UINT), count);
-    TryCreateBuffer(m_SortedKeysBuffer, sizeof(UINT), count);
-    TryCreateBuffer(m_CountsBuffer, sizeof(UINT), count);
+    TryCreateBuffer(m_SortedItemsBuffer, sizeof(UINT), count, L"CountingSort::SortedItemsBuffer");
+    TryCreateBuffer(m_SortedKeysBuffer, sizeof(UINT), count, L"CountingSort::SortedKeysBuffer");
+    TryCreateBuffer(m_CountsBuffer, sizeof(UINT), count, L"CountingSort::CountsBuffer");
     
     scan.Initialize(device, count);
 }
@@ -54,7 +55,7 @@ void GPUCountingSort::Run(
     UINT maxValue)
 {
     UINT count = itemsBuffer->GetElementCount();
-    const size_t numGroupsX = ceil(static_cast<float>(count) / static_cast<float>(256));
+    const size_t numGroupsX = ceil(static_cast<float>(count) / static_cast<float>(512));
 
     if (!m_bDescriptorsInitialized)
         InitializeDescriptors(itemsBuffer, keysBuffer);
@@ -165,7 +166,7 @@ void GPUCountingSort::CompileShaders()
     m_Shaders[EKernels::CopyBack]->LoadAndCompile();
 }
 
-bool GPUCountingSort::TryCreateBuffer(std::shared_ptr<PEPEngine::Graphics::GBuffer>& buffer, UINT stride, UINT count)
+bool GPUCountingSort::TryCreateBuffer(std::shared_ptr<PEPEngine::Graphics::GBuffer>& buffer, UINT stride, UINT count, const std::wstring& name)
 {
     bool createNewBuffer = buffer == nullptr
                         || !buffer->IsValid()
@@ -175,7 +176,7 @@ bool GPUCountingSort::TryCreateBuffer(std::shared_ptr<PEPEngine::Graphics::GBuff
     {
         if (buffer && buffer->IsValid())
             buffer->Reset();
-        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count, L"", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count, name.c_str(), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         m_bDescriptorsInitialized = false;
         return true;

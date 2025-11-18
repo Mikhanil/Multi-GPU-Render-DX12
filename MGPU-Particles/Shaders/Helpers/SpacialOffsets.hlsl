@@ -6,7 +6,7 @@ cbuffer input : register(b0)
 StructuredBuffer<uint> SortedKeys : register(t0);
 RWStructuredBuffer<uint> Offsets  : register(u0);
 
-#define GROUP_SIZE 256
+#define GROUP_SIZE 512
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void InitializeOffsets(uint id : SV_DispatchThreadID)

@@ -19,7 +19,7 @@ public:
     BufferPointer GetSpatialOffsets() const { return m_SpatialOffsets; }
 private:
     void CreateBuffers(size_t count);
-    bool TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride);
+    bool TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride, const std::wstring& name);
 
 private:
     std::shared_ptr<PEPEngine::Graphics::GDevice> m_Device;

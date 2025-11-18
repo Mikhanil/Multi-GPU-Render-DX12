@@ -26,13 +26,14 @@ protected:
     void UpdateSmoothingConstants();
 
     void RunSimulationStep(const std::shared_ptr<GCommandList>& cmdList);
-protected:
+public:
+    int m_iterationsPerFrame = 3;
+    float m_maxTimeStepFps = 60;
 private:
     FluidParticleDrawData m_drawData;
 
     ParticleSpawner::SpawnData m_spawnData;
     FluidSimulationData m_simData={};
-    int m_iterationsPerFrame = 3;
 
     float m_oldSmoothingRadius;
     SpikyKernels m_smoothingConstants;

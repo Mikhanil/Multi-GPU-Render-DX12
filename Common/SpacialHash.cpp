@@ -24,12 +24,12 @@ void SpatialHash::Run(const std::shared_ptr<PEPEngine::Graphics::GCommandList>& 
 
 void SpatialHash::CreateBuffers(size_t count)
 {
-    TryCreateBuffer(m_SpatialKeys, count, sizeof(UINT));
-    TryCreateBuffer(m_SpatialIndices, count, sizeof(UINT));
-    TryCreateBuffer(m_SpatialOffsets, count, sizeof(UINT));
+    TryCreateBuffer(m_SpatialKeys, count, sizeof(UINT), L"SpatialHash::SpatialKeysBuffer");
+    TryCreateBuffer(m_SpatialIndices, count, sizeof(UINT), L"SpatialHash::SpatialIndicesBuffer");
+    TryCreateBuffer(m_SpatialOffsets, count, sizeof(UINT), L"SpatialHash::SpatialOffsetsBuffer");
 }
 
-bool SpatialHash::TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride)
+bool SpatialHash::TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride, const std::wstring& name)
 {
     
     bool createNewBuffer = buffer == nullptr
@@ -40,7 +40,7 @@ bool SpatialHash::TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride
     {
         if (buffer && buffer->IsValid())
             buffer->Reset();
-        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count, L"", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        buffer = std::make_shared<PEPEngine::Graphics::GBuffer>(m_Device, stride, count, name.c_str(), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
         return true;
     }
