@@ -967,14 +967,15 @@ void HybridParticleApp::CreateGO()
 
     auto fluidSim = std::make_unique<GameObject>();
     fluidSim->GetTransform()->SetPosition(Vector3::Up * 15.f);
-    fluidSim->SetScale(30.f);
+    Vector3 fluidSimScale = Vector3(30.f, 30.f, 10.f); 
+    fluidSim->SetScale(fluidSimScale);
 
     ParticleSpawner::SpawnRegion spawnRegion1;
-    spawnRegion1.Center = Vector3::Up * 15.f + Vector3::Forward * 10.f;
-    spawnRegion1.Size = 10.f;
+    spawnRegion1.Center = Vector3::Up * 15.f + Vector3::Right * 10.f;
+    spawnRegion1.Size = 5.f;
     ParticleSpawner::SpawnRegion spawnRegion2;
-    spawnRegion2.Center = Vector3::Up * 15.f + Vector3::Forward * -10.f;
-    spawnRegion2.Size = 10.f;
+    spawnRegion2.Center = Vector3::Up * 15.f + Vector3::Right * -10.f;
+    spawnRegion2.Size = 5.f;
     
     ParticleSpawner spawner;
     spawner.ParticleSpawnDensity = 500;
