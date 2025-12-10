@@ -8,7 +8,7 @@ class SpatialHash
 public:
     SpatialHash() = default;
     
-    void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count);
+    void Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t size);
 
     void Resize(size_t newSize);
 
@@ -22,6 +22,7 @@ private:
     bool TryCreateBuffer(BufferPointer& buffer, UINT count, UINT stride, const std::wstring& name);
 
 private:
+    size_t ThreadGroupSize = 256;
     std::shared_ptr<PEPEngine::Graphics::GDevice> m_Device;
 
     BufferPointer m_SpatialKeys;

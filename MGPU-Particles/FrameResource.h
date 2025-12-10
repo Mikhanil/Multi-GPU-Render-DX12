@@ -25,6 +25,7 @@ struct FrameResource
 
 
     UINT64 PrimeRenderFenceValue = 0;
-    UINT64 PrimeCopyFenceValue = 0;
-    UINT64 ComputeFenceValue = 0;
+    UINT64 PrimeComputeFenceValue = 0;
+    
+    UINT64 SecondaryComputeFenceValue = 0;
 };

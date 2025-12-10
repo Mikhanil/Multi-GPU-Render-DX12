@@ -142,7 +142,7 @@ void SSAA::OnResize(UINT newWidth, UINT newHeight)
 }
 
 SSAA::SSAA(const std::shared_ptr<GDevice>& device, const UINT multiplier, const UINT width,
-           const UINT height): ResolutionMultiplier(multiplier), device(device)
+           const UINT height, DXGI_FORMAT depthStencilFormat): ResolutionMultiplier(multiplier), device(device), depthStencilFormat(depthStencilFormat)
 {
     srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
     rtvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);

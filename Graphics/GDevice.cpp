@@ -117,7 +117,7 @@ namespace PEPEngine::Graphics
         CloseHandle(handle);
     }
 
-    void GDevice::ReleaseSlateDescriptors(uint64_t frameCount) const
+    void GDevice::ReleaseStaleDescriptors(uint64_t frameCount) const
     {
         for (auto& allocator : graphicAllocators)
         {
@@ -142,7 +142,6 @@ namespace PEPEngine::Graphics
             assert("Cant create device. Null Adapter");
         }
 
-        DXGI_ADAPTER_DESC2 desc;
         ThrowIfFailed(adapter->GetDesc2(&desc));
 
         ThrowIfFailed(D3D12CreateDevice(

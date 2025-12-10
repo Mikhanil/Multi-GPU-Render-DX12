@@ -17,7 +17,7 @@ namespace PEPEngine::Graphics
     {
     public:
         GAllocator(const std::shared_ptr<GDevice>& device, D3D12_DESCRIPTOR_HEAP_TYPE type,
-                   uint32_t descriptorsPerPage = 1024);
+                   uint32_t descriptorsPerPage = 2048);
 
         virtual ~GAllocator();
 

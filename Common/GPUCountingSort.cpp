@@ -9,6 +9,7 @@
 void GPUCountingSort::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count)
 {
     m_Device = device;
+   
     
     // Parameter for numInputs (register b0)
     m_SortSignature.AddConstantParameter(1, 0);
@@ -55,7 +56,7 @@ void GPUCountingSort::Run(
     UINT maxValue)
 {
     UINT count = itemsBuffer->GetElementCount();
-    const size_t numGroupsX = ceil(static_cast<float>(count) / static_cast<float>(512));
+    const size_t numGroupsX = ceil(static_cast<float>(count) / static_cast<float>(FLUID_SIM_GROUP_COUNT));
 
     if (!m_bDescriptorsInitialized)
         InitializeDescriptors(itemsBuffer, keysBuffer);
@@ -129,11 +130,14 @@ void GPUCountingSort::Run(
 
 void GPUCountingSort::CompileShaders()
 {
+    static std::string threadCountStr = std::to_string(FLUID_SIM_GROUP_COUNT);
+    D3D_SHADER_MACRO macros[] = {"GROUP_SIZE", threadCountStr.c_str(), NULL, NULL};
+    
     m_Shaders[EKernels::ClearCounts] = std::move(
         std::make_shared<PEPEngine::Graphics::GShader>(
             L"Shaders\\Helpers\\GPUSort\\CountingSort.hlsl",
             PEPEngine::Graphics::ComputeShader,
-            nullptr,
+            macros,
             "ClearCounts",
             "cs_5_1"));
     m_Shaders[EKernels::ClearCounts]->LoadAndCompile();
@@ -142,7 +146,7 @@ void GPUCountingSort::CompileShaders()
         std::make_shared<PEPEngine::Graphics::GShader>(
             L"Shaders\\Helpers\\GPUSort\\CountingSort.hlsl",
             PEPEngine::Graphics::ComputeShader,
-            nullptr,
+            macros,
             "CalculateCounts",
             "cs_5_1"));
     m_Shaders[EKernels::CalculateCounts]->LoadAndCompile();
@@ -151,7 +155,7 @@ void GPUCountingSort::CompileShaders()
         std::make_shared<PEPEngine::Graphics::GShader>(
             L"Shaders\\Helpers\\GPUSort\\CountingSort.hlsl",
             PEPEngine::Graphics::ComputeShader,
-            nullptr,
+            macros,
             "ScatterOutput",
             "cs_5_1"));
     m_Shaders[EKernels::ScatterOutput]->LoadAndCompile();
@@ -160,7 +164,7 @@ void GPUCountingSort::CompileShaders()
         std::make_shared<PEPEngine::Graphics::GShader>(
             L"Shaders\\Helpers\\GPUSort\\CountingSort.hlsl",
             PEPEngine::Graphics::ComputeShader,
-            nullptr,
+            macros,
             "CopyBack",
             "cs_5_1"));
     m_Shaders[EKernels::CopyBack]->LoadAndCompile();
@@ -188,10 +192,7 @@ void GPUCountingSort::InitializeDescriptors(const BufferPtr& itemsBuffer, const 
 {
     if (m_bDescriptorsInitialized)
         return;
-
-    /*
-     * I could have probably put these in some kind of an array, but i didn't think it would be necessary
-     */
+    
     D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
     uavDesc.Format = DXGI_FORMAT_UNKNOWN;
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;

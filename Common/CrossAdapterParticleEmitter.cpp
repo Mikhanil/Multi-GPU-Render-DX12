@@ -167,7 +167,6 @@ CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice
 
     primeParticleEmitter = std::make_shared<ParticleEmitter>(primeDevice, particleCount);
 
-
     CreateBuffers();
 }
 

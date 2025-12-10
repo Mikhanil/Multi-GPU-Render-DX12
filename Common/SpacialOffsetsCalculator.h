@@ -16,6 +16,8 @@ private:
     void CompileShaders();
     void CreateDescriptors(const BufferPointer& sortedKeys, const BufferPointer& offsets);
 private:
+    bool m_bDescriptorsInitialized = false;
+    
     std::shared_ptr<PEPEngine::Graphics::GDevice> m_device;
     
     PEPEngine::Graphics::GRootSignature m_RootSignature;
@@ -27,6 +29,4 @@ private:
     ShaderPointer m_CalcShader;
 
     PEPEngine::Graphics::GDescriptor m_Descriptors;
-
-    bool m_bDescriptorsInitialized = false;
 };

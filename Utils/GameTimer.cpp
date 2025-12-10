@@ -6,7 +6,7 @@ namespace PEPEngine::Utils
 {
     GameTimer::GameTimer()
         : mSecondsPerCount(0.0), mDeltaTime(-1.0), mBaseTime(0),
-          mPausedTime(0), mPrevTime(0), mCurrTime(0), mStopped(false)
+          mPausedTime(0), mStopTime(0), mPrevTime(0), mCurrTime(0), mStopped(false)
     {
         __int64 countsPerSec;
         QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
@@ -114,9 +114,7 @@ namespace PEPEngine::Utils
         // Force nonnegative.  The DXSDK's CDXUTTimer mentions that if the 
         // processor goes into a power save mode or we get shuffled to another
         // processor, then mDeltaTime can be negative.
-        if (mDeltaTime < 0.0)
-        {
-            mDeltaTime = 0.0;
-        }
+        mDeltaTime = (((mDeltaTime) > (0.0f)) ? (mDeltaTime) : (0.0f));
+        
     }
 }

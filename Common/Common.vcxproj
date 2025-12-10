@@ -133,7 +133,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NOMINMAX;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>FLUID_SIM_GROUP_COUNT=256;NOMINMAX;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -156,7 +156,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NOMINMAX;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>FLUID_SIM_GROUP_COUNT=256;NOMINMAX;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -203,10 +203,15 @@
     <ClInclude Include="NativeModel.h" />
     <ClInclude Include="ObjectMover.h" />
     <ClInclude Include="ParticleEmitter.h" />
-    <ClInclude Include="FluidParticleEmitter.h" />
+    <ClInclude Include="SharedFluidParticleEmitter.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Rotater.h" />
+    <ClInclude Include="Services\BenchmarkService.h" />
+    <ClInclude Include="Services\States\BenchmarkState.h" />
+    <ClInclude Include="Services\States\WaitState.h" />
+    <ClInclude Include="Services\FileQueueWriter.h" />
+    <ClInclude Include="Utils.h" />
     <ClInclude Include="ShaderBuffersData.h" />
     <ClInclude Include="RenderModeFactory.h" />
     <ClInclude Include="ShadowMap.h" />
@@ -245,7 +250,7 @@
     <ClCompile Include="NativeModel.cpp" />
     <ClCompile Include="ObjectMover.cpp" />
     <ClCompile Include="ParticleEmitter.cpp" />
-    <ClCompile Include="FluidParticleEmitter.cpp" />
+    <ClCompile Include="SharedFluidParticleEmitter.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -254,6 +259,9 @@
     </ClCompile>
     <ClCompile Include="Rotater.cpp" />
     <ClCompile Include="RenderModeFactory.cpp" />
+    <ClCompile Include="Services\BenchmarkService.cpp" />
+    <ClCompile Include="Services\States\WaitState.cpp" />
+    <ClCompile Include="Services\FileQueueWriter.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="SkyBox.cpp" />
     <ClCompile Include="SpacialHash.cpp" />

@@ -1,7 +1,8 @@
 #include "./FluidMath.hlsl"
 #include "./SpatialHash.hlsl"
 
-static const int ThreadGroupSize = 512;
+//static const int ThreadGroupSize = 512;
+//#define GROUP_SIZE 512
 
 // Settings
 //struct SimulationConstants
@@ -101,7 +102,7 @@ void ResolveCollisions(inout float3 pos, inout float3 vel, float collisionDampin
     vel = mul(localToWorld, float4(velocityLocal, 0)).xyz;
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void ExternalForces(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -114,7 +115,7 @@ void ExternalForces(uint3 id : SV_DispatchThreadID)
     PredictedPositions[id.x] = Positions[id.x] + Velocities[id.x] * 1 / 120.0;
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void UpdateSpatialHash(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -128,7 +129,7 @@ void UpdateSpatialHash(uint3 id : SV_DispatchThreadID)
     SpatialKeys[id.x] = key;
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void Reorder(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -139,7 +140,7 @@ void Reorder(uint3 id : SV_DispatchThreadID)
     SortTarget_Velocities[id.x] = Velocities[sortedIndex];
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void ReorderCopyBack(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -192,7 +193,7 @@ float2 CalculateDensitiesAtPoint(float3 pos)
     return float2(density, nearDensity);
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void CalculateDensities(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -230,7 +231,7 @@ float3 CalculateOrthonormal(float3 dir)
 }
 
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void CalculatePressureForce(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -320,7 +321,7 @@ void CalculatePressureForce(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void CalculateViscosity(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)
@@ -372,7 +373,7 @@ void CalculateViscosity(uint3 id : SV_DispatchThreadID)
     Velocities[id.x] += viscosityForce * viscosityStrength * deltaTime;
 }
 
-[numthreads(ThreadGroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void UpdatePositions(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numParticles)

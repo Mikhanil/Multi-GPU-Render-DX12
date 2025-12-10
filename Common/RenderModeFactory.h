@@ -23,9 +23,9 @@ public:
                         DXGI_FORMAT normalMapFormat, DXGI_FORMAT
                         ambientMapFormat);
 
-    void LoadDefaultShaders() const;
+    static void LoadDefaultShaders();
 
-    static std::shared_ptr<GShader> GetShader(const std::string& name);
+    static const std::shared_ptr<GShader>& GetShader(const std::string& name);
 
     std::shared_ptr<GraphicPSO> GetPSO(const RenderMode type)
     {

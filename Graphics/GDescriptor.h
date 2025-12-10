@@ -35,7 +35,7 @@ namespace PEPEngine::Graphics
 
         D3D12_DESCRIPTOR_HEAP_TYPE GetType() const;
 
-        std::shared_ptr<GDescriptorHeap> GetDescriptorHeap() const;
+        const std::shared_ptr<GDescriptorHeap>& GetDescriptorHeap() const;
 
     private:
         void Free();

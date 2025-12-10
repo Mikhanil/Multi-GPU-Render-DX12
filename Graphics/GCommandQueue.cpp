@@ -152,12 +152,12 @@ namespace PEPEngine::Graphics
     void GCommandQueue::Flush()
     {
         std::unique_lock<std::mutex> lock(commandQueueExecutorMutex);
-        CommandListExecutorCondition.wait(lock, [this] { return m_InFlightCommandLists.Empty(); });
+        CommandListExecutorCondition.wait(lock, [this] { return InFlightCommandLists.Empty(); });
 
         WaitForFenceValue(Signal());
     }
 
-    std::shared_ptr<GCommandList> GCommandQueue::GetCommandList()
+    std::shared_ptr<GCommandList>& GCommandQueue::GetCommandList()
     {
         std::shared_ptr<GCommandList> commandList;
 
@@ -165,9 +165,11 @@ namespace PEPEngine::Graphics
         {
             return commandList;
         }
-        
-        commandList = GCommandList::Create(shared_from_this(), this->type);
-        return commandList;
+
+        commandList = std::make_shared<GCommandList>(shared_from_this(), this->type);
+        createdCommandList.push_back(commandList);
+        availableCommandLists.Push(commandList);
+        return GetCommandList();
     }
 
     uint64_t GCommandQueue::ExecuteCommandList(const std::shared_ptr<GCommandList>& commandList)
@@ -220,7 +222,7 @@ namespace PEPEngine::Graphics
         // Queue command lists for reuse.
         for (const auto& commandList : toBeQueued)
         {
-            m_InFlightCommandLists.Push({fenceValue, commandList});
+            InFlightCommandLists.Push({fenceValue, commandList});
         }
 
         return fenceValue;
@@ -302,7 +304,7 @@ namespace PEPEngine::Graphics
 
             lock.lock();
 
-            while (m_InFlightCommandLists.TryPop(commandListEntry))
+            while (InFlightCommandLists.TryPop(commandListEntry))
             {
                 try
                 {

@@ -190,7 +190,7 @@ void SSAO::RebuildDescriptors() const
     D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
     dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
     dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-    dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
     dsvDesc.Texture2D.MipSlice = 0;
     depthMap.CreateDepthStencilView(&dsvDesc, &depthMapDSVMemory);
 
@@ -203,7 +203,7 @@ void SSAO::RebuildDescriptors() const
     srvDesc.Texture2D.MipLevels = 1;
     normalMap.CreateShaderResourceView(&srvDesc, &normalMapSrvMemory);
 
-    srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
     depthMap.CreateShaderResourceView(&srvDesc, &depthMapSrvMemory);
 
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -427,7 +427,7 @@ GTexture SSAO::CreateDepthMap() const
     depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
     D3D12_CLEAR_VALUE optClear;
-    optClear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    optClear.Format = DXGI_FORMAT_D32_FLOAT;
     optClear.DepthStencil.Depth = 1.0f;
     optClear.DepthStencil.Stencil = 0;
 

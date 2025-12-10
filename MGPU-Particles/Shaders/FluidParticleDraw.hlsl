@@ -1,7 +1,7 @@
 #define RED   float4(1, 0, 0, 1)
 #define GREEN float4(0, 1, 0, 1)
 #define BLUE  float4(0, 0, 1, 1)
-#define MAX_SPEED 20.0f
+#define MAX_SPEED 10.0f
 
 static const float2 quadVertices[] = {
 	float2(-0.5, -0.5),

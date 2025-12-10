@@ -51,8 +51,7 @@ std::shared_ptr<Renderer>& GameObject::GetRenderer()
     {
         for (auto&& component : components)
         {
-            const auto comp = dynamic_cast<Renderer*>(component.get());
-            if (comp)
+            if (dynamic_cast<Renderer*>(component.get()))
             {
                 renderer = std::static_pointer_cast<Renderer>(component);
                 break;
@@ -68,7 +67,7 @@ void GameObject::SetScale(const float scale) const
     transform->SetScale(Vector3(scale, scale, scale));
 }
 
-void GameObject::SetScale(Vector3& scale) const
+void GameObject::SetScale(const Vector3& scale) const
 {
     transform->SetScale(scale);
 }

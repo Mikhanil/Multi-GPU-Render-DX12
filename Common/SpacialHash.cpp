@@ -4,7 +4,7 @@
 void SpatialHash::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, size_t count)
 {
     m_Device = device;
-
+    
     m_CountingSort.Initialize(device, count);
     m_OffsetsCalculator.Initialize(device);
     

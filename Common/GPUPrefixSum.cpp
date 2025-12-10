@@ -31,8 +31,8 @@ void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice
     m_BlockCombinePSO.GetPSO()->SetName(L"PrefixSum::BlockCombine");
 
     m_FreeBuffersOffsets.insert({count, 0});
-    
-    uint32_t numGroups = ceil(count / 2.f / c_ThreadGroupSize);
+
+    uint32_t numGroups = GetNumGroups(count);
     uint32_t offsets = 1;
     while (true)
     {
@@ -50,7 +50,8 @@ void GPUPrefixSum::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice
 
         if (numGroups == 1)
             break;
-        numGroups = ceil(numGroups / 2.f / c_ThreadGroupSize);
+        
+        numGroups = GetNumGroups(numGroups);
         offsets++;
     } 
 
@@ -76,8 +77,6 @@ void GPUPrefixSum::Run(
     const std::shared_ptr<PEPEngine::Graphics::GBuffer>& elements,
     bool isInitialRun)
 {
-    int numGroups = ceil(elements->GetElementCount() / 2.f / c_ThreadGroupSize);
-
     if (!m_InitialElementsBuffer)
     {
         m_InitialElementsBuffer = elements;
@@ -94,6 +93,21 @@ void GPUPrefixSum::Run(
         m_FreeBuffers.insert({elements->GetElementCount(), elements});
     }
 
+    uint32_t itemCount = elements->GetElementCount();
+    size_t numGroups = GetNumGroups(itemCount);
+
+    auto itElemBuf = m_FreeBuffers.find(itemCount);
+    assert(itElemBuf != m_FreeBuffers.end());
+    assert(itElemBuf->second.get() == elements.get()); // or at least compatible
+
+    auto itGroupBuf = m_FreeBuffers.find(numGroups);
+    assert(itGroupBuf != m_FreeBuffers.end());
+
+    auto itElemOff = m_FreeBuffersOffsets.find(itemCount);
+    auto itGroupOff = m_FreeBuffersOffsets.find(numGroups);
+    assert(itElemOff != m_FreeBuffersOffsets.end());
+    assert(itGroupOff != m_FreeBuffersOffsets.end());
+
     std::shared_ptr<GBuffer>& groupSumBuffer = m_FreeBuffers[numGroups];
     if (!groupSumBuffer)
         throw std::runtime_error("Failed to find appropriate GPU buffer!");
@@ -106,44 +120,62 @@ void GPUPrefixSum::Run(
     commandList->SetDescriptorsHeap(&computeDescriptors);
     commandList->SetRootSignature(m_RootSignature);
 
-    commandList->SetRoot32BitConstant(RSSlots::ItemCountSlot, elements->GetElementCount(), 0);
-    commandList->SetRootDescriptorTable(RSSlots::ElementsBufferSlot, &computeDescriptors, m_FreeBuffersOffsets[elements->GetElementCount()]);
-    commandList->SetRootDescriptorTable(RSSlots::GroupSumsBufferSlot, &computeDescriptors,
-                                    m_FreeBuffersOffsets.at(numGroups));
+    commandList->SetRootDescriptorTable(
+        RSSlots::ElementsBufferSlot,
+        &computeDescriptors,
+        m_FreeBuffersOffsets[itemCount]);
+    
+    commandList->SetRootDescriptorTable(
+        RSSlots::GroupSumsBufferSlot,
+        &computeDescriptors,
+        m_FreeBuffersOffsets[numGroups]);
 
+    commandList->SetRoot32BitConstant(
+        RSSlots::ItemCountSlot,
+        itemCount,
+        0);
 
     commandList->SetPipelineState(m_BlockScanPSO);
     commandList->Dispatch(numGroups, 1, 1);
 
-    commandList->UAVBarrier(elements->GetD3D12Resource(), true);
     commandList->UAVBarrier(groupSumBuffer->GetD3D12Resource(), true);
     
     if (numGroups > 1)
     {
         Run(commandList, groupSumBuffer, false);
 
-        commandList->SetRootDescriptorTable(RSSlots::ElementsBufferSlot, &computeDescriptors, 0);
+        commandList->SetRootDescriptorTable(
+            RSSlots::ElementsBufferSlot,
+            &computeDescriptors,
+            m_FreeBuffersOffsets[itemCount]);
     
-        commandList->SetRootDescriptorTable(RSSlots::GroupSumsBufferSlot, &computeDescriptors,
-                                        m_FreeBuffersOffsets.at(numGroups));
+        commandList->SetRootDescriptorTable(
+            RSSlots::GroupSumsBufferSlot,
+            &computeDescriptors,
+            m_FreeBuffersOffsets[numGroups]);
         
-        commandList->SetRoot32BitConstant(0, elements->GetElementCount(), 0);
+        commandList->SetRoot32BitConstant(
+            0,
+            itemCount,
+            0);
 
         commandList->SetPipelineState(m_BlockCombinePSO);
         commandList->Dispatch(numGroups, 1, 1);
     }
 
     commandList->UAVBarrier(elements->GetD3D12Resource(), true);
-    commandList->UAVBarrier(groupSumBuffer->GetD3D12Resource(), true);
 }
 
 void GPUPrefixSum::CompileShaders()
 {
+    static std::string threadCountStr = std::to_string(FLUID_SIM_GROUP_COUNT);
+    D3D_SHADER_MACRO macros[] = {"GROUP_SIZE", threadCountStr.c_str(), NULL, NULL};
+    
     m_BlockScanShader = std::move(
         std::make_shared<GShader>(
             L"Shaders\\Helpers\\GPUSort\\PrefixSum.hlsl",
             ComputeShader,
-            nullptr,
+            macros,
             "BlockScan",
             "cs_5_1")
     );
@@ -153,9 +185,15 @@ void GPUPrefixSum::CompileShaders()
         std::make_shared<GShader>(
             L"Shaders\\Helpers\\GPUSort\\PrefixSum.hlsl",
             ComputeShader,
-            nullptr,
+            macros,
             "BlockCombine",
             "cs_5_1")
     );
     m_BlockCombineShader->LoadAndCompile();
+}
+
+uint32_t GPUPrefixSum::GetNumGroups(uint32_t count) const
+{
+    size_t itemsPerGroup = ThreadGroupCount * 2;
+    return (count + itemsPerGroup - 1) / itemsPerGroup;
 }

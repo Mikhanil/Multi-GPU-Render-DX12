@@ -42,7 +42,7 @@ void HybridUIApp::Update(const GameTimer& gt)
     }
     else
     {
-        primeDevice->ReleaseSlateDescriptors(currentFrameResource->PrimeRenderFenceValue);
+        primeDevice->ReleaseStaleDescriptors(currentFrameResource->PrimeRenderFenceValue);
     }
 
     if (currentFrameResource->PrimeCopyFenceValue != 0 && !primeQueue->IsFinish(
@@ -58,7 +58,7 @@ void HybridUIApp::Update(const GameTimer& gt)
     }
     else
     {
-        secondDevice->ReleaseSlateDescriptors(currentFrameResource->SecondRenderFenceValue);
+        secondDevice->ReleaseStaleDescriptors(currentFrameResource->SecondRenderFenceValue);
     }
 
     mLightRotationAngle += 0.1f * gt.DeltaTime();

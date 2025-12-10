@@ -48,6 +48,7 @@ public:
     void Update(const PEPEngine::Utils::GameTimer* gt) override;
 
     void SetParent(Transform* transform);
+    Transform* GetParent() const;
 
     Vector3 GetForwardVector() const;
 
@@ -62,9 +63,10 @@ public:
     Vector3 GetDownVector() const;
 
     Matrix GetWorldMatrix() const;
-    Matrix MakeLocalToParent() const;
 
-    void SetWorldMatrix(const Matrix& mat);
+    Matrix GetLocalMatrix() const;
+
+    void SetLocalMatrix(const Matrix& mat);
 
 private:
     Matrix world = Matrix::Identity;

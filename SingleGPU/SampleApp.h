@@ -72,7 +72,7 @@ namespace Common
 
         UINT backBufferIndex = 0;
         DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-        DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D32_FLOAT;
 
         D3D12_VIEWPORT viewport;
         D3D12_RECT rect;

@@ -117,7 +117,7 @@ namespace PEPEngine::Graphics
         return page->GetType();
     }
 
-    std::shared_ptr<GDescriptorHeap> GDescriptor::GetDescriptorHeap() const
+    const std::shared_ptr<GDescriptorHeap>& GDescriptor::GetDescriptorHeap() const
     {
         return page;
     }

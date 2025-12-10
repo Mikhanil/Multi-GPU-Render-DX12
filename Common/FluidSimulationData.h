@@ -21,7 +21,7 @@ struct alignas(16) FluidSimulationData
 	float _padding0;
 	float _padding1;
 	// ---- 16 bytes
-	Vector3 boundsSize = Vector3(10.f, 10.f, 10.f);
+	Vector3 boundsSize = Vector3(1.f, 1.f, 1.f);
 	float _padding2;
 	
 	Matrix localToWorld = Matrix::Identity;

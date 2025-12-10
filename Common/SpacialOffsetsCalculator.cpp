@@ -6,6 +6,7 @@
 void SpacialOffsetsCalculator::Initialize(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device)
 {
     m_device = device;
+    
     m_Descriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2);
 
     m_RootSignature.AddConstantParameter(1, 0);
@@ -42,7 +43,7 @@ void SpacialOffsetsCalculator::Run(
     if (!m_bDescriptorsInitialized)
         CreateDescriptors(sortedKeys, offsets);
     
-    const size_t GroupCount = ceil(sortedKeys->GetElementCount() / 512.f); 
+    const size_t GroupCount = ceil(sortedKeys->GetElementCount() / static_cast<float>(FLUID_SIM_GROUP_COUNT)); 
     
     commandList->TransitionBarrier(sortedKeys->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     commandList->TransitionBarrier(offsets->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -76,11 +77,14 @@ void SpacialOffsetsCalculator::Run(
 
 void SpacialOffsetsCalculator::CompileShaders()
 {
+    static std::string threadCountStr = std::to_string(FLUID_SIM_GROUP_COUNT);
+    D3D_SHADER_MACRO macros[] = {"GROUP_SIZE", threadCountStr.c_str(), NULL, NULL};
+    
     m_InitShader = std::move(
         std::make_shared<PEPEngine::Graphics::GShader>(
             L"Shaders\\Helpers\\SpacialOffsets.hlsl",
             PEPEngine::Graphics::ComputeShader,
-            nullptr,
+            macros,
             "InitializeOffsets",
             "cs_5_1"));
     m_InitShader->LoadAndCompile();
@@ -89,7 +93,7 @@ void SpacialOffsetsCalculator::CompileShaders()
         std::make_shared<PEPEngine::Graphics::GShader>(
             L"Shaders\\Helpers\\SpacialOffsets.hlsl",
             PEPEngine::Graphics::ComputeShader,
-            nullptr,
+            macros,
             "CalculateOffsets",
             "cs_5_1"));
     m_CalcShader->LoadAndCompile();

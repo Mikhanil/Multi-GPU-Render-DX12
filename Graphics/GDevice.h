@@ -46,6 +46,7 @@ namespace PEPEngine::Graphics
         Lazy<GResource> timestampResultBuffer;
         Lazy<ComPtr<ID3D12QueryHeap>> timestampQueryHeap;
 
+        DXGI_ADAPTER_DESC2 desc;
         std::wstring name;
 
         friend GDeviceFactory;
@@ -57,14 +58,17 @@ namespace PEPEngine::Graphics
         void InitialDevice();
 
         bool isInitialized = false;
+
     public:
         GDevice(const ComPtr<IDXGIAdapter3>& adapter);
 
         ~GDevice();
 
-        bool IsInitialized() const {return isInitialized;}
+        bool IsInitialized() const { return isInitialized; }
         void Initialize();
-        
+
+        const DXGI_ADAPTER_DESC2& GetDesc() const { return desc; }
+
         HANDLE SharedHandle(const ComPtr<ID3D12DeviceChild>& deviceObject, const SECURITY_ATTRIBUTES* attributes,
                             DWORD access,
                             LPCWSTR name) const;
@@ -74,7 +78,7 @@ namespace PEPEngine::Graphics
                            DWORD access = GENERIC_ALL, LPCWSTR name = L"") const;
 
 
-        void ReleaseSlateDescriptors(uint64_t frameCount) const;
+        void ReleaseStaleDescriptors(uint64_t frameCount) const;
         void ResetAllocators(uint64_t frameCount) const;
 
         GDescriptor AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount = 1) const;

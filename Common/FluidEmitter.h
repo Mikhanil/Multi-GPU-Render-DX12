@@ -1,11 +1,14 @@
 #pragma once
 #include "Renderer.h"
 #include "GRootSignature.h"
+#include "SharedFluidParticleEmitter.h"
 
 class FluidEmitter :
     public Renderer
 {
 protected:
+    
+#pragma region Enums
     struct ERootSignatureSlots
     {
         enum Enum : uint8_t
@@ -109,14 +112,13 @@ X(UpdatePositions)
     #undef X
         };
     };
+
+#pragma endregion Enums
+    
+    static const size_t ThreadGroupCount = 256;
     
     GRootSignature m_renderSignature{};
-    // std::shared_ptr<GRootSignature> computeSignature;
     std::shared_ptr<GraphicPSO> m_renderPSO;
-    std::shared_ptr<ComputePSO> injectedPSO;
-    std::shared_ptr<ComputePSO> simulatedPSO;
-    std::shared_ptr<GShader> injectedShader;
-    std::shared_ptr<GShader> simulatedShader;
     
     // Stuff that I actually need for my compute pipeline
     // The signature will be the same for all the PSOs
@@ -129,11 +131,9 @@ X(UpdatePositions)
 
     void PSOInitialize();
 
-    std::vector<std::shared_ptr<GTexture>> Atlas;
-
     std::shared_ptr<GDevice> m_device;
 
 public:
-    virtual void Dispatch(const std::shared_ptr<GCommandList>& cmdList, const GameTimer& gt) = 0;
+    virtual void Dispatch(const std::shared_ptr<GCommandList>& cmdList, FluidSimulationResources& resources, const GameTimer& gt) = 0;
     virtual ~FluidEmitter() = default;
 };

@@ -16,7 +16,7 @@ class Component;
 class Transform;
 class Renderer;
 
-class GameObject
+class GameObject final
 {
 public:
     GameObject();
@@ -34,7 +34,7 @@ public:
     std::shared_ptr<Renderer>& GetRenderer();
 
     template <class T = Component>
-    void AddComponent(std::shared_ptr<T> component)
+    inline void AddComponent(std::shared_ptr<T> component)
     {
         component->gameObject = this;
         components.push_back(component);
@@ -56,7 +56,7 @@ public:
 
     void SetScale(float scale) const;
 
-    void SetScale(Vector3& scale) const;
+    void SetScale(const Vector3& scale) const;
 
     std::string& GetName() { return name; }
 

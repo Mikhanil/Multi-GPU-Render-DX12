@@ -59,6 +59,11 @@ void Transform::SetParent(Transform* transform)
     Parent = transform;
 }
 
+Transform* Transform::GetParent() const
+{
+    return Parent;
+}
+
 Vector3 Transform::GetBackwardVector() const
 {
     auto v = Vector3{worldTranspose._13, worldTranspose._23, worldTranspose._33};
@@ -100,11 +105,17 @@ Matrix Transform::GetWorldMatrix() const
     return world;
 }
 
-
-Matrix Transform::CalculateWorldMatrix() const
+Matrix Transform::GetLocalMatrix() const
 {
     Matrix result = Matrix::CreateScale(localScale) * Matrix::CreateFromQuaternion(localRotate) *
         Matrix::CreateTranslation(localPosition);
+    return result;
+}
+
+
+Matrix Transform::CalculateWorldMatrix() const
+{
+    Matrix result = GetLocalMatrix();
 
     if (Parent != nullptr)
     {
@@ -114,9 +125,14 @@ Matrix Transform::CalculateWorldMatrix() const
     return result;
 }
 
-void Transform::SetWorldMatrix(const Matrix& mat)
+void Transform::SetLocalMatrix(const Matrix& mat)
 {
     world = mat;
+    world.Decompose(localScale, localRotate, localPosition);
+    auto euler = localRotate.ToEuler();
+    localEulerAngles.x = DirectX::XMConvertToDegrees(euler.x);
+    localEulerAngles.y = DirectX::XMConvertToDegrees(euler.y);
+    localEulerAngles.z = DirectX::XMConvertToDegrees(euler.z);
     NumFramesDirty = globalCountFrameResources;
 }
 

@@ -26,11 +26,13 @@ public:
 private:
     void CompileShaders();
 
+    uint32_t GetNumGroups(uint32_t count) const;
+
 private:
     bool m_areDescriptorsAllocated = false;
     size_t m_particleCount = 0;
     
-    int c_ThreadGroupSize{512};
+    size_t ThreadGroupCount{256};
     
     std::unordered_map<int, std::shared_ptr<PEPEngine::Graphics::GBuffer>> m_FreeBuffers;
     std::unordered_map<int, int> m_FreeBuffersOffsets;

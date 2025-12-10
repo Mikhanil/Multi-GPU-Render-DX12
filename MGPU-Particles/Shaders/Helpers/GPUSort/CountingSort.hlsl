@@ -1,3 +1,5 @@
+//#define GROUP_SIZE 512
+
 cbuffer inputBuffer                     : register(b0)
 {
     uint numInputs;
@@ -10,9 +12,7 @@ RWStructuredBuffer<uint> SortedKeys     : register(u3);
 
 RWStructuredBuffer<uint> Counts         : register(u4);
 
-static const int GroupSize = 512;
-
-[numthreads(GroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void ClearCounts(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numInputs) return;
@@ -21,7 +21,7 @@ void ClearCounts(uint3 id : SV_DispatchThreadID)
     InputItems[id.x] = id.x;
 }
 
-[numthreads(GroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void CalculateCounts(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numInputs) return;
@@ -30,7 +30,7 @@ void CalculateCounts(uint3 id : SV_DispatchThreadID)
     InterlockedAdd(Counts[key], 1);
 }
 
-[numthreads(GroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void ScatterOutput(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numInputs) return;
@@ -44,7 +44,7 @@ void ScatterOutput(uint3 id : SV_DispatchThreadID)
     SortedKeys[sortedIndex] = key;
 }
 
-[numthreads(GroupSize, 1, 1)]
+[numthreads(GROUP_SIZE, 1, 1)]
 void CopyBack(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numInputs) return;

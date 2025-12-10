@@ -1,44 +1,48 @@
 #include "pch.h"
 #include "FluidEmitter.h"
 
+/*
 void FluidEmitter::CompileComputeShaders()
 {
+    static std::string threadCountStr = std::to_string(ThreadGroupCount);
+    D3D_SHADER_MACRO macros[] = {"GROUP_SIZE", threadCountStr.c_str(), NULL, NULL};
+    
     computeKernels[EKernels::ExternalForces] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "ExternalForces", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "ExternalForces", "cs_5_1"));
     computeKernels[EKernels::ExternalForces]->LoadAndCompile();
     
     computeKernels[EKernels::UpdateSpatialHash] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "UpdateSpatialHash", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "UpdateSpatialHash", "cs_5_1"));
     computeKernels[EKernels::UpdateSpatialHash]->LoadAndCompile();
     
     computeKernels[EKernels::Reorder] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "Reorder", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "Reorder", "cs_5_1"));
     computeKernels[EKernels::Reorder]->LoadAndCompile();
     
     computeKernels[EKernels::ReorderCopyBack] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "ReorderCopyBack", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "ReorderCopyBack", "cs_5_1"));
     computeKernels[EKernels::ReorderCopyBack]->LoadAndCompile();
     
     computeKernels[EKernels::CalculateDensities] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "CalculateDensities", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "CalculateDensities", "cs_5_1"));
     computeKernels[EKernels::CalculateDensities]->LoadAndCompile();
     
     computeKernels[EKernels::CalculatePressureForce] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "CalculatePressureForce", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "CalculatePressureForce", "cs_5_1"));
     computeKernels[EKernels::CalculatePressureForce]->LoadAndCompile();
     
     computeKernels[EKernels::CalculateViscosity] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "CalculateViscosity", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "CalculateViscosity", "cs_5_1"));
     computeKernels[EKernels::CalculateViscosity]->LoadAndCompile();
     
     computeKernels[EKernels::UpdatePositions] = std::move(
-        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, nullptr, "UpdatePositions", "cs_5_1"));
+        std::make_shared<GShader>(L"Shaders\\FluidSimulation.hlsl", ComputeShader, macros, "UpdatePositions", "cs_5_1"));
     computeKernels[EKernels::UpdatePositions]->LoadAndCompile();
 }
 
 void FluidEmitter::PSOInitialize()
 {
-    if (m_renderPSO == nullptr)
+    if (renderPSO == nullptr)
     {
         auto vertexShader = std::move(
             std::make_shared<GShader>(L"Shaders\\FluidParticleDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
@@ -53,22 +57,22 @@ void FluidEmitter::PSOInitialize()
         range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1);
         range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 1);
         range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Atlas.size(), 2, 1);
-        */
+        #1#
 
         CD3DX12_DESCRIPTOR_RANGE range[2];
         range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
         range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 
-        m_renderSignature.AddConstantParameter(sizeof(FluidParticleDrawData) / sizeof(float), 0);
-        m_renderSignature.AddDescriptorParameter(&range[0], 1); //Particles positions 
-        m_renderSignature.AddDescriptorParameter(&range[1], 1); //Particles velocities 
-        m_renderSignature.Initialize(m_device);
+        renderSignature.AddConstantParameter(sizeof(FluidParticleDrawData) / sizeof(float), 0);
+        renderSignature.AddDescriptorParameter(&range[0], 1); //Particles positions 
+        renderSignature.AddDescriptorParameter(&range[1], 1); //Particles velocities 
+        renderSignature.Initialize(m_device);
 
         D3D12_GRAPHICS_PIPELINE_STATE_DESC renderPSODesc;
 
         ZeroMemory(&renderPSODesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
         renderPSODesc.InputLayout = {nullptr, 0};
-        renderPSODesc.pRootSignature = m_renderSignature.GetNativeSignature().Get();
+        renderPSODesc.pRootSignature = renderSignature.GetNativeSignature().Get();
         renderPSODesc.VS = vertexShader->GetShaderResource();
         renderPSODesc.PS = pixelShader->GetShaderResource();
         renderPSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -83,8 +87,8 @@ void FluidEmitter::PSOInitialize()
         renderPSODesc.SampleDesc.Quality = 0;
         renderPSODesc.DSVFormat = DepthStencilFormat;
 
-        m_renderPSO = std::make_shared<GraphicPSO>(RenderMode::Particle);
-        m_renderPSO->SetPsoDesc(renderPSODesc);
+        renderPSO = std::make_shared<GraphicPSO>(RenderMode::Particle);
+        renderPSO->SetPsoDesc(renderPSODesc);
         {
             D3D12_RENDER_TARGET_BLEND_DESC blendDesc = {};
             blendDesc.BlendEnable = true;
@@ -97,10 +101,9 @@ void FluidEmitter::PSOInitialize()
             blendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
             blendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
             blendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-            m_renderPSO->SetRenderTargetBlendState(0, blendDesc);
+            renderPSO->SetRenderTargetBlendState(0, blendDesc);
         }
-        m_renderPSO->Initialize(m_device);
-        m_renderPSO->GetPSO()->SetName(L"FluidParticleDraw");
+        renderPSO->Initialize(m_device);
     }
 
     if (computePSOs.empty())
@@ -136,13 +139,13 @@ void FluidEmitter::PSOInitialize()
 
         CompileComputeShaders();
 
-        for (auto kernel : EKernels::All)
+        for (uint8_t kernel = EKernels::ExternalForces; kernel < EKernels::Count; kernel++)
         {
             computePSOs[kernel] = std::make_shared<ComputePSO>();
             computePSOs[kernel]->SetRootSignature(computeSignature);
             computePSOs[kernel]->SetShader(computeKernels[kernel].get());
             computePSOs[kernel]->Initialize(m_device);
-            computePSOs[kernel]->GetPSO()->SetName(EKernels::ToWide(kernel).c_str());
         }
     }
 }
+*/

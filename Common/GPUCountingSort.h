@@ -19,6 +19,8 @@ namespace PEPEngine::Graphics
 
 class GPUCountingSort
 {
+
+#pragma region Enums
     using BufferPtr = std::shared_ptr<PEPEngine::Graphics::GBuffer>;
     
     struct EKernels
@@ -86,6 +88,7 @@ X(CopyBack)
         SortedKeysBuffer,
         CountsBuffer
     };
+#pragma endregion Enums
 
 public:
     GPUCountingSort() = default;
