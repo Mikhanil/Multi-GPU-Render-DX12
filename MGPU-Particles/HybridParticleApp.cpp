@@ -277,18 +277,7 @@ void HybridParticleApp::Draw(const GameTimer& gt)
     {
         computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
     }
-    
-    /*
-    if (UseCrossSync)
-    {
-        computeQueue->Wait(secondRenderFence, sharedRenderFenceValue);
-    }
-    else
-    */
-    {
-        computeQueue->Wait(renderQueue);
-    }
-    
+
     const auto& primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
     const auto primeCommandList = primeComputeQueue->GetCommandList();
     {
@@ -322,15 +311,6 @@ void HybridParticleApp::Draw(const GameTimer& gt)
             fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt);
         }
         
-        //currentFrameResource->PrimeComputeFenceValue = primeComputeQueue->ExecuteCommandList(primeCommandList);
-
-        /*
-        if (UseCrossSync)
-        {
-            sharedComputeFenceValue = currentFrameResource->PrimeComputeFenceValue;
-            secondComputeFence->Signal(sharedComputeFenceValue);
-        } 
-    */
     }
 
     {
@@ -354,24 +334,7 @@ void HybridParticleApp::Draw(const GameTimer& gt)
         cmdList->EndQuery(timestampHeapIndex + 1);
         cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
-        /*
-        if (UseCrossSync)
-        {
-            renderQueue->Wait(primeComputeFence, sharedComputeFenceValue);
-        }
-        else
-            */
-            renderQueue->Wait(computeQueue);
-
         currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
-
-        /*
-        if (UseCrossSync)
-        {
-            sharedRenderFenceValue = currentFrameResource->PrimeRenderFenceValue;
-            secondRenderFence->Signal(sharedRenderFenceValue);
-        }
-    */
     }
 
     currentFrameResourceIndex = MainWindow->Present();
@@ -953,7 +916,7 @@ void HybridParticleApp::CreateGO()
     spawnRegion2.Size = 5.f;
     
     ParticleSpawner spawner;
-    spawner.ParticleSpawnDensity = 500;
+    spawner.ParticleSpawnDensity = 1000;
     spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {spawnRegion1, spawnRegion2});
     //spawner.InitialVelocity = Vector3::Up * 10.f;
 
@@ -1109,26 +1072,25 @@ void HybridParticleApp::CalculateFrameStats()
 
 
         const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (
-                UseCrossAdapter ? (UseCrossSync ? L"3" : L"2") : L"1") + L"/3" + L" Progress: " + std::to_wstring(
+                UseCrossAdapter ? L"2" : L"1") + L"/2" + L" Progress: " + std::to_wstring(
                 (static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" +
             std::to_wstring(100);
 
         if (writeStaticticCount >= StatisticStepSecondsCount)
         {
             const std::wstring staticticStr =
-                L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter) +
-                L"\nUse Cross Sync: " + std::to_wstring(UseCrossSync)
+                L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
                 + L"\n\tMin FPS:" + std::to_wstring(minFps)
                 + L"\n\tMin MSPF:" + std::to_wstring(minMspf)
                 + L"\n\tMax FPS:" + std::to_wstring(maxFps)
                 + L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
-                + L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
-                +L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
-                +L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
+                + L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax)
+                + L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin)
+                + L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
                 + L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin)
-                + L"\n\tMax Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMax) +
-                +L"\n\tMin Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMin) +
-                +L"\n\tMax Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMax)
+                + L"\n\tMax Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMax)
+                + L"\n\tMin Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMin)
+                + L"\n\tMax Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMax)
                 + L"\n\tMin Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMin);
 
             logQueue.Push(staticticStr);
@@ -1155,16 +1117,7 @@ void HybridParticleApp::CalculateFrameStats()
             }
             else
             {
-                if (UseCrossSync == false)
-                {
-                    Flush();
-                    UseCrossSync = true;
-
-                    primeRenderFence->Signal(currentFrameResource->PrimeRenderFenceValue);
-                    primeComputeFence->Signal(currentFrameResource->PrimeComputeFenceValue);
-                }
-                else
-                    IsStop = true;
+                IsStop = true;
             }
         }
         else
