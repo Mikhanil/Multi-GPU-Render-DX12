@@ -118,19 +118,19 @@ void GPUPrefixSum::Run(
     commandList->FlushResourceBarriers();
 
     commandList->SetDescriptorsHeap(&computeDescriptors);
-    commandList->SetRootSignature(m_RootSignature);
+    commandList->SetComputeRootSignature(m_RootSignature);
 
-    commandList->SetRootDescriptorTable(
+    commandList->SetComputeRootDescriptorTable(
         RSSlots::ElementsBufferSlot,
         &computeDescriptors,
         m_FreeBuffersOffsets[itemCount]);
     
-    commandList->SetRootDescriptorTable(
+    commandList->SetComputeRootDescriptorTable(
         RSSlots::GroupSumsBufferSlot,
         &computeDescriptors,
         m_FreeBuffersOffsets[numGroups]);
 
-    commandList->SetRoot32BitConstant(
+    commandList->SetComputeRoot32BitConstant(
         RSSlots::ItemCountSlot,
         itemCount,
         0);
@@ -144,17 +144,17 @@ void GPUPrefixSum::Run(
     {
         Run(commandList, groupSumBuffer, false);
 
-        commandList->SetRootDescriptorTable(
+        commandList->SetComputeRootDescriptorTable(
             RSSlots::ElementsBufferSlot,
             &computeDescriptors,
             m_FreeBuffersOffsets[itemCount]);
     
-        commandList->SetRootDescriptorTable(
+        commandList->SetComputeRootDescriptorTable(
             RSSlots::GroupSumsBufferSlot,
             &computeDescriptors,
             m_FreeBuffersOffsets[numGroups]);
         
-        commandList->SetRoot32BitConstant(
+        commandList->SetComputeRoot32BitConstant(
             0,
             itemCount,
             0);

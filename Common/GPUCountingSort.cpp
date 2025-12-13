@@ -69,16 +69,16 @@ void GPUCountingSort::Run(
 
     commandList->FlushResourceBarriers();
 
-    commandList->SetRootSignature(m_SortSignature);
+    commandList->SetComputeRootSignature(m_SortSignature);
 
     commandList->SetDescriptorsHeap(&m_ComputeDescriptors);
 
-    commandList->SetRoot32BitConstant(ESortSlots::NumInputsSlot, count, 0);
-    commandList->SetRootDescriptorTable(ESortSlots::InputItemsSlot,     &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::InputKeysSlot,      &m_ComputeDescriptors, EBufferOffsets::KeysBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedItemsBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::SortedKeysSlot,     &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::CountsSlot,         &m_ComputeDescriptors, EBufferOffsets::CountsBuffer);
+    commandList->SetComputeRoot32BitConstant(ESortSlots::NumInputsSlot, count, 0);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::InputItemsSlot,     &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::InputKeysSlot,      &m_ComputeDescriptors, EBufferOffsets::KeysBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedItemsBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::SortedKeysSlot,     &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::CountsSlot,         &m_ComputeDescriptors, EBufferOffsets::CountsBuffer);
 
     {
         commandList->SetPipelineState(*m_PSOs[EKernels::ClearCounts]);
@@ -101,16 +101,16 @@ void GPUCountingSort::Run(
         scan.Run(commandList, m_CountsBuffer, true);
     }
 
-    commandList->SetRootSignature(m_SortSignature);
+    commandList->SetComputeRootSignature(m_SortSignature);
 
     commandList->SetDescriptorsHeap(&m_ComputeDescriptors);
     
-    commandList->SetRoot32BitConstant(ESortSlots::NumInputsSlot, count, 0);
-    commandList->SetRootDescriptorTable(ESortSlots::InputItemsSlot,     &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::InputKeysSlot,      &m_ComputeDescriptors, EBufferOffsets::KeysBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedItemsBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::SortedKeysSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
-    commandList->SetRootDescriptorTable(ESortSlots::CountsSlot,         &m_ComputeDescriptors, EBufferOffsets::CountsBuffer);
+    commandList->SetComputeRoot32BitConstant(ESortSlots::NumInputsSlot, count, 0);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::InputItemsSlot,     &m_ComputeDescriptors, EBufferOffsets::ItemsBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::InputKeysSlot,      &m_ComputeDescriptors, EBufferOffsets::KeysBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::SortedItemsSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedItemsBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::SortedKeysSlot,    &m_ComputeDescriptors, EBufferOffsets::SortedKeysBuffer);
+    commandList->SetComputeRootDescriptorTable(ESortSlots::CountsSlot,         &m_ComputeDescriptors, EBufferOffsets::CountsBuffer);
 
     commandList->SetPipelineState(*m_PSOs[EKernels::ScatterOutput]);
     commandList->Dispatch(numGroupsX, 1, 1);

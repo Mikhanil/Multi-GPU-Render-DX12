@@ -268,87 +268,40 @@ void HybridParticleApp::Draw(const GameTimer& gt)
 
     auto renderQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
 
+    std::shared_ptr<GCommandQueue> computeQueue;
+    if (UseCrossAdapter)
+    {
+        computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
+    }
+    else
+    {
+        computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
+    }
+    
     /*
-    std::shared_ptr<GCommandQueue> computeQueue;
-
-    if (UseCrossAdapter)
-    {
-        computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
-    }
-    else
-    {
-        computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
-    }
-
-
     if (UseCrossSync)
     {
         computeQueue->Wait(secondRenderFence, sharedRenderFenceValue);
     }
     else
-    {
-        computeQueue->Wait(renderQueue);
-    }
-
-
-    {
-        const auto cmdList = computeQueue->GetCommandList();
-
-        cmdList->EndQuery(timestampHeapIndex);
-
-        fluidParticleEmitter->Dispatch(cmdList, fluidParticleEmitter->PrimaryResources, gt);
-        
-        cmdList->EndQuery(timestampHeapIndex + 1);
-        cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
-        
-        currentFrameResource->PrimeComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
-
-        if (UseCrossSync)
-        {
-            sharedComputeFenceValue = currentFrameResource->PrimeComputeFenceValue;
-            secondComputeFence->Signal(sharedComputeFenceValue);
-        }
-    }
     */
-
-    std::shared_ptr<GCommandQueue> computeQueue;
-    if (UseCrossAdapter)
-    {
-        computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
-    }
-    else
-    {
-        computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
-    }
-    
-    if (UseCrossSync)
-    {
-        computeQueue->Wait(secondRenderFence, sharedRenderFenceValue);
-    }
-    else
     {
         computeQueue->Wait(renderQueue);
     }
     
+    const auto& primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
+    const auto primeCommandList = primeComputeQueue->GetCommandList();
     {
-        const auto& primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
-        const auto primeCommandList = primeComputeQueue->GetCommandList();
 
         if (UseCrossAdapter)
         {
-            {
-                primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
-                primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
-                primeCommandList->UAVBarrier(*fluidParticleEmitter->PrimaryResources.PositionsBuffer);
-                primeCommandList->UAVBarrier(*fluidParticleEmitter->PrimaryResources.VelocityBuffer);
-                primeCommandList->FlushResourceBarriers();
-            }
             {
                 if (currentFrameResource->SecondaryComputeFenceValue == 0 || computeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
                 {
                     auto& resources = fluidParticleEmitter->SecondaryResources;
                     const auto& crossResources = fluidParticleEmitter->CrossResources;
 
+                    auto& computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
                     const auto secondCommandList = computeQueue->GetCommandList();
 
                     fluidParticleEmitter->Dispatch(secondCommandList, resources, gt);
@@ -358,6 +311,10 @@ void HybridParticleApp::Draw(const GameTimer& gt)
 
                     currentFrameResource->SecondaryComputeFenceValue = computeQueue->ExecuteCommandList(secondCommandList);
                 }
+                {
+                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
+                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
+                }
             }
         }
         else
@@ -365,13 +322,21 @@ void HybridParticleApp::Draw(const GameTimer& gt)
             fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt);
         }
         
-        currentFrameResource->PrimeComputeFenceValue = primeComputeQueue->ExecuteCommandList(primeCommandList);
-        
+        //currentFrameResource->PrimeComputeFenceValue = primeComputeQueue->ExecuteCommandList(primeCommandList);
+
+        /*
+        if (UseCrossSync)
+        {
+            sharedComputeFenceValue = currentFrameResource->PrimeComputeFenceValue;
+            secondComputeFence->Signal(sharedComputeFenceValue);
+        } 
+    */
     }
 
     {
-        const auto cmdList = renderQueue->GetCommandList();
+        //const auto cmdList = renderQueue->GetCommandList();
 
+        const auto& cmdList = primeCommandList;
 
         cmdList->EndQuery(timestampHeapIndex);
         PopulateNormalMapCommands(cmdList);
@@ -389,20 +354,24 @@ void HybridParticleApp::Draw(const GameTimer& gt)
         cmdList->EndQuery(timestampHeapIndex + 1);
         cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
+        /*
         if (UseCrossSync)
         {
             renderQueue->Wait(primeComputeFence, sharedComputeFenceValue);
         }
         else
+            */
             renderQueue->Wait(computeQueue);
 
         currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
 
+        /*
         if (UseCrossSync)
         {
-            sharedComputeFenceValue = currentFrameResource->PrimeComputeFenceValue;
-            secondComputeFence->Signal(sharedComputeFenceValue);
+            sharedRenderFenceValue = currentFrameResource->PrimeRenderFenceValue;
+            secondRenderFence->Signal(sharedRenderFenceValue);
         }
+    */
     }
 
     currentFrameResourceIndex = MainWindow->Present();

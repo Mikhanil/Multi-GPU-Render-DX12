@@ -488,21 +488,21 @@ void SharedFluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GComman
     }
 
     cmdList->SetDescriptorsHeap(&resources.ComputeDescriptors);
-    cmdList->SetRootSignature(resources.ComputeSignature);
+    cmdList->SetComputeRootSignature(resources.ComputeSignature);
     
-    cmdList->SetRootConstantBufferView(FluidSimulationResources::ERootSignatureSlots::SimulationSettingsSlot, *resources.SimulationSettingsBuffer.get());
-    cmdList->SetRoot32BitConstants(FluidSimulationResources::ERootSignatureSlots::SmoothingConstantsSlot, 4, &resources.SmoothingConstants, 0);
+    cmdList->SetComputeRootConstantBufferView(FluidSimulationResources::ERootSignatureSlots::SimulationSettingsSlot, *resources.SimulationSettingsBuffer.get());
+    cmdList->SetComputeRoot32BitConstants(FluidSimulationResources::ERootSignatureSlots::SmoothingConstantsSlot, 4, &resources.SmoothingConstants, 0);
 
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PositionsBufferSlot,                       &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::VelocityBufferSlot,                        &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::VelocityBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PredictedPositionsBufferSlot,              &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PredictedPositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::DensityBufferSlot,                         &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::DensityBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PositionsBufferSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_VelocityBufferSlot,             &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot,   &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialIndicesSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialKeysSlot,               &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PositionsBufferSlot,                       &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::VelocityBufferSlot,                        &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::VelocityBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PredictedPositionsBufferSlot,              &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PredictedPositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::DensityBufferSlot,                         &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::DensityBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PositionsBufferSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_VelocityBufferSlot,             &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot,   &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialIndicesSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialKeysSlot,               &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
 
     {
         cmdList->SetPipelineState(*resources.ComputePSOs[FluidSimulationResources::EKernels::ExternalForces].get());
@@ -526,21 +526,21 @@ void SharedFluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GComman
     cmdList->TransitionBarrier(resources.SpatialHash.GetSpatialIndices()->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     
     cmdList->SetDescriptorsHeap(&resources.ComputeDescriptors);
-    cmdList->SetRootSignature(resources.ComputeSignature);
+    cmdList->SetComputeRootSignature(resources.ComputeSignature);
     
-    cmdList->SetRootConstantBufferView(FluidSimulationResources::ERootSignatureSlots::SimulationSettingsSlot, *resources.SimulationSettingsBuffer.get());
-    cmdList->SetRoot32BitConstants(FluidSimulationResources::ERootSignatureSlots::SmoothingConstantsSlot, 4, &resources.SmoothingConstants, 0);
+    cmdList->SetComputeRootConstantBufferView(FluidSimulationResources::ERootSignatureSlots::SimulationSettingsSlot, *resources.SimulationSettingsBuffer.get());
+    cmdList->SetComputeRoot32BitConstants(FluidSimulationResources::ERootSignatureSlots::SmoothingConstantsSlot, 4, &resources.SmoothingConstants, 0);
 
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PositionsBufferSlot,                       &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PredictedPositionsBufferSlot,              &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PredictedPositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::VelocityBufferSlot,                        &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::VelocityBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::DensityBufferSlot,                         &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::DensityBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PositionsBufferSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot,   &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_VelocityBufferSlot,             &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialKeysSlot,               &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
-    cmdList->SetRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialIndicesSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PositionsBufferSlot,                       &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::PredictedPositionsBufferSlot,              &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::PredictedPositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::VelocityBufferSlot,                        &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::VelocityBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::DensityBufferSlot,                         &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::DensityBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PositionsBufferSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_PredictedPositionsBufferSlot,   &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_PredictedPositionsBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SortTarget_VelocityBufferSlot,             &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SortTarget_VelocityBufferOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialKeysSlot,               &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialKeysOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialOffsetsSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialOffsetsOffset);
+    cmdList->SetComputeRootDescriptorTable(FluidSimulationResources::ERootSignatureSlots::SpatialHash_SpatialIndicesSlot,            &resources.ComputeDescriptors, FluidSimulationResources::EComputeBufferOffsets::SpatialHash_SpatialIndicesOffset);
     
     {
         cmdList->SetPipelineState(*resources.ComputePSOs[FluidSimulationResources::EKernels::Reorder].get());

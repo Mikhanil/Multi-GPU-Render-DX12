@@ -49,13 +49,13 @@ void SpacialOffsetsCalculator::Run(
     commandList->TransitionBarrier(offsets->GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     commandList->FlushResourceBarriers();
 
-    commandList->SetRootSignature(m_RootSignature);
+    commandList->SetComputeRootSignature(m_RootSignature);
 
     commandList->SetDescriptorsHeap(&m_Descriptors);
 
-    commandList->SetRoot32BitConstant(0, sortedKeys->GetElementCount(), 0);
-    commandList->SetRootDescriptorTable(1, &m_Descriptors, 0);
-    commandList->SetRootDescriptorTable(2, &m_Descriptors, 1);
+    commandList->SetComputeRoot32BitConstant(0, sortedKeys->GetElementCount(), 0);
+    commandList->SetComputeRootDescriptorTable(1, &m_Descriptors, 0);
+    commandList->SetComputeRootDescriptorTable(2, &m_Descriptors, 1);
 
     {
         commandList->SetPipelineState(m_InitPSO);
