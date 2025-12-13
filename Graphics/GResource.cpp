@@ -37,7 +37,7 @@ namespace PEPEngine::Graphics
 
         GResourceStateTracker::AddCurrentState(dxResource.Get(), initState);
 
-        SetName(name);
+        SetName(device->GetName() + L" " + name);
     }
 
     GResource::GResource(const std::shared_ptr<GDevice>& device, const D3D12_RESOURCE_DESC& resourceDesc,

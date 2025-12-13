@@ -287,10 +287,10 @@ namespace Common
 
         DXGI_SWAP_CHAIN_DESC desc;
 
-        swapChain->GetDesc(&desc);
+        ThrowIfFailed(swapChain->GetDesc(&desc));
 
         ThrowIfFailed(swapChain->ResizeBuffers(
-            desc.BufferCount,
+            globalCountFrameResources,
             width, height,
             desc.BufferDesc.Format,
             desc.Flags));
@@ -318,7 +318,7 @@ namespace Common
 
     ComPtr<IDXGISwapChain4> Window::CreateSwapChain()
     {
-        DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+        DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
         swapChainDesc.Width = width;
         swapChainDesc.Height = height;
         swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -329,6 +329,7 @@ namespace Common
         swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
         swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+        swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
 
         swapChain = GDeviceFactory::CreateSwapChain(device, swapChainDesc, hWnd);
 

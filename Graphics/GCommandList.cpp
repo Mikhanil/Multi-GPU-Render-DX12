@@ -41,6 +41,8 @@ namespace PEPEngine::Graphics
             queue->device->GetDXDevice()->CreateCommandList(queue->device->GetNodeMask(), type, cmdAllocator.Get(),
                 nullptr, IID_PPV_ARGS(&cmdList)));
 
+        const auto name = queue->device->GetName() + L" CommandList " + std::to_wstring(type);
+        cmdList->SetName(name.c_str());
         uploadBuffer = std::make_unique<GDataUploader>(queue->device);
 
         tracker = std::make_unique<GResourceStateTracker>();

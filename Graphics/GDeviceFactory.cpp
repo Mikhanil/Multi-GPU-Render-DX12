@@ -99,7 +99,7 @@ namespace PEPEngine::Graphics
     {
         ComPtr<IDXGISwapChain4> swapChain;
 
-        desc.Flags = IsTearingSupport()
+        desc.Flags |= IsTearingSupport()
                          ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
                          : DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 

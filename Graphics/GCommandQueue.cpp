@@ -25,31 +25,35 @@ namespace PEPEngine::Graphics
 
         ThrowIfFailed(device->GetDXDevice()->CreateFence(FenceValue, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&fence)));
 
+        std::wstring name;
         switch (this->type)
         {
         case D3D12_COMMAND_LIST_TYPE_COPY:
-            commandQueue->SetName(L"Copy Command Queue");
+            name = (L"Copy Command Queue");
             break;
         case D3D12_COMMAND_LIST_TYPE_COMPUTE:
-            commandQueue->SetName(L"Compute Command Queue");
+            name = (L"Compute Command Queue");
             break;
         case D3D12_COMMAND_LIST_TYPE_DIRECT:
-            commandQueue->SetName(L"Direct Command Queue");
+            name = (L"Direct Command Queue");
             break;
         case D3D12_COMMAND_LIST_TYPE_BUNDLE:
-            commandQueue->SetName(L"Bundle Command Queue");
+            name = (L"Bundle Command Queue");
             break;
         case D3D12_COMMAND_LIST_TYPE_VIDEO_DECODE:
-            commandQueue->SetName(L"VDecode Command Queue");
+            name = (L"VDecode Command Queue");
             break;
         case D3D12_COMMAND_LIST_TYPE_VIDEO_PROCESS:
-            commandQueue->SetName(L"VProcess Command Queue");
+            name = (L"VProcess Command Queue");
             break;
         case D3D12_COMMAND_LIST_TYPE_VIDEO_ENCODE:
-            commandQueue->SetName(L"VEncode Command Queue");
+            name = (L"VEncode Command Queue");
             break;
         }
 
+        const auto RealName = device->GetName() + name;
+        commandQueue->SetName(RealName.c_str());
+    
         GetTimestampFreq();
 
         // Two timestamps for each frame.
@@ -141,7 +145,7 @@ namespace PEPEngine::Graphics
         if (IsFinish(fenceValue))
             return;
 
-        auto event = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        const auto event = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
         assert(event && "Failed to create fence event handle.");
 
         fence->SetEventOnCompletion(fenceValue, event);

@@ -339,6 +339,9 @@ void HybridParticleApp::Draw(const GameTimer& gt)
             {
                 primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
                 primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
+                primeCommandList->UAVBarrier(*fluidParticleEmitter->PrimaryResources.PositionsBuffer);
+                primeCommandList->UAVBarrier(*fluidParticleEmitter->PrimaryResources.VelocityBuffer);
+                primeCommandList->FlushResourceBarriers();
             }
             {
                 if (currentFrameResource->SecondaryComputeFenceValue == 0 || computeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
@@ -471,10 +474,7 @@ void HybridParticleApp::InitDevices()
         typedRenderer.push_back(
             MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
     }
-
-    primeDevice->SharedFence(primeComputeFence, secondDevice, secondComputeFence, sharedComputeFenceValue);
-    primeDevice->SharedFence(primeRenderFence, secondDevice, secondRenderFence, sharedRenderFenceValue);
-
+    
     logQueue.Push(L"\nPrime Device: " + (primeDevice->GetName()));
     logQueue.Push(
         L"\t\n Cross Adapter Texture Support: " + std::to_wstring(
@@ -483,6 +483,8 @@ void HybridParticleApp::InitDevices()
     logQueue.Push(
         L"\t\n Cross Adapter Texture Support: " + std::to_wstring(
             secondDevice->IsCrossAdapterTextureSupported()));
+
+    Flush();
 }
 
 void HybridParticleApp::InitFrameResource()
@@ -659,6 +661,10 @@ void HybridParticleApp::InitSRVMemoryAndMaterials()
 
 void HybridParticleApp::InitRenderPaths()
 {
+    primeDevice->SharedFence(primeComputeFence, secondDevice, secondComputeFence, sharedComputeFenceValue);
+    primeDevice->SharedFence(primeRenderFence, secondDevice, secondRenderFence, sharedRenderFenceValue);
+
+    
     auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
     auto cmdList = commandQueue->GetCommandList();
 
