@@ -603,9 +603,9 @@ void HybridParticleApp::InitRenderPaths()
     ambientPrimePath = (std::make_shared<SSAO>(
         primeDevice,
         cmdList,
-        MainWindow->GetClientWidth(), MainWindow->GetClientHeight()));
+        MainWindow->GetClientWidth() / 4, MainWindow->GetClientHeight() / 4));
 
-    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 4, MainWindow->GetClientWidth(),
+    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 1, MainWindow->GetClientWidth(),
                                                     MainWindow->GetClientHeight()));
     antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -613,7 +613,7 @@ void HybridParticleApp::InitRenderPaths()
 
     logQueue.Push(std::wstring(L"\nInit Render path data for " + primeDevice->GetName()));
 
-    shadowPath = (std::make_shared<ShadowMap>(primeDevice, 2048, 2048));
+    shadowPath = (std::make_shared<ShadowMap>(primeDevice, 512, 512));
 }
 
 void HybridParticleApp::LoadStudyTexture()
@@ -883,6 +883,7 @@ void HybridParticleApp::CreateGO()
             gameObjects.push_back(std::move(atlas));
 
 
+
             auto pbody = std::make_unique<GameObject>();
             pbody->GetTransform()->SetPosition(
                 Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
@@ -904,20 +905,23 @@ void HybridParticleApp::CreateGO()
     */
 
     auto fluidSim = std::make_unique<GameObject>();
-    fluidSim->GetTransform()->SetPosition(Vector3::Up * 15.f);
-    Vector3 fluidSimScale = Vector3(30.f, 30.f, 10.f); 
+    fluidSim->GetTransform()->SetPosition(Vector3::Up * 5.f);
+    Vector3 fluidSimScale = Vector3(10.f, 10.f, 8.f); 
     fluidSim->SetScale(fluidSimScale);
 
+    //ParticleSpawner::SpawnRegion spawnRegion1;
+    //spawnRegion1.Center = Vector3::Up * 15.f + Vector3::Right * 10.f;
+    //spawnRegion1.Size = 5.f;
+    //ParticleSpawner::SpawnRegion spawnRegion2;
+    //spawnRegion2.Center = Vector3::Up * 15.f + Vector3::Right * -10.f;
+    //spawnRegion2.Size = 5.f;
     ParticleSpawner::SpawnRegion spawnRegion1;
-    spawnRegion1.Center = Vector3::Up * 15.f + Vector3::Right * 10.f;
+    spawnRegion1.Center = Vector3::Up * 5.5f;// +Vector3::Right * 10.f;
     spawnRegion1.Size = 5.f;
-    ParticleSpawner::SpawnRegion spawnRegion2;
-    spawnRegion2.Center = Vector3::Up * 15.f + Vector3::Right * -10.f;
-    spawnRegion2.Size = 5.f;
-    
     ParticleSpawner spawner;
     spawner.ParticleSpawnDensity = 1000;
-    spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {spawnRegion1, spawnRegion2});
+    //spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {spawnRegion1, spawnRegion2});
+    spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {spawnRegion1});
     //spawner.InitialVelocity = Vector3::Up * 10.f;
 
     FluidSimulationData simData;
@@ -930,6 +934,8 @@ void HybridParticleApp::CreateGO()
     fluidSim->AddComponent(fluidParticleEmitter);
     typedRenderer[static_cast<int>(RenderMode::Fluid)].push_back(fluidParticleEmitter);
     gameObjects.push_back(std::move(fluidSim));
+    std::wstring particleCountString = L"\nNumber of particles: " + std::to_wstring(spawner.GetSpawnData().Points.size());
+    logQueue.Push(particleCountString);
 
     auto platform = std::make_unique<GameObject>();
     platform->SetScale(0.2);
@@ -1035,15 +1041,7 @@ void HybridParticleApp::CalculateFrameStats()
     static float maxFps = std::numeric_limits<float>::min();
     static float maxMspf = std::numeric_limits<float>::min();
     static UINT writeStaticticCount = 0;
-    static UINT64 primeGPUTimeMax = std::numeric_limits<UINT64>::min();
-    static UINT64 primeGPUTimeMin = std::numeric_limits<UINT64>::max();
-    static UINT64 secondGPUTimeMax = std::numeric_limits<UINT64>::min();
-    static UINT64 secondGPUTimeMin = std::numeric_limits<UINT64>::max();
-
-    static UINT64 primeGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
-    static UINT64 primeGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
-    static UINT64 secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
-    static UINT64 secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
+    
     frameCount++;
 
     if ((timer.TotalTime() - timeElapsed) >= 1.0f)
@@ -1055,17 +1053,6 @@ void HybridParticleApp::CalculateFrameStats()
         minMspf = std::min(mspf, minMspf);
         maxFps = std::max(fps, maxFps);
         maxMspf = std::max(mspf, maxMspf);
-
-        primeGPUTimeMin = std::min(primeGPURenderingTime, primeGPUTimeMin);
-        primeGPUTimeMax = std::max(primeGPURenderingTime, primeGPUTimeMax);
-        secondGPUTimeMin = std::min(secondGPURenderingTime, secondGPUTimeMin);
-        secondGPUTimeMax = std::max(secondGPURenderingTime, secondGPUTimeMax);
-
-        primeGPUComputingTimeMin = std::min(primeGPUComputingTime, primeGPUComputingTimeMin);
-        primeGPUComputingTimeMax = std::max(primeGPUComputingTime, primeGPUComputingTimeMax);
-        secondGPUComputingTimeMin = std::min(secondGPUComputingTime, secondGPUComputingTimeMin);
-        secondGPUComputingTimeMax = std::max(secondGPUComputingTime, secondGPUComputingTimeMax);
-
 
         frameCount = 0;
         timeElapsed += 1.0f;
@@ -1083,15 +1070,7 @@ void HybridParticleApp::CalculateFrameStats()
                 + L"\n\tMin FPS:" + std::to_wstring(minFps)
                 + L"\n\tMin MSPF:" + std::to_wstring(minMspf)
                 + L"\n\tMax FPS:" + std::to_wstring(maxFps)
-                + L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
-                + L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax)
-                + L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin)
-                + L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
-                + L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin)
-                + L"\n\tMax Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMax)
-                + L"\n\tMin Prime GPU Computing Time:" + std::to_wstring(primeGPUComputingTimeMin)
-                + L"\n\tMax Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMax)
-                + L"\n\tMin Second GPU Computing Time:" + std::to_wstring(secondGPUComputingTimeMin);
+                + L"\n\tMax MSPF:" + std::to_wstring(maxMspf);
 
             logQueue.Push(staticticStr);
 
@@ -1101,14 +1080,7 @@ void HybridParticleApp::CalculateFrameStats()
             minMspf = std::numeric_limits<float>::max();
             maxFps = std::numeric_limits<float>::min();
             maxMspf = std::numeric_limits<float>::min();
-            primeGPUTimeMax = std::numeric_limits<UINT64>::min();
-            primeGPUTimeMin = std::numeric_limits<UINT64>::max();
-            secondGPUTimeMax = std::numeric_limits<UINT64>::min();
-            secondGPUTimeMin = std::numeric_limits<UINT64>::max();
-            primeGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
-            primeGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
-            secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
-            secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
+
 
             if (UseCrossAdapter == false)
             {
@@ -1123,12 +1095,8 @@ void HybridParticleApp::CalculateFrameStats()
         else
         {
             const std::wstring staticticStr =
-                L"\n\tFPS:" + std::to_wstring(fps)
-                + L"\n\tMSPF:" + std::to_wstring(mspf)
-                + L"\n\tPrime GPU Rendering Time:" + std::to_wstring(primeGPURenderingTime)
-                + L"\n\tSecond GPU Rendering Time:" + std::to_wstring(secondGPURenderingTime)
-                + L"\n\tPrime GPU Computing Time:" + std::to_wstring(primeGPUComputingTime)
-                + L"\n\tSecond GPU Computing Time:" + std::to_wstring(secondGPUComputingTime);
+                L"\n" + std::to_wstring(fps) + L","
+                + std::to_wstring(mspf) + L";\n";
 
             logQueue.Push(staticticStr);
 

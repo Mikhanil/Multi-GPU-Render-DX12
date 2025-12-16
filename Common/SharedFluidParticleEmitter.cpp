@@ -304,10 +304,12 @@ void SharedFluidParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
         hasScale = true;
     }
     Vector3 tempScale = m_baseScale;
-    tempScale.x = m_baseScale.x * (cos(gt->TotalTime() * 0.7f) + 1.5f) * 0.5f;
+    tempScale.x = m_baseScale.x * (cos(gt->TotalTime()) + 2.f) * .8f;
     
     PrimaryResources.SimData.localToWorld = gameObject->GetTransform()->GetWorldMatrix();
     PrimaryResources.SimData.worldToLocal = PrimaryResources.SimData.localToWorld.Invert();
+    SecondaryResources.SimData.localToWorld = gameObject->GetTransform()->GetWorldMatrix();
+    SecondaryResources.SimData.worldToLocal = SecondaryResources.SimData.localToWorld.Invert();
     
     gameObject->GetComponent<Transform>()->SetScale(tempScale);
     

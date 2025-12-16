@@ -129,9 +129,6 @@
     <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Services\LogService.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Services\BenchmarkService.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -139,6 +136,30 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Services\States\BenchmarkState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidEmitter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidSimulationData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUCountingSort.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUPrefixSum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SharedFluidParticleEmitter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Services\FileQueueWriter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SpacialHash.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SpacialOffsetsCalculator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -239,13 +260,31 @@
     <ClCompile Include="SplineController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Services\LogService.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Services\BenchmarkService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Services\States\WaitState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidEmitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUCountingSort.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUPrefixSum.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SharedFluidParticleEmitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Services\FileQueueWriter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SpacialHash.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SpacialOffsetsCalculator.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
