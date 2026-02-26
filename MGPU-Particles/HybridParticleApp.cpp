@@ -1,6 +1,8 @@
 #include "HybridParticleApp.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include "CameraController.h"
@@ -281,9 +283,9 @@ void HybridParticleApp::Draw(const GameTimer& gt)
     const auto& primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
     const auto primeCommandList = primeComputeQueue->GetCommandList();
     {
-
-        if (UseCrossAdapter)
+        if (fluidParticleEmitter != nullptr)
         {
+            if (UseCrossAdapter)
             {
                 if (currentFrameResource->SecondaryComputeFenceValue == 0 || computeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
                 {
@@ -300,17 +302,15 @@ void HybridParticleApp::Draw(const GameTimer& gt)
 
                     currentFrameResource->SecondaryComputeFenceValue = computeQueue->ExecuteCommandList(secondCommandList);
                 }
-                {
-                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
-                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
-                }
+
+                primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
+                primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
+            }
+            else
+            {
+                fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt);
             }
         }
-        else
-        {
-            fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt);
-        }
-        
     }
 
     {
@@ -596,24 +596,30 @@ void HybridParticleApp::InitRenderPaths()
     primeDevice->SharedFence(primeComputeFence, secondDevice, secondComputeFence, sharedComputeFenceValue);
     primeDevice->SharedFence(primeRenderFence, secondDevice, secondRenderFence, sharedRenderFenceValue);
 
-    
+    const UINT ssaoDivisor = std::max<UINT>(1, currentRenderPathPreset.SsaoDivisor);
+    const UINT ssaoWidth = std::max<UINT>(1, MainWindow->GetClientWidth() / ssaoDivisor);
+    const UINT ssaoHeight = std::max<UINT>(1, MainWindow->GetClientHeight() / ssaoDivisor);
+
     auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
     auto cmdList = commandQueue->GetCommandList();
 
     ambientPrimePath = (std::make_shared<SSAO>(
         primeDevice,
         cmdList,
-        MainWindow->GetClientWidth() / 4, MainWindow->GetClientHeight() / 4));
+        ssaoWidth, ssaoHeight));
 
-    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 1, MainWindow->GetClientWidth(),
+    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, currentRenderPathPreset.SsaaMultiplier, MainWindow->GetClientWidth(),
                                                     MainWindow->GetClientHeight()));
     antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
     commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 
-    logQueue.Push(std::wstring(L"\nInit Render path data for " + primeDevice->GetName()));
+    logQueue.Push(std::wstring(L"\nInit Render path data for " + primeDevice->GetName())
+        + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+        + L"\n\tSSAA Multiplier: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+        + L"\n\tSSAO Divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor));
 
-    shadowPath = (std::make_shared<ShadowMap>(primeDevice, 512, 512));
+    shadowPath = (std::make_shared<ShadowMap>(primeDevice, currentRenderPathPreset.ShadowMapSize, currentRenderPathPreset.ShadowMapSize));
 }
 
 void HybridParticleApp::LoadStudyTexture()
@@ -904,38 +910,17 @@ void HybridParticleApp::CreateGO()
     gameObjects.push_back(std::move(particle));
     */
 
-    auto fluidSim = std::make_unique<GameObject>();
-    fluidSim->GetTransform()->SetPosition(Vector3::Up * 5.f);
-    Vector3 fluidSimScale = Vector3(10.f, 10.f, 8.f); 
-    fluidSim->SetScale(fluidSimScale);
+    fluidSimulationPosition = Vector3::Up * 5.f;
+    fluidSimulationScale = Vector3(10.f, 10.f, 8.f);
+    fluidSpawnRegion = ParticleSpawner::SpawnRegion{};
+    fluidSpawnRegion.Center = Vector3::Up * 5.5f;
+    fluidSpawnRegion.Size = 5.f;
+    fluidSpawnRegion.TargetParticleCount = fluidCalibrationTargetParticleCount;
 
-    //ParticleSpawner::SpawnRegion spawnRegion1;
-    //spawnRegion1.Center = Vector3::Up * 15.f + Vector3::Right * 10.f;
-    //spawnRegion1.Size = 5.f;
-    //ParticleSpawner::SpawnRegion spawnRegion2;
-    //spawnRegion2.Center = Vector3::Up * 15.f + Vector3::Right * -10.f;
-    //spawnRegion2.Size = 5.f;
-    ParticleSpawner::SpawnRegion spawnRegion1;
-    spawnRegion1.Center = Vector3::Up * 5.5f;// +Vector3::Right * 10.f;
-    spawnRegion1.Size = 5.f;
-    ParticleSpawner spawner;
-    spawner.ParticleSpawnDensity = 1000;
-    //spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {spawnRegion1, spawnRegion2});
-    spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {spawnRegion1});
-    //spawner.InitialVelocity = Vector3::Up * 10.f;
+    fluidSimulationTemplateData = FluidSimulationData{};
+    fluidSimulationTemplateData.viscosityStrength = 0.f;
 
-    FluidSimulationData simData;
-    
-    simData.localToWorld = fluidSim->GetTransform()->GetWorldMatrix();
-    simData.worldToLocal = simData.localToWorld.Invert();
-    simData.viscosityStrength = 0.f;
-    
-    fluidParticleEmitter = std::make_shared<SharedFluidParticleEmitter>(primeDevice, secondDevice, simData, spawner);
-    fluidSim->AddComponent(fluidParticleEmitter);
-    typedRenderer[static_cast<int>(RenderMode::Fluid)].push_back(fluidParticleEmitter);
-    gameObjects.push_back(std::move(fluidSim));
-    std::wstring particleCountString = L"\nNumber of particles: " + std::to_wstring(spawner.GetSpawnData().Points.size());
-    logQueue.Push(particleCountString);
+    logQueue.Push(L"\nStartup calibration: tuning render-path load for ~120 FPS before creating fluid particles.");
 
     auto platform = std::make_unique<GameObject>();
     platform->SetScale(0.2);
@@ -1034,6 +1019,209 @@ void HybridParticleApp::CreateGO()
     logQueue.Push(std::wstring(L"\nFinish create GO"));
 }
 
+void HybridParticleApp::ApplyRenderPathTuningPreset(const RenderPathTuningPreset& preset)
+{
+    currentRenderPathPreset = preset;
+
+    const UINT windowWidth = MainWindow->GetClientWidth();
+    const UINT windowHeight = MainWindow->GetClientHeight();
+    const UINT ssaoDivisor = std::max<UINT>(1, currentRenderPathPreset.SsaoDivisor);
+    const UINT ssaoWidth = std::max<UINT>(1, windowWidth / ssaoDivisor);
+    const UINT ssaoHeight = std::max<UINT>(1, windowHeight / ssaoDivisor);
+
+    if (shadowPath != nullptr)
+    {
+        shadowPath->OnResize(currentRenderPathPreset.ShadowMapSize, currentRenderPathPreset.ShadowMapSize);
+    }
+
+    if (ambientPrimePath != nullptr)
+    {
+        ambientPrimePath->OnResize(ssaoWidth, ssaoHeight);
+        ambientPrimePath->RebuildDescriptors();
+    }
+
+    if (antiAliasingPrimePath != nullptr)
+    {
+        antiAliasingPrimePath->SetMultiplier(currentRenderPathPreset.SsaaMultiplier, windowWidth, windowHeight);
+    }
+}
+
+void HybridParticleApp::RecreateFluidEmitter(const uint32_t targetParticleCount)
+{
+    auto& fluidRenderers = typedRenderer[static_cast<int>(RenderMode::Fluid)];
+
+    if (fluidParticleEmitter != nullptr)
+    {
+        fluidRenderers.erase(std::remove(fluidRenderers.begin(), fluidRenderers.end(), fluidParticleEmitter), fluidRenderers.end());
+        fluidParticleEmitter.reset();
+    }
+
+    if (fluidSimulationObject != nullptr)
+    {
+        gameObjects.erase(std::remove(gameObjects.begin(), gameObjects.end(), fluidSimulationObject), gameObjects.end());
+        fluidSimulationObject.reset();
+    }
+
+    fluidSpawnRegion.TargetParticleCount = targetParticleCount;
+
+    fluidSimulationObject = std::make_shared<GameObject>();
+    fluidSimulationObject->GetTransform()->SetPosition(fluidSimulationPosition);
+    fluidSimulationObject->SetScale(fluidSimulationScale);
+
+    ParticleSpawner spawner;
+    spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {fluidSpawnRegion});
+
+    const auto spawnData = spawner.GetSpawnData();
+    fluidCalibrationActualParticleCount = static_cast<uint32_t>(spawnData.Points.size());
+
+    auto simData = fluidSimulationTemplateData;
+    simData.localToWorld = fluidSimulationObject->GetTransform()->GetWorldMatrix();
+    simData.worldToLocal = simData.localToWorld.Invert();
+
+    fluidParticleEmitter = std::make_shared<SharedFluidParticleEmitter>(primeDevice, secondDevice, simData, spawner);
+    fluidSimulationObject->AddComponent(fluidParticleEmitter);
+    fluidRenderers.push_back(fluidParticleEmitter);
+    gameObjects.push_back(fluidSimulationObject);
+}
+
+bool HybridParticleApp::HandleStartupCalibration(const float fps)
+{
+    static constexpr float kRenderTargetFps = 120.f;
+    static constexpr float kFluidTargetFps = 80.f;
+    static constexpr float kFluidTargetTolerance = 2.f;
+    static constexpr uint32_t kMinParticleTarget = 64;
+    static constexpr uint32_t kMaxParticleTarget = 1'000'000;
+    static constexpr uint32_t kMaxFluidCalibrationIterations = 8;
+
+    static constexpr std::array<RenderPathTuningPreset, 11> kRenderPresets = {
+        RenderPathTuningPreset{4096, 3, 1},
+        RenderPathTuningPreset{4096, 2, 1},
+        RenderPathTuningPreset{3072, 2, 1},
+        RenderPathTuningPreset{3072, 1, 1},
+        RenderPathTuningPreset{2048, 2, 1},
+        RenderPathTuningPreset{2048, 1, 1},
+        RenderPathTuningPreset{1024, 1, 1},
+        RenderPathTuningPreset{1024, 1, 2},
+        RenderPathTuningPreset{1024, 1, 3},
+        RenderPathTuningPreset{512, 1, 2},
+        RenderPathTuningPreset{512, 1, 4}
+    };
+
+    if (startupCalibrationStage == StartupCalibrationStage::Completed)
+    {
+        return false;
+    }
+
+    if (calibrationWarmupTick)
+    {
+        calibrationWarmupTick = false;
+        return true;
+    }
+
+    if (startupCalibrationStage == StartupCalibrationStage::TuneRenderPath)
+    {
+        const bool reachedTarget = fps >= kRenderTargetFps;
+        const bool reachedLightestPreset = renderCalibrationPresetIndex + 1 >= kRenderPresets.size();
+
+        if (!reachedTarget && !reachedLightestPreset)
+        {
+            renderCalibrationPresetIndex++;
+
+            Flush();
+            ApplyRenderPathTuningPreset(kRenderPresets[renderCalibrationPresetIndex]);
+
+            
+            std::wstring renderCalibrationLog = L"\nRender calibration step: FPS=" + std::to_wstring(fps)
+                                              + L", trying lighter preset"
+                                              + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+                                              + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+                                              + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor);
+            logQueue.Push(renderCalibrationLog);
+
+            calibrationWarmupTick = true;
+            return true;
+        }
+
+        std::wstring selectedRenderCalibrationLog = L"\nRender calibration selected preset" + std::wstring()
+                                                  + L"\n\tNo-fluid FPS: " + std::to_wstring(fps)
+                                                  + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+                                                  + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+                                                  + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor);
+        logQueue.Push(selectedRenderCalibrationLog);
+
+        if (!reachedTarget && reachedLightestPreset)
+        {
+            logQueue.Push(L"\nRender calibration warning: unable to reach 120 FPS without fluid at the lightest preset.");
+        }
+
+        startupCalibrationStage = StartupCalibrationStage::TuneFluidParticles;
+        fluidCalibrationIterations = 0;
+        fluidCalibrationTargetParticleCount = std::max(kMinParticleTarget, fluidSpawnRegion.TargetParticleCount);
+
+        Flush();
+        RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
+        std::wstring fluidCalibrationLog = L"\nFluid calibration started" + std::wstring()
+                                         + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                         + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount);
+        logQueue.Push(fluidCalibrationLog);
+
+        calibrationWarmupTick = true;
+        return true;
+    }
+
+    if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles)
+    {
+        const float fpsDelta = std::fabs(fps - kFluidTargetFps);
+        const bool isCalibrated = fpsDelta <= kFluidTargetTolerance;
+        const bool reachedMaxIteration = fluidCalibrationIterations >= kMaxFluidCalibrationIterations;
+
+        if (isCalibrated || reachedMaxIteration)
+        {
+            std::wstring selectedFluidCalibration = L"\nFluid calibration selected count" + std::wstring()
+                                                  + L"\n\tFPS: " + std::to_wstring(fps)
+                                                  + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                                  + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount);
+            logQueue.Push(selectedFluidCalibration);
+
+            startupCalibrationStage = StartupCalibrationStage::Completed;
+            return false;
+        }
+
+        double scaledTarget = static_cast<double>(fluidCalibrationTargetParticleCount) * (static_cast<double>(fps) / static_cast<double>(kFluidTargetFps));
+        uint32_t nextTargetParticleCount = static_cast<uint32_t>(std::round(scaledTarget));
+        nextTargetParticleCount = std::clamp(nextTargetParticleCount, kMinParticleTarget, kMaxParticleTarget);
+
+        if (nextTargetParticleCount == fluidCalibrationTargetParticleCount)
+        {
+            if (fps > kFluidTargetFps)
+            {
+                nextTargetParticleCount = std::min(kMaxParticleTarget, fluidCalibrationTargetParticleCount + 64);
+            }
+            else
+            {
+                nextTargetParticleCount = std::max(kMinParticleTarget, fluidCalibrationTargetParticleCount - 64);
+            }
+        }
+
+        fluidCalibrationTargetParticleCount = nextTargetParticleCount;
+        fluidCalibrationIterations++;
+
+        Flush();
+        RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
+        std::wstring fluidCalibrationStepLog = L"\nFluid calibration step: FPS=" + std::to_wstring(fps)
+                                             + L", iteration=" + std::to_wstring(fluidCalibrationIterations)
+                                             + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                             + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount);
+        logQueue.Push(fluidCalibrationStepLog);
+
+        calibrationWarmupTick = true;
+        return true;
+    }
+
+    startupCalibrationStage = StartupCalibrationStage::Completed;
+    return false;
+}
+
 void HybridParticleApp::CalculateFrameStats()
 {
     static float minFps = std::numeric_limits<float>::max();
@@ -1049,13 +1237,20 @@ void HybridParticleApp::CalculateFrameStats()
         const float fps = static_cast<float>(frameCount); // fps = frameCnt / 1
         const float mspf = 1000.0f / fps;
 
+        frameCount = 0;
+        timeElapsed += 1.0f;
+
+        if (HandleStartupCalibration(fps))
+        {
+            const std::wstring calibrationTitle = L"Calibrating... FPS " + std::to_wstring(fps);
+            MainWindow->SetWindowTitle(calibrationTitle);
+            return;
+        }
+
         minFps = std::min(fps, minFps);
         minMspf = std::min(mspf, minMspf);
         maxFps = std::max(fps, maxFps);
         maxMspf = std::max(mspf, maxMspf);
-
-        frameCount = 0;
-        timeElapsed += 1.0f;
 
 
         const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (
@@ -1409,13 +1604,21 @@ void HybridParticleApp::OnResize()
 
     if (ambientPrimePath != nullptr)
     {
-        ambientPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+        const UINT ssaoDivisor = std::max<UINT>(1, currentRenderPathPreset.SsaoDivisor);
+        const UINT ssaoWidth = std::max<UINT>(1, MainWindow->GetClientWidth() / ssaoDivisor);
+        const UINT ssaoHeight = std::max<UINT>(1, MainWindow->GetClientHeight() / ssaoDivisor);
+        ambientPrimePath->OnResize(ssaoWidth, ssaoHeight);
         ambientPrimePath->RebuildDescriptors();
     }
 
     if (antiAliasingPrimePath != nullptr)
     {
-        antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+        antiAliasingPrimePath->SetMultiplier(currentRenderPathPreset.SsaaMultiplier, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    }
+
+    if (shadowPath != nullptr)
+    {
+        shadowPath->OnResize(currentRenderPathPreset.ShadowMapSize, currentRenderPathPreset.ShadowMapSize);
     }
 
     currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex();

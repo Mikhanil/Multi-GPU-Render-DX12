@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <cmath>
+#include <random>
 #include <SimpleMath.h>
 
 class ParticleSpawner
@@ -11,14 +13,11 @@ public:
     {
         DirectX::SimpleMath::Vector3 Center;
         float Size;
+        uint32_t TargetParticleCount = 1000;
 
-        float Volume() const { return Size*Size*Size; }
-
-        int CalculateParticleCountPerAxis(uint32_t particleDensity) const
+        int CalculateParticlesPerSide() const
         {
-            int targetParticleCount = static_cast<int>(Volume() * particleDensity);
-            int particlesPerAxis = cbrt(targetParticleCount);
-            return particlesPerAxis;
+            return static_cast<int>(std::round(std::cbrt(static_cast<float>(TargetParticleCount))));
         }
     };
 
@@ -32,9 +31,14 @@ public:
     {
         SpawnData allParticles;
 
-        for (auto& region : SpawnRegions)
+        for (const auto& region : SpawnRegions)
         {
-            int particlesPerAxis = region.CalculateParticleCountPerAxis(ParticleSpawnDensity);
+            int particlesPerAxis = region.CalculateParticlesPerSide();
+            if (particlesPerAxis <= 0)
+            {
+                continue;
+            }
+
             const auto& cube = SpawnCube(particlesPerAxis, region.Center, region.Size);
 
             allParticles.Points.insert(allParticles.Points.end(), cube.Points.begin(), cube.Points.end());
@@ -46,6 +50,24 @@ public:
 
     SpawnData SpawnCube(int numPerAxis, DirectX::SimpleMath::Vector3 center, float size) const 
     {
+        if (numPerAxis <= 0)
+        {
+            return SpawnData{};
+        }
+
+        thread_local std::mt19937 randomGenerator(std::random_device{}());
+        std::uniform_real_distribution<float> jitterDistribution(-JitterStrength, JitterStrength);
+
+        if (numPerAxis == 1)
+        {
+            DirectX::SimpleMath::Vector3 jitter(
+                jitterDistribution(randomGenerator),
+                jitterDistribution(randomGenerator),
+                jitterDistribution(randomGenerator));
+
+            return SpawnData{ {center + jitter}, {InitialVelocity} };
+        }
+
         int numPoints = numPerAxis * numPerAxis * numPerAxis;
         std::vector<DirectX::SimpleMath::Vector3> points(numPoints);
         std::vector<DirectX::SimpleMath::Vector3> velocities(numPoints);
@@ -60,12 +82,17 @@ public:
                     float tx = x / (numPerAxis - 1.f);
                     float ty = y / (numPerAxis - 1.f);
                     float tz = z / (numPerAxis - 1.f);
-                    
+
                     float px = (tx - 0.5f) * size + center.x;
                     float py = (ty - 0.5f) * size + center.y;
                     float pz = (tz - 0.5f) * size + center.z;
-                    //DirectX::SimpleMath::Vector3 jitter = bbbb
-                    points[i] = DirectX::SimpleMath::Vector3(px, py, pz);
+
+                    DirectX::SimpleMath::Vector3 jitter(
+                        jitterDistribution(randomGenerator),
+                        jitterDistribution(randomGenerator),
+                        jitterDistribution(randomGenerator));
+
+                    points[i] = DirectX::SimpleMath::Vector3(px, py, pz) + jitter;
                     velocities[i] = InitialVelocity;
                     i++;
                 }
@@ -75,9 +102,8 @@ public:
     }
     
 public:
-    uint32_t ParticleSpawnDensity = 500;
     DirectX::SimpleMath::Vector3 InitialVelocity;
-    float JitterStrength;
+    float JitterStrength = 0.1f;
 
     std::vector<SpawnRegion> SpawnRegions; 
 };

@@ -12,6 +12,9 @@
 #include "GCrossAdapterResource.h"
 #include "GDeviceFactory.h"
 #include "Light.h"
+#include <cstdint>
+
+class GameObject;
 
 class HybridParticleApp :
     public Common::D3DApp
@@ -146,6 +149,38 @@ protected:
 public:
     void SwitchDevice();
 private:
+    struct RenderPathTuningPreset
+    {
+        UINT ShadowMapSize = 512;
+        UINT SsaaMultiplier = 1;
+        UINT SsaoDivisor = 1;
+    };
+
+    enum class StartupCalibrationStage : uint8_t
+    {
+        TuneRenderPath,
+        TuneFluidParticles,
+        Completed
+    };
+
+    void ApplyRenderPathTuningPreset(const RenderPathTuningPreset& preset);
+    void RecreateFluidEmitter(uint32_t targetParticleCount);
+    bool HandleStartupCalibration(float fps);
+
     bool m_bUseSharedFluidSim = false;
     std::shared_ptr<SharedFluidParticleEmitter> fluidParticleEmitter;
+    std::shared_ptr<GameObject> fluidSimulationObject;
+
+    RenderPathTuningPreset currentRenderPathPreset{4096, 3, 1};
+    StartupCalibrationStage startupCalibrationStage = StartupCalibrationStage::TuneRenderPath;
+    bool calibrationWarmupTick = true;
+    UINT renderCalibrationPresetIndex = 0;
+
+    Vector3 fluidSimulationPosition = Vector3::Up * 5.f;
+    Vector3 fluidSimulationScale = Vector3(10.f, 10.f, 8.f);
+    ParticleSpawner::SpawnRegion fluidSpawnRegion{};
+    FluidSimulationData fluidSimulationTemplateData{};
+    uint32_t fluidCalibrationTargetParticleCount = 50000;
+    uint32_t fluidCalibrationActualParticleCount = 0;
+    uint32_t fluidCalibrationIterations = 0;
 };
