@@ -303,8 +303,11 @@ void SharedFluidParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
         m_baseScale = gameObject->GetComponent<Transform>()->GetScale();
         hasScale = true;
     }
+
+    m_localAnimationTime += gt->DeltaTime();
+
     Vector3 tempScale = m_baseScale;
-    tempScale.x = m_baseScale.x * (cos(gt->TotalTime()) + 2.f) * .8f;
+    tempScale.x = m_baseScale.x * (cos(m_localAnimationTime) + 2.f) * .8f;
     
     PrimaryResources.SimData.localToWorld = gameObject->GetTransform()->GetWorldMatrix();
     PrimaryResources.SimData.worldToLocal = PrimaryResources.SimData.localToWorld.Invert();
@@ -598,4 +601,3 @@ void SharedFluidParticleEmitter::RunSimulationStep(const std::shared_ptr<GComman
         cmdList->FlushResourceBarriers();
     }
 }
-

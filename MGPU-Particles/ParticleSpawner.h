@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <array>
 #include <cmath>
 #include <random>
 #include <SimpleMath.h>
@@ -12,12 +13,27 @@ public:
     struct SpawnRegion
     {
         DirectX::SimpleMath::Vector3 Center;
-        float Size;
+        DirectX::SimpleMath::Vector3 Size = DirectX::SimpleMath::Vector3::One;
         uint32_t TargetParticleCount = 1000;
 
-        int CalculateParticlesPerSide() const
+        std::array<int, 3> CalculateParticlesPerSide() const
         {
-            return static_cast<int>(std::round(std::cbrt(static_cast<float>(TargetParticleCount))));
+            if (TargetParticleCount == 0)
+            {
+                return {0, 0, 0};
+            }
+
+            const float sizeX = std::max(Size.x, 0.0001f);
+            const float sizeY = std::max(Size.y, 0.0001f);
+            const float sizeZ = std::max(Size.z, 0.0001f);
+            const float volume = sizeX * sizeY * sizeZ;
+            const float particleScale = std::cbrt(static_cast<float>(TargetParticleCount) / volume);
+
+            return {
+                std::max(1, static_cast<int>(std::round(particleScale * sizeX))),
+                std::max(1, static_cast<int>(std::round(particleScale * sizeY))),
+                std::max(1, static_cast<int>(std::round(particleScale * sizeZ)))
+            };
         }
     };
 
@@ -33,8 +49,8 @@ public:
 
         for (const auto& region : SpawnRegions)
         {
-            int particlesPerAxis = region.CalculateParticlesPerSide();
-            if (particlesPerAxis <= 0)
+            const auto particlesPerAxis = region.CalculateParticlesPerSide();
+            if (particlesPerAxis[0] <= 0 || particlesPerAxis[1] <= 0 || particlesPerAxis[2] <= 0)
             {
                 continue;
             }
@@ -48,9 +64,9 @@ public:
         return allParticles;
     }
 
-    SpawnData SpawnCube(int numPerAxis, DirectX::SimpleMath::Vector3 center, float size) const 
+    SpawnData SpawnCube(const std::array<int, 3>& numPerAxis, DirectX::SimpleMath::Vector3 center, DirectX::SimpleMath::Vector3 size) const 
     {
-        if (numPerAxis <= 0)
+        if (numPerAxis[0] <= 0 || numPerAxis[1] <= 0 || numPerAxis[2] <= 0)
         {
             return SpawnData{};
         }
@@ -58,7 +74,7 @@ public:
         thread_local std::mt19937 randomGenerator(std::random_device{}());
         std::uniform_real_distribution<float> jitterDistribution(-JitterStrength, JitterStrength);
 
-        if (numPerAxis == 1)
+        if (numPerAxis[0] == 1 && numPerAxis[1] == 1 && numPerAxis[2] == 1)
         {
             DirectX::SimpleMath::Vector3 jitter(
                 jitterDistribution(randomGenerator),
@@ -68,24 +84,24 @@ public:
             return SpawnData{ {center + jitter}, {InitialVelocity} };
         }
 
-        int numPoints = numPerAxis * numPerAxis * numPerAxis;
+        int numPoints = numPerAxis[0] * numPerAxis[1] * numPerAxis[2];
         std::vector<DirectX::SimpleMath::Vector3> points(numPoints);
         std::vector<DirectX::SimpleMath::Vector3> velocities(numPoints);
 
         int i = 0;
-        for (int x = 0; x < numPerAxis; x++)
+        for (int x = 0; x < numPerAxis[0]; x++)
         {
-            for (int y = 0; y < numPerAxis; y++)
+            for (int y = 0; y < numPerAxis[1]; y++)
             {
-                for (int z = 0; z < numPerAxis; z++)
+                for (int z = 0; z < numPerAxis[2]; z++)
                 {
-                    float tx = x / (numPerAxis - 1.f);
-                    float ty = y / (numPerAxis - 1.f);
-                    float tz = z / (numPerAxis - 1.f);
+                    float tx = numPerAxis[0] == 1 ? 0.5f : x / (numPerAxis[0] - 1.f);
+                    float ty = numPerAxis[1] == 1 ? 0.5f : y / (numPerAxis[1] - 1.f);
+                    float tz = numPerAxis[2] == 1 ? 0.5f : z / (numPerAxis[2] - 1.f);
 
-                    float px = (tx - 0.5f) * size + center.x;
-                    float py = (ty - 0.5f) * size + center.y;
-                    float pz = (tz - 0.5f) * size + center.z;
+                    float px = (tx - 0.5f) * size.x + center.x;
+                    float py = (ty - 0.5f) * size.y + center.y;
+                    float pz = (tz - 0.5f) * size.z + center.z;
 
                     DirectX::SimpleMath::Vector3 jitter(
                         jitterDistribution(randomGenerator),

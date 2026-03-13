@@ -210,5 +210,6 @@ private:
     std::shared_ptr<GraphicPSO> m_renderPSO;
 
     Vector3 m_baseScale;
+    float m_localAnimationTime = 0.0f;
     bool hasScale = false;
 };

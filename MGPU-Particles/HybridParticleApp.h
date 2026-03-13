@@ -93,6 +93,7 @@ protected:
     bool IsStop = false;
 
     const int StatisticStepSecondsCount = 30;
+    const float CalibrationSampleSeconds = 5.0f;
 
 
     std::shared_ptr<ShadowMap> shadowPath;
@@ -164,6 +165,8 @@ private:
     };
 
     void ApplyRenderPathTuningPreset(const RenderPathTuningPreset& preset);
+    Vector3 CalculateFluidBoundsScale(uint32_t targetParticleCount) const;
+    Vector3 CalculateFluidSpawnRegionSize(uint32_t spawnedParticleCount, const Vector3& boundsScale) const;
     void RecreateFluidEmitter(uint32_t targetParticleCount);
     bool HandleStartupCalibration(float fps);
 
@@ -171,13 +174,10 @@ private:
     std::shared_ptr<SharedFluidParticleEmitter> fluidParticleEmitter;
     std::shared_ptr<GameObject> fluidSimulationObject;
 
-    RenderPathTuningPreset currentRenderPathPreset{4096, 3, 1};
+    RenderPathTuningPreset currentRenderPathPreset{1024, 2, 1};
     StartupCalibrationStage startupCalibrationStage = StartupCalibrationStage::TuneRenderPath;
-    bool calibrationWarmupTick = true;
-    UINT renderCalibrationPresetIndex = 0;
-
     Vector3 fluidSimulationPosition = Vector3::Up * 5.f;
-    Vector3 fluidSimulationScale = Vector3(10.f, 10.f, 8.f);
+    Vector3 fluidSimulationScale = Vector3(10.f, 10.f, 10.f);
     ParticleSpawner::SpawnRegion fluidSpawnRegion{};
     FluidSimulationData fluidSimulationTemplateData{};
     uint32_t fluidCalibrationTargetParticleCount = 50000;

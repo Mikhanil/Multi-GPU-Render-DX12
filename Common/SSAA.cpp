@@ -1,8 +1,25 @@
 #include "pch.h"
 #include "SSAA.h"
+#include <algorithm>
 #include "GCommandList.h"
 #include "GDevice.h"
 
+namespace
+{
+    constexpr UINT kMaxTextureDimension = 16384;
+
+    UINT ClampResolutionMultiplier(const UINT requestedMultiplier, const UINT width, const UINT height)
+    {
+        if (width == 0 || height == 0)
+        {
+            return 1;
+        }
+
+        const UINT maxMultiplierX = std::max<UINT>(1, kMaxTextureDimension / width);
+        const UINT maxMultiplierY = std::max<UINT>(1, kMaxTextureDimension / height);
+        return std::clamp(requestedMultiplier, 1u, std::min(maxMultiplierX, maxMultiplierY));
+    }
+}
 
 D3D12_VIEWPORT SSAA::GetViewPort() const
 {
@@ -16,7 +33,7 @@ D3D12_RECT SSAA::GetRect() const
 
 void SSAA::SetMultiplier(const UINT multi, const UINT newWidth, const UINT newHeight)
 {
-    ResolutionMultiplier = multi;
+    ResolutionMultiplier = ClampResolutionMultiplier(multi, newWidth, newHeight);
     OnResize(newWidth, newHeight);
 }
 
@@ -47,6 +64,8 @@ GDescriptor* SSAA::GetDSV()
 
 void SSAA::OnResize(UINT newWidth, UINT newHeight)
 {
+    ResolutionMultiplier = ClampResolutionMultiplier(ResolutionMultiplier, newWidth, newHeight);
+
     if ((viewport.Width == ResolutionMultiplier * newWidth) && (viewport.Height == ResolutionMultiplier * newHeight))
     {
         return;
