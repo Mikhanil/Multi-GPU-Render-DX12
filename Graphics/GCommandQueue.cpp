@@ -157,7 +157,7 @@ namespace PEPEngine::Graphics
         WaitForFenceValue(Signal());
     }
 
-    std::shared_ptr<GCommandList>& GCommandQueue::GetCommandList()
+    std::shared_ptr<GCommandList> GCommandQueue::GetCommandList()
     {
         std::shared_ptr<GCommandList> commandList;
 

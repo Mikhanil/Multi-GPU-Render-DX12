@@ -29,7 +29,7 @@ namespace PEPEngine::Graphics
         GCommandQueue(const std::shared_ptr<GDevice>& device, D3D12_COMMAND_LIST_TYPE type);
         virtual ~GCommandQueue();
 
-        std::shared_ptr<GCommandList>& GetCommandList();
+        std::shared_ptr<GCommandList> GetCommandList();
         uint64_t ExecuteCommandList(const std::shared_ptr<GCommandList>& commandList);
         uint64_t ExecuteCommandLists(const std::shared_ptr<GCommandList>* commandLists, size_t size);
 
