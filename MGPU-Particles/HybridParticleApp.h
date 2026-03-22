@@ -154,7 +154,7 @@ private:
     {
         UINT ShadowMapSize = 512;
         UINT SsaaMultiplier = 1;
-        UINT SsaoDivisor = 1;
+        UINT SsaoDivisor = 4;
     };
 
     enum class StartupCalibrationStage : uint8_t
