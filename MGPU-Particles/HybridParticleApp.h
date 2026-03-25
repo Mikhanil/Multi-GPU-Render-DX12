@@ -157,6 +157,14 @@ private:
         UINT SsaoDivisor = 4;
     };
 
+    enum class RenderPathCalibrationAxis : uint8_t
+    {
+        Ssaa,
+        ShadowMap,
+        Ssao,
+        Completed
+    };
+
     enum class StartupCalibrationStage : uint8_t
     {
         TuneRenderPath,
@@ -165,6 +173,7 @@ private:
     };
 
     void ApplyRenderPathTuningPreset(const RenderPathTuningPreset& preset);
+    void ResetPerformanceSamplingWindow();
     Vector3 CalculateFluidBoundsScale(uint32_t targetParticleCount) const;
     Vector3 CalculateFluidSpawnRegionSize(uint32_t spawnedParticleCount, const Vector3& boundsScale) const;
     void RecreateFluidEmitter(uint32_t targetParticleCount);
@@ -176,6 +185,8 @@ private:
 
     RenderPathTuningPreset currentRenderPathPreset{1024, 2, 1};
     StartupCalibrationStage startupCalibrationStage = StartupCalibrationStage::TuneRenderPath;
+    RenderPathCalibrationAxis renderPathCalibrationAxis = RenderPathCalibrationAxis::Ssaa;
+    bool renderPathCalibrationLastStepWasIncrease = false;
     Vector3 fluidSimulationPosition = Vector3::Up * 5.f;
     Vector3 fluidSimulationScale = Vector3(10.f, 10.f, 10.f);
     ParticleSpawner::SpawnRegion fluidSpawnRegion{};
