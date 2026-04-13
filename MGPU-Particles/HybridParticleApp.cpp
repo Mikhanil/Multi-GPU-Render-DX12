@@ -856,7 +856,7 @@ void HybridParticleApp::CreateGO()
     sun1->AddComponent(light);
     gameObjects.push_back(std::move(sun1));
 
-    for (int i = 0; i < 11; ++i)
+    for (int i = 1; i < 11; ++i)
     {
         auto nano = std::make_unique<GameObject>();
         nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
