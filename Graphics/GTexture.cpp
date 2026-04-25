@@ -136,7 +136,7 @@ namespace PEPEngine::Graphics
         {
             auto tex = textures[i];
 
-            auto texture = tex->GetD3D12Resource().Get();
+            auto texture = tex->GetD3D12Resource();
             auto textureDesc = texture->GetDesc();
 
             for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
@@ -168,11 +168,18 @@ namespace PEPEngine::Graphics
                 cmdList->SetRootDescriptorTable(2, &mipMapsMemory, gpuOffset);
                 gpuOffset++;
 
+                // Top mip is read by CS, next mip is written as UAV.
+                cmdList->TransitionBarrier(texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, TopMip);
+                cmdList->TransitionBarrier(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, TopMip + 1);
+                cmdList->FlushResourceBarriers();
+
                 cmdList->Dispatch(std::max(dstWidth / 8, 1u), std::max(dstHeight / 8, 1u), 1);
 
-                cmdList->UAVBarrier((texture));
+                cmdList->UAVBarrier(texture, true);
             }
 
+            cmdList->TransitionBarrier(texture, D3D12_RESOURCE_STATE_COMMON);
+            cmdList->FlushResourceBarriers();
             tex->HasMipMap = true;
         }
     }

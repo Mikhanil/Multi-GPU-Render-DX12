@@ -18,7 +18,7 @@
 #include "Window.h"
 #include "Services/States/WaitState.h"
 
-HybridSSAOApp::HybridSSAOApp(const HINSTANCE hInstance) : D3DApp(hInstance), debugLogger(FileQueueWriter(std::filesystem::current_path() / "log.txt"))
+HybridSSAOApp::HybridSSAOApp(const HINSTANCE hInstance): D3DApp(hInstance), debugLogger(FileQueueWriter(std::filesystem::current_path() / "log.txt"))
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 200;
@@ -299,8 +299,8 @@ void HybridSSAOApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandLi
         PopulateDrawCommands(cmdList, (RenderMode::Transparent));
 
         cmdList->
-            SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData,
-                                              *currentFrameResource->PrimePassConstantUploadBuffer);
+           SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData,
+                                     *currentFrameResource->PrimePassConstantUploadBuffer);
         PopulateDrawCommands(cmdList, (RenderMode::Particle));
 
 
@@ -336,9 +336,9 @@ void HybridSSAOApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>
 void HybridSSAOApp::PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandList>& cmdList,
                                                 const GDescriptor* renderTextureSRVMemory, const UINT renderTextureMemoryOffset,
                                                 const GraphicPSO& pso) const
-{
+{    
     cmdList->SetPipelineState(pso);
-
+    
     cmdList->SetDescriptorsHeap(renderTextureSRVMemory);
     cmdList->SetGraphicsRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
 
@@ -375,14 +375,17 @@ void HybridSSAOApp::Draw(const GameTimer& gt)
 {
     if (isResizing) return;
 
+    const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
+
     auto primeRenderQueue = primeDevice->GetCommandQueue();
     auto primeCmdList = primeRenderQueue->GetCommandList();
+    primeCmdList->EndQuery(timestampHeapIndex);
 
     for (auto emitter : emitters)
     {
         emitter->Dispatch(primeCmdList);
     }
-
+    
     PopulateNormalMapCommands(primeCmdList);
     PopulateAmbientMapCommands(primeCmdList);
     PopulateShadowMapCommands(primeCmdList);
@@ -398,6 +401,8 @@ void HybridSSAOApp::Draw(const GameTimer& gt)
 
     primeCmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
     primeCmdList->FlushResourceBarriers();
+    primeCmdList->EndQuery(timestampHeapIndex + 1);
+    primeCmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
     currentFrameResource->PrimeRenderFenceValue = primeRenderQueue->ExecuteCommandList(primeCmdList);
 
     currentFrameResourceIndex = MainWindow->Present();
@@ -524,25 +529,22 @@ void HybridSSAOApp::InitDevices()
     primeDevice = firstDevice;
     secondDevice = otherDevice;
 
-    if (firstDevice->GetName().find(L"NVIDIA") == std::string::npos)
+    if (firstDevice->GetName().find(L"NVIDIA") == std::wstring::npos && otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
     {
-        if (otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
+        primeDevice = otherDevice;
+        secondDevice = firstDevice;
+    }
+    else
+    {
+        if (firstDevice->GetDesc().DedicatedVideoMemory > otherDevice->GetDesc().DedicatedVideoMemory)
         {
-            primeDevice = otherDevice;
-            secondDevice = firstDevice;
+            primeDevice = firstDevice;
+            secondDevice = otherDevice;
         }
         else
         {
-            if (firstDevice->GetDesc().DedicatedVideoMemory > otherDevice->GetDesc().DedicatedVideoMemory)
-            {
-                primeDevice = firstDevice;
-                secondDevice = otherDevice;
-            }
-            else
-            {
-                primeDevice = otherDevice;
-                secondDevice = firstDevice;
-            }
+            primeDevice = otherDevice;
+            secondDevice = firstDevice;
         }
     }
 
@@ -689,7 +691,7 @@ void HybridSSAOApp::InitRenderPaths()
     hbaoPass->Initialize(primeDevice, secondDevice, layoutDesc, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
     hbaoPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 1, MainWindow->GetClientWidth(),
+    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 6, MainWindow->GetClientWidth(),
                                                     MainWindow->GetClientHeight(), DXGI_FORMAT_D32_FLOAT));
     antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -1006,7 +1008,7 @@ void HybridSSAOApp::CreateGO()
     RotaterSaveMatrix = rotater->GetTransform()->GetLocalMatrix();
 
     auto camera = std::make_unique<GameObject>("MainCamera");
-    camera->GetTransform()->SetParent(rotater->GetTransform().get());
+    camera->GetTransform()->SetParent(rotater->GetTransform().get());    
     camera->GetTransform()->SetPosition(Vector3(-1000, 190, -32));
     camera->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
     camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
@@ -1494,6 +1496,7 @@ LRESULT HybridSSAOApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wPa
             keyboard.OnKeyReleased(keycode);
             return 0;
         }
+
     case WM_KEYDOWN:
         {
             auto keycode = static_cast<char>(wParam);
