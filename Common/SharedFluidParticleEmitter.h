@@ -113,6 +113,7 @@ public:
     ~FluidSimulationResources() = default;
 
     void Initialize(const std::shared_ptr<GDevice>& device, const FluidSimulationData& simData, const ParticleSpawner::SpawnData& spawnData);
+    void ResetToSpawnState();
 
     std::shared_ptr<GDevice> Device;
 
@@ -181,8 +182,9 @@ public:
     void Update(const PEPEngine::Utils::GameTimer* gt) override;
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
 
-    void Dispatch(const std::shared_ptr<GCommandList>& cmdList, FluidSimulationResources& resources, const GameTimer& gt);
-    
+    void Dispatch(const std::shared_ptr<GCommandList>& cmdList, FluidSimulationResources& resources, float deltaTime);
+    void ResetToSpawnState();
+
 protected:
     void InitializePSO();
     void InitializeDescriptors();

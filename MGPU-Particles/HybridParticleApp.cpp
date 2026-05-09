@@ -58,14 +58,22 @@ void HybridParticleApp::Update(const GameTimer& gt)
         primeDevice->ReleaseStaleDescriptors(currentFrameResource->PrimeRenderFenceValue);
     }
     
-    //if ((currentFrameResource->SecondaryComputeFenceValue != 0 && !secondaryComputeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue)))
-    //{
-    //    secondaryComputeQueue->WaitForFenceValue(currentFrameResource->SecondaryComputeFenceValue);
-    //}
-    //else
-    //{
-    //    secondDevice->ReleaseStaleDescriptors(currentFrameResource->SecondaryComputeFenceValue);
-    //}
+    if (UseCrossSync)
+    {
+        if ((currentFrameResource->SecondaryComputeFenceValue != 0 && !secondaryComputeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue)))
+        {
+            secondaryComputeQueue->WaitForFenceValue(currentFrameResource->SecondaryComputeFenceValue);
+        }
+        else
+        {
+            secondDevice->ReleaseStaleDescriptors(currentFrameResource->SecondaryComputeFenceValue);
+        }
+    }
+    else if (currentFrameResource->SecondaryComputeFenceValue == 0
+        || secondaryComputeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
+    {
+        secondDevice->ReleaseStaleDescriptors(currentFrameResource->SecondaryComputeFenceValue);
+    }
 
     mLightRotationAngle += 0.1f * gt.DeltaTime();
 
@@ -288,6 +296,8 @@ void HybridParticleApp::Draw(const GameTimer& gt)
         {
             if (UseCrossAdapter)
             {
+                secondaryDispatchAccumulatedDt += gt.DeltaTime();
+
                 if (currentFrameResource->SecondaryComputeFenceValue == 0 || computeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
                 {
                     auto& resources = fluidParticleEmitter->SecondaryResources;
@@ -296,10 +306,14 @@ void HybridParticleApp::Draw(const GameTimer& gt)
                     auto& computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
                     const auto secondCommandList = computeQueue->GetCommandList();
 
-                    fluidParticleEmitter->Dispatch(secondCommandList, resources, gt);
+                    secondCommandList->EndQuery(timestampHeapIndex);
+                    fluidParticleEmitter->Dispatch(secondCommandList, resources, secondaryDispatchAccumulatedDt);
+                    secondaryDispatchAccumulatedDt = 0.0f;
 
                     secondCommandList->CopyResource(crossResources.sharedPositions->GetSharedResource(), *resources.PositionsBuffer);
                     secondCommandList->CopyResource(crossResources.sharedVelocities->GetSharedResource(), *resources.VelocityBuffer);
+                    secondCommandList->EndQuery(timestampHeapIndex + 1);
+                    secondCommandList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
                     currentFrameResource->SecondaryComputeFenceValue = computeQueue->ExecuteCommandList(secondCommandList);
                 }
@@ -309,7 +323,8 @@ void HybridParticleApp::Draw(const GameTimer& gt)
             }
             else
             {
-                fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt);
+                secondaryDispatchAccumulatedDt = 0.0f;
+                fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt.DeltaTime());
             }
         }
     }
@@ -372,6 +387,30 @@ bool HybridParticleApp::Initialize()
     Flush();
 
     OnResize();
+    ApplyRenderPathTuningPreset(currentRenderPathPreset);
+
+    UseCrossAdapter = true;
+    UseCrossSync = true;
+    fluidCalibrationIterations = 0;
+    fluidCalibrationTargetParticleCount = std::clamp(fluidSpawnRegion.TargetParticleCount, 10'000u, 300'000u);
+    RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
+    ResetPerformanceSamplingWindow();
+
+    std::wstring fluidCalibrationLog = L"\nFluid calibration started" + std::wstring()
+                                     + L"\n\tMode: second GPU compute"
+                                     + L"\n\tTarget second GPU FPS: 60"
+                                     + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+                                     + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+                                     + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor)
+                                     + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                     + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
+                                     + L"\n\tSpawn area size: " + std::to_wstring(fluidSpawnRegion.Size.x) + L"x"
+                                     + std::to_wstring(fluidSpawnRegion.Size.y) + L"x"
+                                     + std::to_wstring(fluidSpawnRegion.Size.z)
+                                     + L"\n\tBounds scale: " + std::to_wstring(fluidSimulationScale.x) + L"x"
+                                     + std::to_wstring(fluidSimulationScale.y) + L"x"
+                                     + std::to_wstring(fluidSimulationScale.z);
+    logQueue.Push(fluidCalibrationLog);
 
     Flush();
 
@@ -921,7 +960,7 @@ void HybridParticleApp::CreateGO()
     fluidSimulationTemplateData = FluidSimulationData{};
     fluidSimulationTemplateData.viscosityStrength = 0.f;
 
-    logQueue.Push(L"\nStartup calibration: tuning render-path load for ~80 FPS before creating fluid particles.");
+    logQueue.Push(L"\nStartup calibration: fixed render preset (ShadowMap=1024, SSAA=2) and tuning fluid particles for ~60 FPS on the second GPU.");
 
     auto platform = std::make_unique<GameObject>();
     platform->SetScale(0.2);
@@ -1051,6 +1090,8 @@ void HybridParticleApp::ResetPerformanceSamplingWindow()
 {
     frameCount = 0;
     timeElapsed = timer.TotalTime();
+    secondaryGpuCalibrationTimeMicroseconds = 0.0;
+    secondaryGpuCalibrationSampleCount = 0;
 }
 
 Vector3 HybridParticleApp::CalculateFluidBoundsScale(const uint32_t targetParticleCount) const
@@ -1059,42 +1100,70 @@ Vector3 HybridParticleApp::CalculateFluidBoundsScale(const uint32_t targetPartic
     {
         uint32_t ParticleCount;
         float WidthX;
+        float DepthZ;
     };
 
     static constexpr std::array<ScalePoint, 3> kScalePoints = {
-        ScalePoint{10'000, 5.f},
-        ScalePoint{50'000, 10.f},
-        ScalePoint{100'000, 20.f}
+        ScalePoint{10'000, 5.f, 20.f},
+        ScalePoint{50'000, 10.f, 20.f},
+        ScalePoint{100'000, 20.f, 20.f}
     };
+    static constexpr float kHeightY = 10.f;
+    static constexpr float kMinWidthX = 5.f;
+    static constexpr float kMaxWidthX = 20.f;
+    static constexpr float kMinDepthZ = 20.f;
+    static constexpr float kMaxDepthZ = 20.f;
+    static constexpr Vector3 kReferenceBounds{kMinWidthX, kHeightY, kMinDepthZ};
 
-    const float clampedParticleCount = static_cast<float>(std::max(kScalePoints.front().ParticleCount, targetParticleCount));
-    const auto interpolateWidth = [](const ScalePoint& a, const ScalePoint& b, const float particleCount)
+    const uint32_t safeParticleCount = std::max(1u, targetParticleCount);
+
+    if (safeParticleCount < kScalePoints.front().ParticleCount)
     {
-        const float logA = std::log10(static_cast<float>(a.ParticleCount));
-        const float logB = std::log10(static_cast<float>(b.ParticleCount));
+        const float t = std::cbrt(static_cast<float>(safeParticleCount) /
+                                  static_cast<float>(kScalePoints.front().ParticleCount));
+        return Vector3(kReferenceBounds.x * t, kReferenceBounds.y * t, kReferenceBounds.z * t);
+    }
+
+    const float clampedParticleCount = static_cast<float>(safeParticleCount);
+    const auto interpolate = [](float aValue, uint32_t aCount, float bValue, uint32_t bCount, float particleCount)
+    {
+        const float logA = std::log10(static_cast<float>(aCount));
+        const float logB = std::log10(static_cast<float>(bCount));
         const float logValue = std::log10(particleCount);
         const float t = (logValue - logA) / (logB - logA);
-        return a.WidthX + (b.WidthX - a.WidthX) * t;
+        return aValue + (bValue - aValue) * t;
     };
 
     float widthX = kScalePoints.front().WidthX;
+    float depthZ = kScalePoints.front().DepthZ;
 
     if (clampedParticleCount <= static_cast<float>(kScalePoints[1].ParticleCount))
     {
-        widthX = interpolateWidth(kScalePoints[0], kScalePoints[1], clampedParticleCount);
+        widthX = interpolate(kScalePoints[0].WidthX, kScalePoints[0].ParticleCount,
+                             kScalePoints[1].WidthX, kScalePoints[1].ParticleCount, clampedParticleCount);
+        depthZ = interpolate(kScalePoints[0].DepthZ, kScalePoints[0].ParticleCount,
+                             kScalePoints[1].DepthZ, kScalePoints[1].ParticleCount, clampedParticleCount);
     }
     else if (clampedParticleCount <= static_cast<float>(kScalePoints[2].ParticleCount))
     {
-        widthX = interpolateWidth(kScalePoints[1], kScalePoints[2], clampedParticleCount);
+        widthX = interpolate(kScalePoints[1].WidthX, kScalePoints[1].ParticleCount,
+                             kScalePoints[2].WidthX, kScalePoints[2].ParticleCount, clampedParticleCount);
+        depthZ = interpolate(kScalePoints[1].DepthZ, kScalePoints[1].ParticleCount,
+                             kScalePoints[2].DepthZ, kScalePoints[2].ParticleCount, clampedParticleCount);
     }
     else
     {
-        const float extrapolatedWidth = interpolateWidth(kScalePoints[1], kScalePoints[2], clampedParticleCount);
+        const float extrapolatedWidth = interpolate(kScalePoints[1].WidthX, kScalePoints[1].ParticleCount,
+                                                    kScalePoints[2].WidthX, kScalePoints[2].ParticleCount, clampedParticleCount);
+        const float extrapolatedDepth = interpolate(kScalePoints[1].DepthZ, kScalePoints[1].ParticleCount,
+                                                    kScalePoints[2].DepthZ, kScalePoints[2].ParticleCount, clampedParticleCount);
         widthX = std::max(kScalePoints[2].WidthX, extrapolatedWidth);
+        depthZ = std::max(kScalePoints[2].DepthZ, extrapolatedDepth);
     }
 
-    widthX = std::clamp(widthX, 5.f, 20.f);
-    return Vector3(widthX, 10.f, 10.f);
+    widthX = std::clamp(widthX, kMinWidthX, kMaxWidthX);
+    depthZ = std::clamp(depthZ, kMinDepthZ, kMaxDepthZ);
+    return Vector3(widthX, kHeightY, depthZ);
 }
 
 Vector3 HybridParticleApp::CalculateFluidSpawnRegionSize(const uint32_t spawnedParticleCount, const Vector3& boundsScale) const
@@ -1157,273 +1226,16 @@ void HybridParticleApp::RecreateFluidEmitter(const uint32_t targetParticleCount)
 
 bool HybridParticleApp::HandleStartupCalibration(const float fps)
 {
-    static constexpr float kRenderMinFps = 75.f;
-    static constexpr float kRenderMaxFps = 85.f;
     static constexpr float kFluidMinFps = 55.f;
     static constexpr float kFluidMaxFps = 65.f;
     static constexpr float kFluidTargetFps = 60.f;
-    static constexpr uint32_t kMinParticleTarget = 10'000;
+    static constexpr uint32_t kMinParticleTarget = 1'000;
     static constexpr uint32_t kMaxParticleTarget = 300'000;
     static constexpr uint32_t kMaxFluidCalibrationIterations = 16;
-    static constexpr UINT kMinShadowMapSize = 512;
-    static constexpr UINT kMaxShadowMapSize = 16384;
-    static constexpr UINT kMinSsaaMultiplier = 1;
-    static constexpr UINT kMaxSsaaMultiplier = 16;
-    static constexpr UINT kMinSsaoDivisor = 1;
-    static constexpr UINT kMaxSsaoDivisor = 4;
 
     if (startupCalibrationStage == StartupCalibrationStage::Completed)
     {
         return false;
-    }
-
-    if (startupCalibrationStage == StartupCalibrationStage::TuneRenderPath)
-    {
-        const bool isWithinTargetWindow = fps >= kRenderMinFps && fps <= kRenderMaxFps;
-
-        const auto getNextRenderPathCalibrationAxis = [](const RenderPathCalibrationAxis axis)
-        {
-            switch (axis)
-            {
-            case RenderPathCalibrationAxis::Ssaa:
-                return RenderPathCalibrationAxis::ShadowMap;
-            case RenderPathCalibrationAxis::ShadowMap:
-                return RenderPathCalibrationAxis::Ssao;
-            case RenderPathCalibrationAxis::Ssao:
-            default:
-                return RenderPathCalibrationAxis::Completed;
-            }
-        };
-
-        const auto tryIncreaseRenderPathAxis = [&](RenderPathTuningPreset& preset, const RenderPathCalibrationAxis axis)
-        {
-            switch (axis)
-            {
-            case RenderPathCalibrationAxis::Ssaa:
-                if (preset.SsaaMultiplier < kMaxSsaaMultiplier)
-                {
-                    ++preset.SsaaMultiplier;
-                    return true;
-                }
-                break;
-            case RenderPathCalibrationAxis::ShadowMap:
-                if (preset.ShadowMapSize < kMaxShadowMapSize)
-                {
-                    preset.ShadowMapSize = std::min(kMaxShadowMapSize, preset.ShadowMapSize * 2);
-                    return true;
-                }
-                break;
-            case RenderPathCalibrationAxis::Ssao:
-                if (preset.SsaoDivisor > kMinSsaoDivisor)
-                {
-                    --preset.SsaoDivisor;
-                    return true;
-                }
-                break;
-            case RenderPathCalibrationAxis::Completed:
-                break;
-            }
-
-            return false;
-        };
-
-        const auto tryDecreaseRenderPathAxis = [&](RenderPathTuningPreset& preset, const RenderPathCalibrationAxis axis)
-        {
-            switch (axis)
-            {
-            case RenderPathCalibrationAxis::Ssaa:
-                if (preset.SsaaMultiplier > kMinSsaaMultiplier)
-                {
-                    --preset.SsaaMultiplier;
-                    return true;
-                }
-                break;
-            case RenderPathCalibrationAxis::ShadowMap:
-                if (preset.ShadowMapSize > kMinShadowMapSize)
-                {
-                    preset.ShadowMapSize = std::max(kMinShadowMapSize, preset.ShadowMapSize / 2);
-                    return true;
-                }
-                break;
-            case RenderPathCalibrationAxis::Ssao:
-                if (preset.SsaoDivisor < kMaxSsaoDivisor)
-                {
-                    ++preset.SsaoDivisor;
-                    return true;
-                }
-                break;
-            case RenderPathCalibrationAxis::Completed:
-                break;
-            }
-
-            return false;
-        };
-
-        const auto applyRenderPathCalibrationPreset = [&](const RenderPathTuningPreset& preset,
-                                                          const RenderPathCalibrationAxis nextAxis,
-                                                          const bool lastStepWasIncrease)
-        {
-            Flush();
-            ApplyRenderPathTuningPreset(preset);
-            renderPathCalibrationAxis = nextAxis;
-            renderPathCalibrationLastStepWasIncrease = lastStepWasIncrease;
-            ResetPerformanceSamplingWindow();
-        };
-
-        const auto finishRenderPathCalibration = [&]()
-        {
-            renderPathCalibrationAxis = RenderPathCalibrationAxis::Completed;
-            renderPathCalibrationLastStepWasIncrease = false;
-
-            std::wstring selectedRenderCalibrationLog = L"\nRender calibration selected settings" + std::wstring()
-                                                      + L"\n\tNo-fluid FPS: " + std::to_wstring(fps)
-                                                      + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
-                                                      + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
-                                                      + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor);
-            logQueue.Push(selectedRenderCalibrationLog);
-
-            if (!isWithinTargetWindow)
-            {
-                logQueue.Push(L"\nRender calibration warning: unable to land inside the 75-85 FPS window with the available render path settings.");
-            }
-
-            startupCalibrationStage = StartupCalibrationStage::TuneFluidParticles;
-            fluidCalibrationIterations = 0;
-            fluidCalibrationTargetParticleCount = std::clamp(fluidSpawnRegion.TargetParticleCount,
-                kMinParticleTarget,
-                kMaxParticleTarget);
-
-            Flush();
-            RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
-            ResetPerformanceSamplingWindow();
-            std::wstring fluidCalibrationLog = L"\nFluid calibration started" + std::wstring()
-                                             + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
-                                             + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
-                                             + L"\n\tSpawn area size: " + std::to_wstring(fluidSpawnRegion.Size.x) + L"x"
-                                             + std::to_wstring(fluidSpawnRegion.Size.y) + L"x"
-                                             + std::to_wstring(fluidSpawnRegion.Size.z)
-                                             + L"\n\tBounds scale: " + std::to_wstring(fluidSimulationScale.x) + L"x"
-                                             + std::to_wstring(fluidSimulationScale.y) + L"x"
-                                             + std::to_wstring(fluidSimulationScale.z);
-            logQueue.Push(fluidCalibrationLog);
-        };
-
-        const auto tryAdjustRenderPathHeavier = [&]()
-        {
-            RenderPathCalibrationAxis axis = renderPathCalibrationAxis;
-            while (axis != RenderPathCalibrationAxis::Completed)
-            {
-                RenderPathTuningPreset nextPreset = currentRenderPathPreset;
-                if (tryIncreaseRenderPathAxis(nextPreset, axis))
-                {
-                    applyRenderPathCalibrationPreset(nextPreset, axis, true);
-                    return true;
-                }
-
-                axis = getNextRenderPathCalibrationAxis(axis);
-            }
-
-            return false;
-        };
-
-        const auto tryAdjustRenderPathLighter = [&]()
-        {
-            static constexpr std::array<RenderPathCalibrationAxis, 3> kLighterAxes = {
-                RenderPathCalibrationAxis::Ssaa,
-                RenderPathCalibrationAxis::ShadowMap,
-                RenderPathCalibrationAxis::Ssao
-            };
-
-            for (const RenderPathCalibrationAxis axis : kLighterAxes)
-            {
-                RenderPathTuningPreset nextPreset = currentRenderPathPreset;
-                if (!tryDecreaseRenderPathAxis(nextPreset, axis))
-                {
-                    continue;
-                }
-
-                applyRenderPathCalibrationPreset(nextPreset, getNextRenderPathCalibrationAxis(axis), false);
-                return true;
-            }
-
-            return false;
-        };
-
-        const auto tryBacktrackRenderPath = [&]()
-        {
-            if (!renderPathCalibrationLastStepWasIncrease || renderPathCalibrationAxis == RenderPathCalibrationAxis::Completed)
-            {
-                return false;
-            }
-
-            const RenderPathCalibrationAxis nextAxis = getNextRenderPathCalibrationAxis(renderPathCalibrationAxis);
-            RenderPathTuningPreset revertedPreset = currentRenderPathPreset;
-            if (!tryDecreaseRenderPathAxis(revertedPreset, renderPathCalibrationAxis))
-            {
-                return false;
-            }
-
-            RenderPathCalibrationAxis axis = nextAxis;
-            while (axis != RenderPathCalibrationAxis::Completed)
-            {
-                RenderPathTuningPreset branchedPreset = revertedPreset;
-                if (tryIncreaseRenderPathAxis(branchedPreset, axis))
-                {
-                    applyRenderPathCalibrationPreset(branchedPreset, axis, true);
-                    return true;
-                }
-
-                axis = getNextRenderPathCalibrationAxis(axis);
-            }
-
-            applyRenderPathCalibrationPreset(revertedPreset, nextAxis, false);
-            return true;
-        };
-
-        if (fps > kRenderMaxFps)
-        {
-            const bool adjusted = tryAdjustRenderPathHeavier();
-
-            std::wstring renderCalibrationLog = L"\nRender calibration step: FPS=" + std::to_wstring(fps)
-                                              + (adjusted ? L", trying heavier render path settings" : L", reached heaviest render path settings")
-                                              + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
-                                              + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
-                                              + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor);
-            logQueue.Push(renderCalibrationLog);
-
-            if (!adjusted)
-            {
-                finishRenderPathCalibration();
-            }
-
-            return true;
-        }
-
-        if (fps < kRenderMinFps)
-        {
-            const bool isBacktracking = renderPathCalibrationLastStepWasIncrease;
-            const bool adjusted = isBacktracking ? tryBacktrackRenderPath() : tryAdjustRenderPathLighter();
-
-            std::wstring renderCalibrationLog = L"\nRender calibration step: FPS=" + std::to_wstring(fps)
-                                              + (adjusted
-                                                     ? (isBacktracking ? L", backing off and trying the next heavier render path settings"
-                                                                       : L", trying lighter render path settings")
-                                                     : L", reached lightest render path settings")
-                                              + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
-                                              + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
-                                              + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor);
-            logQueue.Push(renderCalibrationLog);
-
-            if (!adjusted)
-            {
-                finishRenderPathCalibration();
-            }
-
-            return true;
-        }
-
-        finishRenderPathCalibration();
-        return true;
     }
 
     if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles)
@@ -1433,7 +1245,7 @@ bool HybridParticleApp::HandleStartupCalibration(const float fps)
         auto finishFluidCalibration = [&](const bool reachedParticleLimit)
         {
             std::wstring selectedFluidCalibration = L"\nFluid calibration selected count" + std::wstring()
-                                                  + L"\n\tFPS: " + std::to_wstring(fps)
+                                                  + L"\n\tSecond GPU FPS: " + std::to_wstring(fps)
                                                   + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
                                                   + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
                                                   + L"\n\tSpawn area size: " + std::to_wstring(fluidSpawnRegion.Size.x) + L"x"
@@ -1446,16 +1258,23 @@ bool HybridParticleApp::HandleStartupCalibration(const float fps)
 
             if (reachedParticleLimit && !isCalibrated)
             {
-                logQueue.Push(L"\nFluid calibration warning: reached the configured particle-count limit before landing inside the 55-65 FPS window.");
+                logQueue.Push(L"\nFluid calibration warning: reached the configured particle-count limit before landing inside the 55-65 FPS window on the second GPU.");
             }
 
-            startupCalibrationStage = StartupCalibrationStage::Completed;
+            Flush();
+            UseCrossSync = false;
+            UseCrossAdapter = false;
+            startupCalibrationStage = StartupCalibrationStage::TuneMainGpuRenderPath;
+            renderPathCalibrationAxis = RenderPathCalibrationAxis::ShadowMap;
+            renderPathCalibrationLastStepWasIncrease = false;
+            ResetPerformanceSamplingWindow();
+            logQueue.Push(L"\nFluid calibration done: disabling second-GPU sync and starting main-GPU render-path tuning (target 60-80 FPS).");
         };
 
         if (isCalibrated || reachedMaxIteration)
         {
             finishFluidCalibration(false);
-            return false;
+            return true;
         }
 
         double scaledTarget = static_cast<double>(fluidCalibrationTargetParticleCount) * (static_cast<double>(fps) / static_cast<double>(kFluidTargetFps));
@@ -1471,7 +1290,7 @@ bool HybridParticleApp::HandleStartupCalibration(const float fps)
                 if (fluidCalibrationTargetParticleCount >= kMaxParticleTarget)
                 {
                     finishFluidCalibration(true);
-                    return false;
+                    return true;
                 }
 
                 const uint64_t bumpedTargetParticleCount = static_cast<uint64_t>(fluidCalibrationTargetParticleCount) + 64ull;
@@ -1482,7 +1301,7 @@ bool HybridParticleApp::HandleStartupCalibration(const float fps)
                 if (fluidCalibrationTargetParticleCount <= kMinParticleTarget)
                 {
                     finishFluidCalibration(true);
-                    return false;
+                    return true;
                 }
 
                 nextTargetParticleCount = std::max(kMinParticleTarget, fluidCalibrationTargetParticleCount - 64);
@@ -1495,7 +1314,7 @@ bool HybridParticleApp::HandleStartupCalibration(const float fps)
         Flush();
         RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
         ResetPerformanceSamplingWindow();
-        std::wstring fluidCalibrationStepLog = L"\nFluid calibration step: FPS=" + std::to_wstring(fps)
+        std::wstring fluidCalibrationStepLog = L"\nFluid calibration step: Second GPU FPS=" + std::to_wstring(fps)
                                              + L", iteration=" + std::to_wstring(fluidCalibrationIterations)
                                              + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
                                              + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
@@ -1507,6 +1326,169 @@ bool HybridParticleApp::HandleStartupCalibration(const float fps)
                                              + std::to_wstring(fluidSimulationScale.z);
         logQueue.Push(fluidCalibrationStepLog);
 
+        return true;
+    }
+
+    if (startupCalibrationStage == StartupCalibrationStage::TuneMainGpuRenderPath)
+    {
+        static constexpr float kMainMinFps = 60.f;
+        static constexpr float kMainMaxFps = 80.f;
+        static constexpr UINT kMaxShadowMapSize = 4096;
+        static constexpr UINT kMinShadowMapSize = 256;
+        static constexpr UINT kMaxSsaaMultiplier = 4;
+        static constexpr UINT kMinSsaaMultiplier = 1;
+        static constexpr UINT kMaxSsaoDivisor = 4;
+        static constexpr UINT kMinSsaoDivisor = 1;
+
+        const auto nextAxis = [](RenderPathCalibrationAxis axis)
+        {
+            switch (axis)
+            {
+            case RenderPathCalibrationAxis::ShadowMap: return RenderPathCalibrationAxis::Ssaa;
+            case RenderPathCalibrationAxis::Ssaa:      return RenderPathCalibrationAxis::Ssao;
+            case RenderPathCalibrationAxis::Ssao:
+            default:                                   return RenderPathCalibrationAxis::Completed;
+            }
+        };
+
+        const auto tryIncreaseAxis = [&](RenderPathTuningPreset& preset, RenderPathCalibrationAxis axis)
+        {
+            switch (axis)
+            {
+            case RenderPathCalibrationAxis::ShadowMap:
+                if (preset.ShadowMapSize < kMaxShadowMapSize)
+                {
+                    preset.ShadowMapSize = std::min(kMaxShadowMapSize, preset.ShadowMapSize * 2);
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssaa:
+                if (preset.SsaaMultiplier < kMaxSsaaMultiplier)
+                {
+                    ++preset.SsaaMultiplier;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssao:
+                if (preset.SsaoDivisor > kMinSsaoDivisor)
+                {
+                    --preset.SsaoDivisor;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Completed:
+                break;
+            }
+            return false;
+        };
+
+        const auto tryDecreaseAxis = [&](RenderPathTuningPreset& preset, RenderPathCalibrationAxis axis)
+        {
+            switch (axis)
+            {
+            case RenderPathCalibrationAxis::ShadowMap:
+                if (preset.ShadowMapSize > kMinShadowMapSize)
+                {
+                    preset.ShadowMapSize = std::max(kMinShadowMapSize, preset.ShadowMapSize / 2);
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssaa:
+                if (preset.SsaaMultiplier > kMinSsaaMultiplier)
+                {
+                    --preset.SsaaMultiplier;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssao:
+                if (preset.SsaoDivisor < kMaxSsaoDivisor)
+                {
+                    ++preset.SsaoDivisor;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Completed:
+                break;
+            }
+            return false;
+        };
+
+        const auto applyPreset = [&](const RenderPathTuningPreset& preset,
+                                     RenderPathCalibrationAxis nextAxisValue,
+                                     bool wasIncrease)
+        {
+            Flush();
+            ApplyRenderPathTuningPreset(preset);
+            renderPathCalibrationAxis = nextAxisValue;
+            renderPathCalibrationLastStepWasIncrease = wasIncrease;
+            ResetPerformanceSamplingWindow();
+        };
+
+        const auto finishMainGpuCalibration = [&](const wchar_t* reason)
+        {
+            std::wstring selectedLog = L"\nMain-GPU render calibration complete" + std::wstring()
+                                     + L"\n\tFPS: " + std::to_wstring(fps)
+                                     + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+                                     + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+                                     + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor)
+                                     + L"\n\tReason: " + reason;
+            logQueue.Push(selectedLog);
+            Flush();
+            if (fluidParticleEmitter)
+            {
+                fluidParticleEmitter->ResetToSpawnState();
+            }
+            startupCalibrationStage = StartupCalibrationStage::Completed;
+            ResetPerformanceSamplingWindow();
+        };
+
+        const bool isWithinTargetWindow = fps >= kMainMinFps && fps <= kMainMaxFps;
+        if (isWithinTargetWindow)
+        {
+            finishMainGpuCalibration(L"FPS landed inside the 60-80 window");
+            return true;
+        }
+
+        if (fps > kMainMaxFps)
+        {
+            RenderPathCalibrationAxis axis = renderPathCalibrationAxis;
+            while (axis != RenderPathCalibrationAxis::Completed)
+            {
+                RenderPathTuningPreset nextPreset = currentRenderPathPreset;
+                if (tryIncreaseAxis(nextPreset, axis))
+                {
+                    applyPreset(nextPreset, axis, true);
+                    std::wstring stepLog = L"\nMain-GPU render calibration step: FPS=" + std::to_wstring(fps)
+                                         + L", increasing render load"
+                                         + L"\n\tShadowMap: " + std::to_wstring(nextPreset.ShadowMapSize)
+                                         + L"\n\tSSAA: " + std::to_wstring(nextPreset.SsaaMultiplier)
+                                         + L"\n\tSSAO divisor: " + std::to_wstring(nextPreset.SsaoDivisor);
+                    logQueue.Push(stepLog);
+                    return true;
+                }
+                axis = nextAxis(axis);
+            }
+            finishMainGpuCalibration(L"Reached heaviest render-path settings, FPS still above the target window");
+            return true;
+        }
+
+        if (renderPathCalibrationLastStepWasIncrease)
+        {
+            RenderPathTuningPreset revertedPreset = currentRenderPathPreset;
+            if (tryDecreaseAxis(revertedPreset, renderPathCalibrationAxis))
+            {
+                applyPreset(revertedPreset, nextAxis(renderPathCalibrationAxis), false);
+                std::wstring stepLog = L"\nMain-GPU render calibration step: FPS=" + std::to_wstring(fps)
+                                     + L", undoing last increase and skipping to next axis"
+                                     + L"\n\tShadowMap: " + std::to_wstring(revertedPreset.ShadowMapSize)
+                                     + L"\n\tSSAA: " + std::to_wstring(revertedPreset.SsaaMultiplier)
+                                     + L"\n\tSSAO divisor: " + std::to_wstring(revertedPreset.SsaoDivisor);
+                logQueue.Push(stepLog);
+                return true;
+            }
+        }
+
+        finishMainGpuCalibration(L"FPS below target window, no further lighter steps available");
         return true;
     }
 
@@ -1530,6 +1512,12 @@ void HybridParticleApp::CalculateFrameStats()
 
     frameCount++;
 
+    if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles && secondGPUComputingTime > 0)
+    {
+        secondaryGpuCalibrationTimeMicroseconds += static_cast<double>(secondGPUComputingTime);
+        ++secondaryGpuCalibrationSampleCount;
+    }
+
     const float sampleSeconds = startupCalibrationStage == StartupCalibrationStage::Completed
         ? 1.0f
         : CalibrationSampleSeconds;
@@ -1537,7 +1525,18 @@ void HybridParticleApp::CalculateFrameStats()
 
     if (elapsedSeconds >= sampleSeconds)
     {
-        const float fps = static_cast<float>(frameCount) / elapsedSeconds;
+        float fps = static_cast<float>(frameCount) / elapsedSeconds;
+        if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles && secondaryGpuCalibrationSampleCount > 0)
+        {
+            const double averageSecondGpuFrameTimeMicroseconds =
+                secondaryGpuCalibrationTimeMicroseconds / static_cast<double>(secondaryGpuCalibrationSampleCount);
+
+            if (averageSecondGpuFrameTimeMicroseconds > 0.0)
+            {
+                fps = static_cast<float>(1'000'000.0 / averageSecondGpuFrameTimeMicroseconds);
+            }
+        }
+
         const float mspf = 1000.0f / fps;
         const std::wstring presetTitle =
             L" Preset: Shadow Map Size = " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
@@ -1547,10 +1546,25 @@ void HybridParticleApp::CalculateFrameStats()
 
         ResetPerformanceSamplingWindow();
 
+        const StartupCalibrationStage stageBefore = startupCalibrationStage;
         if (HandleStartupCalibration(fps))
         {
-            const std::wstring calibrationTitle = L"Calibrating... FPS " + std::to_wstring(fps) + presetTitle;
-            MainWindow->SetWindowTitle(calibrationTitle);
+            if (startupCalibrationStage == StartupCalibrationStage::Completed)
+            {
+                MainWindow->SetWindowTitle(L"Calibration complete." + presetTitle);
+            }
+            else if (startupCalibrationStage == StartupCalibrationStage::TuneMainGpuRenderPath)
+            {
+                const std::wstring calibrationTitle = (stageBefore == StartupCalibrationStage::TuneFluidParticles
+                    ? L"Calibrating main GPU... starting from FPS "
+                    : L"Calibrating main GPU... FPS ") + std::to_wstring(fps) + presetTitle;
+                MainWindow->SetWindowTitle(calibrationTitle);
+            }
+            else
+            {
+                const std::wstring calibrationTitle = L"Calibrating second GPU... FPS " + std::to_wstring(fps) + presetTitle;
+                MainWindow->SetWindowTitle(calibrationTitle);
+            }
             return;
         }
 

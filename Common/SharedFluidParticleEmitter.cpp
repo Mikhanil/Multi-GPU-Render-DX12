@@ -178,6 +178,31 @@ void FluidSimulationResources::InitializeBuffers(const FluidSimulationData& simD
     }
 }
 
+void FluidSimulationResources::ResetToSpawnState()
+{
+    if (!PositionsBuffer || !VelocityBuffer || !PredictedPositionsBuffer)
+        return;
+    if (SpawnData.Points.empty())
+        return;
+
+    SimData.simTime = 0.0f;
+
+    auto queue = Device->GetCommandQueue();
+    auto cmdList = queue->GetCommandList();
+
+    PositionsBuffer->LoadData(SpawnData.Points.data(), cmdList);
+    PredictedPositionsBuffer->LoadData(SpawnData.Points.data(), cmdList);
+    VelocityBuffer->LoadData(SpawnData.Velocities.data(), cmdList);
+
+    cmdList->TransitionBarrier(PositionsBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+    cmdList->TransitionBarrier(VelocityBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+    cmdList->TransitionBarrier(PredictedPositionsBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+    cmdList->FlushResourceBarriers();
+
+    queue->ExecuteCommandList(cmdList);
+    queue->Flush();
+}
+
 void FluidSimulationResources::InitializeDescriptors()
 {
     {
@@ -331,12 +356,11 @@ void SharedFluidParticleEmitter::Update(const PEPEngine::Utils::GameTimer* gt)
     m_drawData.size = 0.1f;
 }
 
-void SharedFluidParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList, FluidSimulationResources& resources, const GameTimer& gt)
+void SharedFluidParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList, FluidSimulationResources& resources, float deltaTime)
 {
-    float deltaTime = gt.DeltaTime();
     float maxDeltaTime = MaxTimeStepFps > 0 ? 1 / MaxTimeStepFps : FLT_MAX;
     float dt = std::min(deltaTime, maxDeltaTime);
-    float subStepDeltaTime = deltaTime / IterationsPerFrame;
+    float subStepDeltaTime = dt / IterationsPerFrame;
     UpdateSettings(resources, subStepDeltaTime, dt);
 
     for (int i = 0; i < IterationsPerFrame; i++)
@@ -344,6 +368,12 @@ void SharedFluidParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& c
         resources.SimData.simTime += subStepDeltaTime;
         RunSimulationStep(cmdList, resources);
     }
+}
+
+void SharedFluidParticleEmitter::ResetToSpawnState()
+{
+    PrimaryResources.ResetToSpawnState();
+    SecondaryResources.ResetToSpawnState();
 }
 
 void SharedFluidParticleEmitter::InitializePSO()

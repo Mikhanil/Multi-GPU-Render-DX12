@@ -157,18 +157,18 @@ private:
         UINT SsaoDivisor = 4;
     };
 
-    enum class RenderPathCalibrationAxis : uint8_t
+    enum class StartupCalibrationStage : uint8_t
     {
-        Ssaa,
-        ShadowMap,
-        Ssao,
+        TuneFluidParticles,
+        TuneMainGpuRenderPath,
         Completed
     };
 
-    enum class StartupCalibrationStage : uint8_t
+    enum class RenderPathCalibrationAxis : uint8_t
     {
-        TuneRenderPath,
-        TuneFluidParticles,
+        ShadowMap,
+        Ssaa,
+        Ssao,
         Completed
     };
 
@@ -184,9 +184,7 @@ private:
     std::shared_ptr<GameObject> fluidSimulationObject;
 
     RenderPathTuningPreset currentRenderPathPreset{1024, 2, 1};
-    StartupCalibrationStage startupCalibrationStage = StartupCalibrationStage::TuneRenderPath;
-    RenderPathCalibrationAxis renderPathCalibrationAxis = RenderPathCalibrationAxis::Ssaa;
-    bool renderPathCalibrationLastStepWasIncrease = false;
+    StartupCalibrationStage startupCalibrationStage = StartupCalibrationStage::TuneFluidParticles;
     Vector3 fluidSimulationPosition = Vector3::Up * 5.f;
     Vector3 fluidSimulationScale = Vector3(10.f, 10.f, 10.f);
     ParticleSpawner::SpawnRegion fluidSpawnRegion{};
@@ -194,4 +192,9 @@ private:
     uint32_t fluidCalibrationTargetParticleCount = 50000;
     uint32_t fluidCalibrationActualParticleCount = 0;
     uint32_t fluidCalibrationIterations = 0;
+    double secondaryGpuCalibrationTimeMicroseconds = 0.0;
+    uint32_t secondaryGpuCalibrationSampleCount = 0;
+    RenderPathCalibrationAxis renderPathCalibrationAxis = RenderPathCalibrationAxis::ShadowMap;
+    bool renderPathCalibrationLastStepWasIncrease = false;
+    float secondaryDispatchAccumulatedDt = 0.0f;
 };
