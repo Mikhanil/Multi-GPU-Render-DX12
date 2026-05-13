@@ -123,6 +123,9 @@ protected:
     std::shared_ptr<SharedHBAO> hbaoPass;
 
     // MB
+    UINT multi = 1;
+    bool isUsingWeightedTests = true;
+
     std::shared_ptr<SharedMB> mbPass;
 
     std::shared_ptr<SSAA> antiAliasingPrimePath;

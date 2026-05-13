@@ -190,11 +190,12 @@ void HybridMBlurApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandLis
 
 void HybridMBlurApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList) const
 {
-    if (IsUseHBAO)
+    /*if (IsUseHBAO)
         hbaoPass->Compute(cmdList, currentFrameResource->PrimeHBAOConstantUploadBuffer, hbaoPass->GetPrimeResources());
     else
         ssaoPass->ComputeSsao(cmdList, currentFrameResource->PrimeSsaoConstantUploadBuffer, ssaoPass->GetPrimeResources(), 3);
-
+    */
+    
     // mb textures
 
     cmdList->CopyResource(mbPass->GetPrimeResources().GetDepthMap(), ssaoPass->GetPrimeResources().GetDepthMap());
@@ -230,6 +231,11 @@ void HybridMBlurApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandLi
         mbPass->ComputeMbTextures(cmdList, currentFrameResource->PrimeMbConstantUploadBuffer, mbPass->GetPrimeResources());//, ssaoPass);
         //mbPass->ComputeMbTextures(cmdList, currentFrameResource->PrimeMbConstantUploadBuffer, mbPass->GetSecondResources(), ssaoPass);
     }
+
+    if (IsUseHBAO)
+        hbaoPass->Compute(cmdList, currentFrameResource->PrimeHBAOConstantUploadBuffer, hbaoPass->GetPrimeResources());
+    else
+        ssaoPass->ComputeSsao(cmdList, currentFrameResource->PrimeSsaoConstantUploadBuffer, ssaoPass->GetPrimeResources(), 3);
 }
 
 /*void HybridMBlurApp::PopulateMbTexturesCommands(const std::shared_ptr<GCommandList>& cmdList) const {
@@ -482,46 +488,125 @@ bool HybridMBlurApp::Initialize()
 
     int TestTime = 10;
 #if !defined(DEBUG) && !defined(_DEBUG)
-    TestTime = 120;
+    TestTime = 32; // 4;// 120;
 #endif
 
-    auto& NativeMBState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native MB ", *primeDevice, *secondDevice)));
-    NativeMBState.OnEnter = [](FileQueueWriter& logs)
-        {
-            logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
-        };
+    if (isUsingWeightedTests) {
+        int maxWeight = 6;
 
-    NativeMBState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
-        {
-            Benchmark::PrintStatsCSV(ts, logs);
-            MainWindow->SetWindowTitle(L"Native MB Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
-        };
+        //auto fileQueu_Native = FileQueueWriter(Benchmark::GetLogFile(L"Native MB", *primeDevice, *secondDevice));
+        for (int i = 1; i <= maxWeight; ++i) {
+            // разный файл для каждого теста
+            auto& NativeMBState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native MB SSAA X" + std::to_wstring(i) + L" ", *primeDevice, *secondDevice)));
+            
+            // один файл на все тесты
+            //auto& NativeMBState = benchmark.AddState<WaitState>(TestTime, fileQueu_Native);
+            NativeMBState.OnEnter = [this, i](FileQueueWriter& logs)
+                {
+                    ResetCamera();
 
-    NativeMBState.OnExit = [this](FileQueueWriter& logs)
-        {
-            logs.WriteAllLog();
-            Flush();
-        };
+                    //logs.PushMessage(L"Native MB SSAA X" + std::to_wstring(i));
+                    logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
 
-    auto& HybridMBState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid MB ", *primeDevice, *secondDevice)));
-    HybridMBState.OnEnter = [this](FileQueueWriter& logs)
-        {
-            ResetCamera();
-            SwitchDevice();
-            logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
-        };
-    HybridMBState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
-        {
-            Benchmark::PrintStatsCSV(ts, logs);
-            MainWindow->SetWindowTitle(L"Hybrid MB Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
-        };
-    HybridMBState.OnExit = [this](FileQueueWriter& logs)
-        {
-            logs.WriteAllLog();
-            Flush();
-            SwitchDevice();
-            IsStop = true;
-        };
+                    antiAliasingPrimePath->SetMultiplier(
+                        i,
+                        MainWindow->GetClientWidth(),
+                        MainWindow->GetClientHeight());
+                };
+
+            NativeMBState.OnStatChanged = [this, i](FileQueueWriter& logs, const TimeStats& ts, float progress)
+                {
+                    Benchmark::PrintStatsCSV(ts, logs);
+                    MainWindow->SetWindowTitle(L"Native MB Progress SSAA X" + std::to_wstring(i) + std::format(L" {:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+                };
+
+            NativeMBState.OnExit = [this, i, maxWeight](FileQueueWriter& logs)
+                {
+                    //if (i == maxWeight) {
+                        logs.WriteAllLog();
+                    //}
+                    //else {
+                    //    logs.PushMessage(L"");
+                    //}
+
+                    Flush();
+                };
+        }
+
+        //maxWeight = 1;
+        for (int i = 1; i <= maxWeight; ++i) {
+            auto& HybridMBState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid MB SSAA X" + std::to_wstring(i) + L" ", *primeDevice, *secondDevice)));
+            HybridMBState.OnEnter = [this, i](FileQueueWriter& logs)
+                {
+                    ResetCamera();
+
+                    if (i == 1) {
+                        SwitchDevice();
+                    }
+
+                    logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
+                    antiAliasingPrimePath->SetMultiplier(
+                        i,
+                        MainWindow->GetClientWidth(),
+                        MainWindow->GetClientHeight());
+                };
+            HybridMBState.OnStatChanged = [this, i](FileQueueWriter& logs, const TimeStats& ts, float progress)
+                {
+                    Benchmark::PrintStatsCSV(ts, logs);
+                    MainWindow->SetWindowTitle(L"Hybrid MB Progress SSAA X" + std::to_wstring(i) + std::format(L" {:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+                };
+            HybridMBState.OnExit = [this, i, maxWeight](FileQueueWriter& logs)
+                {
+                    logs.WriteAllLog();
+                    Flush();
+
+                    if (i == maxWeight) {
+                        SwitchDevice();
+                        IsStop = true;
+                    }
+                };
+        }
+    }
+
+    else {
+        auto& NativeMBState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Native MB ", *primeDevice, *secondDevice)));
+        NativeMBState.OnEnter = [](FileQueueWriter& logs)
+            {
+                logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
+            };
+
+        NativeMBState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
+            {
+                Benchmark::PrintStatsCSV(ts, logs);
+                MainWindow->SetWindowTitle(L"Native MB Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+            };
+
+        NativeMBState.OnExit = [this](FileQueueWriter& logs)
+            {
+                logs.WriteAllLog();
+                Flush();
+            };
+
+        auto& HybridMBState = benchmark.AddState<WaitState>(TestTime, FileQueueWriter(Benchmark::GetLogFile(L"Hybrid MB ", *primeDevice, *secondDevice)));
+        HybridMBState.OnEnter = [this](FileQueueWriter& logs)
+            {
+                ResetCamera();
+                SwitchDevice();
+                logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
+            };
+        HybridMBState.OnStatChanged = [this](FileQueueWriter& logs, const TimeStats& ts, float progress)
+            {
+                Benchmark::PrintStatsCSV(ts, logs);
+                MainWindow->SetWindowTitle(L"Hybrid MB Progress " + std::format(L"{:.2f}", progress * 100) + L"% FPS:" + std::to_wstring(ts.fps));
+            };
+        HybridMBState.OnExit = [this](FileQueueWriter& logs)
+            {
+                logs.WriteAllLog();
+                Flush();
+                SwitchDevice();
+                IsStop = true;
+            };
+    }
 
 //#if !defined(DEBUG) && !defined(_DEBUG)
     benchmark.Start();
@@ -718,7 +803,7 @@ void HybridMBlurApp::InitRenderPaths()
     
     mbPass->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
     
-    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, 1, MainWindow->GetClientWidth(),
+    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, multi, MainWindow->GetClientWidth(),
                                                     MainWindow->GetClientHeight(), DXGI_FORMAT_D32_FLOAT));
     antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
