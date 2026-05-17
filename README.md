@@ -1,32 +1,10 @@
-# DX12
+# Multi-GPU Fluid Simulation with DX12
 
-This project is my master's thesis. Developed in collaboration with ITMO (https://itmo.ru/ru/) and Sperasoft (https://sperasoft.ru/) https://docs.google.com/presentation/d/16dh4ahcwjb1cMhcog0ikniztRQmwZcg1qDvM6XA27mo/edit#slide=id.p1
+This project is my master's thesis. Developed in collaboration with ITMO (https://itmo.ru/ru/) 
 
-This project was taken as the basis for the graphics engine developed in the team. https://github.com/Pepengineers
+[Link to the presentation (in Russian)](https://docs.google.com/presentation/d/1ydApfPmoIppa6hLUhhrBq8Sa94Cm07EH/edit?usp=drive_link&ouid=111622755621790858388&rtpof=true&sd=true)
 
-Several interaction algorithms have been implemented:
-
-## Shared Shadow Map
-![SSM](Readme/SharedShadowMap.png)
-# Result
-![SSMResult](Readme/SharedShadowMapResult.png)
-
-## Shared User Interface Blending
-![SUIB](Readme/SharedUserInterface.png)
-# Result
-![SUIBResult](Readme/SharedUserInterfaceResult.png)
-
-## Shared Particle System
-![SPS](Readme/SharedParticleSystem.png)
-
-
-## Shared Hybrid Compute
-![SHC](Readme/SharedHybridCompute.png)
-# Result with full shared
-![SHCResult](Readme/SharedHybridComputeFullSharedResult.png)
-# Result with scaled resource
-![SHCResult1](Readme/SharedHybridComputeScaledResResult.png)
-
+A fluid simulation algorithm has been implemented.
 
 For the project you need:
  1. Windows SDK 19041 version
