@@ -316,10 +316,11 @@ void HybridParticleApp::Draw(const GameTimer& gt)
                     secondCommandList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
                     currentFrameResource->SecondaryComputeFenceValue = computeQueue->ExecuteCommandList(secondCommandList);
-                }
 
-                primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
-                primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
+                    // Only copy from shared buffer after the secondary GPU has finished writing
+                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
+                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
+                }
             }
             else
             {
@@ -1226,11 +1227,11 @@ void HybridParticleApp::RecreateFluidEmitter(const uint32_t targetParticleCount)
 
 bool HybridParticleApp::HandleStartupCalibration(const float fps)
 {
-    static constexpr float kFluidMinFps = 55.f;
-    static constexpr float kFluidMaxFps = 65.f;
-    static constexpr float kFluidTargetFps = 60.f;
+    static constexpr float kFluidMinFps = 45.f;
+    static constexpr float kFluidMaxFps = 55.f;
+    static constexpr float kFluidTargetFps = 50.f;
     static constexpr uint32_t kMinParticleTarget = 1'000;
-    static constexpr uint32_t kMaxParticleTarget = 300'000;
+    static constexpr uint32_t kMaxParticleTarget = 500'000;
     static constexpr uint32_t kMaxFluidCalibrationIterations = 16;
 
     if (startupCalibrationStage == StartupCalibrationStage::Completed)
