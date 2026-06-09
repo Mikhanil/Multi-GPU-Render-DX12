@@ -5,6 +5,9 @@
 #include "GDevice.h"
 #include "GCommandQueue.h"
 
+#include <cwchar>
+
+
 namespace PEPEngine::Graphics
 {
     ComPtr<IDXGIFactory4> GDeviceFactory::dxgiFactory = CreateFactory();
@@ -68,10 +71,41 @@ namespace PEPEngine::Graphics
     std::vector<std::shared_ptr<GDevice>> GDeviceFactory::CreateDevices()
     {
         std::vector<std::shared_ptr<GDevice>> devices;
+        std::vector<DXGI_ADAPTER_DESC2> uniqueAdapterDescriptions;
 
-        for (UINT i = 0; i < adapters.size(); ++i)
+        auto IsSamePhysicalAdapter = [](const DXGI_ADAPTER_DESC2& first, const DXGI_ADAPTER_DESC2& second)
         {
-            auto adapter = adapters[i];
+            return first.VendorId == second.VendorId &&
+                first.DeviceId == second.DeviceId &&
+                first.SubSysId == second.SubSysId &&
+                first.Revision == second.Revision &&
+                first.DedicatedVideoMemory == second.DedicatedVideoMemory &&
+                first.DedicatedSystemMemory == second.DedicatedSystemMemory &&
+                first.SharedSystemMemory == second.SharedSystemMemory &&
+                std::wcscmp(first.Description, second.Description) == 0;
+        };
+        
+        for (const auto& adapter : adapters)
+        {
+            DXGI_ADAPTER_DESC2 desc = {};
+            ThrowIfFailed(adapter->GetDesc2(&desc));
+
+            bool isDuplicate = false;
+            for (const auto& uniqueDesc : uniqueAdapterDescriptions)
+            {
+                if (IsSamePhysicalAdapter(desc, uniqueDesc))
+                {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+
+            if (isDuplicate)
+            {
+                continue;
+            }
+
+            uniqueAdapterDescriptions.emplace_back(desc);
 
             auto device = std::make_shared<GDevice>(adapter);
             device->Initialize();
