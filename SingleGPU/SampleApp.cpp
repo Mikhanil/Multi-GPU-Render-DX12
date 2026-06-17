@@ -26,7 +26,7 @@ using namespace DirectX::SimpleMath;
 namespace Common
 {
     SampleApp::SampleApp(const HINSTANCE hInstance)
-        : D3DApp(hInstance), loader(AssetsLoader(GDeviceFactory::GetHardwareDevice()))
+        : D3DApp(hInstance), loader(AssetsLoader(GDeviceFactory::GetDevice()))
     {
         mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
         mSceneBounds.Radius = 175;
@@ -63,7 +63,7 @@ namespace Common
         }
 
 
-        auto graphicQueue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Graphics);
+        auto graphicQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
         auto graphicList = graphicQueue->GetCommandList();
 
         for (auto&& texture : generatedMipTextures)
@@ -73,7 +73,7 @@ namespace Common
         graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
 
 
-        const auto computeQueue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Compute);
+        const auto computeQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Compute);
         auto computeList = computeQueue->GetCommandList();
         GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
         computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -98,17 +98,17 @@ namespace Common
         if (!D3DApp::Initialize())
             return false;
 
-        auto commandQueue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Graphics);
+        auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
         auto cmdList = commandQueue->GetCommandList();
 
-        shadowMap = std::make_unique<ShadowMap>(GDeviceFactory::GetHardwareDevice(), 4096, 4096);
+        shadowMap = std::make_unique<ShadowMap>(GDeviceFactory::GetDevice(), 4096, 4096);
 
         ssao = std::make_unique<SSAO>(
-            GDeviceFactory::GetHardwareDevice(),
+            GDeviceFactory::GetDevice(),
             cmdList,
             MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
-        ssaa = std::make_unique<SSAA>(GDeviceFactory::GetHardwareDevice(), 1, MainWindow->GetClientWidth(),
+        ssaa = std::make_unique<SSAA>(GDeviceFactory::GetDevice(), 1, MainWindow->GetClientWidth(),
                                       MainWindow->GetClientHeight());
         ssaa->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
 
@@ -120,7 +120,7 @@ namespace Common
 
         commandQueue->Flush();
         commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
-        GDeviceFactory::GetHardwareDevice()->Flush();
+        GDeviceFactory::GetDevice()->Flush();
         Flush();
 
         BuildTexturesHeap();
@@ -313,7 +313,7 @@ namespace Common
 
         if (renderTargetMemory.IsNull())
         {
-            renderTargetMemory = GDeviceFactory::GetHardwareDevice()->AllocateDescriptors(
+            renderTargetMemory = GDeviceFactory::GetDevice()->AllocateDescriptors(
                 D3D12_DESCRIPTOR_HEAP_TYPE_RTV, globalCountFrameResources);
         }
 
@@ -345,7 +345,7 @@ namespace Common
 
     void SampleApp::Update(const GameTimer& gt)
     {
-        auto commandQueue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Graphics);
+        auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
 
         // Cycle through the circular frame resource array.
         currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
@@ -471,8 +471,8 @@ namespace Common
     {
         if (isResizing) return;
 
-        GDeviceFactory::GetHardwareDevice()->Flush();
-        auto commandQueue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Graphics);
+        GDeviceFactory::GetDevice()->Flush();
+        auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
 
         auto cmdList = commandQueue->GetCommandList();
 
@@ -767,7 +767,7 @@ namespace Common
 
     void SampleApp::LoadModels()
     {
-        auto queue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Compute);
+        auto queue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Compute);
         auto cmd = queue->GetCommandList();
 
         auto nano = loader.CreateModelFromFile(cmd, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
@@ -822,7 +822,7 @@ namespace Common
 
     void SampleApp::LoadTextures(std::shared_ptr<GCommandList> cmdList)
     {
-        auto queue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue(GQueueType::Compute);
+        auto queue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Compute);
 
         auto graphicCmdList = queue->GetCommandList();
         LoadStudyTexture(graphicCmdList);
@@ -849,7 +849,7 @@ namespace Common
         rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        rootSignature->Initialize(GDeviceFactory::GetHardwareDevice());
+        rootSignature->Initialize(GDeviceFactory::GetDevice());
     }
 
     void SampleApp::BuildSsaoRootSignature()
@@ -909,13 +909,13 @@ namespace Common
             ssaoRootSignature->AddStaticSampler(sampler);
         }
 
-        ssaoRootSignature->Initialize(GDeviceFactory::GetHardwareDevice());
+        ssaoRootSignature->Initialize(GDeviceFactory::GetDevice());
     }
 
     void SampleApp::BuildTexturesHeap()
     {
         srvHeap = std::move(
-            GDeviceFactory::GetHardwareDevice(GraphicAdapterPrimary)->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            GDeviceFactory::GetDevice(GraphicAdapterPrimary)->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                                                                                           loader.GetLoadTexturesCount()));
 
         ssao->BuildDescriptors();
@@ -1025,7 +1025,7 @@ namespace Common
 
     void SampleApp::BuildShapeGeometry()
     {
-        auto queue = GDeviceFactory::GetHardwareDevice()->GetCommandQueue();
+        auto queue = GDeviceFactory::GetDevice()->GetCommandQueue();
         auto cmdList = queue->GetCommandList();
 
         auto sphere = loader.GenerateSphere(cmdList);
@@ -1211,7 +1211,7 @@ namespace Common
 
         for (auto& pso : psos)
         {
-            pso.second->Initialize(GDeviceFactory::GetHardwareDevice());
+            pso.second->Initialize(GDeviceFactory::GetDevice());
         }
     }
 
@@ -1220,7 +1220,7 @@ namespace Common
         for (int i = 0; i < globalCountFrameResources; ++i)
         {
             frameResources.push_back(
-                std::make_unique<FrameResource>(GDeviceFactory::GetHardwareDevice(), 2, gameObjects.size(),
+                std::make_unique<FrameResource>(GDeviceFactory::GetDevice(), 2, gameObjects.size(),
                                                 loader.GetMaterials().size()));
         }
     }
@@ -1263,7 +1263,7 @@ namespace Common
     void SampleApp::BuildGameObjects()
     {
         auto quadRitem = std::make_unique<GameObject>("Quad");
-        auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetHardwareDevice(), models[L"quad"]);
+        auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"quad"]);
         models[L"quad"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"seamless")));
         quadRitem->AddComponent(renderer);
         typedGameObjects[static_cast<uint8_t>(RenderMode::Debug)].push_back(quadRitem.get());
@@ -1272,7 +1272,7 @@ namespace Common
 
         auto skySphere = std::make_unique<GameObject>("Sky");
         skySphere->GetTransform()->SetScale({500, 500, 500});
-        renderer = std::make_shared<SkyBox>(GDeviceFactory::GetHardwareDevice(), models[L"sphere"],
+        renderer = std::make_shared<SkyBox>(GDeviceFactory::GetDevice(), models[L"sphere"],
                                             *loader.GetTexture(loader.GetTextureIndex(L"skyTex")).get(), &srvHeap,
                                             loader.GetTextureIndex(L"skyTex"));
         models[L"sphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"sky")));
@@ -1430,7 +1430,7 @@ namespace Common
     std::unique_ptr<GameObject> SampleApp::CreateGOWithRenderer(std::shared_ptr<GModel> model)
     {
         auto man = std::make_unique<GameObject>();
-        auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetHardwareDevice(), model);
+        auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), model);
         man->AddComponent(renderer);
         return man;
     }

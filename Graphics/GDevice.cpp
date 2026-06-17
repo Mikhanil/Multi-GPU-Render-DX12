@@ -21,6 +21,16 @@ namespace PEPEngine::Graphics
         return crossAdapterTextureSupport;
     }
 
+    bool GDevice::TryGetAdapterDesc3(DXGI_ADAPTER_DESC3& outDesc) const
+    {
+        ComPtr<IDXGIAdapter4> adapter4;
+        if (!adapter || FAILED(adapter.As(&adapter4)))
+        {
+            return false;
+        }
+        return SUCCEEDED(adapter4->GetDesc3(&outDesc));
+    }
+
     void GDevice::SharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_ptr<GDevice>& sharedDevice,
                               ComPtr<ID3D12Fence>& sharedFence, const UINT64 fenceValue,
                               const SECURITY_ATTRIBUTES* attributes,
@@ -37,6 +47,37 @@ namespace PEPEngine::Graphics
         ThrowIfFailed(sharedDevice->device->OpenSharedHandle(handle, IID_PPV_ARGS(sharedFence.GetAddressOf())));
 
         CloseHandle(handle);
+    }
+
+    bool GDevice::TrySharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_ptr<GDevice>& sharedDevice,
+                                 ComPtr<ID3D12Fence>& sharedFence, const UINT64 fenceValue,
+                                 const SECURITY_ATTRIBUTES* attributes,
+                                 const DWORD access, const LPCWSTR name) const
+    {
+        primaryFence.Reset();
+        sharedFence.Reset();
+
+        ComPtr<ID3D12Fence> created;
+        HRESULT hr = device->CreateFence(fenceValue,
+                                         D3D12_FENCE_FLAG_SHARED | D3D12_FENCE_FLAG_SHARED_CROSS_ADAPTER,
+                                         IID_PPV_ARGS(created.GetAddressOf()));
+        if (FAILED(hr))
+            return false;
+
+        HANDLE sharedHandle = nullptr;
+        hr = device->CreateSharedHandle(created.Get(), attributes, access, name, &sharedHandle);
+        if (FAILED(hr) || sharedHandle == nullptr)
+            return false;
+
+        ComPtr<ID3D12Fence> opened;
+        hr = sharedDevice->GetDXDevice()->OpenSharedHandle(sharedHandle, IID_PPV_ARGS(opened.GetAddressOf()));
+        CloseHandle(sharedHandle);
+        if (FAILED(hr))
+            return false;
+
+        primaryFence = std::move(created);
+        sharedFence = std::move(opened);
+        return true;
     }
 
     static D3D12_COMMAND_LIST_TYPE GQueueTypeToCommandListType(const GQueueType queueType)
@@ -142,6 +183,7 @@ namespace PEPEngine::Graphics
             assert("Cant create device. Null Adapter");
         }
 
+        DXGI_ADAPTER_DESC2 desc;
         ThrowIfFailed(adapter->GetDesc2(&desc));
 
         ThrowIfFailed(D3D12CreateDevice(
@@ -177,6 +219,8 @@ namespace PEPEngine::Graphics
                 // This warning occurs when using capture frame while graphics debugging.
                 D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
                 // This warning occurs when using capture frame while graphics debugging.
+                D3D12_MESSAGE_ID_OBJECT_DELETED_WHILE_STILL_IN_USE,
+                // Can occur during teardown/reinit races; keep app alive while diagnosing lifetime ordering.
             };
 
             D3D12_INFO_QUEUE_FILTER NewFilter = {};
@@ -231,14 +275,6 @@ namespace PEPEngine::Graphics
         {
             queue->Flush();
         }
-
-        std::abort();
-
-        if (device)
-            device->Release();
-
-        if (adapter)
-            adapter->Release();
     }
 
 

@@ -93,6 +93,12 @@ namespace PEPEngine::Graphics
                          const SECURITY_ATTRIBUTES* attributes = nullptr,
                          DWORD access = GENERIC_ALL, LPCWSTR name = L"") const;
 
+        /// Non-throwing variant for SharedFence; clears output pointers on failure.
+        bool TrySharedFence(ComPtr<ID3D12Fence>& primaryFence, const std::shared_ptr<GDevice>& sharedDevice,
+                            ComPtr<ID3D12Fence>& sharedFence, UINT64 fenceValue = 0,
+                            const SECURITY_ATTRIBUTES* attributes = nullptr,
+                            DWORD access = GENERIC_ALL, LPCWSTR name = L"") const;
+
 
         std::shared_ptr<GCommandQueue>& GetCommandQueue(GQueueType type = GQueueType::Graphics);
 
@@ -108,5 +114,7 @@ namespace PEPEngine::Graphics
         {
             return name;
         }
+
+        bool TryGetAdapterDesc3(DXGI_ADAPTER_DESC3& outDesc) const;
     };
 }

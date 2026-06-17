@@ -160,7 +160,7 @@ namespace PEPEngine::Graphics
         return dxgiFactory;
     }
 
-    std::shared_ptr<GDevice>& GDeviceFactory::GetHardwareDevice(const GraphicsAdapter adapter)
+    std::shared_ptr<GDevice>& GDeviceFactory::GetDevice(const GraphicsAdapter adapter)
     {
         return hardwareDevices[adapter];
     }

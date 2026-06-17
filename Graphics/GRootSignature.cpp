@@ -153,7 +153,8 @@ namespace PEPEngine::Graphics
     }
 
 
-    void GRootSignature::Initialize(const std::shared_ptr<GDevice>& device, const bool force)
+    void GRootSignature::Initialize(const std::shared_ptr<GDevice>& device, const bool force,
+                                    const D3D12_ROOT_SIGNATURE_FLAGS flags)
     {
         if (IsInitialize) return;
 
@@ -163,13 +164,26 @@ namespace PEPEngine::Graphics
             {
                 rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
                                                           staticSampler.size(), staticSampler.data(),
-                                                          D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+                                                          flags);
             }
             else
             {
-                rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
-                                                          staticSamplersVector.size(), staticSamplersVector.data(),
-                                                          D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+                // Graphics roots use the shared default static samplers (texture sampling). Pure compute roots
+                // built with ALLOW_* cleared must not inherit those samplers—the debug layer can reject
+                // CreateComputePipelineState when the root signature exposes unused sampler slots.
+                const bool useImplicitGlobalSamplers =
+                    (flags & D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT) != 0;
+                if (useImplicitGlobalSamplers)
+                {
+                    rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
+                                                              staticSamplersVector.size(), staticSamplersVector.data(),
+                                                              flags);
+                }
+                else
+                {
+                    rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
+                                                              0u, nullptr, flags);
+                }
             }
         }
 

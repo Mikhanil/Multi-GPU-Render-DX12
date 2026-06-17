@@ -15,6 +15,15 @@
 
 namespace PEPEngine::Graphics
 {
+    static bool CanGenerateMipMaps(const D3D12_RESOURCE_DESC& desc)
+    {
+        const auto uavFormat = GTexture::GetUAVCompatableFormat(desc.Format);
+
+        return desc.MipLevels > 1
+            && (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0
+            && GTexture::IsUAVCompatibleFormat(uavFormat);
+    }
+
     std::wstring GTexture::GetFilePath() const
     {
         return filePath;
@@ -100,9 +109,21 @@ namespace PEPEngine::Graphics
     {
         UINT requiredHeapSize = 0;
 
-        for (int i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
-            requiredHeapSize += textures[i]->GetD3D12Resource()->GetDesc().MipLevels - 1;
+            if (textures[i] == nullptr || !textures[i]->GetD3D12Resource())
+            {
+                continue;
+            }
+
+            auto textureDesc = textures[i]->GetD3D12Resource()->GetDesc();
+
+            if (!CanGenerateMipMaps(textureDesc))
+            {
+                continue;
+            }
+
+            requiredHeapSize += textureDesc.MipLevels - 1;
         }
 
         if (requiredHeapSize == 0)
@@ -132,12 +153,22 @@ namespace PEPEngine::Graphics
         size_t cpuOffset = 0;
         size_t gpuOffset = 0;
 
-        for (int i = 0; i < count; ++i)
+        for (size_t i = 0; i < count; ++i)
         {
+            if (textures[i] == nullptr || !textures[i]->GetD3D12Resource())
+            {
+                continue;
+            }
+
             auto tex = textures[i];
 
             auto texture = tex->GetD3D12Resource();
             auto textureDesc = texture->GetDesc();
+
+            if (!CanGenerateMipMaps(textureDesc))
+            {
+                continue;
+            }
 
             for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
             {
@@ -334,6 +365,7 @@ namespace PEPEngine::Graphics
 
         auto tex = std::make_shared<GTexture>(ownerDevice, desc, filepath, usage);
         tex->filePath = filePath;
+        tex->HasMipMap = desc.MipLevels > 1;
 
 
         if (tex->GetD3D12Resource())

@@ -64,7 +64,9 @@ namespace PEPEngine::Graphics
 
         void SetDesc(const D3D12_ROOT_SIGNATURE_DESC& desc);
 
-        void Initialize(const std::shared_ptr<GDevice>& device, bool force = false);
+        void Initialize(const std::shared_ptr<GDevice>& device, bool force = false,
+                        D3D12_ROOT_SIGNATURE_FLAGS flags =
+                            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
         ComPtr<ID3D12RootSignature> GetNativeSignature() const;
     };

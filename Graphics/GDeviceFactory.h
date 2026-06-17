@@ -42,7 +42,7 @@ namespace PEPEngine::Graphics
 
         static ComPtr<IDXGIFactory4> GetFactory();
 
-        static std::shared_ptr<GDevice>& GetHardwareDevice(GraphicsAdapter adapter = GraphicAdapterPrimary);
+        static std::shared_ptr<GDevice>& GetDevice(GraphicsAdapter adapter = GraphicAdapterPrimary);
 
         static std::vector<std::shared_ptr<GDevice>>& GetAllDevices(bool useWrap = false);
 

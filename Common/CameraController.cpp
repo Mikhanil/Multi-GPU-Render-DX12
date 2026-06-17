@@ -4,7 +4,8 @@
 #include "GameObject.h"
 #include "Transform.h"
 
-CameraController::CameraController()
+CameraController::CameraController(float moveSpeedIn, float xMouseSens, float yMouseSens)
+    : xMouseSpeed(xMouseSens), yMouseSpeed(yMouseSens), moveSpeed(moveSpeedIn)
 {
     auto& app = static_cast<Common::D3DApp&>(Common::D3DApp::GetApp());
     keyboard = app.GetKeyboard();
@@ -24,7 +25,7 @@ void CameraController::Update()
         unsigned char keycode = kbe.GetKeyCode();
     }
 
-    float cameraSpeed = 18.0f;;//6.0f;
+    float cameraSpeed = moveSpeed;
     float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
 
     auto tr = gameObject->GetTransform();
@@ -74,3 +75,4 @@ void CameraController::Update()
         tr->AdjustPosition(tr->GetDownVector() * cameraSpeed * dt);
     }
 }
+

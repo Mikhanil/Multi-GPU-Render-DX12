@@ -19,7 +19,7 @@ void CrossAdapterParticleEmitter::InitPSO(const std::shared_ptr<GDevice>& otherD
     computeRS->AddDescriptorParameter(&rng[1], 1);
     computeRS->AddDescriptorParameter(&rng[2], 1);
     computeRS->AddDescriptorParameter(&rng[3], 1);
-    computeRS->Initialize(otherDevice);
+        computeRS->Initialize(otherDevice, false, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     injectPSO = std::make_shared<ComputePSO>();
     injectPSO->SetShader(injectedShader.get());
@@ -87,11 +87,11 @@ void CrossAdapterParticleEmitter::CreateBuffers()
                                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(secondDevice,
                                                                     primeParticleEmitter->emitterData.
-                                                                                          ParticlesTotalCount,
+                                                                    ParticlesTotalCount,
                                                                     L"Second Particles Alive Index Buffer");
     ParticlesDead = std::make_shared<CounteredStructBuffer<DWORD>>(secondDevice,
                                                                    primeParticleEmitter->emitterData.
-                                                                                         ParticlesTotalCount,
+                                                                   ParticlesTotalCount,
                                                                    L"Second Particles Dead Index Buffer");
 
     auto desc = ParticlesAlive->GetD3D12ResourceDesc();
@@ -153,7 +153,7 @@ void CrossAdapterParticleEmitter::CreateBuffers()
 
 CrossAdapterParticleEmitter::CrossAdapterParticleEmitter(std::shared_ptr<GDevice> primeDevice,
                                                          const std::shared_ptr<GDevice>& otherDevice,
-                                                         DWORD particleCount) : secondDevice(otherDevice)
+                                                         DWORD particleCount): secondDevice(otherDevice)
 {
     this->device = primeDevice;
 
@@ -238,10 +238,10 @@ void CrossAdapterParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& 
         cmdList->SetRootDescriptorTable(ParticleComputeSlot::ParticleAlive, &updateDescriptors, 2);
 
         if (primeParticleEmitter->emitterData.ParticlesTotalCount > primeParticleEmitter->emitterData.
-                                                                                          ParticlesAliveCount)
+            ParticlesAliveCount)
         {
             const long check = (primeParticleEmitter->emitterData.ParticlesTotalCount - primeParticleEmitter->
-                                                                                        emitterData.ParticlesAliveCount);
+                emitterData.ParticlesAliveCount);
 
             if (check >= primeParticleEmitter->emitterData.ParticleInjectCount)
             {

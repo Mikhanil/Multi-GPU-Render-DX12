@@ -94,7 +94,7 @@ void CloudGenerator::Initialize()
 
     primeCloudGeneratedSignature.AddConstantParameter(sizeof(CloudGeneratorData) / sizeof(float), 0, 0);
     primeCloudGeneratedSignature.AddDescriptorParameter(&textures[0], 1);
-    primeCloudGeneratedSignature.Initialize(primeDevice);
+    primeCloudGeneratedSignature.Initialize(primeDevice, false, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     cloudNoiseShader = GShader(L"Shaders\\CloudsNoiseCS.hlsl", ComputeShader, nullptr, "CS", "cs_5_1");
 
@@ -106,7 +106,7 @@ void CloudGenerator::Initialize()
 
     secondCloudGeneratedSignature.AddConstantParameter(sizeof(CloudGeneratorData) / sizeof(float), 0, 0);
     secondCloudGeneratedSignature.AddDescriptorParameter(&textures[0], 1);
-    secondCloudGeneratedSignature.Initialize(secondDevice);
+    secondCloudGeneratedSignature.Initialize(secondDevice, false, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
     secondGeneratedPSO.SetRootSignature(secondCloudGeneratedSignature);
     secondGeneratedPSO.SetShader(&cloudNoiseShader);

@@ -3,18 +3,17 @@
 #include "GraphicPSO.h"
 #include "GRootSignature.h"
 #include "GShader.h"
-#include "MemoryAllocator.h"
+
+#include <unordered_map>
 
 using namespace PEPEngine;
 using namespace Graphics;
-using namespace Allocator;
 
 class RenderModeFactory
 {
-    static custom_unordered_map<std::string, std::shared_ptr<GShader>> shaders;
+    static std::unordered_map<std::string, std::shared_ptr<GShader>> shaders;
 
-    custom_unordered_map<RenderMode, std::shared_ptr<GraphicPSO>> PSO = MemoryAllocator::CreateUnorderedMap<
-        RenderMode, std::shared_ptr<GraphicPSO>>();
+    std::unordered_map<RenderMode, std::shared_ptr<GraphicPSO>> PSO;
 
 public:
     void LoadDefaultPSO(std::shared_ptr<GDevice> device, std::shared_ptr<GRootSignature> rootSignature,

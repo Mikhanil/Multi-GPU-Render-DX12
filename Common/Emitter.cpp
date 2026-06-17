@@ -15,6 +15,25 @@ ParticleData Emitter::GenerateParticle()
     return tempParticle;
 }
 
+//void Emitter::CompileGrassShaders()
+//{
+//	// Øåéäåð äëÿ ãåíåðàöèè òðàâû
+//	generateShader = std::move(
+//		std::make_shared<GShader>(L"Shaders\\GrassGenerate.hlsl", ComputeShader, nullptr, "CS", "cs_5_1"));
+//	generateShader->LoadAndCompile();
+//
+//	// Øåéäåðû äëÿ îòðèñîâêè (åñëè íóæíû îòäåëüíî îò ÷àñòèö)
+//	auto vertexShader = std::move(
+//		std::make_shared<GShader>(L"Shaders\\GrassDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
+//	vertexShader->LoadAndCompile();
+//
+//	auto pixelShader = std::move(
+//		std::make_shared<GShader>(L"Shaders\\GrassDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
+//	pixelShader->LoadAndCompile();
+//
+//	// Äëÿ òðàâû íå íóæåí geometry shader, èñïîëüçóåì âåðøèíû äëÿ ñîçäàíèÿ êâàäîâ
+//}
+
 void Emitter::CompileComputeShaders()
 {
     D3D_SHADER_MACRO defines[] =
@@ -116,7 +135,7 @@ void Emitter::PSOInitialize()
         computeSignature->AddDescriptorParameter(&range[1], 1);
         computeSignature->AddDescriptorParameter(&range[2], 1);
         computeSignature->AddDescriptorParameter(&range[3], 1);
-        computeSignature->Initialize(device);
+        computeSignature->Initialize(device, false, D3D12_ROOT_SIGNATURE_FLAG_NONE);
 
         CompileComputeShaders();
 

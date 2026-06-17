@@ -29,7 +29,7 @@ namespace PEPEngine::Graphics
         std::wstring filePath;
 
     public:
-        bool HasMipMap;
+        bool HasMipMap = false;
 
         std::wstring GetFilePath() const;
 

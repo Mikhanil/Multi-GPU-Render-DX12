@@ -23,6 +23,7 @@ namespace PEPEngine::Graphics
         void SetShader(const GShader* shader);
 
         void Initialize(const std::shared_ptr<GDevice>& device) override;
+        HRESULT TryInitialize(const std::shared_ptr<GDevice>& device);
         PSOType GetType() override { return PSOType::Compute; }
         void SetRootSignature(const GRootSignature& rs) override;
 

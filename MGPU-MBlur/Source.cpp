@@ -1,4 +1,4 @@
-#include "HybridSSAOApp.h"
+#include "HybridMBlurApp.h"
 using namespace Common;
 
 int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,

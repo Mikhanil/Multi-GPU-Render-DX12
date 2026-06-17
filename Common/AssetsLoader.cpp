@@ -24,7 +24,7 @@ using namespace Utils;
 
 static Assimp::Importer importer;
 
-static std::unordered_map<std::shared_ptr<NativeMesh>, std::shared_ptr<aiMaterial>> loadedAiMaterialForMesh;
+static std::unordered_map<std::shared_ptr<NativeMesh>, const aiMaterial*> loadedAiMaterialForMesh;
 static std::unordered_map<std::shared_ptr<NativeMesh>, std::vector<UINT>> loadedTexturesForMesh;
 
 static inline std::shared_ptr<GModel> CreateModelFromGenerated(std::shared_ptr<GCommandList> cmdList,
@@ -180,7 +180,7 @@ void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, con
     {
         auto nativeMesh = model->GetMesh(i)->GetMeshData();
 
-        auto aiMaterial = loadedAiMaterialForMesh[nativeMesh];
+        const aiMaterial* aiMaterial = loadedAiMaterialForMesh[nativeMesh];
 
         assert(aiMaterial != nullptr);
 
@@ -207,7 +207,7 @@ void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, con
 
             if (textureCount > 0)
             {
-                texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_DIFFUSE, modelDirectory, cmdList, this);
+                texture = LoadTextureByAiMaterial(aiMaterial, aiTextureType_DIFFUSE, modelDirectory, cmdList, this);
             }
             else
             {
@@ -223,7 +223,7 @@ void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, con
 
             if (textureCount > 0)
             {
-                texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_HEIGHT, modelDirectory, cmdList, this);
+                texture = LoadTextureByAiMaterial(aiMaterial, aiTextureType_HEIGHT, modelDirectory, cmdList, this);
             }
             else
             {
@@ -231,7 +231,7 @@ void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, con
 
                 if (textureCount > 0)
                 {
-                    texture = LoadTextureByAiMaterial(aiMaterial.get(), aiTextureType_NORMALS, modelDirectory, cmdList, this);
+                    texture = LoadTextureByAiMaterial(aiMaterial, aiTextureType_NORMALS, modelDirectory, cmdList, this);
                 }
                 else
                 {
@@ -259,7 +259,7 @@ static void RecursivlyLoadMeshes(const std::shared_ptr<NativeModel>& model, cons
     {
         aiMesh* aMesh = scene->mMeshes[node->mMeshes[i]];
         auto nativeMesh = CreateSubMesh(aMesh, model->GetName());
-        loadedAiMaterialForMesh[nativeMesh] = std::shared_ptr<aiMaterial>(scene->mMaterials[aMesh->mMaterialIndex]);
+        loadedAiMaterialForMesh[nativeMesh] = scene->mMaterials[aMesh->mMaterialIndex];
         model->AddMesh((nativeMesh));
     }
 
@@ -292,12 +292,14 @@ std::shared_ptr<GModel>& AssetsLoader::CreateModelFromFile(const std::shared_ptr
 
     auto renderModel = std::make_shared<GModel>(modelFromFile, cmdList);
     LoadTextureForModel(renderModel, cmdList);
+    loadedAiMaterialForMesh.clear();
+    loadedTexturesForMesh.clear();
     modelMap[AnsiToWString(filePath)] = renderModel;
     return renderModel;
 }
 
 
-AssetsLoader::AssetsLoader(const std::shared_ptr<GDevice>& device) : device(device)
+AssetsLoader::AssetsLoader(const std::shared_ptr<GDevice>& device): device(device)
 {
 }
 
@@ -349,12 +351,12 @@ void AssetsLoader::AddTexture(const std::shared_ptr<GTexture>& texture)
     textures.push_back((texture));
 }
 
-const std::vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
+std::vector<std::shared_ptr<Material>>& AssetsLoader::GetMaterials()
 {
     return materials;
 }
 
-const std::vector<std::shared_ptr<GTexture>>& AssetsLoader::GetTextures()
+std::vector<std::shared_ptr<GTexture>>& AssetsLoader::GetTextures()
 {
     return textures;
 }

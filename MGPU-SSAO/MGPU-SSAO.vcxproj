@@ -160,8 +160,6 @@
         <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp"/>
         <ClCompile Include="FrameResource.cpp"/>
         <ClCompile Include="HybridSSAOApp.cpp"/>
-        <ClCompile Include="SharedHBAO.cpp"/>
-        <ClCompile Include="SharedSSAO.cpp"/>
         <ClCompile Include="Source.cpp"/>
         <ClCompile Include="UILayer.cpp"/>
     </ItemGroup>
@@ -192,8 +190,6 @@
         <ClInclude Include="..\Submodule\imgui\imstb_truetype.h"/>
         <ClInclude Include="FrameResource.h"/>
         <ClInclude Include="HybridSSAOApp.h"/>
-        <ClInclude Include="SharedHBAO.h"/>
-        <ClInclude Include="SharedSSAO.h"/>
         <ClInclude Include="UILayer.h"/>
     </ItemGroup>
     <ItemGroup>

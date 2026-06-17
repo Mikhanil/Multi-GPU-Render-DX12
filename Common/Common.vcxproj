@@ -183,6 +183,7 @@
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CloudGenerator.h" />
     <ClInclude Include="Component.h" />
+    <ClInclude Include="CrossAdapterGrassEmitter.h" />
     <ClInclude Include="CrossAdapterParticleEmitter.h" />
     <ClInclude Include="CubeMapRenderTarget.h" />
     <ClInclude Include="d3dApp.h" />
@@ -191,6 +192,8 @@
     <ClInclude Include="GameObject.h" />
     <ClInclude Include="GCrossAdapterResource.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="GrassData.h" />
+    <ClInclude Include="GrassEmitter.h" />
     <ClInclude Include="KeyboardDevice.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
@@ -209,6 +212,8 @@
     <ClInclude Include="Services\States\BenchmarkState.h" />
     <ClInclude Include="Services\States\WaitState.h" />
     <ClInclude Include="Services\FileQueueWriter.h" />
+    <ClInclude Include="SharedHBAO.h" />
+    <ClInclude Include="SharedSSAO.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="ShaderBuffersData.h" />
     <ClInclude Include="RenderModeFactory.h" />
@@ -218,6 +223,7 @@
     <ClInclude Include="SSAA.h" />
     <ClInclude Include="Ssao.h" />
     <ClInclude Include="Transform.h" />
+    <ClInclude Include="WindFluidSimulator.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -228,6 +234,7 @@
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CloudGenerator.cpp" />
     <ClCompile Include="Component.cpp" />
+    <ClCompile Include="CrossAdapterGrassEmitter.cpp" />
     <ClCompile Include="CrossAdapterParticleEmitter.cpp" />
     <ClCompile Include="CubeMapRenderTarget.cpp" />
     <ClCompile Include="d3dApp.cpp" />
@@ -235,6 +242,7 @@
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="GrassEmitter.cpp" />
     <ClCompile Include="KeyboardDevice.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -258,11 +266,168 @@
     <ClCompile Include="Services\States\WaitState.cpp" />
     <ClCompile Include="Services\FileQueueWriter.cpp" />
     <ClCompile Include="ShadowMap.cpp" />
+    <ClCompile Include="SharedHBAO.cpp">
+      <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <Optimization>Disabled</Optimization>
+      <SupportJustMyCode>true</SupportJustMyCode>
+      <AssemblerOutput>NoListing</AssemblerOutput>
+      <AssemblerListingLocation>x64\Debug\</AssemblerListingLocation>
+      <UndefineAllPreprocessorDefinitions>false</UndefineAllPreprocessorDefinitions>
+      <BrowseInformation>false</BrowseInformation>
+      <BrowseInformationFile>x64\Debug\</BrowseInformationFile>
+      <CompileAs>Default</CompileAs>
+      <UseDynamicDebugging>false</UseDynamicDebugging>
+      <ConformanceMode>false</ConformanceMode>
+      <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+      <ErrorReporting>Prompt</ErrorReporting>
+      <ExpandAttributedSource>false</ExpandAttributedSource>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <EnableASAN>false</EnableASAN>
+      <EnableFuzzer>false</EnableFuzzer>
+      <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <EnableVectorLength>NotSet</EnableVectorLength>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
+      <GenerateModuleDependencies>false</GenerateModuleDependencies>
+      <GenerateSourceDependencies>false</GenerateSourceDependencies>
+      <GenerateXMLDocumentationFiles>false</GenerateXMLDocumentationFiles>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <IgnoreStandardIncludePath>false</IgnoreStandardIncludePath>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>Default</LanguageStandard_C>
+      <MinimalRebuild>false</MinimalRebuild>
+      <ModuleDependenciesFile>x64\Debug\</ModuleDependenciesFile>
+      <ModuleOutputFile>x64\Debug\</ModuleOutputFile>
+      <OmitDefaultLibName>false</OmitDefaultLibName>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <ObjectFileName>x64\Debug\</ObjectFileName>
+      <CallingConvention>Cdecl</CallingConvention>
+      <ProgramDataBaseFileName>x64\Debug\vc143.pdb</ProgramDataBaseFileName>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>x64\Debug\MGPU-SSAO.pch</PrecompiledHeaderOutputFile>
+      <PreprocessToFile>false</PreprocessToFile>
+      <PreprocessKeepComments>false</PreprocessKeepComments>
+      <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
+      <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+      <ShowIncludes>false</ShowIncludes>
+      <SourceDependenciesFile>x64\Debug\</SourceDependenciesFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <SpectreMitigation>false</SpectreMitigation>
+      <StructMemberAlignment>Default</StructMemberAlignment>
+      <TrackerLogDirectory>x64\Debug\MGPU-SSAO.tlog\</TrackerLogDirectory>
+      <TranslateIncludes>false</TranslateIncludes>
+      <MinimalRebuildFromTracking>true</MinimalRebuildFromTracking>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <UseFullPaths>true</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <XMLDocumentationFileName>x64\Debug\</XMLDocumentationFileName>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <IntelJCCErratum>false</IntelJCCErratum>
+      <BuildStlModules>false</BuildStlModules>
+      <TreatAngleIncludeAsExternal>false</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>InheritWarningLevel</ExternalWarningLevel>
+      <TreatExternalTemplatesAsInternal>true</TreatExternalTemplatesAsInternal>
+      <DisableAnalyzeExternal>false</DisableAnalyzeExternal>
+      <PreprocessorDefinitions>HAS_DIRECTXTK12;HAS_DIRECTXTEX;HAS_DIRECTXMESH;NOMINMAX;_DEBUG;_CONSOLE;_UNICODE;UNICODE;</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>D:\Project\Multi-GPU-Render-DX12\packages\assimp-v143.5.4.3\build\native\\include;D:\Project\Multi-GPU-Render-DX12\packages\directxtk12_uwp.2025.3.21.3\build\native\..\..\include;D:\Project\Multi-GPU-Render-DX12\packages\directxtex_uwp.2025.3.25.2\build\native\..\..\include;D:\Project\Multi-GPU-Render-DX12\packages\directxmesh_uwp.2025.3.25.2\build\native\..\..\include;D:\Project\Multi-GPU-Render-DX12\packages\WinPixEventRuntime.1.0.240308001\build\..\Include\WinPixEventRuntime;D:\Project\Multi-GPU-Render-DX12\Submodule\imgui;D:\Project\Multi-GPU-Render-DX12\Submodule\imgui\backends;D:\Project\Multi-GPU-Render-DX12\\Common;D:\Project\Multi-GPU-Render-DX12\\Utils;D:\Project\Multi-GPU-Render-DX12\\Graphics;D:\Project\Multi-GPU-Render-DX12\\Allocator;</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LinkCompiled>true</LinkCompiled>
+    </ClCompile>
+    <ClCompile Include="SharedSSAO.cpp">
+      <RuntimeLibrary>MultiThreadedDebugDll</RuntimeLibrary>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <Optimization>Disabled</Optimization>
+      <SupportJustMyCode>true</SupportJustMyCode>
+      <AssemblerOutput>NoListing</AssemblerOutput>
+      <AssemblerListingLocation>x64\Debug\</AssemblerListingLocation>
+      <UndefineAllPreprocessorDefinitions>false</UndefineAllPreprocessorDefinitions>
+      <BrowseInformation>false</BrowseInformation>
+      <BrowseInformationFile>x64\Debug\</BrowseInformationFile>
+      <CompileAs>Default</CompileAs>
+      <UseDynamicDebugging>false</UseDynamicDebugging>
+      <ConformanceMode>false</ConformanceMode>
+      <DiagnosticsFormat>Column</DiagnosticsFormat>
+      <DisableLanguageExtensions>false</DisableLanguageExtensions>
+      <ErrorReporting>Prompt</ErrorReporting>
+      <ExpandAttributedSource>false</ExpandAttributedSource>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <EnableASAN>false</EnableASAN>
+      <EnableFuzzer>false</EnableFuzzer>
+      <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <EnableVectorLength>NotSet</EnableVectorLength>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
+      <GenerateModuleDependencies>false</GenerateModuleDependencies>
+      <GenerateSourceDependencies>false</GenerateSourceDependencies>
+      <GenerateXMLDocumentationFiles>false</GenerateXMLDocumentationFiles>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <IgnoreStandardIncludePath>false</IgnoreStandardIncludePath>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>Default</LanguageStandard_C>
+      <MinimalRebuild>false</MinimalRebuild>
+      <ModuleDependenciesFile>x64\Debug\</ModuleDependenciesFile>
+      <ModuleOutputFile>x64\Debug\</ModuleOutputFile>
+      <OmitDefaultLibName>false</OmitDefaultLibName>
+      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <ObjectFileName>x64\Debug\</ObjectFileName>
+      <CallingConvention>Cdecl</CallingConvention>
+      <ProgramDataBaseFileName>x64\Debug\vc143.pdb</ProgramDataBaseFileName>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>x64\Debug\MGPU-SSAO.pch</PrecompiledHeaderOutputFile>
+      <PreprocessToFile>false</PreprocessToFile>
+      <PreprocessKeepComments>false</PreprocessKeepComments>
+      <PreprocessSuppressLineNumbers>false</PreprocessSuppressLineNumbers>
+      <RemoveUnreferencedCodeData>true</RemoveUnreferencedCodeData>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+      <ShowIncludes>false</ShowIncludes>
+      <SourceDependenciesFile>x64\Debug\</SourceDependenciesFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
+      <SpectreMitigation>false</SpectreMitigation>
+      <StructMemberAlignment>Default</StructMemberAlignment>
+      <TrackerLogDirectory>x64\Debug\MGPU-SSAO.tlog\</TrackerLogDirectory>
+      <TranslateIncludes>false</TranslateIncludes>
+      <MinimalRebuildFromTracking>true</MinimalRebuildFromTracking>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <UseFullPaths>true</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <XMLDocumentationFileName>x64\Debug\</XMLDocumentationFileName>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <IntelJCCErratum>false</IntelJCCErratum>
+      <BuildStlModules>false</BuildStlModules>
+      <TreatAngleIncludeAsExternal>false</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>InheritWarningLevel</ExternalWarningLevel>
+      <TreatExternalTemplatesAsInternal>true</TreatExternalTemplatesAsInternal>
+      <DisableAnalyzeExternal>false</DisableAnalyzeExternal>
+      <PreprocessorDefinitions>HAS_DIRECTXTK12;HAS_DIRECTXTEX;HAS_DIRECTXMESH;NOMINMAX;_DEBUG;_CONSOLE;_UNICODE;UNICODE;</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>D:\Project\Multi-GPU-Render-DX12\packages\assimp-v143.5.4.3\build\native\\include;D:\Project\Multi-GPU-Render-DX12\packages\directxtk12_uwp.2025.3.21.3\build\native\..\..\include;D:\Project\Multi-GPU-Render-DX12\packages\directxtex_uwp.2025.3.25.2\build\native\..\..\include;D:\Project\Multi-GPU-Render-DX12\packages\directxmesh_uwp.2025.3.25.2\build\native\..\..\include;D:\Project\Multi-GPU-Render-DX12\packages\WinPixEventRuntime.1.0.240308001\build\..\Include\WinPixEventRuntime;D:\Project\Multi-GPU-Render-DX12\Submodule\imgui;D:\Project\Multi-GPU-Render-DX12\Submodule\imgui\backends;D:\Project\Multi-GPU-Render-DX12\\Common;D:\Project\Multi-GPU-Render-DX12\\Utils;D:\Project\Multi-GPU-Render-DX12\\Graphics;D:\Project\Multi-GPU-Render-DX12\\Allocator;</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LinkCompiled>true</LinkCompiled>
+    </ClCompile>
     <ClCompile Include="SkyBox.cpp" />
     <ClCompile Include="SplineController.cpp" />
     <ClCompile Include="SSAA.cpp" />
     <ClCompile Include="Ssao.cpp" />
     <ClCompile Include="Transform.cpp" />
+    <ClCompile Include="WindFluidSimulator.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
