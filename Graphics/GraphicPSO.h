@@ -30,8 +30,10 @@ namespace PEPEngine::Graphics
         Quad,
         UI,
         Particle,
-        Count,
-        MBVelocity
+        MBVelocity,
+        Terrain, // AtmosphereApp
+        AtmospherePostProcess, // AtmosphereApp
+        Count
     };
 
     class GraphicPSO final : public PSO

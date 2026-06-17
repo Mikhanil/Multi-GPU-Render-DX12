@@ -23,8 +23,8 @@ class Camera : public Component
 
     float fov = 60;
     float aspectRatio = 0;
-    float nearZ = 1;///0.1f;
-    float farZ = 1000;//10000;
+    float nearZ = 0.1f;
+    float farZ = 10000;
 
     Vector3 focusPosition = Vector3::Zero;
 
@@ -38,14 +38,21 @@ public:
 
     void SetAspectRatio(float aspect);
 
+    float GetAspectRatio() const;
+
     void SetFov(float fov);
 
     float GetFov() const;
 
+    void SetFarZ(float newFarZ);
+
+    float GetFarZ() const;
+
+    void SetNearZ(float newNearZ);
+
+    float GetNearZ() const;
+
     const Matrix& GetViewMatrix() const;
 
     const Matrix& GetProjectionMatrix() const;
-
-    const float GetNearZ() { return nearZ; }
-    const float GetFarZ() { return farZ; }
 };

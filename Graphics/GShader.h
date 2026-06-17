@@ -20,6 +20,7 @@ namespace PEPEngine::Graphics
 
     class GShader
     {
+    protected:
         std::wstring FileName;
         ComPtr<ID3DBlob> shaderBlob = nullptr;
         ShaderType type;
@@ -34,8 +35,7 @@ namespace PEPEngine::Graphics
 
         GShader();
 
-        void LoadAndCompile();
-
+        virtual void LoadAndCompile();
 
         ID3DBlob* GetShaderData() const;
 

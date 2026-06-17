@@ -39,6 +39,11 @@ void Camera::SetAspectRatio(const float aspect)
     NumFramesDirty = globalCountFrameResources;
 }
 
+float Camera::GetAspectRatio() const
+{
+    return aspectRatio;
+}
+
 void Camera::SetFov(const float fov)
 {
     this->fov = fov;
@@ -48,6 +53,26 @@ void Camera::SetFov(const float fov)
 float Camera::GetFov() const
 {
     return fov;
+}
+
+void Camera::SetFarZ(float newFarZ)
+{
+    farZ = newFarZ;
+}
+
+float Camera::GetFarZ() const
+{
+    return farZ;
+}
+
+void Camera::SetNearZ(float newNearZ)
+{
+    nearZ = newNearZ;
+}
+
+float Camera::GetNearZ() const
+{
+    return nearZ;
 }
 
 const Matrix& Camera::GetViewMatrix() const

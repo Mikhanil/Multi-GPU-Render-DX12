@@ -86,7 +86,7 @@ struct PassConstants
 
 
     Vector3 CameraForwardVector;
-    float padding;
+    float SsaaMultilpier;
 
     LightData Lights[MaxLights];
 };

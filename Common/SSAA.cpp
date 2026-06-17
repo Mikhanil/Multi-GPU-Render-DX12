@@ -20,6 +20,11 @@ void SSAA::SetMultiplier(const UINT multi, const UINT newWidth, const UINT newHe
     OnResize(newWidth, newHeight);
 }
 
+float SSAA::GetMultiplier()
+{
+    return ResolutionMultiplier;
+}
+
 GTexture& SSAA::GetRenderTarget()
 {
     return renderTarget;

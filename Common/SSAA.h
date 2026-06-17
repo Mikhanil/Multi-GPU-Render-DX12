@@ -33,6 +33,8 @@ public:
 
     void SetMultiplier(UINT multi, UINT newWidth, UINT newHeight);
 
+    float GetMultiplier();
+
     GTexture& GetRenderTarget();
 
     GTexture& GetDepthMap();

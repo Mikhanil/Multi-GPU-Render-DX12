@@ -14,18 +14,42 @@ void UILayer_ImGuiSrvAllocFn(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR
                              D3D12_GPU_DESCRIPTOR_HANDLE* out_gpu_handle)
 {
     auto* layer = static_cast<UILayer*>(info->UserData);
-    IM_ASSERT(layer != nullptr && !layer->imguiSrvDescriptorInUse);
-    layer->imguiSrvDescriptorInUse = true;
-    *out_cpu_handle = layer->srvMemory.GetCPUHandle(0);
-    *out_gpu_handle = layer->srvMemory.GetGPUHandle(0);
+    IM_ASSERT(layer != nullptr);
+
+    for (uint32_t index = 0; index < layer->imguiSrvDescriptorUsage.size(); ++index)
+    {
+        if (layer->imguiSrvDescriptorUsage[index])
+            continue;
+
+        layer->imguiSrvDescriptorUsage[index] = true;
+        *out_cpu_handle = layer->srvMemory.GetCPUHandle(index);
+        *out_gpu_handle = layer->srvMemory.GetGPUHandle(index);
+        return;
+    }
+
+    IM_ASSERT(false && "ImGui SRV descriptor heap exhausted");
+    *out_cpu_handle = {};
+    *out_gpu_handle = {};
 }
 
-void UILayer_ImGuiSrvFreeFn(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE,
+void UILayer_ImGuiSrvFreeFn(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle,
                             D3D12_GPU_DESCRIPTOR_HANDLE)
 {
     auto* layer = static_cast<UILayer*>(info->UserData);
-    IM_ASSERT(layer != nullptr && layer->imguiSrvDescriptorInUse);
-    layer->imguiSrvDescriptorInUse = false;
+    IM_ASSERT(layer != nullptr);
+
+    const auto base = layer->srvMemory.GetCPUHandle(0).ptr;
+    const auto descriptorSize = static_cast<SIZE_T>(
+        layer->srvMemory.GetDescriptorHeap()->GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    IM_ASSERT(descriptorSize > 0);
+    IM_ASSERT(cpu_handle.ptr >= base);
+
+    const auto offset = cpu_handle.ptr - base;
+    IM_ASSERT(offset % descriptorSize == 0);
+    const auto index = static_cast<size_t>(offset / descriptorSize);
+    IM_ASSERT(index < layer->imguiSrvDescriptorUsage.size() && layer->imguiSrvDescriptorUsage[index]);
+
+    layer->imguiSrvDescriptorUsage[index] = false;
 }
 
 LRESULT UILayer::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
@@ -39,8 +63,8 @@ LRESULT UILayer::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, c
 
 void UILayer::SetupRenderBackends()
 {
-    srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-    imguiSrvDescriptorInUse = false;
+    srvMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ImGuiSrvDescriptorCount);
+    imguiSrvDescriptorUsage.fill(false);
 
 
     // Setup Platform/Renderer backends
@@ -104,9 +128,9 @@ void UILayer::ChangeDevice(const std::shared_ptr<GDevice>& device)
     {
         return;
     }
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
     this->device = device;
-
-    Invalidate();
     SetupRenderBackends();
     CreateDeviceObject();
 }
