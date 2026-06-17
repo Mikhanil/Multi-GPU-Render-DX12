@@ -129,9 +129,6 @@
     <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Services\LogService.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Services\BenchmarkService.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -140,6 +137,15 @@
     </ClInclude>
     <ClInclude Include="Services\States\BenchmarkState.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Services\FileQueueWriter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CubeMapRenderTarget.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Orbiter.h">
+      <Filter>Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -239,14 +245,20 @@
     <ClCompile Include="SplineController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Services\LogService.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Services\BenchmarkService.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Services\States\WaitState.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Services\FileQueueWriter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CubeMapRenderTarget.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Orbiter.cpp">
+      <Filter>Components</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

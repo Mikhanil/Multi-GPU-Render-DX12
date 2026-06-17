@@ -49,7 +49,7 @@ namespace PEPEngine::Graphics
         }
     }
 
-    static GRootSignature GetSignature(std::shared_ptr<GDevice>& device)
+    static GRootSignature GetSignature(const std::shared_ptr<GDevice>& device)
     {
         CD3DX12_DESCRIPTOR_RANGE srvCbvRanges[2];
         srvCbvRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
@@ -70,26 +70,26 @@ namespace PEPEngine::Graphics
         samplerDesc.RegisterSpace = 0;
         samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-        static GRootSignature signature;
+        GRootSignature signature;
         signature.AddConstantParameter(2, 0);
         signature.AddDescriptorParameter(&srvCbvRanges[0], 1);
         signature.AddDescriptorParameter(&srvCbvRanges[1], 1);
         signature.AddStaticSampler(samplerDesc);
         signature.Initialize(device);
 
-        return GRootSignature(signature);
+        return signature;
     }
 
-    static ComputePSO& GetPSO(std::shared_ptr<GDevice>& device)
+    static ComputePSO GetPSO(const std::shared_ptr<GDevice>& device)
     {
-        static auto shader = std::make_unique<GShader>(L"Shaders\\MipMapCS.hlsl", ComputeShader, nullptr,
+        auto shader = std::make_unique<GShader>(L"Shaders\\MipMapCS.hlsl", ComputeShader, nullptr,
                                                        "GenerateMipMaps",
                                                        "cs_5_1");
         shader->LoadAndCompile();
 
 
-        static auto RS = GetSignature(device);
-        static ComputePSO genMipMapPSO(RS);
+        auto RS = GetSignature(device);
+        ComputePSO genMipMapPSO(RS);
         genMipMapPSO.SetShader(shader.get());
         genMipMapPSO.Initialize(device);
 
@@ -110,12 +110,12 @@ namespace PEPEngine::Graphics
             return;
         }
 
-        auto& device = cmdList->GetDevice();
+        auto device = cmdList->GetDevice();
 
         auto mipMapsMemory = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
                                                          2 * requiredHeapSize);
 
-        auto& PSO = GetPSO(device);
+        auto PSO = GetPSO(device);
         cmdList->SetRootSignature(PSO.GetRootSignature());
         cmdList->SetPipelineState(PSO);
 

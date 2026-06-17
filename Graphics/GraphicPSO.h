@@ -13,6 +13,7 @@ namespace PEPEngine::Graphics
     {
         SkyBox,
         Opaque,
+        DynamicOpaque,
         Wireframe,
         OpaqueAlphaDrop,
         AlphaSprites,

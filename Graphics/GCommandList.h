@@ -144,8 +144,6 @@ namespace PEPEngine::Graphics
                                FLOAT depthValue = 1.0f, UINT stencilValue = 0, const D3D12_RECT* rects = nullptr, size_t
                                rectCount = 0) const;
 
-        void SetCounterForStructeredBuffer(GBuffer& buffer, UINT value);
-
         void TransitionBarrier(const GResource& resource, D3D12_RESOURCE_STATES stateAfter,
                                UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
                                bool flushBarriers = false) const;
@@ -181,6 +179,11 @@ namespace PEPEngine::Graphics
         void FlushResourceBarriers() const;
 
         void CopyResource(const GResource& dstRes, const GResource& srcRes);
+        void CopyResourceToCubeMap(const GResource& dstCube, const GResource& srcTex, UINT faceIndex);
+        void CopyResourceToCubeMap(const ComPtr<ID3D12Resource>& dstCube, const ComPtr<ID3D12Resource>& srcTex, UINT faceIndex);
+        void CopyResourceFromCubeMap(const GResource& dstTex, const GResource& srcCube, UINT faceIndex);
+        void CopyResourceFromCubeMap(const ComPtr<ID3D12Resource>& dstTex, const ComPtr<ID3D12Resource>& srcCube,
+                                     UINT faceIndex);
         void CopyBufferRegion(const ComPtr<ID3D12Resource>& dstRes, UINT DstOffset,
                               const ComPtr<ID3D12Resource>& srcRes,
                               UINT SrcOffset,

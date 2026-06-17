@@ -51,6 +51,11 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
     rasterizedDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
     rasterizedDesc.CullMode = D3D12_CULL_MODE_NONE;
     alphaDropPso->SetRasterizationState(rasterizedDesc);
+    
+    auto reflectionsPSO = std::make_shared<GraphicPSO>(RenderMode::Reflection);
+    reflectionsPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+    reflectionsPSO->SetShader(shaders["ReflectionsVertex"].get());
+    reflectionsPSO->SetShader(shaders["ReflectionsPixel"].get());
 
 
     auto shadowMapPSO = std::make_shared<GraphicPSO>(RenderMode::ShadowMapOpaque);
@@ -199,6 +204,7 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
 
     PSO[opaquePSO->GetRenderMode()] = std::move(opaquePSO);
     PSO[transperentPSO->GetRenderMode()] = std::move(transperentPSO);
+    PSO[reflectionsPSO->GetRenderMode()] = std::move(reflectionsPSO);
     PSO[alphaDropPso->GetRenderMode()] = std::move(alphaDropPso);
     PSO[skyBoxPSO->GetRenderMode()] = std::move(skyBoxPSO);
     PSO[shadowMapPSO->GetRenderMode()] = std::move(shadowMapPSO);
@@ -250,6 +256,11 @@ void RenderModeFactory::LoadDefaultShaders()
     shaders["SkyBoxPixel"] = std::move(
         std::make_shared<GShader>(L"Shaders\\SkyBoxShader.hlsl", PixelShader, defines, "SKYMAP_PS", "ps_5_1"));
 
+    shaders["ReflectionsVertex"] = std::move(
+    std::make_shared<GShader>(L"Shaders\\Reflections.hlsl", VertexShader, defines, "REFLECTIONS_VS", "vs_5_1"));
+    shaders["ReflectionsPixel"] = std::move(
+        std::make_shared<GShader>(L"Shaders\\Reflections.hlsl", PixelShader, defines, "REFLECTIONS_PS", "ps_5_1"));
+    
     shaders["treeSpriteVS"] = std::move(
         std::make_shared<GShader>(L"Shaders\\TreeSprite.hlsl", VertexShader, nullptr, "VS", "vs_5_1"));
     shaders["treeSpriteGS"] = std::move(

@@ -61,7 +61,8 @@ namespace PEPEngine::Graphics
         cmdList->EndQuery(QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index);
     }
 
-    void GCommandList::ResolveQuery(ID3D12QueryHeap* QueryHeap, ID3D12Resource* TimeStampResource, const UINT index, const UINT quriesCount, const UINT64 aligned) const
+    void GCommandList::ResolveQuery(ID3D12QueryHeap* QueryHeap, ID3D12Resource* TimeStampResource, const UINT index,
+                                    const UINT quriesCount, const UINT64 aligned) const
     {
         cmdList->ResolveQueryData(QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, index,
                                   quriesCount, TimeStampResource, aligned);
@@ -79,7 +80,8 @@ namespace PEPEngine::Graphics
 
     void GCommandList::ResolveQuery(const UINT index, const UINT quriesCount, const UINT64 aligned) const
     {
-        ResolveQuery(queue->timestampQueryHeap.value().Get(), queue->timestampResultBuffer.value().GetD3D12Resource().Get(), index,
+        ResolveQuery(queue->timestampQueryHeap.value().Get(),
+                     queue->timestampResultBuffer.value().GetD3D12Resource().Get(), index,
                      quriesCount, aligned);
     }
 
@@ -318,7 +320,8 @@ namespace PEPEngine::Graphics
         cmdList->SetComputeRoot32BitConstant(shaderRegister, value, offset);
     }
 
-    void GCommandList::SetGraphicsRoot32BitConstant(const UINT shaderRegister, const UINT value, const UINT offset) const
+    void GCommandList::SetGraphicsRoot32BitConstant(const UINT shaderRegister, const UINT value,
+                                                    const UINT offset) const
     {
         cmdList->SetGraphicsRoot32BitConstant(shaderRegister, value, offset);
     }
@@ -666,6 +669,96 @@ namespace PEPEngine::Graphics
     void GCommandList::CopyResource(const GResource& dstRes, const GResource& srcRes)
     {
         CopyResource(dstRes.GetD3D12Resource(), srcRes.GetD3D12Resource());
+    }
+
+    void GCommandList::CopyResourceToCubeMap(const GResource& dstCube, const GResource& srcTex, UINT faceIndex)
+    {
+        CopyResourceToCubeMap(dstCube.GetD3D12Resource(), srcTex.GetD3D12Resource(), faceIndex);
+    }
+
+    void GCommandList::CopyResourceToCubeMap(const ComPtr<ID3D12Resource>& dstCube,
+                                             const ComPtr<ID3D12Resource>& srcTex,
+                                             UINT faceIndex)
+    {
+        assert(cmdList);
+        assert(dstCube);
+        assert(srcTex);
+        assert(faceIndex < 6);
+
+        TransitionBarrier(dstCube, D3D12_RESOURCE_STATE_COPY_DEST);
+        TransitionBarrier(srcTex, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        FlushResourceBarriers();
+
+
+        auto dstLoc = CD3DX12_TEXTURE_COPY_LOCATION(dstCube.Get());
+        auto srcLoc = CD3DX12_TEXTURE_COPY_LOCATION(srcTex.Get());
+        
+        
+        dstLoc.SubresourceIndex = D3D12CalcSubresource(
+            0, // mip slice
+            faceIndex, // array slice = face cubemap
+            0, // plane slice
+            1, // mip levels
+            6 // array size
+        );
+
+        
+        srcLoc.SubresourceIndex = D3D12CalcSubresource(
+            0, // mip slice
+            0, // array slice
+            0, // plane slice
+            1, // mip levels
+            1 // array size
+        );
+
+        cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+
+        TrackResource(dstCube);
+        TrackResource(srcTex);
+    }
+
+    void GCommandList::CopyResourceFromCubeMap(const GResource& dstTex, const GResource& srcCube, UINT faceIndex)
+    {
+        CopyResourceFromCubeMap(dstTex.GetD3D12Resource(), srcCube.GetD3D12Resource(), faceIndex);
+    }
+
+    void GCommandList::CopyResourceFromCubeMap(const ComPtr<ID3D12Resource>& dstTex,
+                                               const ComPtr<ID3D12Resource>& srcCube,
+                                               UINT faceIndex)
+    {
+        assert(cmdList);
+        assert(srcCube);
+        assert(dstTex);
+        assert(faceIndex < 6);
+
+        TransitionBarrier(dstTex, D3D12_RESOURCE_STATE_COPY_DEST);
+        TransitionBarrier(srcCube, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        FlushResourceBarriers();
+
+
+        auto dstLoc = CD3DX12_TEXTURE_COPY_LOCATION(dstTex.Get());
+        auto srcLoc = CD3DX12_TEXTURE_COPY_LOCATION(srcCube.Get());
+        
+        dstLoc.SubresourceIndex = D3D12CalcSubresource(
+            0, // mip slice
+            0, // array slice = face cubemap
+            0, // plane slice
+            1, // mip levels
+            6 // array size
+        );
+        
+        srcLoc.SubresourceIndex = D3D12CalcSubresource(
+            0, // mip slice
+            faceIndex, // array slice
+            0, // plane slice
+            1, // mip levels
+            1 // array size
+        );
+
+        cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);
+
+        TrackResource(dstTex);
+        TrackResource(srcCube);
     }
 
     void GCommandList::ResolveSubresource(const GResource& dstRes, const GResource& srcRes,
