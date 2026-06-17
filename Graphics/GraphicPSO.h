@@ -29,7 +29,8 @@ namespace PEPEngine::Graphics
         Quad,
         UI,
         Particle,
-        Count
+        Count,
+        MBVelocity
     };
 
     class GraphicPSO final : public PSO

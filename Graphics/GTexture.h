@@ -16,6 +16,7 @@ namespace PEPEngine::Graphics
         Normalmap,
         RenderTarget,
         // Texture is used as a render target.
+        MotionBlur
     };
 
 

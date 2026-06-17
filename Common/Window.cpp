@@ -174,7 +174,32 @@ namespace Common
     {
         UINT syncInterval = vSync ? 1 : 0;
         UINT presentFlags = GDeviceFactory::IsTearingSupport() && !vSync ? DXGI_PRESENT_ALLOW_TEARING : 0;
-        ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
+        
+        //ThrowIfFailed(swapChain->Present(syncInterval, presentFlags));
+        HRESULT hr = swapChain->Present(syncInterval, presentFlags);
+
+        if (FAILED(hr))
+        {
+            ComPtr<ID3D12Device> d3dDevice;
+            swapChain->GetDevice(IID_PPV_ARGS(&d3dDevice));
+
+            HRESULT reason = d3dDevice->GetDeviceRemovedReason();
+
+            OutputDebugStringA("[MY_DX12_APP] Present failed!\n");
+
+            if (reason == DXGI_ERROR_DEVICE_REMOVED)
+                OutputDebugStringA("[MY_DX12_APP] Device Removed\n");
+            else if (reason == DXGI_ERROR_DEVICE_HUNG)
+                OutputDebugStringA("[MY_DX12_APP] Device Hung\n");
+            else if (reason == DXGI_ERROR_DEVICE_RESET)
+                OutputDebugStringA("[MY_DX12_APP] Device Reset\n");
+            else
+                OutputDebugStringA("[MY_DX12_APP] Unknown device removal reason\n");
+
+            ThrowIfFailed(hr);
+        }
+
+
         currentBackBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
         return currentBackBufferIndex;

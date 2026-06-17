@@ -121,6 +121,20 @@ struct SsaoConstants
     float SurfaceEpsilon = 0.05f;
 };
 
+struct MBConstants
+{
+    Matrix InverseProjMatrix;
+    Matrix ReprojectionMatrix;
+    
+    Vector2 gTexSizeV;
+    //Vector2 padding;
+
+    Vector2 gNearFar;
+    Vector2 gTileCount; // {tilesX, tilesY}, size of tile grid (width/TileSize, height/TileSize)
+
+    float MaxVelocity;
+};
+
 struct alignas(sizeof(Vector4)) MaterialConstants
 {
     Vector4 DiffuseAlbedo = Vector4{1.0f, 1.0f, 1.0f, 1.0f};

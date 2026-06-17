@@ -286,6 +286,19 @@ void RenderModeFactory::LoadDefaultShaders()
     shaders["noisePS"] = std::move(
         std::make_shared<GShader>(L"Shaders\\NoiseDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1"));
 
+    // сработает ли это? TODO "сs_6_0"
+    shaders["velocityCS"] = std::move(
+        std::make_shared<GShader>(L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "velocityCS", "cs_5_1"));
+
+    shaders["tilemaxCS"] = std::move(
+        std::make_shared<GShader>(L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "tilemaxCS", "cs_5_1"));
+
+    shaders["neighbourmaxCS"] = std::move(
+        std::make_shared<GShader>(L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "neighbourmaxCS", "cs_5_1"));
+
+    shaders["mbCS"] = std::move(
+        std::make_shared<GShader>(L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "mbCS", "cs_5_1"));
+
     for (auto&& pair : shaders)
     {
         pair.second->LoadAndCompile();

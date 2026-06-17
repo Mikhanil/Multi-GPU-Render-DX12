@@ -14,8 +14,8 @@ class CameraController :
     Mousepad* mouse;
 
 
-    float xMouseSpeed = 100;
-    float yMouseSpeed = 70;
+    float xMouseSpeed = 10;//1000;
+    float yMouseSpeed = 10;//700;
 
 public:
     CameraController();

@@ -15,7 +15,7 @@ void ObjectMover::Update()
 
     if (keyboard->KeyIsPressed(VK_SHIFT))
     {
-        speed = 100;
+        speed = 200; // 100;
     }
 
     Vector3 offset = Vector3::Zero;

@@ -24,7 +24,7 @@ void CameraController::Update()
         unsigned char keycode = kbe.GetKeyCode();
     }
 
-    float cameraSpeed = 6.0f;
+    float cameraSpeed = 18.0f;;//6.0f;
     float dt = Common::D3DApp::GetApp().GetTimer()->DeltaTime();
 
     auto tr = gameObject->GetTransform();
