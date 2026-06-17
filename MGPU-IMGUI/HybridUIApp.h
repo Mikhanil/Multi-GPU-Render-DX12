@@ -85,11 +85,12 @@ protected:
 
     bool IsStop = false;
 
+   
 
     std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
     GTexture secondDeviceUITexture;
     GDescriptor secondDeviceUIBackBufferRTV;
-    std::shared_ptr<GCrossAdapterResource> crossAdapterUITexture;
+    GCrossAdapterResource crossAdapterUITexture;
     GTexture primeDeviceUITexture;
     GDescriptor primeUIBackBufferSRV;
 
