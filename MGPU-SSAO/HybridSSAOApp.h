@@ -33,7 +33,6 @@ public:
     void SwitchDevice();
     void ChangeAOMethod();
     void ResetCamera() const;
-
 protected:
     void Update(const GameTimer& gt) override;
     void PopulateShadowMapCommands(const std::shared_ptr<GCommandList>& cmdList);;
@@ -48,8 +47,10 @@ protected:
                                      const GDescriptor* renderTextureSRVMemory, UINT renderTextureMemoryOffset,
                                      const GraphicPSO& pso) const;
     void PopulateDebugCommands(const std::shared_ptr<GCommandList>& cmdList);
+    void UpdateAoPreviewViewport();
+    void PopulateAoPreviewCorner(const std::shared_ptr<GCommandList>& cmdList);
     void Draw(const GameTimer& gt) override;
-
+   
     void InitDevices();
     void InitFrameResource();
     void InitRootSignature();
@@ -73,7 +74,7 @@ protected:
     void Flush() override;
     LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override;
 
-
+    
     FileQueueWriter debugLogger;
     BenchmarkService benchmark;
     std::shared_ptr<GDevice> primeDevice;
@@ -84,6 +85,10 @@ protected:
 
     D3D12_VIEWPORT fullViewport{};
     D3D12_RECT fullRect;
+
+    D3D12_VIEWPORT aoPreviewViewport{};
+    D3D12_RECT aoPreviewScissor{};
+    bool showAoPreviewInCorner = true;
 
     std::shared_ptr<AssetsLoader> assets;
 
@@ -99,6 +104,7 @@ protected:
 
     bool IsUsingSharedSSAO = false;
     bool IsUseHBAO = false;
+    bool IsUseXeGTAO = true;
 
     UINT pathMapShow = 0;
     //off, shadowMap, ssaoMap
@@ -109,6 +115,7 @@ protected:
     std::shared_ptr<ShadowMap> shadowPath;
     std::shared_ptr<SharedSSAO> ssaoPass;
     std::shared_ptr<SharedHBAO> hbaoPass;
+    std::shared_ptr<SharedXeGTAO> xegtaoPass;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
 
     custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<
@@ -147,4 +154,7 @@ protected:
     Matrix RotaterSaveMatrix;
     Matrix CameraSaveMatrix;
     std::vector<ParticleEmitter*> emitters;
+    UINT maxLevel = 6;
+    bool isUsingWeightedTest = true;
+    bool isWaitedSecondDevice = false;
 };

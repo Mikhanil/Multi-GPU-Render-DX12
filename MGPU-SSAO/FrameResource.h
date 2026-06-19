@@ -3,6 +3,7 @@
 #include "GDescriptor.h"
 #include "ShaderBuffersData.h"
 #include "GTexture.h"
+#include "SharedXeGTAO.h"
 
 struct HBAOConstants;
 using namespace PEPEngine;
@@ -21,13 +22,16 @@ struct FrameResource
     GDescriptor BackBufferRTVMemory;
 
     std::shared_ptr<ConstantUploadBuffer<PassConstants>> PrimePassConstantUploadBuffer;
-
+    
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> PrimeSsaoConstantUploadBuffer;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SecondSsaoConstantUploadBuffer;
 
     std::shared_ptr<ConstantUploadBuffer<HBAOConstants>> PrimeHBAOConstantUploadBuffer;
     std::shared_ptr<ConstantUploadBuffer<HBAOConstants>> SecondHBAOConstantUploadBuffer;
 
+    std::shared_ptr<ConstantUploadBuffer<GTAOConstants>> PrimeXeGTAOConstantUploadBuffer;
+    std::shared_ptr<ConstantUploadBuffer<GTAOConstants>> SecondXeGTAOConstantUploadBuffer;
+    
     std::shared_ptr<StructuredUploadBuffer<MaterialConstants>> MaterialBuffer;
 
 

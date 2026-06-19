@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "d3dUtil.h"
 #include "GCrossAdapterResource.h"

@@ -5,6 +5,7 @@
 #include "GDescriptor.h"
 #include "GTexture.h"
 #include "MemoryAllocator.h"
+#include "SharedXeGTAO.h"
 #include <array>
 #include <cstdint>
 using namespace PEPEngine;
@@ -19,6 +20,8 @@ class UILayer
     std::array<bool, ImGuiSrvDescriptorCount> imguiSrvDescriptorUsage{};
     HWND hwnd;
     std::shared_ptr<GDevice> device;
+
+    SharedXeGTAO* xegtao = nullptr;
 
     void SetupRenderBackends();
     void Initialize();
@@ -43,8 +46,11 @@ public:
     void Update();
 
     void ShowMetrics();
+    void ShowXeGTAOSettings();
 
     void ChangeDevice(const std::shared_ptr<GDevice>& device);
 
     LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    void SetXeGTAO(SharedXeGTAO* ptr) { xegtao = ptr; }
 };

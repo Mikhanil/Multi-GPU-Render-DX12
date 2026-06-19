@@ -6,6 +6,7 @@
 #include "GCommandList.h"
 #include "GCommandQueue.h"
 #include "GDescriptorHeap.h"
+#include "Shaders/XeGTAO.h"
 
 // Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -56,7 +57,6 @@ LRESULT UILayer::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, c
 {
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
         return true;
-
     return 0;
 }
 
@@ -109,7 +109,7 @@ void UILayer::Invalidate()
     ImGui_ImplDX12_InvalidateDeviceObjects();
 }
 
-UILayer::UILayer(const std::shared_ptr<GDevice>& device, const HWND hwnd) : hwnd(hwnd), device((device))
+UILayer::UILayer(const std::shared_ptr<GDevice>& device, const HWND hwnd): hwnd(hwnd), device((device))
 {
     Initialize();
     CreateDeviceObject();
@@ -131,6 +131,7 @@ void UILayer::ChangeDevice(const std::shared_ptr<GDevice>& device)
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
     this->device = device;
+
     SetupRenderBackends();
     CreateDeviceObject();
 }
@@ -150,6 +151,7 @@ void UILayer::Update()
     ImGui::NewFrame();
     ImGui::ShowDemoWindow();
     ShowMetrics();
+    ShowXeGTAOSettings();
 }
 
 void UILayer::ShowMetrics()
@@ -160,13 +162,9 @@ void UILayer::ShowMetrics()
     {
         if (ImGui::BeginMenu("File"))
         {
-            if (ImGui::MenuItem("Open..", "Ctrl+O"))
-            {
-            }
-            if (ImGui::MenuItem("Save", "Ctrl+S"))
-            {
-            }
-            if (ImGui::MenuItem("Close", "Ctrl+W")) { my_tool_active = false; }
+            if (ImGui::MenuItem("Open..", "Ctrl+O")) { }
+            if (ImGui::MenuItem("Save", "Ctrl+S"))   { }
+            if (ImGui::MenuItem("Close", "Ctrl+W"))  { my_tool_active = false; }
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();
@@ -174,9 +172,23 @@ void UILayer::ShowMetrics()
 
     float samples[100];
 
-
+    const float time = static_cast<float>(ImGui::GetTime());
     for (int n = 0; n < 100; n++)
-        samples[n] = sinf(n * 0.2f + ImGui::GetTime() * 1.5f);
+        samples[n] = sinf(static_cast<float>(n) * 0.2f + time * 1.5f);
     ImGui::PlotLines("Samples", samples, 100);
+    ImGui::End();
+}
+
+void UILayer::ShowXeGTAOSettings() 
+{
+    if (!xegtao)
+        return;
+
+    auto& settings = xegtao->GetSettings();
+
+    if (ImGui::Begin("XeGTAO Settings"))
+    {
+        XeGTAO::GTAOImGuiSettings(settings);
+    }
     ImGui::End();
 }
