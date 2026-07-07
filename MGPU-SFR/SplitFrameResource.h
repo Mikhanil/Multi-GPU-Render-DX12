@@ -20,16 +20,16 @@ struct SplitFrameResource
 
     GTexture PrimeDeviceBackBuffer;
 
-    custom_vector<GDescriptor> RenderTargetViewMemory = MemoryAllocator::CreateVector<GDescriptor>();
+    std::vector<GDescriptor> RenderTargetViewMemory = std::vector<GDescriptor>();
 
-    custom_vector<std::shared_ptr<ConstantUploadBuffer<PassConstants>>> PassConstantUploadBuffers =
-        MemoryAllocator::CreateVector<std::shared_ptr<ConstantUploadBuffer<PassConstants>>>();
+    std::vector<std::shared_ptr<ConstantUploadBuffer<PassConstants>>> PassConstantUploadBuffers =
+        std::vector<std::shared_ptr<ConstantUploadBuffer<PassConstants>>>();
 
-    custom_vector<std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>> SsaoConstantUploadBuffers =
-        MemoryAllocator::CreateVector<std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>>();
+    std::vector<std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>> SsaoConstantUploadBuffers =
+        std::vector<std::shared_ptr<ConstantUploadBuffer<SsaoConstants>>>();
 
-    custom_vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>> MaterialBuffers =
-        MemoryAllocator::CreateVector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>>();
+    std::vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>> MaterialBuffers =
+        std::vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>>();
 
 
     UINT64 FenceValue = 0;

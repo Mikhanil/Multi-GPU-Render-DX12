@@ -61,7 +61,7 @@ public:
     std::string& GetName() { return name; }
 
 protected:
-    custom_vector<std::shared_ptr<Component>> components = MemoryAllocator::CreateVector<std::shared_ptr<Component>>();
+    std::vector<std::shared_ptr<Component>> components = std::vector<std::shared_ptr<Component>>();
     std::shared_ptr<Transform> transform = nullptr;
     std::shared_ptr<Renderer> renderer = nullptr;
     std::string name;

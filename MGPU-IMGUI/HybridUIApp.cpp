@@ -380,7 +380,7 @@ void HybridUIApp::InitDevices()
     for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
     {
         typedRenderer.push_back(
-            MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
+            std::vector<std::shared_ptr<Renderer>>());
     }
 
 

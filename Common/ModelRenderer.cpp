@@ -51,7 +51,7 @@ void ModelRenderer::SetModel(const std::shared_ptr<GModel>& asset)
     {
         modelDataBuffer.reset();
         modelDataBuffer = std::make_shared<ConstantUploadBuffer<ObjectConstants>>(
-            device, asset->GetMeshesCount(), asset->GetName());
+            device, asset->GetMeshesCount(), L"Object Constants");
     }
 
     model = asset;

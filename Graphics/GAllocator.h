@@ -26,7 +26,7 @@ namespace PEPEngine::Graphics
         void ReleaseStaleDescriptors(uint64_t frameNumber);
 
     private:
-        using GraphicMemoryPage = custom_vector<std::shared_ptr<GDescriptorHeap>>;
+        using GraphicMemoryPage = std::vector<std::shared_ptr<GDescriptorHeap>>;
 
         std::shared_ptr<GDescriptorHeap> CreateAllocatorPage();
 
@@ -34,9 +34,9 @@ namespace PEPEngine::Graphics
 
         uint32_t numDescriptorsPerPage;
 
-        GraphicMemoryPage pages = MemoryAllocator::CreateVector<std::shared_ptr<GDescriptorHeap>>();
+        GraphicMemoryPage pages = std::vector<std::shared_ptr<GDescriptorHeap>>();
 
-        custom_set<size_t> availablePages = MemoryAllocator::CreateSet<size_t>();
+        std::set<size_t> availablePages{};
 
         std::mutex allocationMutex;
 

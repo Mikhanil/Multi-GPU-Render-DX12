@@ -20,8 +20,7 @@ class GModel
 
     std::vector<std::shared_ptr<GMesh>> gmeshes{};
 
-    custom_vector<std::shared_ptr<Material>> meshesMaterials = MemoryAllocator::CreateVector<std::shared_ptr<
-        Material>>();
+    std::vector<std::shared_ptr<Material>> meshesMaterials{};
 
 public:
     DirectX::SimpleMath::Matrix scaleMatrix = DirectX::SimpleMath::Matrix::CreateScale(1);

@@ -30,8 +30,8 @@ namespace PEPEngine::Graphics
     {
         friend class GCommandQueue;
 
-        using TrackedObjects = custom_vector<ComPtr<ID3D12Object>>;
-        TrackedObjects trackedObject = MemoryAllocator::CreateVector<ComPtr<ID3D12Object>>();
+        using TrackedObjects = std::vector<ComPtr<ID3D12Object>>;
+        TrackedObjects trackedObject = std::vector<ComPtr<ID3D12Object>>();
 
         std::unique_ptr<GDataUploader> uploadBuffer;
         UploadAllocation UploadData(size_t sizeInBytes, const void* bufferData, size_t alignment) const;

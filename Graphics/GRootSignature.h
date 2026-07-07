@@ -21,15 +21,15 @@ namespace PEPEngine::Graphics
         D3D12_ROOT_SIGNATURE_DESC rootSigDesc;
 
 
-        custom_vector<CD3DX12_ROOT_PARAMETER> slotRootParameters = MemoryAllocator::CreateVector<
+        std::vector<CD3DX12_ROOT_PARAMETER> slotRootParameters = std::vector<
             CD3DX12_ROOT_PARAMETER>();
 
         void AddParameter(const CD3DX12_ROOT_PARAMETER& parameter);
 
-        custom_vector<D3D12_STATIC_SAMPLER_DESC> staticSampler = MemoryAllocator::CreateVector<
+        std::vector<D3D12_STATIC_SAMPLER_DESC> staticSampler = std::vector<
             D3D12_STATIC_SAMPLER_DESC>();
 
-        custom_vector<uint32_t> descriptorPerTableCount = MemoryAllocator::CreateVector<uint32_t>();
+        std::vector<uint32_t> descriptorPerTableCount = std::vector<uint32_t>();
 
         uint32_t samplerTableBitMask;
 

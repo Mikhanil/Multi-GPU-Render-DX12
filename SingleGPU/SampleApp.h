@@ -67,7 +67,7 @@ namespace Common
         void BuildMaterials();
         void BuildGameObjects();
         std::unique_ptr<GameObject> CreateGOWithRenderer(std::shared_ptr<GModel> model);
-        static void DrawGameObjects(const std::shared_ptr<GCommandList>& cmdList, const custom_vector<GameObject*>& ritems);
+        static void DrawGameObjects(const std::shared_ptr<GCommandList>& cmdList, const std::vector<GameObject*>& ritems);
         void SortGO();
 
         UINT backBufferIndex = 0;
@@ -79,10 +79,10 @@ namespace Common
 
         GDescriptor renderTargetMemory;
 
-        custom_unordered_map<std::wstring, std::shared_ptr<GModel>> models = MemoryAllocator::CreateUnorderedMap<
+        std::unordered_map<std::wstring, std::shared_ptr<GModel>> models = std::unordered_map<
             std::wstring, std::shared_ptr<GModel>>();
 
-        custom_vector<std::unique_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::unique_ptr<
+        std::vector<std::unique_ptr<FrameResource>> frameResources = std::vector<std::unique_ptr<
             FrameResource>>();
 
         FrameResource* currentFrameResource = nullptr;
@@ -99,23 +99,23 @@ namespace Common
         AssetsLoader loader;
 
 
-        custom_unordered_map<std::string, std::unique_ptr<GShader>> shaders = MemoryAllocator::CreateUnorderedMap<
+        std::unordered_map<std::string, std::unique_ptr<GShader>> shaders = std::unordered_map<
             std::string, std::unique_ptr<GShader>>();
 
-        custom_unordered_map<RenderMode, std::unique_ptr<GraphicPSO>> psos = MemoryAllocator::CreateUnorderedMap<
+        std::unordered_map<RenderMode, std::unique_ptr<GraphicPSO>> psos = std::unordered_map<
             RenderMode, std::unique_ptr<GraphicPSO>>();
 
-        custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();
+        std::vector<Light*> lights = std::vector<Light*>();
 
-        custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = MemoryAllocator::CreateVector<
+        std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = std::vector<
             D3D12_INPUT_ELEMENT_DESC>();
-        custom_vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = MemoryAllocator::CreateVector<
+        std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout = std::vector<
             D3D12_INPUT_ELEMENT_DESC>();
 
-        custom_vector<std::unique_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::unique_ptr<
+        std::vector<std::unique_ptr<GameObject>> gameObjects = std::vector<std::unique_ptr<
             GameObject>>();
 
-        custom_vector<custom_vector<GameObject*>> typedGameObjects = MemoryAllocator::CreateVector<custom_vector<
+        std::vector<std::vector<GameObject*>> typedGameObjects = std::vector<std::vector<
             GameObject*>>();
 
         PassConstants mainPassCB;

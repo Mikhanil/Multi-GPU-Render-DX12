@@ -33,7 +33,7 @@ namespace Common
 
         for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
         {
-            typedGameObjects.push_back(MemoryAllocator::CreateVector<GameObject*>());
+            typedGameObjects.push_back(std::vector<GameObject*>());
         }
     }
 
@@ -1435,7 +1435,7 @@ namespace Common
         return man;
     }
 
-    void SampleApp::DrawGameObjects(const std::shared_ptr<GCommandList>& cmdList, const custom_vector<GameObject*>& ritems)
+    void SampleApp::DrawGameObjects(const std::shared_ptr<GCommandList>& cmdList, const std::vector<GameObject*>& ritems)
     {
         // For each render item...
         for (auto& ri : ritems)

@@ -77,8 +77,7 @@ protected:
 
     std::shared_ptr<AssetsLoader> assets;
 
-    custom_unordered_map<std::wstring, std::shared_ptr<GModel>> models = MemoryAllocator::CreateUnorderedMap<
-        std::wstring, std::shared_ptr<GModel>>();
+    std::unordered_map<std::wstring, std::shared_ptr<GModel>> models{};
     std::shared_ptr<GRootSignature> primeDeviceSignature;
     std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
@@ -95,15 +94,15 @@ protected:
     std::shared_ptr<SSAO> ambientPrimePath;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
 
-    custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<GameObject>> gameObjects = std::vector<std::shared_ptr<
         GameObject>>();
 
-    custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<
+    std::vector<std::vector<std::shared_ptr<Renderer>>> typedRenderer = std::vector<std::vector<
         std::shared_ptr<Renderer>>>();
 
     bool UseCrossAdapter = false;
     bool UseCrossSync = false;
-    custom_vector<CrossAdapterParticleEmitter*> crossEmitter = MemoryAllocator::CreateVector<CrossAdapterParticleEmitter
+    std::vector<CrossAdapterParticleEmitter*> crossEmitter = std::vector<CrossAdapterParticleEmitter
         *>();
 
     ComPtr<ID3D12Fence> primeComputeFence;
@@ -117,12 +116,12 @@ protected:
     PassConstants mainPassCB;
     PassConstants shadowPassCB;
 
-    custom_vector<std::shared_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<FrameResource>> frameResources = std::vector<std::shared_ptr<
         FrameResource>>();
     std::shared_ptr<FrameResource> currentFrameResource = nullptr;
     std::atomic<UINT> currentFrameResourceIndex = 0;
 
-    custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();
+    std::vector<Light*> lights = std::vector<Light*>();
 
     float mLightNearZ = 0.0f;
     float mLightFarZ = 0.0f;

@@ -24,7 +24,7 @@ namespace PEPEngine::Graphics
     {
         TextureUsage usage;
 
-        custom_vector<ComPtr<ID3D12Resource>> track = MemoryAllocator::CreateVector<ComPtr<ID3D12Resource>>();
+        std::vector<ComPtr<ID3D12Resource>> track = std::vector<ComPtr<ID3D12Resource>>();
 
         std::wstring filePath;
 

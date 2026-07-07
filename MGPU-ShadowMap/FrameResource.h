@@ -23,8 +23,8 @@ struct FrameResource
     std::shared_ptr<ConstantUploadBuffer<PassConstants>> ShadowPassConstantUploadBuffer;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer;
 
-    custom_vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>> MaterialBuffers =
-        MemoryAllocator::CreateVector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>>();
+    std::vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>> MaterialBuffers =
+        std::vector<std::shared_ptr<StructuredUploadBuffer<MaterialConstants>>>();
 
 
     UINT64 PrimeRenderFenceValue = 0;

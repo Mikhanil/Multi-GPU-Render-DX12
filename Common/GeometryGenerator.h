@@ -62,10 +62,10 @@ public:
 
     struct MeshData
     {
-        custom_vector<Vertex> Vertices = MemoryAllocator::CreateVector<Vertex>();
-        custom_vector<DWORD> Indices32 = MemoryAllocator::CreateVector<DWORD>();
+        std::vector<Vertex> Vertices = std::vector<Vertex>();
+        std::vector<DWORD> Indices32 = std::vector<DWORD>();
 
-        custom_vector<uint16>& GetIndices16()
+        std::vector<uint16>& GetIndices16()
         {
             if (mIndices16.empty())
             {
@@ -78,7 +78,7 @@ public:
         }
 
     private:
-        custom_vector<uint16> mIndices16 = MemoryAllocator::CreateVector<uint16>();
+        std::vector<uint16> mIndices16 = std::vector<uint16>();
     };
 
     ///<summary>

@@ -104,38 +104,38 @@ private:
 
     D3D12_VIEWPORT fullViewport{};
     D3D12_RECT fullRect;
-    custom_vector<D3D12_RECT> adapterRects = MemoryAllocator::CreateVector<D3D12_RECT>();
+    std::vector<D3D12_RECT> adapterRects = std::vector<D3D12_RECT>();
     D3D12_BOX copyRegionBox;
 
 
-    custom_vector<std::shared_ptr<GDevice>> devices = MemoryAllocator::CreateVector<std::shared_ptr<GDevice>>();
-    custom_vector<GDescriptor> srvTexturesMemory = MemoryAllocator::CreateVector<GDescriptor>();
+    std::vector<std::shared_ptr<GDevice>> devices = std::vector<std::shared_ptr<GDevice>>();
+    std::vector<GDescriptor> srvTexturesMemory = std::vector<GDescriptor>();
 
-    custom_vector<AssetsLoader> assets = MemoryAllocator::CreateVector<AssetsLoader>();
+    std::vector<AssetsLoader> assets = std::vector<AssetsLoader>();
 
-    custom_vector<custom_unordered_map<std::wstring, std::shared_ptr<GModel>>> models = MemoryAllocator::CreateVector<
-        custom_unordered_map<std::wstring, std::shared_ptr<GModel>>>();
+    std::vector<std::unordered_map<std::wstring, std::shared_ptr<GModel>>> models = std::vector<
+        std::unordered_map<std::wstring, std::shared_ptr<GModel>>>();
 
-    custom_vector<std::shared_ptr<GRootSignature>> rootSignatures = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<GRootSignature>> rootSignatures = std::vector<std::shared_ptr<
         GRootSignature>>();
 
-    custom_vector<std::shared_ptr<GRootSignature>> ssaoRootSignatures = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<GRootSignature>> ssaoRootSignatures = std::vector<std::shared_ptr<
         GRootSignature>>();
 
-    custom_vector<RenderModeFactory> defaultPipelineResources = MemoryAllocator::CreateVector<RenderModeFactory>();
+    std::vector<RenderModeFactory> defaultPipelineResources = std::vector<RenderModeFactory>();
 
-    custom_vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = MemoryAllocator::CreateVector<
+    std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout = std::vector<
         D3D12_INPUT_ELEMENT_DESC>();
 
-    custom_vector<std::shared_ptr<ShadowMap>> shadowPaths = MemoryAllocator::CreateVector<std::shared_ptr<ShadowMap>>();
-    custom_vector<std::shared_ptr<SSAO>> ambientPaths = MemoryAllocator::CreateVector<std::shared_ptr<SSAO>>();
-    custom_vector<std::shared_ptr<SSAA>> antiAliasingPaths = MemoryAllocator::CreateVector<std::shared_ptr<SSAA>>();
+    std::vector<std::shared_ptr<ShadowMap>> shadowPaths = std::vector<std::shared_ptr<ShadowMap>>();
+    std::vector<std::shared_ptr<SSAO>> ambientPaths = std::vector<std::shared_ptr<SSAO>>();
+    std::vector<std::shared_ptr<SSAA>> antiAliasingPaths = std::vector<std::shared_ptr<SSAA>>();
 
-    custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<GameObject>> gameObjects = std::vector<std::shared_ptr<
         GameObject>>();
 
-    custom_vector<custom_vector<custom_vector<std::shared_ptr<Renderer>>>> typedRenderer = MemoryAllocator::CreateVector
-        <custom_vector<custom_vector<std::shared_ptr<Renderer>>>>();
+    std::vector<std::vector<std::vector<std::shared_ptr<Renderer>>>> typedRenderer = std::vector
+        <std::vector<std::vector<std::shared_ptr<Renderer>>>>();
 
     PassConstants mainPassCB;
     PassConstants shadowPassCB;
@@ -145,12 +145,12 @@ private:
     ComPtr<ID3D12Fence> sharedFence;
     UINT64 sharedFenceValue = 0;
 
-    custom_vector<std::shared_ptr<SplitFrameResource>> frameResources = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<SplitFrameResource>> frameResources = std::vector<std::shared_ptr<
         SplitFrameResource>>();
     std::shared_ptr<SplitFrameResource> currentFrameResource = nullptr;
     UINT currentFrameResourceIndex = 0;
 
-    custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();
+    std::vector<Light*> lights = std::vector<Light*>();
 
     float mLightNearZ = 0.0f;
     float mLightFarZ = 0.0f;

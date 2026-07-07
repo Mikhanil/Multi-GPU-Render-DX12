@@ -76,13 +76,11 @@ namespace PEPEngine::Graphics
             uint64_t FrameNumber;
         };
 
-        custom_map<OffsetType, FreeBlockInfo> freeListByOffset = MemoryAllocator::CreateMap<
-            OffsetType, FreeBlockInfo>();
-        custom_multimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator> freeListBySize =
-            MemoryAllocator::CreateMultimap<SizeType, custom_map<OffsetType, FreeBlockInfo>::iterator>();
+        std::map<OffsetType, FreeBlockInfo> freeListByOffset {};
+        std::multimap<SizeType, std::map<OffsetType, FreeBlockInfo>::iterator> freeListBySize =
+            std::multimap<SizeType, std::map<OffsetType, FreeBlockInfo>::iterator>();
 
-        custom_queue<DescriptorInfo> staleDescriptors = MemoryAllocator::CreateQueue<DescriptorInfo>();
-
+        std::queue<DescriptorInfo> staleDescriptors {};
         ComPtr<ID3D12DescriptorHeap> descriptorHeap;
 
         D3D12_DESCRIPTOR_HEAP_TYPE heapType;

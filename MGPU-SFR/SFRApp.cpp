@@ -49,14 +49,14 @@ void SFRApp::InitDevices()
     {
         adapterRects.push_back(D3D12_RECT{});
         assets.push_back(AssetsLoader(device));
-        models.push_back(MemoryAllocator::CreateUnorderedMap<std::wstring, std::shared_ptr<GModel>>());
+        models.push_back(std::unordered_map<std::wstring, std::shared_ptr<GModel>>());
 
-        typedRenderer.push_back(MemoryAllocator::CreateVector<custom_vector<std::shared_ptr<Renderer>>>());
+        typedRenderer.push_back(std::vector<std::vector<std::shared_ptr<Renderer>>>());
 
         for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
         {
             typedRenderer[typedRenderer.size() - 1].push_back(
-                MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
+                std::vector<std::shared_ptr<Renderer>>());
         }
     }
 

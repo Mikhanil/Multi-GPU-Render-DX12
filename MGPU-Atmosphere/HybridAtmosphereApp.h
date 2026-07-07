@@ -41,8 +41,8 @@ protected:
     Atmosphere functions
     */
 
-    custom_unordered_map<std::string, std::shared_ptr<GShader>> mCustomAppShaders = MemoryAllocator::CreateUnorderedMap<std::string, std::shared_ptr<GShader>>();
-    custom_unordered_map<RenderMode, std::shared_ptr<GraphicPSO>> mCustomAppPSOs = MemoryAllocator::CreateUnorderedMap<
+    std::unordered_map<std::string, std::shared_ptr<GShader>> mCustomAppShaders = std::unordered_map<std::string, std::shared_ptr<GShader>>();
+    std::unordered_map<RenderMode, std::shared_ptr<GraphicPSO>> mCustomAppPSOs = std::unordered_map<
         RenderMode, std::shared_ptr<GraphicPSO>>();
 
     void LoadCustomShaders();
@@ -122,7 +122,7 @@ protected:
 
     std::shared_ptr<AssetsLoader> assets;
 
-    custom_unordered_map<std::wstring, std::shared_ptr<GModel>> models = MemoryAllocator::CreateUnorderedMap<
+    std::unordered_map<std::wstring, std::shared_ptr<GModel>> models = std::unordered_map<
         std::wstring, std::shared_ptr<GModel>>();
     std::shared_ptr<GRootSignature> primeDeviceSignature;
     std::shared_ptr<GRootSignature> secondDeviceSignature;
@@ -146,21 +146,21 @@ protected:
     std::shared_ptr<SharedHBAO> hbaoPass;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
 
-    custom_vector<std::shared_ptr<GameObject>> gameObjects = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<GameObject>> gameObjects = std::vector<std::shared_ptr<
         GameObject>>();
 
-    custom_vector<custom_vector<std::shared_ptr<Renderer>>> typedRenderer = MemoryAllocator::CreateVector<custom_vector<
+    std::vector<std::vector<std::shared_ptr<Renderer>>> typedRenderer = std::vector<std::vector<
         std::shared_ptr<Renderer>>>();
 
     PassConstants mainPassCB;
     PassConstants shadowPassCB;
 
-    custom_vector<std::shared_ptr<FrameResource>> frameResources = MemoryAllocator::CreateVector<std::shared_ptr<
+    std::vector<std::shared_ptr<FrameResource>> frameResources = std::vector<std::shared_ptr<
         FrameResource>>();
     std::shared_ptr<FrameResource> currentFrameResource = nullptr;
     std::atomic<UINT> currentFrameResourceIndex = 0;
 
-    custom_vector<Light*> lights = MemoryAllocator::CreateVector<Light*>();
+    std::vector<Light*> lights = std::vector<Light*>();
 
     float mLightNearZ = 0.0f;
     float mLightFarZ = 0.0f;

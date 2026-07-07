@@ -164,8 +164,8 @@ namespace Atmosphere
         std::shared_ptr<GDevice> mDevice;
         std::shared_ptr<GRootSignature> mRootSignature;
 
-        custom_unordered_map<std::string, std::shared_ptr<GShader>> mAtmosphereShaders =
-            MemoryAllocator::CreateUnorderedMap<std::string, std::shared_ptr<GShader>>();
+        std::unordered_map<std::string, std::shared_ptr<GShader>> mAtmosphereShaders =
+            std::unordered_map<std::string, std::shared_ptr<GShader>>();
 
 		std::shared_ptr<ComputePSO> mComputeTransmittancePSO;
 		std::shared_ptr<ComputePSO> mComputeMultiscatPSO;

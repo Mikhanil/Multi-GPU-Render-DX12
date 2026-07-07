@@ -61,9 +61,7 @@ namespace PEPEngine::Graphics
         };
 
 
-        custom_list<std::shared_ptr<UploadMemoryPage>> pages = MemoryAllocator::CreateList<std::shared_ptr<
-                UploadMemoryPage>
-        >();
+        std::list<std::shared_ptr<UploadMemoryPage>> pages{};
 
 
         std::shared_ptr<UploadMemoryPage> CreatePage(uint32_t pageSize) const;

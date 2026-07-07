@@ -728,7 +728,7 @@ void HybridAtmosphereApp::InitDevices()
 
     for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
     {
-        typedRenderer.emplace_back(MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
+        typedRenderer.emplace_back(std::vector<std::shared_ptr<Renderer>>());
     }
 
 
@@ -1745,7 +1745,7 @@ LRESULT HybridAtmosphereApp::MsgProc(const HWND hwnd, const UINT msg, const WPAR
 
 void HybridAtmosphereApp::LoadCustomShaders()
 {
-    // mCustomAppShaders = MemoryAllocator::CreateUnorderedMap<std::string, std::shared_ptr<GShader>>();
+    // mCustomAppShaders = std::unordered_map<std::string, std::shared_ptr<GShader>>();
 
     LoadAtmospherePostProcessShader();
 
@@ -1759,7 +1759,7 @@ void HybridAtmosphereApp::LoadCustomPSOs(std::shared_ptr<GDevice> device, std::s
     D3D12_INPUT_LAYOUT_DESC defautlInputDesc, DXGI_FORMAT backBufferFormat,
     DXGI_FORMAT depthStencilFormat)
 {
-    // mCustomAppPSOs = MemoryAllocator::CreateUnorderedMap<RenderMode, std::shared_ptr<GraphicPSO>>();
+    // mCustomAppPSOs = std::unordered_map<RenderMode, std::shared_ptr<GraphicPSO>>();
 
 	LoadAtmospherePostProcessPSO(rootSignature,
 		defautlInputDesc, backBufferFormat, depthStencilFormat);

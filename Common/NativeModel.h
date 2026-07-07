@@ -11,8 +11,8 @@ using namespace Allocator;
 class NativeMesh
 {
     std::wstring meshName;
-    custom_vector<Vertex> vertices = MemoryAllocator::CreateVector<Vertex>();
-    custom_vector<DWORD> indexes = MemoryAllocator::CreateVector<DWORD>();
+    std::vector<Vertex> vertices = std::vector<Vertex>();
+    std::vector<DWORD> indexes = std::vector<DWORD>();
 
 public:
     NativeMesh(const Vertex* vertices, const size_t vertexesCount, const DWORD* indices, const size_t indexesCount,
@@ -24,12 +24,12 @@ public:
         std::copy(indices, indices + indexesCount, std::back_inserter(this->indexes));
     }
 
-    custom_vector<Vertex>& GetVertexes()
+    std::vector<Vertex>& GetVertexes()
     {
         return vertices;
     }
 
-    custom_vector<DWORD>& GetIndexes()
+    std::vector<DWORD>& GetIndexes()
     {
         return indexes;
     }
@@ -61,7 +61,7 @@ public:
 
 class NativeModel
 {
-    custom_vector<std::shared_ptr<NativeMesh>> meshes = MemoryAllocator::CreateVector<std::shared_ptr<NativeMesh>>();
+    std::vector<std::shared_ptr<NativeMesh>> meshes = std::vector<std::shared_ptr<NativeMesh>>();
 
     std::wstring name;
 

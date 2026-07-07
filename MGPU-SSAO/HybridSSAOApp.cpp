@@ -960,7 +960,7 @@ void HybridSSAOApp::InitDevices()
 
 	for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
 	{
-		typedRenderer.emplace_back(MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
+		typedRenderer.emplace_back(std::vector<std::shared_ptr<Renderer>>());
 	}
 
 
