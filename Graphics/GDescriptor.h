@@ -12,7 +12,8 @@ namespace PEPEngine::Graphics
 
         GDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE descriptor, D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor,
                     uint32_t count,
-                    uint32_t descriptorSize, const std::shared_ptr<GDescriptorHeap>& heap);
+                    uint32_t descriptorSize, const std::shared_ptr<GDescriptorHeap>& heap,
+                    bool ownsAllocation = true);
 
         ~GDescriptor();
 
@@ -44,6 +45,7 @@ namespace PEPEngine::Graphics
         CD3DX12_GPU_DESCRIPTOR_HANDLE gpuBase;
         uint32_t descriptorCount;
         uint32_t size;
+        bool ownsAllocation;
 
         std::shared_ptr<GDescriptorHeap> page;
     };

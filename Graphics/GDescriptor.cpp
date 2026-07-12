@@ -11,6 +11,7 @@ namespace PEPEngine::Graphics
           , gpuBase{}
           , descriptorCount(0)
           , size(0)
+          , ownsAllocation(false)
           , page(nullptr)
     {
     }
@@ -18,11 +19,13 @@ namespace PEPEngine::Graphics
     GDescriptor::GDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE descriptor,
                              const D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptor,
                              const uint32_t count, const uint32_t descriptorSize,
-                             const std::shared_ptr<GDescriptorHeap>& heap)
+                             const std::shared_ptr<GDescriptorHeap>& heap,
+                             const bool ownsAllocation)
         : cpuBase(descriptor)
           , gpuBase(gpuDescriptor)
           , descriptorCount(count)
           , size(descriptorSize)
+          , ownsAllocation(ownsAllocation)
           , page(heap)
     {
     }
@@ -38,12 +41,14 @@ namespace PEPEngine::Graphics
           , gpuBase(allocation.gpuBase)
           , descriptorCount(allocation.descriptorCount)
           , size(allocation.size)
+          , ownsAllocation(allocation.ownsAllocation)
           , page(std::move(allocation.page))
     {
         allocation.cpuBase.ptr = 0;
         allocation.gpuBase.ptr = 0;
         allocation.descriptorCount = 0;
         allocation.size = 0;
+        allocation.ownsAllocation = false;
     }
 
     GDescriptor& GDescriptor::operator=(GDescriptor&& other) noexcept
@@ -54,19 +59,21 @@ namespace PEPEngine::Graphics
         gpuBase = other.gpuBase;
         descriptorCount = other.descriptorCount;
         size = other.size;
+        ownsAllocation = other.ownsAllocation;
         page = std::move(other.page);
 
         other.cpuBase.ptr = 0;
         other.gpuBase.ptr = 0;
         other.descriptorCount = 0;
         other.size = 0;
+        other.ownsAllocation = false;
 
         return *this;
     }
 
     void GDescriptor::Free()
     {
-        if (!IsNull() && page)
+        if (ownsAllocation && !IsNull() && page)
         {
             const auto frameValue = page->GetDevice()->GetCommandQueue()->GetFenceValue();
 
@@ -76,6 +83,7 @@ namespace PEPEngine::Graphics
             gpuBase = CD3DX12_GPU_DESCRIPTOR_HANDLE();
             descriptorCount = 0;
             size = 0;
+            ownsAllocation = false;
             page.reset();
         }
     }
@@ -90,7 +98,8 @@ namespace PEPEngine::Graphics
         assert(offset < descriptorCount && "Bad GMemmory offset");
 
         return GDescriptor(CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuBase, offset, size),
-                           CD3DX12_GPU_DESCRIPTOR_HANDLE(gpuBase, offset, size), descriptorCount - offset, size, page);
+                           CD3DX12_GPU_DESCRIPTOR_HANDLE(gpuBase, offset, size), descriptorCount - offset, size, page,
+                           false);
     }
 
     D3D12_CPU_DESCRIPTOR_HANDLE GDescriptor::GetCPUHandle(const uint32_t offset) const
