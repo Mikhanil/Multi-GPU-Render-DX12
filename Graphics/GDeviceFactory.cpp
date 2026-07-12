@@ -5,11 +5,188 @@
 #include "GDevice.h"
 #include "GCommandQueue.h"
 
+#include <algorithm>
 #include <cwchar>
-
-
+#include <string>
 namespace PEPEngine::Graphics
 {
+    namespace
+    {
+        struct AdapterSelectionInfo
+        {
+            ComPtr<IDXGIAdapter3> Adapter;
+            DXGI_ADAPTER_DESC2 Desc = {};
+            bool SupportsD3D12 = false;
+            bool Uma = false;
+            bool CacheCoherentUma = false;
+            bool CrossAdapterRowMajorTextureSupported = false;
+        };
+
+        bool IsSoftwareAdapter(const DXGI_ADAPTER_DESC2& desc)
+        {
+            return (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0;
+        }
+
+        bool IsSamePhysicalAdapter(const DXGI_ADAPTER_DESC2& first, const DXGI_ADAPTER_DESC2& second)
+        {
+            return first.VendorId == second.VendorId &&
+                first.DeviceId == second.DeviceId &&
+                first.SubSysId == second.SubSysId &&
+                first.Revision == second.Revision &&
+                first.DedicatedVideoMemory == second.DedicatedVideoMemory &&
+                first.DedicatedSystemMemory == second.DedicatedSystemMemory &&
+                first.SharedSystemMemory == second.SharedSystemMemory &&
+                std::wcscmp(first.Description, second.Description) == 0;
+        }
+
+        void FillD3D12AdapterInfo(AdapterSelectionInfo& info)
+        {
+            ComPtr<ID3D12Device> device;
+            if (FAILED(D3D12CreateDevice(info.Adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device))))
+            {
+                return;
+            }
+
+            info.SupportsD3D12 = true;
+
+            D3D12_FEATURE_DATA_ARCHITECTURE architecture = {};
+            if (SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE,
+                                                      &architecture, sizeof(architecture))))
+            {
+                info.Uma = architecture.UMA != FALSE;
+                info.CacheCoherentUma = architecture.CacheCoherentUMA != FALSE;
+            }
+
+            D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
+            if (SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS,
+                                                      &options, sizeof(options))))
+            {
+                info.CrossAdapterRowMajorTextureSupported = options.CrossAdapterRowMajorTextureSupported != FALSE;
+            }
+        }
+
+        void AddAdapterInfo(std::vector<AdapterSelectionInfo>& adapterInfos, const ComPtr<IDXGIAdapter1>& adapter)
+        {
+            DXGI_ADAPTER_DESC1 desc1 = {};
+            adapter->GetDesc1(&desc1);
+            if ((desc1.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0)
+            {
+                return;
+            }
+
+            ComPtr<IDXGIAdapter3> adapter3;
+            if (FAILED(adapter->QueryInterface(IID_PPV_ARGS(&adapter3))))
+            {
+                return;
+            }
+
+            AdapterSelectionInfo info;
+            info.Adapter = adapter3;
+            ThrowIfFailed(adapter3->GetDesc2(&info.Desc));
+
+            if (IsSoftwareAdapter(info.Desc))
+            {
+                return;
+            }
+
+            for (const auto& existing : adapterInfos)
+            {
+                if (IsSamePhysicalAdapter(info.Desc, existing.Desc))
+                {
+                    return;
+                }
+            }
+
+            FillD3D12AdapterInfo(info);
+            if (!info.SupportsD3D12)
+            {
+                return;
+            }
+
+            adapterInfos.emplace_back(info);
+        }
+
+        std::vector<AdapterSelectionInfo> EnumerateAdapters(const ComPtr<IDXGIFactory4>& factory)
+        {
+            std::vector<AdapterSelectionInfo> adapterInfos;
+
+            ComPtr<IDXGIFactory6> factory6;
+            if (SUCCEEDED(factory.As(&factory6)))
+            {
+                for (UINT adapterIndex = 0;; ++adapterIndex)
+                {
+                    ComPtr<IDXGIAdapter1> adapter;
+                    const HRESULT hr = factory6->EnumAdapterByGpuPreference(
+                        adapterIndex,
+                        DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+                        IID_PPV_ARGS(&adapter));
+
+                    if (hr == DXGI_ERROR_NOT_FOUND)
+                    {
+                        break;
+                    }
+
+                    if (SUCCEEDED(hr))
+                    {
+                        AddAdapterInfo(adapterInfos, adapter);
+                    }
+                }
+            }
+
+            if (adapterInfos.empty())
+            {
+                for (UINT adapterIndex = 0;; ++adapterIndex)
+                {
+                    ComPtr<IDXGIAdapter1> adapter;
+                    const HRESULT hr = factory->EnumAdapters1(adapterIndex, &adapter);
+                    if (hr == DXGI_ERROR_NOT_FOUND)
+                    {
+                        break;
+                    }
+
+                    if (SUCCEEDED(hr))
+                    {
+                        AddAdapterInfo(adapterInfos, adapter);
+                    }
+                }
+            }
+
+            std::stable_sort(adapterInfos.begin(), adapterInfos.end(),
+                             [](const AdapterSelectionInfo& first, const AdapterSelectionInfo& second)
+                             {
+                                 if (first.Uma != second.Uma)
+                                 {
+                                     return !first.Uma;
+                                 }
+
+                                 return false;
+                             });
+
+            return adapterInfos;
+        }
+
+        void LogAdapterSelection(const std::vector<AdapterSelectionInfo>& adapterInfos)
+        {
+            OutputDebugStringW(L"[GDeviceFactory] Hardware adapter selection order:\n");
+            for (size_t i = 0; i < adapterInfos.size(); ++i)
+            {
+                const auto& info = adapterInfos[i];
+                std::wstring line = L"  [";
+                line += std::to_wstring(i);
+                line += L"] ";
+                line += info.Desc.Description;
+                line += L" | UMA=";
+                line += (info.Uma ? L"true" : L"false");
+                line += L" | CacheCoherentUMA=";
+                line += (info.CacheCoherentUma ? L"true" : L"false");
+                line += L" | CrossAdapterRowMajorTexture=";
+                line += (info.CrossAdapterRowMajorTextureSupported ? L"true" : L"false");
+                line += L"\n";
+                OutputDebugStringW(line.c_str());
+            }
+        }
+    }
+
     ComPtr<IDXGIFactory4> GDeviceFactory::dxgiFactory = CreateFactory();
     Lazy<bool> GDeviceFactory::isTearingSupport = Lazy<bool>(CheckTearingSupport);
     std::vector<ComPtr<IDXGIAdapter3>> GDeviceFactory::adapters = GetAdapters();
@@ -44,28 +221,18 @@ namespace PEPEngine::Graphics
 
     std::vector<ComPtr<IDXGIAdapter3>> GDeviceFactory::GetAdapters()
     {
-        std::vector<ComPtr<IDXGIAdapter3>> adapters;
+        std::vector<ComPtr<IDXGIAdapter3>> existAdapters;
 
-        auto factory = GetFactory();
+        auto adapterInfos = EnumerateAdapters(GetFactory());
+        LogAdapterSelection(adapterInfos);
 
-        UINT adapterindex = 0;
-        ComPtr<IDXGIAdapter1> adapter;
-        while (factory->EnumAdapters1(adapterindex++, &adapter) != DXGI_ERROR_NOT_FOUND)
+        existAdapters.reserve(adapterInfos.size());
+        for (auto& adapterInfo : adapterInfos)
         {
-            DXGI_ADAPTER_DESC1 desc;
-            adapter->GetDesc1(&desc);
-
-            if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
-            {
-                continue;
-            }
-
-            ComPtr<IDXGIAdapter3> adapter3;
-            ThrowIfFailed(adapter->QueryInterface(IID_PPV_ARGS(&adapter3)));
-            adapters.emplace_back((adapter3));
+            existAdapters.emplace_back(adapterInfo.Adapter);
         }
 
-        return adapters;
+        return existAdapters;
     }
 
     std::vector<std::shared_ptr<GDevice>> GDeviceFactory::CreateDevices()
@@ -73,18 +240,6 @@ namespace PEPEngine::Graphics
         std::vector<std::shared_ptr<GDevice>> devices;
         std::vector<DXGI_ADAPTER_DESC2> uniqueAdapterDescriptions;
 
-        auto IsSamePhysicalAdapter = [](const DXGI_ADAPTER_DESC2& first, const DXGI_ADAPTER_DESC2& second)
-        {
-            return first.VendorId == second.VendorId &&
-                first.DeviceId == second.DeviceId &&
-                first.SubSysId == second.SubSysId &&
-                first.Revision == second.Revision &&
-                first.DedicatedVideoMemory == second.DedicatedVideoMemory &&
-                first.DedicatedSystemMemory == second.DedicatedSystemMemory &&
-                first.SharedSystemMemory == second.SharedSystemMemory &&
-                std::wcscmp(first.Description, second.Description) == 0;
-        };
-        
         for (const auto& adapter : adapters)
         {
             DXGI_ADAPTER_DESC2 desc = {};
