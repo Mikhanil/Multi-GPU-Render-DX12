@@ -4,24 +4,26 @@ Texture2D SceneColor : register(t0, space2);
 Texture2D SceneDepth : register(t1, space2);
 Texture2D SceneNormal : register(t2, space2);
 
-struct VertexIn
-{
-    float3 PosL : POSITION;
-    float2 TexC : TEXCOORD;
-};
-
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
     float2 TexC : TEXCOORD;
 };
 
-VertexOut VS(VertexIn vin)
+VertexOut VS(uint vertexId : SV_VertexID)
 {
     VertexOut vout;
 
-    vout.PosH = float4(vin.PosL, 1.0f);
-    vout.TexC = vin.TexC;
+    const float2 positions[3] =
+    {
+        float2(-1.0f, -1.0f),
+        float2(-1.0f, 3.0f),
+        float2(3.0f, -1.0f)
+    };
+
+    const float2 position = positions[vertexId];
+    vout.PosH = float4(position, 0.0f, 1.0f);
+    vout.TexC = float2(position.x * 0.5f + 0.5f, 0.5f - position.y * 0.5f);
 
     return vout;
 }

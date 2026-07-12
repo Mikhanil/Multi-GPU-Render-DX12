@@ -96,6 +96,7 @@ namespace Common
         BuildRootSignature();
         BuildSsaoRootSignature();
         BuildPSOs();
+        InitializeMgpuSsr();
 
         ssao->SetPipelineData(*psos[RenderMode::Ssao], *psos[RenderMode::SsaoBlur]);
     }
@@ -137,6 +138,7 @@ namespace Common
         }
 
         BuildScreenRenderTargets();
+        BuildMgpuSsrResources();
     }
 
     void ReflectionRenderer::BuildScreenRenderTargets()
@@ -247,6 +249,18 @@ namespace Common
         ssaa->SetMultiplier(multiplier, window->GetClientWidth(), window->GetClientHeight());
     }
 
+    void ReflectionRenderer::SetUseMgpuSsr(const bool enabled)
+    {
+        useMgpuSsr = enabled;
+
+        std::wstring message = L"[MGPU-SSR] Hybrid SSR requested: ";
+        message += useMgpuSsr ? L"true" : L"false";
+        message += L", available: ";
+        message += mgpuSsrEnabled ? L"true" : L"false";
+        message += L"\n";
+        OutputDebugStringW(message.c_str());
+    }
+
     void ReflectionRenderer::Update(const GameTimer& gt)
     {
         UpdateShadowTransform();
@@ -257,6 +271,51 @@ namespace Common
     }
 
     void ReflectionRenderer::Render(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        RenderPrimaryBeforeSsr(cmdList);
+
+        cmdList->StartMark(L"SSR Pass");
+        DrawSsr(cmdList);
+        cmdList->EndMark();
+
+        cmdList->StartMark(L"Present Pass");
+        DrawPresentBackBuffer(cmdList);
+        cmdList->EndMark();
+    }
+
+    bool ReflectionRenderer::IsMgpuSsrEnabled() const
+    {
+        return mgpuSsrEnabled && useMgpuSsr;
+    }
+
+    void ReflectionRenderer::RenderMgpuPrimary(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        if (!IsMgpuSsrEnabled())
+        {
+            Render(cmdList);
+            return;
+        }
+
+        cmdList->StartMark(L"MGPU SSR Primary Frame");
+
+        cmdList->StartMark(L"MGPU SSR Copy Result From Shared");
+        CopySharedSsrOutputToPrimary(cmdList);
+        cmdList->EndMark();
+
+        cmdList->StartMark(L"Present Pass");
+        DrawPresentBackBuffer(cmdList);
+        cmdList->EndMark();
+
+        RenderPrimaryBeforeSsr(cmdList);
+
+        cmdList->StartMark(L"MGPU SSR Copy Inputs To Shared");
+        CopyPrimarySsrInputsToShared(cmdList);
+        cmdList->EndMark();
+
+        cmdList->EndMark();
+    }
+
+    void ReflectionRenderer::RenderPrimaryBeforeSsr(const std::shared_ptr<GCommandList>& cmdList)
     {
         cmdList->StartMark(L"Prepare Render 3D");
         cmdList->SetRootSignature(*rootSignature.get());
@@ -289,20 +348,43 @@ namespace Common
         DrawSsaaTargetToComposedScene(cmdList);
         cmdList->EndMark();
 
-        cmdList->StartMark(L"SSR Pass");
-        DrawSsr(cmdList);
-        cmdList->EndMark();
-
-        cmdList->StartMark(L"Present Pass");
-        DrawPresentBackBuffer(cmdList);
-        cmdList->EndMark();
-
         cmdList->EndMark();
     }
 
-    void ReflectionRenderer::BuildRootSignature()
+    void ReflectionRenderer::RenderSsrOnSecondGpu()
     {
-        rootSignature = std::make_unique<GRootSignature>();
+        if (!IsMgpuSsrEnabled())
+        {
+            return;
+        }
+
+        auto secondQueue = secondDevice->GetCommandQueue(GQueueType::Graphics);
+        if (secondGpuSsrFenceValue != 0 && !secondQueue->IsFinish(secondGpuSsrFenceValue))
+        {
+            return;
+        }
+
+        if (currentFrameResource->SecondMainPassConstantUploadBuffer == nullptr)
+        {
+            return;
+        }
+
+        currentFrameResource->SecondMainPassConstantUploadBuffer->CopyData(0, mainPassCB);
+
+        auto secondCmdList = secondQueue->GetCommandList();
+
+        secondCmdList->StartMark(L"MGPU SSR Pass");
+        CopySharedSsrInputsToSecond(secondCmdList);
+        DrawSsrOnSecondGpu(secondCmdList, *currentFrameResource->SecondMainPassConstantUploadBuffer);
+        CopySecondSsrOutputToShared(secondCmdList);
+        secondCmdList->EndMark();
+
+        secondGpuSsrFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
+    }
+
+    std::unique_ptr<GRootSignature> ReflectionRenderer::BuildRootSignature(const std::shared_ptr<GDevice>& device) const
+    {
+        auto signature = std::make_unique<GRootSignature>();
 
         CD3DX12_DESCRIPTOR_RANGE texParam[7];
         texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0);
@@ -314,20 +396,26 @@ namespace Common
         texParam[5].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneDepthRegister, kSsrResourceSpace);
         texParam[6].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneNormalRegister, kSsrResourceSpace);
 
-        rootSignature->AddConstantBufferParameter(0);
-        rootSignature->AddConstantBufferParameter(1);
-        rootSignature->AddShaderResourceView(0, 1);
-        rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddShaderResourceView(1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddShaderResourceView(2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddDescriptorParameter(&texParam[4], 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddDescriptorParameter(&texParam[5], 1, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootSignature->AddDescriptorParameter(&texParam[6], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddConstantBufferParameter(0);
+        signature->AddConstantBufferParameter(1);
+        signature->AddShaderResourceView(0, 1);
+        signature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddShaderResourceView(1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddShaderResourceView(2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[4], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[5], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[6], 1, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        rootSignature->Initialize(GDeviceFactory::GetDevice());
+        signature->Initialize(device);
+        return signature;
+    }
+
+    void ReflectionRenderer::BuildRootSignature()
+    {
+        rootSignature = BuildRootSignature(GDeviceFactory::GetDevice());
     }
 
     void ReflectionRenderer::BuildSsaoRootSignature()
@@ -579,12 +667,14 @@ namespace Common
 
         auto ssrPso = std::make_unique<GraphicPSO>(RenderMode::Ssr);
         ssrPso->SetPsoDesc(quadPso->GetPsoDescription());
+        ssrPso->SetInputLayout({nullptr, 0});
         ssrPso->SetShader(shaders["ssrVS"].get());
         ssrPso->SetShader(shaders["ssrPS"].get());
 
 #if defined(DEBUG) || defined(_DEBUG)
         auto ssrDebugPso = std::make_unique<GraphicPSO>(RenderMode::SsrDebug);
         ssrDebugPso->SetPsoDesc(quadPso->GetPsoDescription());
+        ssrDebugPso->SetInputLayout({nullptr, 0});
         ssrDebugPso->SetShader(shaders["ssrVS"].get());
         ssrDebugPso->SetShader(shaders["ssrDebugPS"].get());
 #endif
@@ -611,6 +701,190 @@ namespace Common
         {
             pso.second->Initialize(GDeviceFactory::GetDevice());
         }
+    }
+
+    void ReflectionRenderer::BuildSecondGpuSsrPSOs()
+    {
+        if (secondGpuSsrRootSignature == nullptr || secondDevice == nullptr)
+        {
+            return;
+        }
+
+        secondGpuSsrPsos.clear();
+
+        auto ssrPso = std::make_unique<GraphicPSO>(RenderMode::Ssr);
+        ssrPso->SetPsoDesc(psos[RenderMode::Ssr]->GetPsoDescription());
+        ssrPso->SetRootSignature(*secondGpuSsrRootSignature);
+        ssrPso->Initialize(secondDevice);
+        secondGpuSsrPsos[RenderMode::Ssr] = std::move(ssrPso);
+
+#if defined(DEBUG) || defined(_DEBUG)
+        auto ssrDebugPso = std::make_unique<GraphicPSO>(RenderMode::SsrDebug);
+        ssrDebugPso->SetPsoDesc(psos[RenderMode::SsrDebug]->GetPsoDescription());
+        ssrDebugPso->SetRootSignature(*secondGpuSsrRootSignature);
+        ssrDebugPso->Initialize(secondDevice);
+        secondGpuSsrPsos[RenderMode::SsrDebug] = std::move(ssrDebugPso);
+#endif
+    }
+
+    void ReflectionRenderer::InitializeMgpuSsr()
+    {
+        mgpuSsrEnabled = false;
+
+        auto& devices = GDeviceFactory::GetAllDevices(false);
+        if (devices.size() <= GraphicAdapterSecond)
+        {
+            OutputDebugStringW(L"[MGPU-SSR] Second hardware adapter was not found. SSR stays on primary GPU.\n");
+            return;
+        }
+
+        auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+        secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
+        if (!primaryDevice->IsCrossAdapterTextureSupported() || !secondDevice->IsCrossAdapterTextureSupported())
+        {
+            OutputDebugStringW(L"[MGPU-SSR] Cross-adapter row-major texture support is reported as unavailable; trying shared resources like MGPU AO.\n");
+        }
+
+        secondGpuSsrRootSignature = BuildRootSignature(secondDevice);
+
+        BuildSecondGpuSsrPSOs();
+        BuildMgpuSsrResources();
+
+        mgpuSsrEnabled = secondGpuSceneColor.IsValid() &&
+            secondGpuSceneDepth.IsValid() &&
+            secondGpuSceneNormal.IsValid() &&
+            secondGpuSsrOutputColor.IsValid() &&
+            sharedSceneColor != nullptr &&
+            sharedSceneDepth != nullptr &&
+            sharedSceneNormal != nullptr &&
+            sharedSsrOutputColor != nullptr;
+
+        if (mgpuSsrEnabled)
+        {
+            std::wstring message = L"[MGPU-SSR] SSR second GPU: ";
+            message += secondDevice->GetName();
+            message += L"\n";
+            OutputDebugStringW(message.c_str());
+        }
+        else
+        {
+            OutputDebugStringW(L"[MGPU-SSR] Shared resources were not initialized. SSR stays on primary GPU.\n");
+        }
+    }
+
+    void ReflectionRenderer::CreateSecondGpuTextureLike(GTexture& texture,
+                                                        const GTexture& source,
+                                                        const std::wstring& name,
+                                                        const TextureUsage usage,
+                                                        const D3D12_CLEAR_VALUE* clearValue) const
+    {
+        if (secondDevice == nullptr || !source.IsValid())
+        {
+            return;
+        }
+
+        const auto sourceDesc = source.GetD3D12ResourceDesc();
+        if (!texture.IsValid())
+        {
+            texture = GTexture(secondDevice, sourceDesc, name, usage, clearValue);
+            return;
+        }
+
+        const auto currentDesc = texture.GetD3D12ResourceDesc();
+        if (currentDesc.Width != sourceDesc.Width ||
+            currentDesc.Height != sourceDesc.Height ||
+            currentDesc.DepthOrArraySize != sourceDesc.DepthOrArraySize)
+        {
+            GTexture::Resize(texture, static_cast<uint32_t>(sourceDesc.Width), sourceDesc.Height,
+                             sourceDesc.DepthOrArraySize);
+        }
+    }
+
+    void ReflectionRenderer::BuildMgpuSsrResources()
+    {
+        if (secondDevice == nullptr ||
+            !composedSceneColor.IsValid() ||
+            ssao == nullptr ||
+            !ssao->NormalDepthMap().IsValid() ||
+            !ssao->NormalMap().IsValid() ||
+            !ssrOutputColor.IsValid())
+        {
+            return;
+        }
+
+        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+
+        CreateSecondGpuTextureLike(secondGpuSceneColor, composedSceneColor, L"Second GPU SSR Scene Color",
+                                   TextureUsage::RenderTarget);
+        CreateSecondGpuTextureLike(secondGpuSceneDepth, ssao->NormalDepthMap(), L"Second GPU SSR Scene Depth",
+                                   TextureUsage::Depth);
+        CreateSecondGpuTextureLike(secondGpuSceneNormal, ssao->NormalMap(), L"Second GPU SSR Scene Normal",
+                                   TextureUsage::Normalmap);
+
+        const auto ssrFormat = ssrOutputColor.GetD3D12ResourceDesc().Format;
+        const auto clearValue = CD3DX12_CLEAR_VALUE(ssrFormat, DirectX::Colors::Black);
+        CreateSecondGpuTextureLike(secondGpuSsrOutputColor, ssrOutputColor, L"Second GPU SSR Output Color",
+                                   TextureUsage::RenderTarget, &clearValue);
+
+        auto sceneColorDesc = composedSceneColor.GetD3D12ResourceDesc();
+        auto sceneDepthDesc = ssao->NormalDepthMap().GetD3D12ResourceDesc();
+        auto sceneNormalDesc = ssao->NormalMap().GetD3D12ResourceDesc();
+        auto ssrOutputDesc = ssrOutputColor.GetD3D12ResourceDesc();
+
+        sharedSceneColor = std::make_unique<::GCrossAdapterResource>(sceneColorDesc, primaryDevice, secondDevice,
+                                                                     L"MGPU SSR Shared Scene Color");
+        sharedSceneDepth = std::make_unique<::GCrossAdapterResource>(sceneDepthDesc, primaryDevice, secondDevice,
+                                                                     L"MGPU SSR Shared Scene Depth");
+        sharedSceneNormal = std::make_unique<::GCrossAdapterResource>(sceneNormalDesc, primaryDevice, secondDevice,
+                                                                      L"MGPU SSR Shared Scene Normal");
+        sharedSsrOutputColor = std::make_unique<::GCrossAdapterResource>(ssrOutputDesc, primaryDevice, secondDevice,
+                                                                         L"MGPU SSR Shared Output Color");
+
+        BuildSecondGpuSsrDescriptors();
+    }
+
+    void ReflectionRenderer::BuildSecondGpuSsrDescriptors()
+    {
+        if (secondDevice == nullptr ||
+            !secondGpuSceneColor.IsValid() ||
+            !secondGpuSceneDepth.IsValid() ||
+            !secondGpuSceneNormal.IsValid() ||
+            !secondGpuSsrOutputColor.IsValid())
+        {
+            return;
+        }
+
+        if (secondGpuSsrInputSrv.IsNull())
+        {
+            secondGpuSsrInputSrv = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+        }
+
+        if (secondGpuSsrOutputRtv.IsNull())
+        {
+            secondGpuSsrOutputRtv = secondDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+        }
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+
+        srvDesc.Format = secondGpuSceneColor.GetD3D12ResourceDesc().Format;
+        secondGpuSceneColor.CreateShaderResourceView(&srvDesc, &secondGpuSsrInputSrv, 0);
+
+        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        secondGpuSceneDepth.CreateShaderResourceView(&srvDesc, &secondGpuSsrInputSrv, 1);
+
+        srvDesc.Format = secondGpuSceneNormal.GetD3D12ResourceDesc().Format;
+        secondGpuSceneNormal.CreateShaderResourceView(&srvDesc, &secondGpuSsrInputSrv, 2);
+
+        D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+        rtvDesc.Format = secondGpuSsrOutputColor.GetD3D12ResourceDesc().Format;
+        rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        rtvDesc.Texture2D.MipSlice = 0;
+        rtvDesc.Texture2D.PlaneSlice = 0;
+        secondGpuSsrOutputColor.CreateRenderTargetView(&rtvDesc, &secondGpuSsrOutputRtv);
     }
 
     void ReflectionRenderer::UpdateShadowTransform()
@@ -1049,13 +1323,96 @@ namespace Common
 #endif
 
         cmdList->SetPipelineState(*psos[ssrPipelineMode]);
-        scene.Draw(cmdList, RenderMode::Ssr);
+        cmdList->SetVBuffer(0, 0, nullptr);
+        cmdList->SetIBuffer(nullptr);
+        cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmdList->Draw(3, 1, 0, 0);
 
         cmdList->TransitionBarrier(ssrOutputColor, D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(ssao->NormalMap(), D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(ssao->NormalDepthMap(), D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(composedSceneColor, D3D12_RESOURCE_STATE_COMMON);
         cmdList->FlushResourceBarriers();
+    }
+
+    void ReflectionRenderer::DrawSsrOnSecondGpu(const std::shared_ptr<GCommandList>& cmdList,
+                                                const ConstantUploadBuffer<ReflectionPassConstants>& passConstants)
+    {
+        const auto targetDesc = secondGpuSsrOutputColor.GetD3D12ResourceDesc();
+        const D3D12_VIEWPORT targetViewport = {
+            0.0f, 0.0f,
+            static_cast<float>(targetDesc.Width),
+            static_cast<float>(targetDesc.Height),
+            0.0f, 1.0f
+        };
+        const D3D12_RECT targetRect = {
+            0, 0,
+            static_cast<LONG>(targetDesc.Width),
+            static_cast<LONG>(targetDesc.Height)
+        };
+
+        cmdList->SetViewports(&targetViewport, 1);
+        cmdList->SetScissorRects(&targetRect, 1);
+
+        cmdList->TransitionBarrier(secondGpuSceneColor, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->TransitionBarrier(secondGpuSceneDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->TransitionBarrier(secondGpuSceneNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->TransitionBarrier(secondGpuSsrOutputColor, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        cmdList->FlushResourceBarriers();
+
+        cmdList->ClearRenderTarget(&secondGpuSsrOutputRtv);
+        cmdList->SetRenderTargets(1, &secondGpuSsrOutputRtv);
+
+        cmdList->SetRootSignature(*secondGpuSsrRootSignature);
+        cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, passConstants);
+
+        cmdList->SetDescriptorsHeap(&secondGpuSsrInputSrv);
+        cmdList->UpdateDescriptorHeaps();
+        cmdList->SetRootDescriptorTable(kSsrSceneColorSlot, &secondGpuSsrInputSrv, 0);
+        cmdList->SetRootDescriptorTable(kSsrSceneDepthSlot, &secondGpuSsrInputSrv, 1);
+        cmdList->SetRootDescriptorTable(kSsrSceneNormalSlot, &secondGpuSsrInputSrv, 2);
+
+#if defined(DEBUG) || defined(_DEBUG)
+        const auto ssrPipelineMode = debugMap == 1 ? RenderMode::SsrDebug : RenderMode::Ssr;
+#else
+        constexpr auto ssrPipelineMode = RenderMode::Ssr;
+#endif
+
+        cmdList->SetPipelineState(*secondGpuSsrPsos[ssrPipelineMode]);
+        cmdList->SetVBuffer(0, 0, nullptr);
+        cmdList->SetIBuffer(nullptr);
+        cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmdList->Draw(3, 1, 0, 0);
+
+        cmdList->TransitionBarrier(secondGpuSsrOutputColor, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->TransitionBarrier(secondGpuSceneNormal, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->TransitionBarrier(secondGpuSceneDepth, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->TransitionBarrier(secondGpuSceneColor, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->FlushResourceBarriers();
+    }
+
+    void ReflectionRenderer::CopyPrimarySsrInputsToShared(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        cmdList->CopyResource(sharedSceneColor->GetPrimeResource(), composedSceneColor);
+        cmdList->CopyResource(sharedSceneDepth->GetPrimeResource(), ssao->NormalDepthMap());
+        cmdList->CopyResource(sharedSceneNormal->GetPrimeResource(), ssao->NormalMap());
+    }
+
+    void ReflectionRenderer::CopySharedSsrInputsToSecond(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        cmdList->CopyResource(secondGpuSceneColor, sharedSceneColor->GetSharedResource());
+        cmdList->CopyResource(secondGpuSceneDepth, sharedSceneDepth->GetSharedResource());
+        cmdList->CopyResource(secondGpuSceneNormal, sharedSceneNormal->GetSharedResource());
+    }
+
+    void ReflectionRenderer::CopySecondSsrOutputToShared(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        cmdList->CopyResource(sharedSsrOutputColor->GetSharedResource(), secondGpuSsrOutputColor);
+    }
+
+    void ReflectionRenderer::CopySharedSsrOutputToPrimary(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        cmdList->CopyResource(ssrOutputColor, sharedSsrOutputColor->GetPrimeResource());
     }
 
     void ReflectionRenderer::DrawPresentBackBuffer(const std::shared_ptr<GCommandList>& cmdList)

@@ -18,13 +18,14 @@ struct ReflectionPassConstants : CommonPassConstants
 
 struct FrameResource
 {
-    FrameResource(std::shared_ptr<GDevice> primeDevice, UINT objectCount, UINT materialCount, UINT pointLightCount,
-                  UINT spotLightCount);
+    FrameResource(std::shared_ptr<GDevice> primeDevice, std::shared_ptr<GDevice> secondDevice, UINT objectCount,
+                  UINT materialCount, UINT pointLightCount, UINT spotLightCount);
     FrameResource(const FrameResource& rhs) = delete;
     FrameResource& operator=(const FrameResource& rhs) = delete;
     ~FrameResource();
 
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> MainPassConstantUploadBuffer = nullptr;
+    std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondMainPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> ShadowPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer = nullptr;
     std::shared_ptr<StructuredUploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;

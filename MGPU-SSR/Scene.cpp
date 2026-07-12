@@ -277,7 +277,6 @@ namespace Common
         quadRitem->AddComponent(renderer);
         typedGameObjects[static_cast<uint8_t>(RenderMode::Debug)].push_back(quadRitem.get());
         typedGameObjects[static_cast<uint8_t>(RenderMode::Quad)].push_back(quadRitem.get());
-        typedGameObjects[static_cast<uint8_t>(RenderMode::Ssr)].push_back(quadRitem.get());
         gameObjects.push_back(std::move(quadRitem));
 
         auto skySphere = std::make_unique<GameObject>("Sky");

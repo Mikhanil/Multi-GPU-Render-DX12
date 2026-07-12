@@ -2,6 +2,7 @@
 
 #include "FrameResource.h"
 #include "GDescriptor.h"
+#include "GCrossAdapterResource.h"
 #include "GRootSignature.h"
 #include "GShader.h"
 #include "GTexture.h"
@@ -35,17 +36,32 @@ namespace Common
         void SetDebugMap(UINT debugMap);
         void SetFrameResource(FrameResource* frameResource);
         void SetSsaaMultiplier(UINT multiplier);
+        void SetUseMgpuSsr(bool enabled);
         void Update(const GameTimer& gt);
         void Render(const std::shared_ptr<GCommandList>& cmdList);
+        bool IsMgpuSsrEnabled() const;
+        void RenderMgpuPrimary(const std::shared_ptr<GCommandList>& cmdList);
+        void RenderPrimaryBeforeSsr(const std::shared_ptr<GCommandList>& cmdList);
+        void RenderSsrOnSecondGpu();
 
     private:
+        std::unique_ptr<GRootSignature> BuildRootSignature(const std::shared_ptr<GDevice>& device) const;
         void BuildRootSignature();
         void BuildSsaoRootSignature();
         void BuildShadersAndInputLayout();
         void BuildPSOs();
+        void BuildSecondGpuSsrPSOs();
         void BuildScreenRenderTargets();
         void BuildColorRenderTarget(PEPEngine::Graphics::GTexture& texture, GDescriptor& rtv, GDescriptor& srv,
                                     const std::wstring& name) const;
+        void InitializeMgpuSsr();
+        void BuildMgpuSsrResources();
+        void BuildSecondGpuSsrDescriptors();
+        void CreateSecondGpuTextureLike(PEPEngine::Graphics::GTexture& texture,
+                                        const PEPEngine::Graphics::GTexture& source,
+                                        const std::wstring& name,
+                                        PEPEngine::Graphics::TextureUsage usage,
+                                        const D3D12_CLEAR_VALUE* clearValue = nullptr) const;
 
         void UpdateShadowTransform();
         void UpdateShadowPassCB();
@@ -69,7 +85,13 @@ namespace Common
                                                  const GDescriptor* renderTargetView);
         void DrawSsaaTargetToComposedScene(const std::shared_ptr<GCommandList>& cmdList);
         void DrawSsr(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawSsrOnSecondGpu(const std::shared_ptr<GCommandList>& cmdList,
+                                const ConstantUploadBuffer<ReflectionPassConstants>& passConstants);
         void DrawPresentBackBuffer(const std::shared_ptr<GCommandList>& cmdList);
+        void CopyPrimarySsrInputsToShared(const std::shared_ptr<GCommandList>& cmdList);
+        void CopySharedSsrInputsToSecond(const std::shared_ptr<GCommandList>& cmdList);
+        void CopySecondSsrOutputToShared(const std::shared_ptr<GCommandList>& cmdList);
+        void CopySharedSsrOutputToPrimary(const std::shared_ptr<GCommandList>& cmdList);
 
         std::shared_ptr<Window> window;
         Scene& scene;
@@ -82,6 +104,7 @@ namespace Common
         UINT msaaQuality = 0;
 
         std::unique_ptr<GRootSignature> rootSignature;
+        std::unique_ptr<GRootSignature> secondGpuSsrRootSignature;
         std::unique_ptr<GRootSignature> ssaoRootSignature;
         std::unique_ptr<ShadowMap> shadowMap;
         std::unique_ptr<SSAO> ssao;
@@ -89,6 +112,7 @@ namespace Common
 
         std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
         std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> psos;
+        std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> secondGpuSsrPsos;
 
         std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
         std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout;
@@ -102,6 +126,21 @@ namespace Common
         PEPEngine::Graphics::GTexture ssrOutputColor;
         GDescriptor ssrOutputColorRtv;
         GDescriptor ssrOutputColorSrv;
+
+        bool mgpuSsrEnabled = false;
+        bool useMgpuSsr = false;
+        UINT64 secondGpuSsrFenceValue = 0;
+        std::shared_ptr<GDevice> secondDevice;
+        PEPEngine::Graphics::GTexture secondGpuSceneColor;
+        PEPEngine::Graphics::GTexture secondGpuSceneDepth;
+        PEPEngine::Graphics::GTexture secondGpuSceneNormal;
+        PEPEngine::Graphics::GTexture secondGpuSsrOutputColor;
+        GDescriptor secondGpuSsrInputSrv;
+        GDescriptor secondGpuSsrOutputRtv;
+        std::unique_ptr<::GCrossAdapterResource> sharedSceneColor;
+        std::unique_ptr<::GCrossAdapterResource> sharedSceneDepth;
+        std::unique_ptr<::GCrossAdapterResource> sharedSceneNormal;
+        std::unique_ptr<::GCrossAdapterResource> sharedSsrOutputColor;
 
         ReflectionPassConstants mainPassCB;
         ReflectionPassConstants shadowPassCB;

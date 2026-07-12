@@ -35,6 +35,7 @@ namespace Common
         renderer = std::make_unique<ReflectionRenderer>(MainWindow, *scene, camera, backBufferFormat,
                                                         depthStencilFormat, isM4xMsaa, m4xMsaaQuality);
         renderer->Initialize(cmdList);
+        renderer->SetUseMgpuSsr(isUsingMgpuSsr);
 #if defined(DEBUG) || defined(_DEBUG)
         renderer->SetDebugMap(pathMapShow);
 #endif
@@ -155,6 +156,16 @@ namespace Common
                     keyboard.OnKeyPressed(keycode);
                 }
 
+                if (firstPress && keycode == VK_F1 && keyboard.KeyIsPressed(VK_F1))
+                {
+                    isUsingMgpuSsr = !isUsingMgpuSsr;
+                    if (renderer != nullptr)
+                    {
+                        renderer->SetUseMgpuSsr(isUsingMgpuSsr);
+                    }
+                    Flush();
+                }
+
 #if defined(DEBUG) || defined(_DEBUG)
                 if (firstPress && keycode == VK_F2 && keyboard.KeyIsPressed(VK_F2))
                 {
@@ -241,11 +252,21 @@ namespace Common
         if (isResizing) return;
 
         auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
-        auto cmdList = commandQueue->GetCommandList();
 
-        renderer->Render(cmdList);
+        if (renderer->IsMgpuSsrEnabled())
+        {
+            auto cmdList = commandQueue->GetCommandList();
+            renderer->RenderMgpuPrimary(cmdList);
+            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
+            renderer->RenderSsrOnSecondGpu();
+        }
+        else
+        {
+            auto cmdList = commandQueue->GetCommandList();
+            renderer->Render(cmdList);
+            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
+        }
 
-        currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
         backBufferIndex = MainWindow->Present();
     }
 
@@ -265,10 +286,16 @@ namespace Common
             }
         }
 
+        std::shared_ptr<GDevice> secondDevice = nullptr;
+        if (GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
+        {
+            secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
+        }
+
         for (int i = 0; i < globalCountFrameResources; ++i)
         {
             frameResources.push_back(
-                std::make_unique<FrameResource>(GDeviceFactory::GetDevice(),
+                std::make_unique<FrameResource>(GDeviceFactory::GetDevice(), secondDevice,
                                                 static_cast<UINT>(scene->GetObjectCount()),
                                                 static_cast<UINT>(scene->GetMaterialCount()),
                                                 pointLightCount, spotLightCount));
