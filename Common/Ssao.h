@@ -44,6 +44,7 @@ public:
     GDescriptor* NormalMapDSV();
     GDescriptor* NormalMapRtv();
     GDescriptor* NormalMapSrv();
+    GDescriptor* NormalDepthMapSrv();
     GDescriptor* AmbientMapSrv();
 
     void BuildDescriptors();

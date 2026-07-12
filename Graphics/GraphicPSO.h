@@ -33,6 +33,8 @@ namespace PEPEngine::Graphics
         MBVelocity,
         Terrain, // AtmosphereApp
         AtmospherePostProcess, // AtmosphereApp
+        Ssr,
+        SsrDebug,
         Count
     };
 

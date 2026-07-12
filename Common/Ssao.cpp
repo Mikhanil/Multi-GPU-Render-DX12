@@ -106,6 +106,11 @@ GDescriptor* SSAO::NormalMapSrv()
     return &normalMapSrvMemory;
 }
 
+GDescriptor* SSAO::NormalDepthMapSrv()
+{
+    return &depthMapSrvMemory;
+}
+
 GDescriptor* SSAO::AmbientMapSrv()
 {
     return &ambientMapMapSrvMemory;

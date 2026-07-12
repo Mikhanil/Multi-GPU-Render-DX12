@@ -1,0 +1,121 @@
+#pragma once
+
+#include "FrameResource.h"
+#include "GDescriptor.h"
+#include "GRootSignature.h"
+#include "GShader.h"
+#include "GTexture.h"
+#include "GraphicPSO.h"
+#include "Scene.h"
+#include "ShadowMap.h"
+#include "SSAA.h"
+#include "SSAO.h"
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "GameTimer.h"
+
+class Camera;
+
+namespace Common
+{
+    class Window;
+
+    class ReflectionRenderer
+    {
+    public:
+        ReflectionRenderer(std::shared_ptr<Window> window, Scene& scene, std::shared_ptr<Camera> camera,
+                           DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthStencilFormat, bool is4xMsaa,
+                           UINT msaaQuality);
+
+        void Initialize(const std::shared_ptr<GCommandList>& cmdList);
+        void OnResize();
+        void SetDebugMap(UINT debugMap);
+        void SetFrameResource(FrameResource* frameResource);
+        void SetSsaaMultiplier(UINT multiplier);
+        void Update(const GameTimer& gt);
+        void Render(const std::shared_ptr<GCommandList>& cmdList);
+
+    private:
+        void BuildRootSignature();
+        void BuildSsaoRootSignature();
+        void BuildShadersAndInputLayout();
+        void BuildPSOs();
+        void BuildScreenRenderTargets();
+        void BuildColorRenderTarget(PEPEngine::Graphics::GTexture& texture, GDescriptor& rtv, GDescriptor& srv,
+                                    const std::wstring& name) const;
+
+        void UpdateShadowTransform();
+        void UpdateShadowPassCB();
+        void UpdateMainPassCB(const GameTimer& gt);
+        void UpdateSsaoCB();
+        void UpdateLightBuffers();
+
+        void DrawSceneToShadowMap(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawNormals(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
+                                     PEPEngine::Graphics::GTexture* renderTarget,
+                                     const GDescriptor* renderTargetView,
+                                     PEPEngine::Graphics::GTexture* depthStencil,
+                                     const GDescriptor* depthStencilView,
+                                     const ConstantUploadBuffer<ReflectionPassConstants>& passConstants);
+        void DrawSceneToSsaaTarget(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawFullscreenTextureToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
+                                                 PEPEngine::Graphics::GTexture& source,
+                                                 const GDescriptor* sourceSrv,
+                                                 PEPEngine::Graphics::GTexture& renderTarget,
+                                                 const GDescriptor* renderTargetView);
+        void DrawSsaaTargetToComposedScene(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawSsr(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawPresentBackBuffer(const std::shared_ptr<GCommandList>& cmdList);
+
+        std::shared_ptr<Window> window;
+        Scene& scene;
+        std::shared_ptr<Camera> camera;
+        FrameResource* currentFrameResource = nullptr;
+        UINT debugMap = 0;
+        DXGI_FORMAT backBufferFormat = DXGI_FORMAT_UNKNOWN;
+        DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
+        bool is4xMsaa = false;
+        UINT msaaQuality = 0;
+
+        std::unique_ptr<GRootSignature> rootSignature;
+        std::unique_ptr<GRootSignature> ssaoRootSignature;
+        std::unique_ptr<ShadowMap> shadowMap;
+        std::unique_ptr<SSAO> ssao;
+        std::unique_ptr<SSAA> ssaa;
+
+        std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
+        std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> psos;
+
+        std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
+        std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout;
+
+        D3D12_VIEWPORT viewport{};
+        D3D12_RECT rect{};
+        GDescriptor renderTargetMemory;
+        PEPEngine::Graphics::GTexture composedSceneColor;
+        GDescriptor composedSceneColorRtv;
+        GDescriptor composedSceneColorSrv;
+        PEPEngine::Graphics::GTexture ssrOutputColor;
+        GDescriptor ssrOutputColorRtv;
+        GDescriptor ssrOutputColorSrv;
+
+        ReflectionPassConstants mainPassCB;
+        ReflectionPassConstants shadowPassCB;
+
+        float lightNearZ = 0.0f;
+        float lightFarZ = 0.0f;
+        DirectX::SimpleMath::Vector3 lightPosW;
+        DirectX::SimpleMath::Matrix lightView = DirectX::SimpleMath::Matrix::Identity;
+        DirectX::SimpleMath::Matrix lightProj = DirectX::SimpleMath::Matrix::Identity;
+        DirectX::SimpleMath::Matrix shadowTransform = DirectX::SimpleMath::Matrix::Identity;
+        DirectX::SimpleMath::Vector3 lightDirections[3] = {
+            DirectX::SimpleMath::Vector3(0.457f, -0.457f, -0.762f),
+            DirectX::SimpleMath::Vector3(-0.57735f, -0.57735f, 0.57735f),
+            DirectX::SimpleMath::Vector3(0.0f, -0.707f, -0.707f)
+        };
+    };
+}
