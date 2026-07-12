@@ -128,16 +128,16 @@ static std::shared_ptr<GTexture> LoadTextureByAiMaterial(const aiMaterial* mater
 
     std::wstring modelTexturePath(AnsiToWString(str.C_Str()));
 
-    if (modelTexturePath.find(L"\\") != std::wstring::npos)
+    for (auto& ch : modelTexturePath)
     {
-        auto fileName = modelTexturePath.substr(modelTexturePath.find_last_of('\\'),
-                                                modelTexturePath.size() - modelTexturePath.find_last_of('\\'));
-
-        modelTexturePath = fileName.replace(fileName.find(L"\\"), 1, L"");
+        if (ch == L'/')
+        {
+            ch = L'\\';
+        }
     }
 
-    std::wstring textureName = modelTexturePath;
-    std::wstring texturePath = directory + L"\\" + textureName;
+    const std::wstring texturePath = directory + L"\\" + modelTexturePath;
+    const std::wstring textureName = texturePath;
 
     if (std::shared_ptr<GTexture>* texture; loader->TryGetTexture(textureName, texture))
     {
@@ -269,8 +269,17 @@ static void RecursivlyLoadMeshes(const std::shared_ptr<NativeModel>& model, cons
     }
 }
 
-std::shared_ptr<GModel>& AssetsLoader::CreateModelFromFile(const std::shared_ptr<GCommandList>& cmdList,
-                                                           const std::string& filePath)
+std::shared_ptr<GModel> AssetsLoader::CreateModelFromFile(const std::shared_ptr<GCommandList>& cmdList,
+                                                          const std::string& filePath)
+{
+    return CreateModelFromFile(cmdList, filePath,
+                               aiProcess_Triangulate | aiProcess_GenNormals |
+                               aiProcess_ConvertToLeftHanded);
+}
+
+std::shared_ptr<GModel> AssetsLoader::CreateModelFromFile(const std::shared_ptr<GCommandList>& cmdList,
+                                                          const std::string& filePath,
+                                                          const unsigned int postProcessFlags)
 {
     auto it = modelMap.find(AnsiToWString(filePath));
     if (it != modelMap.end())
@@ -280,8 +289,7 @@ std::shared_ptr<GModel>& AssetsLoader::CreateModelFromFile(const std::shared_ptr
 
 
     const aiScene* sceneModel = importer.ReadFile(filePath,
-                                                  aiProcess_Triangulate | aiProcess_GenNormals |
-                                                  aiProcess_ConvertToLeftHanded);
+                                                  postProcessFlags);
 
     assert(sceneModel != nullptr && "Model Path dosen't exist or wrong file");
 

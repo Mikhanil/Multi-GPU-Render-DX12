@@ -124,6 +124,7 @@ void ShadowMap::BuildResource()
         D3D12_CLEAR_VALUE optClear;
         optClear.Format = DXGI_FORMAT_D32_FLOAT;
         optClear.DepthStencil.Depth = 1.0f;
+        optClear.DepthStencil.Stencil = 0;
 
         shadowMap = GTexture(device, texDesc, std::wstring(L"Shadow Map"), TextureUsage::Depth, &optClear);
     }

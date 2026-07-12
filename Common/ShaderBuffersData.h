@@ -64,7 +64,7 @@ struct LightData
     float SpotPower = 64.0f; // spot light only
 };
 
-struct PassConstants
+struct CommonPassConstants
 {
     Matrix View = Matrix::Identity;
     Matrix InvView = Matrix::Identity;
@@ -87,7 +87,10 @@ struct PassConstants
 
     Vector3 CameraForwardVector;
     float SsaaMultilpier;
+};
 
+struct PassConstants : CommonPassConstants
+{
     LightData Lights[MaxLights];
 };
 

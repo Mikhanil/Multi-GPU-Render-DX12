@@ -67,7 +67,11 @@ public:
     std::shared_ptr<GModel>& GenerateQuad(const std::shared_ptr<GCommandList>& cmdList, float x = 1.0f, float y = 1.0f,
                                           float w = 1.0f, float h = 1.0f, float depth = 0.0);
 
-    std::shared_ptr<GModel>& CreateModelFromFile(const std::shared_ptr<GCommandList>& cmdList, const std::string& filePath);
+    std::shared_ptr<GModel> CreateModelFromFile(const std::shared_ptr<GCommandList>& cmdList,
+                                                const std::string& filePath);
+    std::shared_ptr<GModel> CreateModelFromFile(const std::shared_ptr<GCommandList>& cmdList,
+                                                const std::string& filePath,
+                                                unsigned int postProcessFlags);
 
 
     void ClearTrackedObjects();
