@@ -15,6 +15,8 @@
 #include "assimp/mesh.h"
 #include "assimp/postprocess.h"
 
+#include <filesystem>
+
 
 using namespace PEPEngine;
 using namespace Graphics;
@@ -26,6 +28,43 @@ static Assimp::Importer importer;
 
 static std::unordered_map<std::shared_ptr<NativeMesh>, const aiMaterial*> loadedAiMaterialForMesh;
 static std::unordered_map<std::shared_ptr<NativeMesh>, std::vector<UINT>> loadedTexturesForMesh;
+
+static bool TextureFileExists(const std::filesystem::path& path)
+{
+    std::error_code error;
+    return std::filesystem::exists(path, error) && !error;
+}
+
+static std::filesystem::path ResolveAiTexturePath(const std::wstring& directory,
+                                                  const std::wstring& materialTexturePath)
+{
+    const std::filesystem::path modelDirectory(directory);
+    const std::filesystem::path texturePathFromMaterial(materialTexturePath);
+
+    if (texturePathFromMaterial.is_absolute())
+    {
+        if (TextureFileExists(texturePathFromMaterial))
+        {
+            return texturePathFromMaterial.lexically_normal();
+        }
+
+        return (modelDirectory / texturePathFromMaterial.filename()).lexically_normal();
+    }
+
+    const auto texturePathNearModel = modelDirectory / texturePathFromMaterial;
+    if (TextureFileExists(texturePathNearModel))
+    {
+        return texturePathNearModel.lexically_normal();
+    }
+
+    const auto texturePathByFileName = modelDirectory / texturePathFromMaterial.filename();
+    if (TextureFileExists(texturePathByFileName))
+    {
+        return texturePathByFileName.lexically_normal();
+    }
+
+    return texturePathNearModel.lexically_normal();
+}
 
 static inline std::shared_ptr<GModel> CreateModelFromGenerated(std::shared_ptr<GCommandList> cmdList,
                                                                GeometryGenerator::MeshData generatedData, std::wstring name)
@@ -136,17 +175,17 @@ static std::shared_ptr<GTexture> LoadTextureByAiMaterial(const aiMaterial* mater
         }
     }
 
-    const std::wstring texturePath = directory + L"\\" + modelTexturePath;
-    const std::wstring textureName = texturePath;
+    const auto texturePath = ResolveAiTexturePath(directory, modelTexturePath);
+    const std::wstring textureName = texturePath.wstring();
 
     if (std::shared_ptr<GTexture>* texture; loader->TryGetTexture(textureName, texture))
     {
         return *texture;
     }
 
-    OutputDebugStringW((texturePath + L"\n").c_str());
+    OutputDebugStringW((textureName + L"\n").c_str());
 
-    auto texture = GTexture::LoadTextureFromFile(texturePath, cmdList,
+    auto texture = GTexture::LoadTextureFromFile(textureName, cmdList,
                                                  type == aiTextureType_DIFFUSE
                                                      ? TextureUsage::Albedo
                                                      : TextureUsage::Normalmap);
