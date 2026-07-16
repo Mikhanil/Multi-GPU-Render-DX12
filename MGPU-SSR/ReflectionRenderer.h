@@ -26,6 +26,14 @@ namespace Common
 {
     class Window;
 
+    enum class MultiGpuRenderConfig
+    {
+        SingleGpu,
+        PrimarySsrSecondaryAllProbes,
+        PrimarySsrThreeProbesSecondaryOne,
+        PrimaryAllProbesSecondarySsr
+    };
+
     class ReflectionRenderer
     {
     public:
@@ -38,7 +46,9 @@ namespace Common
         void SetDebugMap(UINT debugMap);
         void SetFrameResource(FrameResource* frameResource);
         void SetSsaaMultiplier(UINT multiplier);
+        void SetRenderConfig(MultiGpuRenderConfig config);
         void SetUseMgpuSsr(bool enabled);
+        void SetUseDynamicReflectionProbes(bool enabled);
         void Update(const GameTimer& gt);
         void Render(const std::shared_ptr<GCommandList>& cmdList);
         bool IsMgpuSsrEnabled() const;
@@ -109,6 +119,7 @@ namespace Common
         DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
         bool is4xMsaa = false;
         UINT msaaQuality = 0;
+        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::PrimarySsrSecondaryAllProbes;
 
         std::unique_ptr<GRootSignature> rootSignature;
         std::unique_ptr<GRootSignature> secondGpuSsrRootSignature;
@@ -118,7 +129,8 @@ namespace Common
         std::unique_ptr<SSAA> ssaa;
         std::array<std::unique_ptr<CubeMapRenderTarget>, ReflectionProbeCount> reflectionProbes;
         GDescriptor reflectionProbeSrvTable;
-        bool reflectionProbesBaked = false;
+        bool reflectionProbeContentsValid = false;
+        bool useDynamicReflectionProbes = false;
 
         std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
         std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> psos;

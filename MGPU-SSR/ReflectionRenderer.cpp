@@ -117,6 +117,10 @@ namespace Common
             reflectionProbes[probeIndex]->GetCubeMap().CreateShaderResourceView(
                 &probeSrvDesc, &reflectionProbeSrvTable, probeIndex);
         }
+
+        // A new render target contains no baked pixels. It becomes sampleable only
+        // after DrawReflectionProbes records all six faces for all four probes.
+        reflectionProbeContentsValid = false;
         BuildScreenRenderTargets();
 
         ssao->BuildDescriptors();
@@ -278,6 +282,11 @@ namespace Common
         ssaa->SetMultiplier(multiplier, window->GetClientWidth(), window->GetClientHeight());
     }
 
+    void ReflectionRenderer::SetRenderConfig(const MultiGpuRenderConfig config)
+    {
+        renderConfig = config;
+    }
+
     void ReflectionRenderer::SetUseMgpuSsr(const bool enabled)
     {
         useMgpuSsr = enabled;
@@ -290,6 +299,15 @@ namespace Common
         OutputDebugStringW(message.c_str());
     }
 
+    void ReflectionRenderer::SetUseDynamicReflectionProbes(const bool enabled)
+    {
+        useDynamicReflectionProbes = enabled;
+
+        std::wstring message = L"[MGPU-SSR] Dynamic reflection probes: ";
+        message += useDynamicReflectionProbes ? L"true" : L"false";
+        message += L"\n";
+        OutputDebugStringW(message.c_str());
+    }
     void ReflectionRenderer::Update(const GameTimer& gt)
     {
         UpdateShadowTransform();
@@ -1085,7 +1103,7 @@ namespace Common
 
     void ReflectionRenderer::UpdateReflectionProbePassCBs()
     {
-        if (reflectionProbesBaked || currentFrameResource == nullptr ||
+        if ((!useDynamicReflectionProbes && reflectionProbeContentsValid) || currentFrameResource == nullptr ||
             currentFrameResource->ReflectionProbePassConstantUploadBuffer == nullptr)
         {
             return;
@@ -1240,7 +1258,7 @@ namespace Common
 
     void ReflectionRenderer::DrawReflectionProbes(const std::shared_ptr<GCommandList>& cmdList)
     {
-        if (reflectionProbesBaked || currentFrameResource == nullptr ||
+        if ((!useDynamicReflectionProbes && reflectionProbeContentsValid) || currentFrameResource == nullptr ||
             currentFrameResource->ReflectionProbePassConstantUploadBuffer == nullptr)
         {
             return;
@@ -1319,7 +1337,7 @@ namespace Common
             cmdList->FlushResourceBarriers();
         }
 
-        reflectionProbesBaked = true;
+        reflectionProbeContentsValid = true;
     }
     void ReflectionRenderer::DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                                      GTexture* renderTarget,
@@ -1416,12 +1434,15 @@ namespace Common
             cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
             scene.Draw(cmdList, RenderMode::Opaque);
 
-            cmdList->SetRootConstantBufferView(
-                kReflectionProbeConstantsSlot,
-                *currentFrameResource->ReflectionProbeConstantUploadBuffer);
-            cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &reflectionProbeSrvTable);
-            cmdList->SetPipelineState(*psos[RenderMode::Reflection]);
-            scene.Draw(cmdList, RenderMode::Reflection);
+            if (reflectionProbeContentsValid)
+            {
+                cmdList->SetRootConstantBufferView(
+                    kReflectionProbeConstantsSlot,
+                    *currentFrameResource->ReflectionProbeConstantUploadBuffer);
+                cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &reflectionProbeSrvTable);
+                cmdList->SetPipelineState(*psos[RenderMode::Reflection]);
+                scene.Draw(cmdList, RenderMode::Reflection);
+            }
 
             cmdList->SetPipelineState(*psos[RenderMode::OpaqueAlphaDrop]);
             scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
