@@ -9,6 +9,8 @@ FrameResource::FrameResource(std::shared_ptr<GDevice> primeDevice, std::shared_p
 
     MainPassConstantUploadBuffer = std::make_shared<ConstantUploadBuffer<ReflectionPassConstants>>(
         primeDevice, 1, L"Main Pass Data");
+    ReflectionProbePassConstantUploadBuffer = std::make_shared<ConstantUploadBuffer<ReflectionPassConstants>>(
+        primeDevice, 6, L"Reflection Probe Pass Data");
     if (secondDevice != nullptr)
     {
         SecondMainPassConstantUploadBuffer = std::make_shared<ConstantUploadBuffer<ReflectionPassConstants>>(

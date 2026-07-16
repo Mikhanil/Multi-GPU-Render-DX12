@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FrameResource.h"
+#include "CubeMapRenderTarget.h"
 #include "GDescriptor.h"
 #include "GCrossAdapterResource.h"
 #include "GRootSignature.h"
@@ -11,6 +12,7 @@
 #include "ShadowMap.h"
 #include "SSAA.h"
 #include "SSAO.h"
+#include <array>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -45,6 +47,7 @@ namespace Common
         void RenderSsrOnSecondGpu();
 
     private:
+        static constexpr UINT ReflectionProbeCount = Scene::ReflectionProbeCount;
         std::unique_ptr<GRootSignature> BuildRootSignature(const std::shared_ptr<GDevice>& device) const;
         void BuildRootSignature();
         void BuildSsaoRootSignature();
@@ -66,11 +69,14 @@ namespace Common
         void UpdateShadowTransform();
         void UpdateShadowPassCB();
         void UpdateMainPassCB(const GameTimer& gt);
+        void UpdateReflectionProbePassCBs();
         void UpdateSsaoCB();
         void UpdateLightBuffers();
 
         void DrawSceneToShadowMap(const std::shared_ptr<GCommandList>& cmdList);
         void DrawNormals(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawReflectionProbes(const std::shared_ptr<GCommandList>& cmdList);
+
         void DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                      PEPEngine::Graphics::GTexture* renderTarget,
                                      const GDescriptor* renderTargetView,
@@ -109,6 +115,8 @@ namespace Common
         std::unique_ptr<ShadowMap> shadowMap;
         std::unique_ptr<SSAO> ssao;
         std::unique_ptr<SSAA> ssaa;
+        std::array<std::unique_ptr<CubeMapRenderTarget>, ReflectionProbeCount> reflectionProbes;
+        bool reflectionProbesBaked = false;
 
         std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
         std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> psos;

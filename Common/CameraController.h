@@ -19,7 +19,7 @@ class CameraController :
     float moveSpeed = 6.0f;
 
 public:
-    CameraController(float moveSpeed = 6.0f, float xMouseSens = 100.0f, float yMouseSens = 70.0f);
+    CameraController(float moveSpeed = 6.0f, float xMouseSens = 35.0f, float yMouseSens = 35.0f);
 
     void Update() override;
 };

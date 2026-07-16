@@ -287,7 +287,8 @@ namespace Common
         }
 
         std::shared_ptr<GDevice> secondDevice = nullptr;
-        if (GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
+
+        if (GDeviceFactory::GetAllDevices(true).size() > GraphicAdapterSecond)
         {
             secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
         }

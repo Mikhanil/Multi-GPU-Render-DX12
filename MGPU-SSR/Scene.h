@@ -8,6 +8,7 @@
 #include "SimpleMath.h"
 #include "GraphicPSO.h"
 #include <DirectXCollision.h>
+#include <array>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -20,6 +21,8 @@ namespace Common
     class Scene
     {
     public:
+        static constexpr UINT ReflectionProbeCount = 1;
+
         Scene(const std::shared_ptr<GDevice>& device);
 
         void Initialize(const std::shared_ptr<GCommandList>& cmdList, float aspectRatio,
@@ -31,6 +34,8 @@ namespace Common
 
         GDescriptor* GetSrvHeap();
         std::shared_ptr<Camera> GetCamera() const;
+        const std::array<DirectX::SimpleMath::Vector3, ReflectionProbeCount>&
+        GetReflectionProbeCenters() const;
         const std::vector<Light*>& GetLights() const;
         DirectX::BoundingSphere GetBounds() const;
         size_t GetObjectCount() const;
@@ -59,5 +64,6 @@ namespace Common
         std::vector<Light*> lights;
         std::shared_ptr<Camera> sceneCamera;
         DirectX::BoundingSphere bounds;
+        std::array<DirectX::SimpleMath::Vector3, ReflectionProbeCount> reflectionProbeCenters{};
     };
 }

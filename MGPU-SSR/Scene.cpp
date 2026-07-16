@@ -230,6 +230,9 @@ namespace Common
         auto sphere = loader.GenerateSphere(cmdList);
         models[L"sphere"] = std::move(sphere);
 
+        auto mirrorSphere = loader.GenerateSphere(cmdList);
+        models[L"mirrorSphere"] = std::move(mirrorSphere);
+
         auto quad = loader.GenerateQuad(cmdList);
         models[L"quad"] = std::move(quad);
 
@@ -261,6 +264,16 @@ namespace Common
         skyBox->SetDiffuseTexture(loader.GetTexture(tex), tex);
         loader.AddMaterial(skyBox);
 
+        auto mirror = std::make_shared<Material>(L"mirror", RenderMode::Reflection);
+        mirror->DiffuseAlbedo = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+        mirror->FresnelR0 = Vector3(0.95f, 0.95f, 0.95f);
+        mirror->Roughness = 0.0f;
+        tex = loader.GetTextureIndex(L"seamless");
+        mirror->SetDiffuseTexture(loader.GetTexture(tex), tex);
+        tex = loader.GetTextureIndex(L"defaultNormalMap");
+        mirror->SetNormalMap(loader.GetTexture(tex), tex);
+        loader.AddMaterial(mirror);
+
         auto sceneMaterials = loader.GetMaterials();
 
         for (auto pair : sceneMaterials)
@@ -289,17 +302,32 @@ namespace Common
         typedGameObjects[static_cast<uint8_t>(RenderMode::SkyBox)].push_back(skySphere.get());
         gameObjects.push_back(std::move(skySphere));
 
+        reflectionProbeCenters =
+        {
+            Vector3(0.0f, 10.0f, 0.0f)
+        };
+
+        models[L"mirrorSphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"mirror")));
+        auto mirrorSphere = std::make_unique<GameObject>("Mirror Sphere");
+        mirrorSphere->GetTransform()->SetLocalMatrix(
+            MakeDx12GeLocalMatrix(Vector3(0.0f, 10.0f, 0.0f), Vector3::Zero,
+                                 Vector3(2.5f, 2.5f, 2.5f)));
+        renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"mirrorSphere"]);
+        mirrorSphere->AddComponent(renderer);
+        typedGameObjects[static_cast<uint8_t>(RenderMode::Reflection)].push_back(mirrorSphere.get());
+        gameObjects.push_back(std::move(mirrorSphere));
+
         auto sun = std::make_unique<GameObject>("Directional Light");
         auto light = std::make_shared<Light>(Directional);
         light->Direction(directionalLightDirection);
-        light->Strength({1.0f, 1.0f, 1.0f});
+        light->Strength({0.55f, 0.55f, 0.55f});
         sun->AddComponent(light);
         gameObjects.push_back(std::move(sun));
 
-        const std::array<StationDesc, 9> stations =
+        const std::array<StationDesc, 1> stations =
         {
             StationDesc{Vector3(0.0f, 0.0f, 0.0f), Vector3::Zero, Vector3::One},
-            StationDesc{Vector3(0.0f, 0.0f, 20.0f), Vector3(0.0f, 4.71238899f, 0.0f), Vector3::One},
+            /*StationDesc{Vector3(0.0f, 0.0f, 20.0f), Vector3(0.0f, 4.71238899f, 0.0f), Vector3::One},
             StationDesc{Vector3(-20.0f, 0.0f, 20.0f), Vector3(0.0f, 17.27876282f, 0.0f), Vector3::One},
             StationDesc{Vector3(20.0f, 0.0f, 0.0f), Vector3(0.0f, 10.99557400f, 0.0f), Vector3::One},
             StationDesc{Vector3(20.0f, 0.0f, 20.0f), Vector3(0.0f, 7.85398197f, 0.0f),
@@ -309,21 +337,21 @@ namespace Common
             StationDesc{Vector3(-20.0f, 0.0f, -20.0f), Vector3(0.0f, 15.70796585f, 0.0f),
                         Vector3(1.0f, 1.0f, -1.0f)},
             StationDesc{Vector3(20.0f, 0.0f, -20.0f), Vector3(0.0f, 6.28318548f, 0.0f), Vector3::One},
-            StationDesc{Vector3(-20.0f, 0.0f, 0.0f), Vector3(0.0f, 12.56637192f, 0.0f), Vector3::One},
+            StationDesc{Vector3(-20.0f, 0.0f, 0.0f), Vector3(0.0f, 12.56637192f, 0.0f), Vector3::One},*/
         };
 
-        const std::array<SceneModelDesc, 5> stationChildren =
+        const std::array<SceneModelDesc, 1> stationChildren =
         {
             SceneModelDesc{L"audi", Vector3(-2.0f, 1.84999990f, 2.0f), Vector3::Zero,
                            Vector3(3.33332992f, 3.33332992f, 3.33332992f)},
-            SceneModelDesc{L"buchanka", Vector3(-0.80000007f, 1.89999998f, -5.0f), Vector3::Zero,
+            /*SceneModelDesc{L"buchanka", Vector3(-0.80000007f, 1.89999998f, -5.0f), Vector3::Zero,
                            Vector3(3.33299994f, 3.33299994f, 3.33299994f)},
             SceneModelDesc{L"knight", Vector3(-8.0f, 2.15000081f, 0.75f), Vector3(0.0f, 7.06858397f, 0.0f),
                            Vector3(0.00303750f, 0.00303750f, 0.00303750f)},
             SceneModelDesc{L"police", Vector3(4.0f, 2.30565000f, 8.10000038f), Vector3(0.0f, 4.71238899f, 0.0f),
                            Vector3::One},
             SceneModelDesc{L"vintage", Vector3(-6.5f, 1.85408890f, 7.75f), Vector3(0.0f, 7.85398197f, 0.0f),
-                           Vector3(2.0f, 2.0f, 2.0f)},
+                           Vector3(2.0f, 2.0f, 2.0f)},*/
         };
 
         auto addRenderable = [&](const SceneModelDesc& desc, const Matrix* parentWorld) -> Matrix
@@ -440,7 +468,7 @@ namespace Common
                 pointLight->GetTransform()->SetPosition(Vector3::Transform(desc.Position, stationWorld));
 
                 auto pointLightComponent = std::make_shared<Light>(Point);
-                pointLightComponent->Strength(desc.Color * desc.Intensity);
+                pointLightComponent->Strength(desc.Color * (desc.Intensity * 0.45f));
                 pointLightComponent->FalloffStart(1.0f * kSceneScale);
                 pointLightComponent->FalloffEnd(18.0f * kSceneScale);
                 pointLight->AddComponent(pointLightComponent);
@@ -454,7 +482,7 @@ namespace Common
                 spotLight->GetTransform()->SetPosition(Vector3::Transform(Vector3::Zero, spotWorld));
 
                 auto spotLightComponent = std::make_shared<Light>(Spot);
-                spotLightComponent->Strength(desc.Color * desc.Intensity);
+                spotLightComponent->Strength(desc.Color * (desc.Intensity * 0.45f));
                 spotLightComponent->Direction(GetDx12GeWorldDirection(spotWorld));
                 spotLightComponent->FalloffStart(1.0f * kSceneScale);
                 spotLightComponent->FalloffEnd(18.0f * kSceneScale);
@@ -479,7 +507,7 @@ namespace Common
             flashlight->GetTransform()->SetPosition(Vector3::Transform(Vector3::Zero, flashlightWorld));
 
             auto flashlightComponent = std::make_shared<Light>(Spot);
-            flashlightComponent->Strength(Vector3(1.0f, 1.0f, 1.0f) * 4.0f);
+            flashlightComponent->Strength(Vector3(1.0f, 1.0f, 1.0f) * 2.0f);
             flashlightComponent->Direction(GetDx12GeWorldDirection(flashlightWorld));
             flashlightComponent->FalloffStart(1.0f * kSceneScale);
             flashlightComponent->FalloffEnd(18.0f * kSceneScale);
@@ -579,6 +607,11 @@ namespace Common
     std::shared_ptr<Camera> Scene::GetCamera() const
     {
         return sceneCamera;
+    }
+
+    const std::array<Vector3, Scene::ReflectionProbeCount>& Scene::GetReflectionProbeCenters() const
+    {
+        return reflectionProbeCenters;
     }
 
     const std::vector<Light*>& Scene::GetLights() const

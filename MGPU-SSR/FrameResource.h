@@ -25,6 +25,7 @@ struct FrameResource
     ~FrameResource();
 
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> MainPassConstantUploadBuffer = nullptr;
+    std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> ReflectionProbePassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondMainPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> ShadowPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer = nullptr;
