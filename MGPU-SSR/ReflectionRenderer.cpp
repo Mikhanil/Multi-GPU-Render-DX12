@@ -25,12 +25,16 @@ namespace
     constexpr float kSceneAmbientIntensity = 0.045f;
     constexpr UINT kMaxSsaaMultiplier = 4;
     constexpr UINT kReflectionProbeResolution = 256; // Change to 512 or 1024 for higher quality.
+    constexpr float kReflectionProbeProxyHalfExtentXZ = 12.0f;
+    constexpr float kReflectionProbeProxyMinY = 0.0f;
+    constexpr float kReflectionProbeProxyMaxY = 30.0f;
     constexpr UINT kPointLightsSlot = StandardShaderSlot::Count;
     constexpr UINT kSpotLightsSlot = StandardShaderSlot::Count + 1;
     constexpr UINT kSsrSceneColorSlot = StandardShaderSlot::Count + 2;
     constexpr UINT kSsrSceneDepthSlot = StandardShaderSlot::Count + 3;
     constexpr UINT kSsrSceneNormalSlot = StandardShaderSlot::Count + 4;
     constexpr UINT kReflectionProbe0Slot = StandardShaderSlot::Count + 5;
+    constexpr UINT kReflectionProbeConstantsSlot = StandardShaderSlot::Count + 6;
     constexpr UINT kSsrResourceSpace = 2;
     constexpr UINT kSsrSceneColorRegister = 0;
     constexpr UINT kSsrSceneDepthRegister = 1;
@@ -96,6 +100,22 @@ namespace Common
             probe = std::make_unique<CubeMapRenderTarget>(
                 GDeviceFactory::GetDevice(), kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
                 DXGI_FORMAT_D32_FLOAT);
+        }
+
+        const auto primaryDevice = GDeviceFactory::GetDevice();
+        reflectionProbeSrvTable = primaryDevice->AllocateDescriptors(
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ReflectionProbeCount);
+        D3D12_SHADER_RESOURCE_VIEW_DESC probeSrvDesc{};
+        probeSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        probeSrvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        probeSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        probeSrvDesc.TextureCube.MostDetailedMip = 0;
+        probeSrvDesc.TextureCube.MipLevels = 1;
+        probeSrvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            reflectionProbes[probeIndex]->GetCubeMap().CreateShaderResourceView(
+                &probeSrvDesc, &reflectionProbeSrvTable, probeIndex);
         }
         BuildScreenRenderTargets();
 
@@ -275,6 +295,7 @@ namespace Common
         UpdateShadowTransform();
         UpdateLightBuffers();
         UpdateMainPassCB(gt);
+        UpdateReflectionProbeCB();
         UpdateReflectionProbePassCBs();
         UpdateShadowPassCB();
         UpdateSsaoCB();
@@ -409,7 +430,7 @@ namespace Common
         texParam[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneColorRegister, kSsrResourceSpace);
         texParam[5].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneDepthRegister, kSsrResourceSpace);
         texParam[6].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneNormalRegister, kSsrResourceSpace);
-        texParam[7].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, kReflectionProbeResourceSpace);
+        texParam[7].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, ReflectionProbeCount, 0, kReflectionProbeResourceSpace);
 
         signature->AddConstantBufferParameter(0);
         signature->AddConstantBufferParameter(1);
@@ -424,6 +445,7 @@ namespace Common
         signature->AddDescriptorParameter(&texParam[5], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         signature->AddDescriptorParameter(&texParam[6], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         signature->AddDescriptorParameter(&texParam[7], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddConstantBufferParameter(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
         signature->Initialize(device);
         return signature;
@@ -1026,6 +1048,41 @@ namespace Common
         currentFrameResource->MainPassConstantUploadBuffer->CopyData(0, mainPassCB);
     }
 
+    void ReflectionRenderer::UpdateReflectionProbeCB()
+    {
+        if (currentFrameResource == nullptr ||
+            currentFrameResource->ReflectionProbeConstantUploadBuffer == nullptr)
+        {
+            return;
+        }
+
+        const auto& probeCenters = scene.GetReflectionProbeCenters();
+        if (probeCenters.empty())
+        {
+            return;
+        }
+
+        ReflectionProbeConstants probeConstants;
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            const Vector3& probePosition = probeCenters[probeIndex];
+            auto& probeData = probeConstants.Probes[probeIndex];
+            probeData.Position =
+                Vector4(probePosition.x, probePosition.y, probePosition.z, 1.0f);
+            probeData.ProxyBoxMin =
+                Vector4(probePosition.x - kReflectionProbeProxyHalfExtentXZ,
+                        kReflectionProbeProxyMinY,
+                        probePosition.z - kReflectionProbeProxyHalfExtentXZ,
+                        0.0f);
+            probeData.ProxyBoxMax =
+                Vector4(probePosition.x + kReflectionProbeProxyHalfExtentXZ,
+                        kReflectionProbeProxyMaxY,
+                        probePosition.z + kReflectionProbeProxyHalfExtentXZ,
+                        0.0f);
+        }
+        currentFrameResource->ReflectionProbeConstantUploadBuffer->CopyData(0, probeConstants);
+    }
+
     void ReflectionRenderer::UpdateReflectionProbePassCBs()
     {
         if (reflectionProbesBaked || currentFrameResource == nullptr ||
@@ -1328,10 +1385,7 @@ namespace Common
         {
             cmdList->SetDescriptorsHeap(shadowMap->GetSrv());
             cmdList->SetDescriptorsHeap(ssao->AmbientMapSrv());
-            for (const auto& probe : reflectionProbes)
-            {
-                cmdList->SetDescriptorsHeap(probe->GetSRV());
-            }
+            cmdList->SetDescriptorsHeap(&reflectionProbeSrvTable);
         }
         cmdList->UpdateDescriptorHeaps();
 
@@ -1362,7 +1416,10 @@ namespace Common
             cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
             scene.Draw(cmdList, RenderMode::Opaque);
 
-            cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, reflectionProbes[0]->GetSRV());
+            cmdList->SetRootConstantBufferView(
+                kReflectionProbeConstantsSlot,
+                *currentFrameResource->ReflectionProbeConstantUploadBuffer);
+            cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &reflectionProbeSrvTable);
             cmdList->SetPipelineState(*psos[RenderMode::Reflection]);
             scene.Draw(cmdList, RenderMode::Reflection);
 

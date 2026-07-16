@@ -304,18 +304,33 @@ namespace Common
 
         reflectionProbeCenters =
         {
-            Vector3(0.0f, 10.0f, 0.0f)
+            Vector3(-8.0f, 10.0f, 0.0f),
+            Vector3(8.0f, 10.0f, 0.0f),
+            Vector3(-8.0f, 10.0f, 20.0f),
+            Vector3(8.0f, 10.0f, 20.0f)
+        };
+
+        const std::array<Vector3, ReflectionProbeCount> mirrorSpherePositions =
+        {
+            Vector3(-6.0f, 10.0f, 2.0f),
+            Vector3(6.0f, 10.0f, 2.0f),
+            Vector3(-6.0f, 10.0f, 18.0f),
+            Vector3(6.0f, 10.0f, 18.0f)
         };
 
         models[L"mirrorSphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"mirror")));
-        auto mirrorSphere = std::make_unique<GameObject>("Mirror Sphere");
-        mirrorSphere->GetTransform()->SetLocalMatrix(
-            MakeDx12GeLocalMatrix(Vector3(0.0f, 10.0f, 0.0f), Vector3::Zero,
-                                 Vector3(2.5f, 2.5f, 2.5f)));
-        renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"mirrorSphere"]);
-        mirrorSphere->AddComponent(renderer);
-        typedGameObjects[static_cast<uint8_t>(RenderMode::Reflection)].push_back(mirrorSphere.get());
-        gameObjects.push_back(std::move(mirrorSphere));
+        for (UINT sphereIndex = 0; sphereIndex < ReflectionProbeCount; ++sphereIndex)
+        {
+            auto mirrorSphere = std::make_unique<GameObject>(
+                "Mirror Sphere " + std::to_string(sphereIndex + 1));
+            mirrorSphere->GetTransform()->SetLocalMatrix(
+                MakeDx12GeLocalMatrix(mirrorSpherePositions[sphereIndex], Vector3::Zero,
+                                     Vector3(2.5f, 2.5f, 2.5f)));
+            renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"mirrorSphere"]);
+            mirrorSphere->AddComponent(renderer);
+            typedGameObjects[static_cast<uint8_t>(RenderMode::Reflection)].push_back(mirrorSphere.get());
+            gameObjects.push_back(std::move(mirrorSphere));
+        }
 
         auto sun = std::make_unique<GameObject>("Directional Light");
         auto light = std::make_shared<Light>(Directional);
@@ -324,11 +339,11 @@ namespace Common
         sun->AddComponent(light);
         gameObjects.push_back(std::move(sun));
 
-        const std::array<StationDesc, 1> stations =
+        const std::array<StationDesc, 2> stations =
         {
             StationDesc{Vector3(0.0f, 0.0f, 0.0f), Vector3::Zero, Vector3::One},
-            /*StationDesc{Vector3(0.0f, 0.0f, 20.0f), Vector3(0.0f, 4.71238899f, 0.0f), Vector3::One},
-            StationDesc{Vector3(-20.0f, 0.0f, 20.0f), Vector3(0.0f, 17.27876282f, 0.0f), Vector3::One},
+            StationDesc{Vector3(0.0f, 0.0f, 20.0f), Vector3(0.0f, 4.71238899f, 0.0f), Vector3::One},
+            /*StationDesc{Vector3(-20.0f, 0.0f, 20.0f), Vector3(0.0f, 17.27876282f, 0.0f), Vector3::One},
             StationDesc{Vector3(20.0f, 0.0f, 0.0f), Vector3(0.0f, 10.99557400f, 0.0f), Vector3::One},
             StationDesc{Vector3(20.0f, 0.0f, 20.0f), Vector3(0.0f, 7.85398197f, 0.0f),
                         Vector3(-1.0f, 1.0f, 1.0f)},

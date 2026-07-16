@@ -1,6 +1,67 @@
 #include "Common.hlsl"
 
-TextureCube ReflectionProbe0 : register(t0, space3);
+static const uint ReflectionProbeCount = 4;
+TextureCube ReflectionProbes[ReflectionProbeCount] : register(t0, space3);
+
+struct ReflectionProbeGpuData
+{
+    float4 Position;
+    float4 ProxyBoxMin;
+    float4 ProxyBoxMax;
+};
+
+struct ReflectionProbeConstants
+{
+    ReflectionProbeGpuData Probes[ReflectionProbeCount];
+};
+
+ConstantBuffer<ReflectionProbeConstants> ReflectionProbe : register(b2);
+
+uint FindClosestReflectionProbe(float3 surfacePositionW)
+{
+    uint closestProbe = 0;
+    float3 toProbe = surfacePositionW - ReflectionProbe.Probes[0].Position.xyz;
+    float closestDistanceSquared = dot(toProbe, toProbe);
+
+    [unroll]
+    for (uint probeIndex = 1; probeIndex < ReflectionProbeCount; ++probeIndex)
+    {
+        toProbe = surfacePositionW - ReflectionProbe.Probes[probeIndex].Position.xyz;
+        float distanceSquared = dot(toProbe, toProbe);
+        if (distanceSquared < closestDistanceSquared)
+        {
+            closestProbe = probeIndex;
+            closestDistanceSquared = distanceSquared;
+        }
+    }
+
+    return closestProbe;
+}
+
+float3 BoxProjectedLookupDirection(float3 surfacePositionW, float3 reflectionDirectionW, uint probeIndex)
+{
+    // Work in the selected probe's local space so the cubemap direction points
+    // from its capture origin to the reflected ray's proxy-box intersection.
+    ReflectionProbeGpuData probe = ReflectionProbe.Probes[probeIndex];
+    float3 probePosition = probe.Position.xyz;
+    float3 surfaceFromProbe = surfacePositionW - probePosition;
+    float3 boxMinFromProbe = probe.ProxyBoxMin.xyz - probePosition;
+    float3 boxMaxFromProbe = probe.ProxyBoxMax.xyz - probePosition;
+
+    float3 directionSign = lerp(-1.0f, 1.0f, step(0.0f, reflectionDirectionW));
+    float3 safeDirection = directionSign * max(abs(reflectionDirectionW), 1.0e-4f);
+    float3 targetBounds = lerp(boxMinFromProbe, boxMaxFromProbe, step(0.0f, safeDirection));
+    float3 distances = (targetBounds - surfaceFromProbe) / safeDirection;
+    float hitDistance = max(min(distances.x, min(distances.y, distances.z)), 0.0f);
+
+    return normalize(surfaceFromProbe + reflectionDirectionW * hitDistance);
+}
+
+float3 SampleReflectionProbe(uint probeIndex, float3 lookupDirection)
+{
+    return ReflectionProbes[NonUniformResourceIndex(probeIndex)]
+        .Sample(gsamLinearWrap, lookupDirection).rgb;
+}
 
 struct VertexIn
 {
@@ -29,5 +90,11 @@ float4 REFLECTIONS_PS(VertexOut pin) : SV_Target
 {
     float3 toEyeW = normalize(worldBuffer.EyePosW - pin.PosW);
     float3 reflectionDirection = reflect(-toEyeW, normalize(pin.NormalW));
-    return ReflectionProbe0.Sample(gsamLinearWrap, reflectionDirection);
+    uint probeIndex = FindClosestReflectionProbe(pin.PosW);
+    float3 correctedDirection = BoxProjectedLookupDirection(pin.PosW, reflectionDirection, probeIndex);
+    float3 reflectionColor = SampleReflectionProbe(probeIndex, correctedDirection);
+
+    // Alpha zero marks probe-reflection pixels so SSR neither shades them nor samples
+    // their color as a screen-space hit. The final presentation path does not use alpha.
+    return float4(reflectionColor, 0.0f);
 }

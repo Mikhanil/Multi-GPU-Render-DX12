@@ -21,7 +21,7 @@ namespace Common
     class Scene
     {
     public:
-        static constexpr UINT ReflectionProbeCount = 1;
+        static constexpr UINT ReflectionProbeCount = kReflectionProbeCount;
 
         Scene(const std::shared_ptr<GDevice>& device);
 

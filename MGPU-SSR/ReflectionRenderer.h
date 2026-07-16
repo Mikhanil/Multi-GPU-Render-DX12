@@ -69,6 +69,7 @@ namespace Common
         void UpdateShadowTransform();
         void UpdateShadowPassCB();
         void UpdateMainPassCB(const GameTimer& gt);
+        void UpdateReflectionProbeCB();
         void UpdateReflectionProbePassCBs();
         void UpdateSsaoCB();
         void UpdateLightBuffers();
@@ -116,6 +117,7 @@ namespace Common
         std::unique_ptr<SSAO> ssao;
         std::unique_ptr<SSAA> ssaa;
         std::array<std::unique_ptr<CubeMapRenderTarget>, ReflectionProbeCount> reflectionProbes;
+        GDescriptor reflectionProbeSrvTable;
         bool reflectionProbesBaked = false;
 
         std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
