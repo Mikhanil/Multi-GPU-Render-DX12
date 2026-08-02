@@ -214,7 +214,8 @@ namespace Common
             pair.second->ResetTimer();
         }
 
-        auto devices = GDeviceFactory::GetAllDevices(true);
+        //auto devices = GDeviceFactory::GetAllDevices(true);
+        auto devices = GDeviceFactory::GetAllDevices(false);
 
         while (msg.message != WM_QUIT)
         {

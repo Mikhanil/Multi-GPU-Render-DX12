@@ -26,7 +26,9 @@ namespace Common
 #endif
         UINT ssaaMultiplier = 1;
         const UINT maxSsaaMultiplier = 4;
+        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::SingleGpu;
         bool isUsingMgpuSsr = false;
+        bool isUsingDynamicReflectionProbes = true; // false: capture once, true: update every frame.
 
     private:
         LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) override;

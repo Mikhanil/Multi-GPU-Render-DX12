@@ -35,7 +35,9 @@ namespace Common
         renderer = std::make_unique<ReflectionRenderer>(MainWindow, *scene, camera, backBufferFormat,
                                                         depthStencilFormat, isM4xMsaa, m4xMsaaQuality);
         renderer->Initialize(cmdList);
+        renderer->SetRenderConfig(renderConfig);
         renderer->SetUseMgpuSsr(isUsingMgpuSsr);
+        renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
 #if defined(DEBUG) || defined(_DEBUG)
         renderer->SetDebugMap(pathMapShow);
 #endif
@@ -190,6 +192,7 @@ namespace Common
                         renderer->SetSsaaMultiplier(ssaaMultiplier);
                     }
                 }
+
                 return 0;
             }
         case WM_CHAR:
@@ -287,7 +290,8 @@ namespace Common
         }
 
         std::shared_ptr<GDevice> secondDevice = nullptr;
-        if (GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
+
+        if (GDeviceFactory::GetAllDevices(true).size() > GraphicAdapterSecond)
         {
             secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
         }

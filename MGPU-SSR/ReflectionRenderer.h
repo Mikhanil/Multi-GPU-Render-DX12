@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FrameResource.h"
+#include "CubeMapRenderTarget.h"
 #include "GDescriptor.h"
 #include "GCrossAdapterResource.h"
 #include "GRootSignature.h"
@@ -11,6 +12,7 @@
 #include "ShadowMap.h"
 #include "SSAA.h"
 #include "SSAO.h"
+#include <array>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -24,6 +26,14 @@ namespace Common
 {
     class Window;
 
+    enum class MultiGpuRenderConfig
+    {
+        SingleGpu,
+        PrimarySsrSecondaryAllProbes,
+        PrimarySsrThreeProbesSecondaryOne,
+        PrimaryAllProbesSecondarySsr
+    };
+
     class ReflectionRenderer
     {
     public:
@@ -36,7 +46,9 @@ namespace Common
         void SetDebugMap(UINT debugMap);
         void SetFrameResource(FrameResource* frameResource);
         void SetSsaaMultiplier(UINT multiplier);
+        void SetRenderConfig(MultiGpuRenderConfig config);
         void SetUseMgpuSsr(bool enabled);
+        void SetUseDynamicReflectionProbes(bool enabled);
         void Update(const GameTimer& gt);
         void Render(const std::shared_ptr<GCommandList>& cmdList);
         bool IsMgpuSsrEnabled() const;
@@ -45,6 +57,7 @@ namespace Common
         void RenderSsrOnSecondGpu();
 
     private:
+        static constexpr UINT ReflectionProbeCount = Scene::ReflectionProbeCount;
         std::unique_ptr<GRootSignature> BuildRootSignature(const std::shared_ptr<GDevice>& device) const;
         void BuildRootSignature();
         void BuildSsaoRootSignature();
@@ -66,11 +79,15 @@ namespace Common
         void UpdateShadowTransform();
         void UpdateShadowPassCB();
         void UpdateMainPassCB(const GameTimer& gt);
+        void UpdateReflectionProbeCB();
+        void UpdateReflectionProbePassCBs();
         void UpdateSsaoCB();
         void UpdateLightBuffers();
 
         void DrawSceneToShadowMap(const std::shared_ptr<GCommandList>& cmdList);
         void DrawNormals(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawReflectionProbes(const std::shared_ptr<GCommandList>& cmdList);
+
         void DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                      PEPEngine::Graphics::GTexture* renderTarget,
                                      const GDescriptor* renderTargetView,
@@ -102,6 +119,7 @@ namespace Common
         DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
         bool is4xMsaa = false;
         UINT msaaQuality = 0;
+        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::PrimarySsrSecondaryAllProbes;
 
         std::unique_ptr<GRootSignature> rootSignature;
         std::unique_ptr<GRootSignature> secondGpuSsrRootSignature;
@@ -109,6 +127,10 @@ namespace Common
         std::unique_ptr<ShadowMap> shadowMap;
         std::unique_ptr<SSAO> ssao;
         std::unique_ptr<SSAA> ssaa;
+        std::array<std::unique_ptr<CubeMapRenderTarget>, ReflectionProbeCount> reflectionProbes;
+        GDescriptor reflectionProbeSrvTable;
+        bool reflectionProbeContentsValid = false;
+        bool useDynamicReflectionProbes = false;
 
         std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
         std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> psos;

@@ -173,6 +173,7 @@
         <None Include="Shaders\ParticleCommon.hlsl"/>
         <None Include="Shaders\Present.hlsl"/>
         <None Include="Shaders\Quad.hlsl"/>
+        <None Include="Shaders\Reflections.hlsl"/>
         <None Include="Shaders\Shadows.hlsl"/>
         <None Include="Shaders\SkyBoxShader.hlsl"/>
         <None Include="Shaders\SSR.hlsl"/>
