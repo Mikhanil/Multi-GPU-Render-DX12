@@ -1,6 +1,6 @@
 #include "Windows.h"
 #include "d3dApp.h"
-#include "SampleApp.h"
+#include "App.h"
 
 using namespace Common;
 
@@ -14,7 +14,7 @@ int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,
 
     try
     {
-        SampleApp theApp(hInstance);
+        App theApp(hInstance);
         if (!theApp.Initialize())
             return 0;
 
