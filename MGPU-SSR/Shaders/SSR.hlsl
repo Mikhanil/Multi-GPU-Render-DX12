@@ -47,6 +47,11 @@ bool IsInsideScreen(float2 uv)
     return all(uv >= 0.0f) && all(uv <= 1.0f);
 }
 
+bool IsProbeReflectionPixel(float2 uv)
+{
+    return SceneColor.SampleLevel(gsamPointClamp, uv, 0.0f).a < 0.5f;
+}
+
 float EdgeFade(float2 uv)
 {
     float2 edge = min(uv, 1.0f - uv);
@@ -159,6 +164,12 @@ float4 PS(VertexOut pin) : SV_Target
 {
     float4 baseColor = SceneColor.Sample(gsamLinearClamp, pin.TexC);
 
+    // Preserve the cubemap mirror exactly; SSR must not be composited over it.
+    if (IsProbeReflectionPixel(pin.TexC))
+    {
+        return baseColor;
+    }
+
     float depth = SceneDepth.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).r;
     if (depth >= 1.0f)
     {
@@ -190,6 +201,13 @@ float4 PS(VertexOut pin) : SV_Target
     float rayJitter = InterleavedGradientNoise(pin.TexC * float2(colorWidth, colorHeight));
 
     if (!FindSsrHit(viewPos + normalV * 0.02f, reflectionDir, rayJitter, hitUv, hitDistance))
+    {
+        return baseColor;
+    }
+
+    // The mirror is not part of SSR depth/normals, so a ray can geometrically hit
+    // the object behind it while hitUv overlaps the mirror color. Reject that color.
+    if (IsProbeReflectionPixel(hitUv))
     {
         return baseColor;
     }

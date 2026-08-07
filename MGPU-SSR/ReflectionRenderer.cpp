@@ -22,17 +22,24 @@ using namespace PEPEngine::Graphics;
 
 namespace
 {
-    constexpr float kSceneAmbientIntensity = 0.1f;
+    constexpr float kSceneAmbientIntensity = 0.045f;
     constexpr UINT kMaxSsaaMultiplier = 4;
+    constexpr UINT kReflectionProbeResolution = 256; // Change to 512 or 1024 for higher quality.
+    constexpr float kReflectionProbeProxyHalfExtentXZ = 12.0f;
+    constexpr float kReflectionProbeProxyMinY = 0.0f;
+    constexpr float kReflectionProbeProxyMaxY = 30.0f;
     constexpr UINT kPointLightsSlot = StandardShaderSlot::Count;
     constexpr UINT kSpotLightsSlot = StandardShaderSlot::Count + 1;
     constexpr UINT kSsrSceneColorSlot = StandardShaderSlot::Count + 2;
     constexpr UINT kSsrSceneDepthSlot = StandardShaderSlot::Count + 3;
     constexpr UINT kSsrSceneNormalSlot = StandardShaderSlot::Count + 4;
+    constexpr UINT kReflectionProbe0Slot = StandardShaderSlot::Count + 5;
+    constexpr UINT kReflectionProbeConstantsSlot = StandardShaderSlot::Count + 6;
     constexpr UINT kSsrResourceSpace = 2;
     constexpr UINT kSsrSceneColorRegister = 0;
     constexpr UINT kSsrSceneDepthRegister = 1;
     constexpr UINT kSsrSceneNormalRegister = 2;
+    constexpr UINT kReflectionProbeResourceSpace = 3;
 
     LightData MakeEmptyLightData()
     {
@@ -88,6 +95,32 @@ namespace Common
         ssao = std::make_unique<SSAO>(GDeviceFactory::GetDevice(), cmdList, width, height);
         ssaa = std::make_unique<SSAA>(GDeviceFactory::GetDevice(), 1, width, height, depthStencilFormat);
         ssaa->OnResize(width, height);
+        for (auto& probe : reflectionProbes)
+        {
+            probe = std::make_unique<CubeMapRenderTarget>(
+                GDeviceFactory::GetDevice(), kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
+                DXGI_FORMAT_D32_FLOAT);
+        }
+
+        const auto primaryDevice = GDeviceFactory::GetDevice();
+        reflectionProbeSrvTable = primaryDevice->AllocateDescriptors(
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ReflectionProbeCount);
+        D3D12_SHADER_RESOURCE_VIEW_DESC probeSrvDesc{};
+        probeSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        probeSrvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        probeSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        probeSrvDesc.TextureCube.MostDetailedMip = 0;
+        probeSrvDesc.TextureCube.MipLevels = 1;
+        probeSrvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            reflectionProbes[probeIndex]->GetCubeMap().CreateShaderResourceView(
+                &probeSrvDesc, &reflectionProbeSrvTable, probeIndex);
+        }
+
+        // A new render target contains no baked pixels. It becomes sampleable only
+        // after DrawReflectionProbes records all six faces for all four probes.
+        reflectionProbeContentsValid = false;
         BuildScreenRenderTargets();
 
         ssao->BuildDescriptors();
@@ -249,6 +282,11 @@ namespace Common
         ssaa->SetMultiplier(multiplier, window->GetClientWidth(), window->GetClientHeight());
     }
 
+    void ReflectionRenderer::SetRenderConfig(const MultiGpuRenderConfig config)
+    {
+        renderConfig = config;
+    }
+
     void ReflectionRenderer::SetUseMgpuSsr(const bool enabled)
     {
         useMgpuSsr = enabled;
@@ -261,11 +299,22 @@ namespace Common
         OutputDebugStringW(message.c_str());
     }
 
+    void ReflectionRenderer::SetUseDynamicReflectionProbes(const bool enabled)
+    {
+        useDynamicReflectionProbes = enabled;
+
+        std::wstring message = L"[MGPU-SSR] Dynamic reflection probes: ";
+        message += useDynamicReflectionProbes ? L"true" : L"false";
+        message += L"\n";
+        OutputDebugStringW(message.c_str());
+    }
     void ReflectionRenderer::Update(const GameTimer& gt)
     {
         UpdateShadowTransform();
         UpdateLightBuffers();
         UpdateMainPassCB(gt);
+        UpdateReflectionProbeCB();
+        UpdateReflectionProbePassCBs();
         UpdateShadowPassCB();
         UpdateSsaoCB();
     }
@@ -340,6 +389,10 @@ namespace Common
         ssao->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
         cmdList->EndMark();
 
+        cmdList->StartMark(L"Reflection Probe Pass (Base Scene Only - No SSR)");
+        DrawReflectionProbes(cmdList);
+        cmdList->EndMark();
+
         cmdList->StartMark(L"Main Scene Pass");
         DrawSceneToSsaaTarget(cmdList);
         cmdList->EndMark();
@@ -386,7 +439,7 @@ namespace Common
     {
         auto signature = std::make_unique<GRootSignature>();
 
-        CD3DX12_DESCRIPTOR_RANGE texParam[7];
+        CD3DX12_DESCRIPTOR_RANGE texParam[8];
         texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0);
         texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0);
         texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0);
@@ -395,6 +448,7 @@ namespace Common
         texParam[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneColorRegister, kSsrResourceSpace);
         texParam[5].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneDepthRegister, kSsrResourceSpace);
         texParam[6].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, kSsrSceneNormalRegister, kSsrResourceSpace);
+        texParam[7].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, ReflectionProbeCount, 0, kReflectionProbeResourceSpace);
 
         signature->AddConstantBufferParameter(0);
         signature->AddConstantBufferParameter(1);
@@ -408,6 +462,8 @@ namespace Common
         signature->AddDescriptorParameter(&texParam[4], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         signature->AddDescriptorParameter(&texParam[5], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         signature->AddDescriptorParameter(&texParam[6], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddDescriptorParameter(&texParam[7], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        signature->AddConstantBufferParameter(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
         signature->Initialize(device);
         return signature;
@@ -483,6 +539,8 @@ namespace Common
         shaders["OpaquePixel"] = std::make_unique<GShader>(L"Shaders\\Default.hlsl", PixelShader, defines, "PS", "ps_5_1");
         shaders["SkyBoxVertex"] = std::make_unique<GShader>(L"Shaders\\SkyBoxShader.hlsl", VertexShader, defines, "SKYMAP_VS", "vs_5_1");
         shaders["SkyBoxPixel"] = std::make_unique<GShader>(L"Shaders\\SkyBoxShader.hlsl", PixelShader, defines, "SKYMAP_PS", "ps_5_1");
+        shaders["ReflectionsVertex"] = std::make_unique<GShader>(L"Shaders\\Reflections.hlsl", VertexShader, nullptr, "REFLECTIONS_VS", "vs_5_1");
+        shaders["ReflectionsPixel"] = std::make_unique<GShader>(L"Shaders\\Reflections.hlsl", PixelShader, nullptr, "REFLECTIONS_PS", "ps_5_1");
         shaders["treeSpriteVS"] = std::make_unique<GShader>(L"Shaders\\TreeSprite.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
         shaders["treeSpriteGS"] = std::make_unique<GShader>(L"Shaders\\TreeSprite.hlsl", GeometryShader, nullptr, "GS", "gs_5_1");
         shaders["treeSpritePS"] = std::make_unique<GShader>(L"Shaders\\TreeSprite.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
@@ -549,6 +607,11 @@ namespace Common
         auto opaquePSO = std::make_unique<GraphicPSO>();
         opaquePSO->SetPsoDesc(basePsoDesc);
         opaquePSO->SetDepthStencilState(depthStencilDesc);
+
+        auto reflectionPSO = std::make_unique<GraphicPSO>(RenderMode::Reflection);
+        reflectionPSO->SetPsoDesc(opaquePSO->GetPsoDescription());
+        reflectionPSO->SetShader(shaders["ReflectionsVertex"].get());
+        reflectionPSO->SetShader(shaders["ReflectionsPixel"].get());
 
         auto alphaDropPso = std::make_unique<GraphicPSO>(RenderMode::OpaqueAlphaDrop);
         alphaDropPso->SetPsoDesc(opaquePSO->GetPsoDescription());
@@ -680,6 +743,7 @@ namespace Common
 #endif
 
         psos[opaquePSO->GetRenderMode()] = std::move(opaquePSO);
+        psos[reflectionPSO->GetRenderMode()] = std::move(reflectionPSO);
         psos[transparentPSO->GetRenderMode()] = std::move(transparentPSO);
         psos[alphaDropPso->GetRenderMode()] = std::move(alphaDropPso);
         psos[skyBoxPSO->GetRenderMode()] = std::move(skyBoxPSO);
@@ -1002,6 +1066,101 @@ namespace Common
         currentFrameResource->MainPassConstantUploadBuffer->CopyData(0, mainPassCB);
     }
 
+    void ReflectionRenderer::UpdateReflectionProbeCB()
+    {
+        if (currentFrameResource == nullptr ||
+            currentFrameResource->ReflectionProbeConstantUploadBuffer == nullptr)
+        {
+            return;
+        }
+
+        const auto& probeCenters = scene.GetReflectionProbeCenters();
+        if (probeCenters.empty())
+        {
+            return;
+        }
+
+        ReflectionProbeConstants probeConstants;
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            const Vector3& probePosition = probeCenters[probeIndex];
+            auto& probeData = probeConstants.Probes[probeIndex];
+            probeData.Position =
+                Vector4(probePosition.x, probePosition.y, probePosition.z, 1.0f);
+            probeData.ProxyBoxMin =
+                Vector4(probePosition.x - kReflectionProbeProxyHalfExtentXZ,
+                        kReflectionProbeProxyMinY,
+                        probePosition.z - kReflectionProbeProxyHalfExtentXZ,
+                        0.0f);
+            probeData.ProxyBoxMax =
+                Vector4(probePosition.x + kReflectionProbeProxyHalfExtentXZ,
+                        kReflectionProbeProxyMaxY,
+                        probePosition.z + kReflectionProbeProxyHalfExtentXZ,
+                        0.0f);
+        }
+        currentFrameResource->ReflectionProbeConstantUploadBuffer->CopyData(0, probeConstants);
+    }
+
+    void ReflectionRenderer::UpdateReflectionProbePassCBs()
+    {
+        if ((!useDynamicReflectionProbes && reflectionProbeContentsValid) || currentFrameResource == nullptr ||
+            currentFrameResource->ReflectionProbePassConstantUploadBuffer == nullptr)
+        {
+            return;
+        }
+
+        const auto& probeCenters = scene.GetReflectionProbeCenters();
+        const std::array<Vector3, CubeMapRenderTarget::FaceCount> directions =
+        {
+            Vector3(1.0f, 0.0f, 0.0f), Vector3(-1.0f, 0.0f, 0.0f),
+            Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, -1.0f, 0.0f),
+            Vector3(0.0f, 0.0f, 1.0f), Vector3(0.0f, 0.0f, -1.0f)
+        };
+        const std::array<Vector3, CubeMapRenderTarget::FaceCount> upDirections =
+        {
+            Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 1.0f, 0.0f),
+            Vector3(0.0f, 0.0f, -1.0f), Vector3(0.0f, 0.0f, 1.0f),
+            Vector3(0.0f, 1.0f, 0.0f), Vector3(0.0f, 1.0f, 0.0f)
+        };
+
+        constexpr float nearZ = 0.1f;
+        constexpr float farZ = 500.0f;
+        const Matrix proj = DirectX::XMMatrixPerspectiveFovLH(0.5f * DirectX::XM_PI, 1.0f, nearZ, farZ);
+        const Matrix textureTransform(
+            0.5f, 0.0f, 0.0f, 0.0f,
+            0.0f, -0.5f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, 0.0f, 1.0f);
+
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            const Vector3 center = probeCenters[probeIndex];
+            for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+            {
+                const Vector3 target = center + directions[face];
+                const Matrix view = XMMatrixLookAtLH(center, target, upDirections[face]);
+                const Matrix viewProj = view * proj;
+                ReflectionPassConstants probePass = mainPassCB;
+                probePass.View = view.Transpose();
+                probePass.InvView = view.Invert().Transpose();
+                probePass.Proj = proj.Transpose();
+                probePass.InvProj = proj.Invert().Transpose();
+                probePass.ViewProj = viewProj.Transpose();
+                probePass.InvViewProj = viewProj.Invert().Transpose();
+                probePass.ViewProjTex = (viewProj * textureTransform).Transpose();
+                probePass.EyePosW = center;
+                probePass.CameraForwardVector = directions[face];
+                probePass.RenderTargetSize = Vector2(static_cast<float>(kReflectionProbeResolution),
+                                                     static_cast<float>(kReflectionProbeResolution));
+                probePass.InvRenderTargetSize = Vector2(1.0f / static_cast<float>(kReflectionProbeResolution),
+                                                        1.0f / static_cast<float>(kReflectionProbeResolution));
+                probePass.NearZ = nearZ;
+                probePass.FarZ = farZ;
+                const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
+                currentFrameResource->ReflectionProbePassConstantUploadBuffer->CopyData(passIndex, probePass);
+            }
+        }
+    }
     void ReflectionRenderer::UpdateLightBuffers()
     {
         UINT pointLightIndex = 0;
@@ -1097,6 +1256,89 @@ namespace Common
         cmdList->FlushResourceBarriers();
     }
 
+    void ReflectionRenderer::DrawReflectionProbes(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        if ((!useDynamicReflectionProbes && reflectionProbeContentsValid) || currentFrameResource == nullptr ||
+            currentFrameResource->ReflectionProbePassConstantUploadBuffer == nullptr)
+        {
+            return;
+        }
+
+        for (const auto& probe : reflectionProbes)
+        {
+            if (probe == nullptr)
+            {
+                return;
+            }
+        }
+
+        cmdList->TransitionBarrier(shadowMap->GetTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->TransitionBarrier(ssao->AmbientMap(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->FlushResourceBarriers();
+
+        cmdList->SetRootSignature(*rootSignature);
+        cmdList->SetDescriptorsHeap(scene.GetSrvHeap());
+        cmdList->SetDescriptorsHeap(shadowMap->GetSrv());
+        cmdList->SetDescriptorsHeap(ssao->AmbientMapSrv());
+        cmdList->UpdateDescriptorHeaps();
+        cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+                                           *currentFrameResource->MaterialBuffer);
+        cmdList->SetRootShaderResourceView(kPointLightsSlot, *currentFrameResource->PointLightBuffer);
+        cmdList->SetRootShaderResourceView(kSpotLightsSlot, *currentFrameResource->SpotLightBuffer);
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scene.GetSrvHeap());
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrv());
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssao->AmbientMapSrv());
+
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            auto* probe = reflectionProbes[probeIndex].get();
+            auto& cubeMap = probe->GetCubeMap();
+            auto& depthMap = probe->GetDepthMap();
+            const auto probeViewport = probe->GetViewport();
+            const auto probeRect = probe->GetScissorRect();
+
+            cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            cmdList->TransitionBarrier(depthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            cmdList->FlushResourceBarriers();
+            cmdList->SetViewports(&probeViewport, 1);
+            cmdList->SetScissorRects(&probeRect, 1);
+
+            for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+            {
+                const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
+                auto faceRtv = probe->GetRTV(face);
+                cmdList->SetRootConstantBufferView(
+                    StandardShaderSlot::CameraData,
+                    *currentFrameResource->ReflectionProbePassConstantUploadBuffer,
+                    passIndex);
+                cmdList->ClearRenderTarget(&faceRtv, 0, DirectX::Colors::Black);
+                cmdList->ClearDepthStencil(probe->GetDSV(), 0, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0);
+                cmdList->SetRenderTargets(1, &faceRtv, 0, probe->GetDSV());
+
+                // Probe captures intentionally contain only the base scene. RenderMode::Reflection
+                // and the fullscreen SSR pass are excluded to prevent recursive reflections and
+                // screen-space history from being baked into the cubemaps.
+
+                cmdList->SetPipelineState(*psos[RenderMode::SkyBox]);
+                scene.Draw(cmdList, RenderMode::SkyBox);
+
+                cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
+                scene.Draw(cmdList, RenderMode::Opaque);
+
+                cmdList->SetPipelineState(*psos[RenderMode::OpaqueAlphaDrop]);
+                scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
+
+                cmdList->SetPipelineState(*psos[RenderMode::Transparent]);
+                scene.Draw(cmdList, RenderMode::Transparent);
+            }
+
+            cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            cmdList->TransitionBarrier(depthMap, D3D12_RESOURCE_STATE_COMMON);
+            cmdList->FlushResourceBarriers();
+        }
+
+        reflectionProbeContentsValid = true;
+    }
     void ReflectionRenderer::DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                                      GTexture* renderTarget,
                                                      const GDescriptor* renderTargetView,
@@ -1161,6 +1403,7 @@ namespace Common
         {
             cmdList->SetDescriptorsHeap(shadowMap->GetSrv());
             cmdList->SetDescriptorsHeap(ssao->AmbientMapSrv());
+            cmdList->SetDescriptorsHeap(&reflectionProbeSrvTable);
         }
         cmdList->UpdateDescriptorHeaps();
 
@@ -1190,6 +1433,16 @@ namespace Common
 
             cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
             scene.Draw(cmdList, RenderMode::Opaque);
+
+            if (reflectionProbeContentsValid)
+            {
+                cmdList->SetRootConstantBufferView(
+                    kReflectionProbeConstantsSlot,
+                    *currentFrameResource->ReflectionProbeConstantUploadBuffer);
+                cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &reflectionProbeSrvTable);
+                cmdList->SetPipelineState(*psos[RenderMode::Reflection]);
+                scene.Draw(cmdList, RenderMode::Reflection);
+            }
 
             cmdList->SetPipelineState(*psos[RenderMode::OpaqueAlphaDrop]);
             scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
@@ -1310,6 +1563,7 @@ namespace Common
         cmdList->SetDescriptorsHeap(&composedSceneColorSrv);
         cmdList->SetDescriptorsHeap(ssao->NormalDepthMapSrv());
         cmdList->SetDescriptorsHeap(ssao->NormalMapSrv());
+
         cmdList->UpdateDescriptorHeaps();
 
         cmdList->SetRootDescriptorTable(kSsrSceneColorSlot, &composedSceneColorSrv);
@@ -1367,6 +1621,7 @@ namespace Common
         cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, passConstants);
 
         cmdList->SetDescriptorsHeap(&secondGpuSsrInputSrv);
+
         cmdList->UpdateDescriptorHeaps();
         cmdList->SetRootDescriptorTable(kSsrSceneColorSlot, &secondGpuSsrInputSrv, 0);
         cmdList->SetRootDescriptorTable(kSsrSceneDepthSlot, &secondGpuSsrInputSrv, 1);

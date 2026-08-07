@@ -29,6 +29,11 @@ float4 DebugSsrHitStateColor(uint state)
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    float4 baseColor = SceneColor.Sample(gsamLinearClamp, pin.TexC);
+    if (IsProbeReflectionPixel(pin.TexC))
+    {
+        return baseColor;
+    }
     float depth = SceneDepth.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).r;
     if (depth >= 1.0f)
     {
@@ -59,6 +64,11 @@ float4 PS(VertexOut pin) : SV_Target
     float rayJitter = InterleavedGradientNoise(pin.TexC * float2(colorWidth, colorHeight));
 
     if (!FindSsrHit(viewPos + normalV * 0.02f, reflectionDir, rayJitter, hitUv, hitDistance))
+    {
+        return DebugSsrHitStateColor(3u);
+    }
+
+    if (IsProbeReflectionPixel(hitUv))
     {
         return DebugSsrHitStateColor(3u);
     }

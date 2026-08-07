@@ -265,6 +265,7 @@ namespace PEPEngine::Graphics
             auto device = std::make_shared<GDevice>(adapter);
             device->Initialize();
             devices.emplace_back(device);
+            //break;
         }
 
         return devices;

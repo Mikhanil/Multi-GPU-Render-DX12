@@ -74,6 +74,9 @@
     <None Include="Shaders\Quad.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Reflections.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
     <None Include="Shaders\Shadows.hlsl">
       <Filter>Shaders</Filter>
     </None>
