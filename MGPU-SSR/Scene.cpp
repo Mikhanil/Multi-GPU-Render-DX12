@@ -100,7 +100,7 @@ namespace
 
 namespace Common
 {
-    Scene::Scene(const std::shared_ptr<GDevice>& device) : loader(device)
+    Scene::Scene(const std::shared_ptr<GDevice>& device) : device(device), loader(device)
     {
         bounds.Center = Vector3(0.0f, 4.0f * kSceneScale, 0.0f);
         bounds.Radius = 55.0f * kSceneScale;
@@ -141,7 +141,7 @@ namespace Common
             }
         }
 
-        auto graphicQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
+        auto graphicQueue = device->GetCommandQueue(GQueueType::Graphics);
         auto graphicList = graphicQueue->GetCommandList();
 
         for (auto&& texture : generatedMipTextures)
@@ -150,7 +150,7 @@ namespace Common
         }
         graphicQueue->WaitForFenceValue(graphicQueue->ExecuteCommandList(graphicList));
 
-        const auto computeQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Compute);
+        const auto computeQueue = device->GetCommandQueue(GQueueType::Compute);
         auto computeList = computeQueue->GetCommandList();
         GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
         computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
@@ -186,7 +186,7 @@ namespace Common
 
     void Scene::LoadTextures(const std::shared_ptr<GCommandList>& cmdList)
     {
-        auto queue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Compute);
+        auto queue = device->GetCommandQueue(GQueueType::Compute);
 
         auto graphicCmdList = queue->GetCommandList();
         LoadStudyTexture(graphicCmdList);
@@ -195,7 +195,7 @@ namespace Common
 
     void Scene::LoadModels()
     {
-        auto queue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Compute);
+        auto queue = device->GetCommandQueue(GQueueType::Compute);
         auto cmd = queue->GetCommandList();
 
         models[L"gaz"] = loader.CreateModelFromFile(
@@ -218,13 +218,13 @@ namespace Common
     void Scene::BuildTextureHeap()
     {
         srvHeap = std::move(
-            GDeviceFactory::GetDevice(GraphicAdapterPrimary)->AllocateDescriptors(
+            device->AllocateDescriptors(
                 D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, static_cast<UINT>(loader.GetLoadTexturesCount())));
     }
 
     void Scene::BuildShapeGeometry()
     {
-        auto queue = GDeviceFactory::GetDevice()->GetCommandQueue();
+        auto queue = device->GetCommandQueue();
         auto cmdList = queue->GetCommandList();
 
         auto sphere = loader.GenerateSphere(cmdList);
@@ -285,7 +285,7 @@ namespace Common
     void Scene::BuildObjects(float aspectRatio, const Vector3& directionalLightDirection)
     {
         auto quadRitem = std::make_unique<GameObject>("Quad");
-        auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"quad"]);
+        auto renderer = std::make_shared<ModelRenderer>(device, models[L"quad"]);
         models[L"quad"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"seamless")));
         quadRitem->AddComponent(renderer);
         typedGameObjects[static_cast<uint8_t>(RenderMode::Debug)].push_back(quadRitem.get());
@@ -294,7 +294,7 @@ namespace Common
 
         auto skySphere = std::make_unique<GameObject>("Sky");
         skySphere->GetTransform()->SetScale({500, 500, 500});
-        renderer = std::make_shared<SkyBox>(GDeviceFactory::GetDevice(), models[L"sphere"],
+        renderer = std::make_shared<SkyBox>(device, models[L"sphere"],
                                             *loader.GetTexture(loader.GetTextureIndex(L"skyTex")).get(), &srvHeap,
                                             loader.GetTextureIndex(L"skyTex"));
         models[L"sphere"]->SetMeshMaterial(0, loader.GetMaterial(loader.GetMaterialIndex(L"sky")));
@@ -326,7 +326,7 @@ namespace Common
             mirrorSphere->GetTransform()->SetLocalMatrix(
                 MakeDx12GeLocalMatrix(mirrorSpherePositions[sphereIndex], Vector3::Zero,
                                      Vector3(2.5f, 2.5f, 2.5f)));
-            renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), models[L"mirrorSphere"]);
+            renderer = std::make_shared<ModelRenderer>(device, models[L"mirrorSphere"]);
             mirrorSphere->AddComponent(renderer);
             typedGameObjects[static_cast<uint8_t>(RenderMode::Reflection)].push_back(mirrorSphere.get());
             gameObjects.push_back(std::move(mirrorSphere));
@@ -548,7 +548,7 @@ namespace Common
         assert(model != nullptr);
 
         auto object = std::make_unique<GameObject>();
-        auto renderer = std::make_shared<ModelRenderer>(GDeviceFactory::GetDevice(), model);
+        auto renderer = std::make_shared<ModelRenderer>(device, model);
         object->AddComponent(renderer);
         return object;
     }
@@ -588,9 +588,15 @@ namespace Common
         }
     }
 
-    void Scene::UpdateMaterials(FrameResource* frameResource)
+    void Scene::UpdateMaterials(FrameResource* frameResource, const bool useSecondGpuBuffer)
     {
-        auto currentMaterialBuffer = frameResource->MaterialBuffer.get();
+        auto currentMaterialBuffer = useSecondGpuBuffer
+                                         ? frameResource->SecondMaterialBuffer.get()
+                                         : frameResource->MaterialBuffer.get();
+        if (currentMaterialBuffer == nullptr)
+        {
+            return;
+        }
 
         for (auto&& material : loader.GetMaterials())
         {

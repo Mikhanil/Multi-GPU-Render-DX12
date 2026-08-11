@@ -53,11 +53,16 @@ struct FrameResource
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> ReflectionProbePassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionProbeConstants>> ReflectionProbeConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondMainPassConstantUploadBuffer = nullptr;
+    std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondReflectionProbePassConstantUploadBuffer = nullptr;
+    std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondShadowPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> ShadowPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer = nullptr;
     std::shared_ptr<StructuredUploadBuffer<MaterialConstants>> MaterialBuffer = nullptr;
+    std::shared_ptr<StructuredUploadBuffer<MaterialConstants>> SecondMaterialBuffer = nullptr;
     std::shared_ptr<StructuredUploadBuffer<LightData>> PointLightBuffer = nullptr;
+    std::shared_ptr<StructuredUploadBuffer<LightData>> SecondPointLightBuffer = nullptr;
     std::shared_ptr<StructuredUploadBuffer<LightData>> SpotLightBuffer = nullptr;
+    std::shared_ptr<StructuredUploadBuffer<LightData>> SecondSpotLightBuffer = nullptr;
     UINT PointLightCapacity = 0;
     UINT SpotLightCapacity = 0;
 

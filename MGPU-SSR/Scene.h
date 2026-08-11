@@ -29,7 +29,7 @@ namespace Common
                         const DirectX::SimpleMath::Vector3& directionalLightDirection);
 
         void Update();
-        void UpdateMaterials(FrameResource* frameResource);
+        void UpdateMaterials(FrameResource* frameResource, bool useSecondGpuBuffer = false);
         void Draw(const std::shared_ptr<GCommandList>& cmdList, PEPEngine::Graphics::RenderMode mode) const;
 
         GDescriptor* GetSrvHeap();
@@ -55,6 +55,7 @@ namespace Common
         void ClearTrackedObjects();
         std::unique_ptr<GameObject> CreateGOWithRenderer(const std::shared_ptr<GModel>& model) const;
 
+        std::shared_ptr<GDevice> device;
         AssetsLoader loader;
         GDescriptor srvHeap;
 

@@ -34,6 +34,21 @@ namespace Common
         PrimaryAllProbesSecondarySsr
     };
 
+    constexpr bool RendersSsrOnSecondaryGpu(const MultiGpuRenderConfig config) noexcept
+    {
+        return config == MultiGpuRenderConfig::PrimaryAllProbesSecondarySsr;
+    }
+
+    constexpr bool RendersProbesOnSecondaryGpu(const MultiGpuRenderConfig config) noexcept
+    {
+        return config == MultiGpuRenderConfig::PrimarySsrSecondaryAllProbes;
+    }
+
+    constexpr bool UsesSecondGpu(const MultiGpuRenderConfig config) noexcept
+    {
+        return RendersSsrOnSecondaryGpu(config) || RendersProbesOnSecondaryGpu(config);
+    }
+
     class ReflectionRenderer
     {
     public:
@@ -47,14 +62,18 @@ namespace Common
         void SetFrameResource(FrameResource* frameResource);
         void SetSsaaMultiplier(UINT multiplier);
         void SetRenderConfig(MultiGpuRenderConfig config);
-        void SetUseMgpuSsr(bool enabled);
         void SetUseDynamicReflectionProbes(bool enabled);
         void Update(const GameTimer& gt);
         void Render(const std::shared_ptr<GCommandList>& cmdList);
         bool IsMgpuSsrEnabled() const;
+        bool IsMgpuProbeEnabled() const;
         void RenderMgpuPrimary(const std::shared_ptr<GCommandList>& cmdList);
+        void RenderMgpuPrimaryPresent(const std::shared_ptr<GCommandList>& cmdList);
         void RenderPrimaryBeforeSsr(const std::shared_ptr<GCommandList>& cmdList);
         void RenderSsrOnSecondGpu();
+        void RenderProbesOnSecondGpu();
+        void RenderPrimaryWithImportedProbes(const std::shared_ptr<GCommandList>& cmdList);
+        void SignalPrimaryProbeConsumption();
 
     private:
         static constexpr UINT ReflectionProbeCount = Scene::ReflectionProbeCount;
@@ -64,12 +83,14 @@ namespace Common
         void BuildShadersAndInputLayout();
         void BuildPSOs();
         void BuildSecondGpuSsrPSOs();
+        void BuildSecondGpuProbePSOs();
         void BuildScreenRenderTargets();
         void BuildColorRenderTarget(PEPEngine::Graphics::GTexture& texture, GDescriptor& rtv, GDescriptor& srv,
                                     const std::wstring& name) const;
-        void InitializeMgpuSsr();
+        void InitializeMgpu();
         void BuildMgpuSsrResources();
         void BuildSecondGpuSsrDescriptors();
+        void BuildMgpuProbeResources();
         void CreateSecondGpuTextureLike(PEPEngine::Graphics::GTexture& texture,
                                         const PEPEngine::Graphics::GTexture& source,
                                         const std::wstring& name,
@@ -87,6 +108,10 @@ namespace Common
         void DrawSceneToShadowMap(const std::shared_ptr<GCommandList>& cmdList);
         void DrawNormals(const std::shared_ptr<GCommandList>& cmdList);
         void DrawReflectionProbes(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawSecondGpuShadowMap(const std::shared_ptr<GCommandList>& cmdList);
+        void DrawReflectionProbesOnSecondGpu(const std::shared_ptr<GCommandList>& cmdList);
+        void CopySecondProbeOutputsToShared(const std::shared_ptr<GCommandList>& cmdList);
+        void CopySharedProbeOutputsToPrimary(const std::shared_ptr<GCommandList>& cmdList);
 
         void DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                      PEPEngine::Graphics::GTexture* renderTarget,
@@ -119,10 +144,10 @@ namespace Common
         DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
         bool is4xMsaa = false;
         UINT msaaQuality = 0;
-        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::PrimarySsrSecondaryAllProbes;
+        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::SingleGpu;
 
         std::unique_ptr<GRootSignature> rootSignature;
-        std::unique_ptr<GRootSignature> secondGpuSsrRootSignature;
+        std::unique_ptr<GRootSignature> secondGpuRootSignature;
         std::unique_ptr<GRootSignature> ssaoRootSignature;
         std::unique_ptr<ShadowMap> shadowMap;
         std::unique_ptr<SSAO> ssao;
@@ -135,6 +160,7 @@ namespace Common
         std::unordered_map<std::string, std::unique_ptr<GShader>> shaders;
         std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> psos;
         std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> secondGpuSsrPsos;
+        std::unordered_map<PEPEngine::Graphics::RenderMode, std::unique_ptr<GraphicPSO>> secondGpuProbePsos;
 
         std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout;
         std::vector<D3D12_INPUT_ELEMENT_DESC> treeSpriteInputLayout;
@@ -150,8 +176,9 @@ namespace Common
         GDescriptor ssrOutputColorSrv;
 
         bool mgpuSsrEnabled = false;
-        bool useMgpuSsr = false;
-        UINT64 secondGpuSsrFenceValue = 0;
+        Microsoft::WRL::ComPtr<ID3D12Fence> primarySsrSharedFence;
+        Microsoft::WRL::ComPtr<ID3D12Fence> secondSsrSharedFence;
+        UINT64 ssrSharedFenceValue = 0;
         std::shared_ptr<GDevice> secondDevice;
         PEPEngine::Graphics::GTexture secondGpuSceneColor;
         PEPEngine::Graphics::GTexture secondGpuSceneDepth;
@@ -163,6 +190,18 @@ namespace Common
         std::unique_ptr<::GCrossAdapterResource> sharedSceneDepth;
         std::unique_ptr<::GCrossAdapterResource> sharedSceneNormal;
         std::unique_ptr<::GCrossAdapterResource> sharedSsrOutputColor;
+
+        bool mgpuProbeEnabled = false;
+        bool secondProbeContentsValid = false;
+        Microsoft::WRL::ComPtr<ID3D12Fence> primaryProbeSharedFence;
+        Microsoft::WRL::ComPtr<ID3D12Fence> secondProbeSharedFence;
+        UINT64 probeSharedFenceValue = 0;
+        UINT64 primaryProbeConsumedFenceValue = 0;
+        std::unique_ptr<Scene> secondProbeScene;
+        std::unique_ptr<ShadowMap> secondGpuShadowMap;
+        std::array<std::unique_ptr<CubeMapRenderTarget>, ReflectionProbeCount> secondGpuReflectionProbes;
+        std::array<std::array<std::unique_ptr<::GCrossAdapterResource>, CubeMapRenderTarget::FaceCount>,
+                   ReflectionProbeCount> sharedReflectionProbeFaces;
 
         ReflectionPassConstants mainPassCB;
         ReflectionPassConstants shadowPassCB;

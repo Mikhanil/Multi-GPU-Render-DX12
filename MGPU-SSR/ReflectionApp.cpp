@@ -34,10 +34,9 @@ namespace Common
 
         renderer = std::make_unique<ReflectionRenderer>(MainWindow, *scene, camera, backBufferFormat,
                                                         depthStencilFormat, isM4xMsaa, m4xMsaaQuality);
-        renderer->Initialize(cmdList);
         renderer->SetRenderConfig(renderConfig);
-        renderer->SetUseMgpuSsr(isUsingMgpuSsr);
         renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
+        renderer->Initialize(cmdList);
 #if defined(DEBUG) || defined(_DEBUG)
         renderer->SetDebugMap(pathMapShow);
 #endif
@@ -158,16 +157,6 @@ namespace Common
                     keyboard.OnKeyPressed(keycode);
                 }
 
-                if (firstPress && keycode == VK_F1 && keyboard.KeyIsPressed(VK_F1))
-                {
-                    isUsingMgpuSsr = !isUsingMgpuSsr;
-                    if (renderer != nullptr)
-                    {
-                        renderer->SetUseMgpuSsr(isUsingMgpuSsr);
-                    }
-                    Flush();
-                }
-
 #if defined(DEBUG) || defined(_DEBUG)
                 if (firstPress && keycode == VK_F2 && keyboard.KeyIsPressed(VK_F2))
                 {
@@ -256,12 +245,25 @@ namespace Common
 
         auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
 
-        if (renderer->IsMgpuSsrEnabled())
+        if (renderer->IsMgpuProbeEnabled())
+        {
+            renderer->RenderProbesOnSecondGpu();
+
+            auto cmdList = commandQueue->GetCommandList();
+            renderer->RenderPrimaryWithImportedProbes(cmdList);
+            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
+            renderer->SignalPrimaryProbeConsumption();
+        }
+        else if (renderer->IsMgpuSsrEnabled())
         {
             auto cmdList = commandQueue->GetCommandList();
             renderer->RenderMgpuPrimary(cmdList);
-            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
+            commandQueue->ExecuteCommandList(cmdList);
             renderer->RenderSsrOnSecondGpu();
+
+            auto presentCmdList = commandQueue->GetCommandList();
+            renderer->RenderMgpuPrimaryPresent(presentCmdList);
+            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(presentCmdList);
         }
         else
         {
@@ -291,7 +293,8 @@ namespace Common
 
         std::shared_ptr<GDevice> secondDevice = nullptr;
 
-        if (GDeviceFactory::GetAllDevices(true).size() > GraphicAdapterSecond)
+        if (UsesSecondGpu(renderConfig) &&
+            GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
         {
             secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
         }
