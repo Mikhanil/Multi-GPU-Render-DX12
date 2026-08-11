@@ -154,7 +154,7 @@ protected:
     std::vector<PerfScenario> perfScenarios{};
     std::vector<std::array<PerfAggregate, 2>> perfScenarioAggregates{};
 
-    const int StatisticStepSecondsCount = 120;
+    const UINT StatisticStepSecondsCount = 120;
 
 
     std::shared_ptr<ShadowMap> shadowPath;

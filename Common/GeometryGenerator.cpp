@@ -683,13 +683,13 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(const int LatLine
 {
     MeshData meshData;
 
-    double NumSphereVertices = ((LatLines - 2) * LongLines) + 2;
-    double NumSphereFaces = ((LatLines - 3) * (LongLines) * 2) + (LongLines * 2);
+    const size_t numSphereVertices = static_cast<size_t>(((LatLines - 2) * LongLines) + 2);
+    const size_t numSphereFaces = static_cast<size_t>(((LatLines - 3) * LongLines * 2) + (LongLines * 2));
 
     float sphereYaw = 0.0f;
     float spherePitch = 0.0f;
 
-    meshData.Vertices.resize(NumSphereVertices);
+    meshData.Vertices.resize(numSphereVertices);
 
     XMVECTOR currVertPos = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 
@@ -697,13 +697,13 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(const int LatLine
     meshData.Vertices[0].Position.y = 0.0f;
     meshData.Vertices[0].Position.z = 1.0f;
 
-    for (size_t i = 0; i < LatLines - 2; ++i)
+    for (int i = 0; i < LatLines - 2; ++i)
     {
-        spherePitch = (i + 1) * (3.14 / (LatLines - 1));
+        spherePitch = static_cast<float>((i + 1) * (3.14 / (LatLines - 1)));
         auto Rotationx = XMMatrixRotationX(spherePitch);
-        for (size_t j = 0; j < LongLines; ++j)
+        for (int j = 0; j < LongLines; ++j)
         {
-            sphereYaw = j * (6.28 / (LongLines));
+            sphereYaw = static_cast<float>(j * (6.28 / LongLines));
             auto Rotationy = XMMatrixRotationZ(sphereYaw);
             currVertPos = XMVector3TransformNormal(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), (Rotationx * Rotationy));
             currVertPos = XMVector3Normalize(currVertPos);
@@ -713,15 +713,15 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(const int LatLine
         }
     }
 
-    meshData.Vertices[NumSphereVertices - 1].Position.x = 0.0f;
-    meshData.Vertices[NumSphereVertices - 1].Position.y = 0.0f;
-    meshData.Vertices[NumSphereVertices - 1].Position.z = -1.0f;
+    meshData.Vertices[numSphereVertices - 1].Position.x = 0.0f;
+    meshData.Vertices[numSphereVertices - 1].Position.y = 0.0f;
+    meshData.Vertices[numSphereVertices - 1].Position.z = -1.0f;
 
 
-    meshData.Indices32.resize(NumSphereFaces * 3);
+    meshData.Indices32.resize(numSphereFaces * 3);
 
     int k = 0;
-    for (size_t l = 0; l < LongLines - 1; ++l)
+    for (int l = 0; l < LongLines - 1; ++l)
     {
         meshData.Indices32[k] = 0;
         meshData.Indices32[k + 1] = l + 1;
@@ -734,9 +734,9 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(const int LatLine
     meshData.Indices32[k + 2] = 1;
     k += 3;
 
-    for (size_t i = 0; i < LatLines - 3; ++i)
+    for (int i = 0; i < LatLines - 3; ++i)
     {
-        for (size_t j = 0; j < LongLines - 1; ++j)
+        for (int j = 0; j < LongLines - 1; ++j)
         {
             meshData.Indices32[k] = i * LongLines + j + 1;
             meshData.Indices32[k + 1] = i * LongLines + j + 2;
@@ -760,17 +760,17 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSkySphere(const int LatLine
         k += 6;
     }
 
-    for (size_t l = 0; l < LongLines - 1; ++l)
+    for (int l = 0; l < LongLines - 1; ++l)
     {
-        meshData.Indices32[k] = NumSphereVertices - 1;
-        meshData.Indices32[k + 1] = (NumSphereVertices - 1) - (l + 1);
-        meshData.Indices32[k + 2] = (NumSphereVertices - 1) - (l + 2);
+        meshData.Indices32[k] = static_cast<DWORD>(numSphereVertices - 1);
+        meshData.Indices32[k + 1] = static_cast<DWORD>((numSphereVertices - 1) - (l + 1));
+        meshData.Indices32[k + 2] = static_cast<DWORD>((numSphereVertices - 1) - (l + 2));
         k += 3;
     }
 
-    meshData.Indices32[k] = NumSphereVertices - 1;
-    meshData.Indices32[k + 1] = (NumSphereVertices - 1) - LongLines;
-    meshData.Indices32[k + 2] = NumSphereVertices - 2;
+    meshData.Indices32[k] = static_cast<DWORD>(numSphereVertices - 1);
+    meshData.Indices32[k + 1] = static_cast<DWORD>((numSphereVertices - 1) - LongLines);
+    meshData.Indices32[k + 2] = static_cast<DWORD>(numSphereVertices - 2);
 
     return meshData;
 }

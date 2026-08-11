@@ -422,8 +422,8 @@ void SharedSSAO::OnResize(const UINT newWidth, const UINT newHeight)
 
     mViewport.TopLeftX = 0.0f;
     mViewport.TopLeftY = 0.0f;
-    mViewport.Width = RenderTargetWidth;
-    mViewport.Height = RenderTargetHeight;
+    mViewport.Width = static_cast<float>(RenderTargetWidth);
+    mViewport.Height = static_cast<float>(RenderTargetHeight);
     mViewport.MinDepth = 0.0f;
     mViewport.MaxDepth = 1.0f;
 
@@ -537,7 +537,7 @@ void SharedSSAO::BlurAmbientMap(const std::shared_ptr<GCommandList>& cmdList, co
 
     cmdList->SetRootDescriptorTable(2, Resources.GetNormalMapSRV());
 
-    cmdList->SetRootDescriptorTable(3, Resources.GetAmbientMapSRV(), inputSrv);
+    cmdList->SetRootDescriptorTable(3, Resources.GetAmbientMapSRV(), static_cast<UINT>(inputSrv));
 
     // Draw fullscreen quad.
     cmdList->SetVBuffer(0, 0, nullptr);

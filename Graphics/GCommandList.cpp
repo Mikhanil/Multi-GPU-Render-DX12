@@ -361,7 +361,7 @@ namespace PEPEngine::Graphics
     }
 
     void GCommandList::SetRootDescriptorTable(const UINT rootSignatureSlot, const GDescriptor* memory,
-                                              const UINT offset) const
+                                              const size_t offset) const
     {
         if (memory == nullptr || memory->IsNull())
         {
@@ -400,7 +400,7 @@ namespace PEPEngine::Graphics
         const auto res = destResource;
 
         const UINT64 uploadBufferSize = GetRequiredIntermediateSize(res.Get(),
-                                                                    0, countSubresources);
+                                                                     0, static_cast<UINT>(countSubresources));
 
         auto upload = UploadData(uploadBufferSize, nullptr, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
@@ -409,7 +409,7 @@ namespace PEPEngine::Graphics
 
         UpdateSubresources(cmdList.Get(),
                            res.Get(), &upload.d3d12Resource,
-                           upload.Offset, 0, countSubresources,
+                            upload.Offset, 0, static_cast<UINT>(countSubresources),
                            subresources);
 
         TrackResource(res.Get());
@@ -428,13 +428,13 @@ namespace PEPEngine::Graphics
     void GCommandList::SetViewports(const D3D12_VIEWPORT* viewports, const size_t count) const
     {
         assert(count < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
-        cmdList->RSSetViewports(count, viewports);
+        cmdList->RSSetViewports(static_cast<UINT>(count), viewports);
     }
 
     void GCommandList::SetScissorRects(const D3D12_RECT* scissorRects, const size_t count) const
     {
         assert(count < D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE);
-        cmdList->RSSetScissorRects(count, scissorRects);
+        cmdList->RSSetScissorRects(static_cast<UINT>(count), scissorRects);
     }
 
     void GCommandList::SetComputeRootSignature(const GRootSignature& rs)
@@ -877,13 +877,14 @@ namespace PEPEngine::Graphics
         {
             assert("Bad Clear Render Target");
         }
-        cmdList->ClearRenderTargetView(memory->GetCPUHandle(offset), rgba, rectCount, rects);
+        cmdList->ClearRenderTargetView(memory->GetCPUHandle(static_cast<uint32_t>(offset)), rgba,
+                                       static_cast<UINT>(rectCount), rects);
     }
 
     void GCommandList::ClearRenderTarget(const GRenderTexture& target, const FLOAT rgba[4], const D3D12_RECT* rects,
                                          const size_t rectCount) const
     {
-        cmdList->ClearRenderTargetView(target.GetRTVCpu(), rgba, rectCount, rects);
+        cmdList->ClearRenderTargetView(target.GetRTVCpu(), rgba, static_cast<UINT>(rectCount), rects);
     }
 
     void GCommandList::SetRenderTargets(const size_t RTCount, const GDescriptor* rtvMemory, const size_t rtvOffset,
@@ -892,13 +893,13 @@ namespace PEPEngine::Graphics
     {
         const auto* rtvPtr = (rtvMemory == nullptr || rtvMemory->IsNull())
                                  ? nullptr
-                                 : &rtvMemory->GetCPUHandle(rtvOffset);
+                                 : &rtvMemory->GetCPUHandle(static_cast<uint32_t>(rtvOffset));
 
         const auto* dsvPtr = (dsvMemory == nullptr || dsvMemory->IsNull())
                                  ? nullptr
-                                 : &dsvMemory->GetCPUHandle(dsvOffset);
+                                 : &dsvMemory->GetCPUHandle(static_cast<uint32_t>(dsvOffset));
 
-        cmdList->OMSetRenderTargets(RTCount, rtvPtr, true, dsvPtr);
+        cmdList->OMSetRenderTargets(static_cast<UINT>(RTCount), rtvPtr, true, dsvPtr);
     }
 
     void GCommandList::SetRenderTarget(const GRenderTexture& target, const GDescriptor* dsvMemory,
@@ -906,7 +907,7 @@ namespace PEPEngine::Graphics
     {
         auto* dsvPtr = (dsvMemory == nullptr || dsvMemory->IsNull())
                            ? nullptr
-                           : &dsvMemory->GetCPUHandle(dsvOffset);
+                           : &dsvMemory->GetCPUHandle(static_cast<uint32_t>(dsvOffset));
 
         cmdList->OMSetRenderTargets(1, &target.GetRTVCpu(), true, dsvPtr);
     }
@@ -919,7 +920,7 @@ namespace PEPEngine::Graphics
 
         auto* dsvPtr = (dsvMemory == nullptr || dsvMemory->IsNull())
                            ? nullptr
-                           : &dsvMemory->GetCPUHandle(dsvOffset);
+                           : &dsvMemory->GetCPUHandle(static_cast<uint32_t>(dsvOffset));
 
         if (isSingleHandle)
         {
@@ -928,14 +929,14 @@ namespace PEPEngine::Graphics
         else
         {
             std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handlers;
-            handlers.resize(targetsSize);
+            handlers.reserve(targetsSize);
 
-            for (int i = 0; i < targetsSize; ++i)
+            for (size_t i = 0; i < targetsSize; ++i)
             {
                 handlers.push_back(targets[i].GetRTVCpu());
             }
 
-            cmdList->OMSetRenderTargets(handlers.size(), handlers.data(), false, dsvPtr);
+            cmdList->OMSetRenderTargets(static_cast<UINT>(handlers.size()), handlers.data(), false, dsvPtr);
         }
     }
 
@@ -944,8 +945,8 @@ namespace PEPEngine::Graphics
                                          const FLOAT depthValue,
                                          const UINT stencilValue, const D3D12_RECT* rects, const size_t rectCount) const
     {
-        cmdList->ClearDepthStencilView(dsvMemory->GetCPUHandle(dsvOffset), flags, depthValue, stencilValue,
-                                       rectCount,
+        cmdList->ClearDepthStencilView(dsvMemory->GetCPUHandle(static_cast<uint32_t>(dsvOffset)), flags, depthValue, stencilValue,
+                                       static_cast<UINT>(rectCount),
                                        rects);
     }
 }

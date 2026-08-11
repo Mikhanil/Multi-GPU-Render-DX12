@@ -213,7 +213,7 @@ void DOFApp::InitSceneRootSignature()
     texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0);
     texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0);
     texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                     assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1,
+                     static_cast<UINT>(assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1),
                      StandardShaderSlot::TexturesMap - 3, 0);
 
     rs->AddConstantBufferParameter(0);
@@ -1634,7 +1634,7 @@ void DOFApp::CreateSceneObjects()
     for (int i = 0; i < 11; ++i)
     {
         auto nano = std::make_shared<GameObject>();
-        nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
+        nano->GetTransform()->SetPosition(Vector3::Right * -15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
         nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
         auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"nano"]);
         nano->AddComponent(renderer);
@@ -1643,7 +1643,7 @@ void DOFApp::CreateSceneObjects()
 
         auto doom = std::make_shared<GameObject>();
         doom->SetScale(0.08f);
-        doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
+        doom->GetTransform()->SetPosition(Vector3::Right * 15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
         doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"doom"]);
         doom->AddComponent(renderer);
@@ -1657,7 +1657,7 @@ void DOFApp::CreateSceneObjects()
         {
             auto atlas = std::make_shared<GameObject>();
             atlas->GetTransform()->SetPosition(
-                Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                Vector3::Right * -60.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
             auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"atlas"]);
             atlas->AddComponent(renderer);
             typedRenderer[static_cast<size_t>(RenderMode::Opaque)].push_back(renderer);
@@ -1665,7 +1665,7 @@ void DOFApp::CreateSceneObjects()
 
             auto pbody = std::make_shared<GameObject>();
             pbody->GetTransform()->SetPosition(
-                Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                Vector3::Right * 130.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
             renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"pbody"]);
             pbody->AddComponent(renderer);
             typedRenderer[static_cast<size_t>(RenderMode::Opaque)].push_back(renderer);

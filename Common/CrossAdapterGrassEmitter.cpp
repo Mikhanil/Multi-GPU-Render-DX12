@@ -258,7 +258,7 @@ void CrossAdapterGrassEmitter::CreateBuffers()
 
     grassBuffer = std::make_shared<GBuffer>(
         secondDevice,
-        sizeof(GrassData),
+        static_cast<UINT>(sizeof(GrassData)),
         emitterData.GrassCount,
         L"Second Grass Buffer",
         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS

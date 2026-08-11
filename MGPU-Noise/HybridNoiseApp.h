@@ -39,7 +39,7 @@ protected:
                                      const GraphicPSO& pso);
     UINT64 ComputeEmitters(UINT timestampHeapIndex, const std::shared_ptr<GCommandQueue>& computeQueue) const;
     UINT64 RenderScene(UINT timestampHeapIndex,
-                       UINT computeCloudFenceValue);
+                       UINT64 computeCloudFenceValue);
     UINT64 ComputeClouds(UINT timestampHeapIndex) const;
     void Draw(const GameTimer& gt) override;
 
@@ -107,7 +107,7 @@ protected:
 
     bool IsStop = false;
 
-    const int StatisticStepSecondsCount = 120;
+    const UINT StatisticStepSecondsCount = 120;
 
     std::shared_ptr<CloudGenerator> cloudGenerator;
     std::shared_ptr<CloudGenerator> cloudGeneratorV2;

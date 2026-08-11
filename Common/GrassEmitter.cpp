@@ -28,7 +28,7 @@ GrassEmitter::GrassEmitter(std::shared_ptr<GDevice> dev, uint32_t grassCount, fl
     emitterData.Lod0BladeCount = std::max(1u, lod0BladeCount);
     emitterData.Lod1BladeCount = std::max(1u, lod1BladeCount);
     emitterData.WindDirection = Vector2(1.0f, 0.0f);
-    emitterData.AtlasTextureCount = Atlas.size();
+    emitterData.AtlasTextureCount = static_cast<uint32_t>(Atlas.size());
     emitterData.Lod0LeanGain = 3.0f;
 
     Initialize();
@@ -51,7 +51,7 @@ void GrassEmitter::Initialize()
 
         queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 
-        emitterData.AtlasTextureCount = Atlas.size();
+        emitterData.AtlasTextureCount = static_cast<uint32_t>(Atlas.size());
     }
 
     // ���������� mipmaps ��� �������
@@ -212,7 +212,7 @@ void GrassEmitter::CreateBuffers()
     // ����� ��� ������ �����
     grassBuffer = std::make_shared<GBuffer>(
         device,
-        sizeof(GrassData),
+        static_cast<UINT>(sizeof(GrassData)),
         emitterData.GrassCount,
         L"Grass Buffer",
         useGPUGeneration ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE
@@ -313,7 +313,7 @@ void GrassEmitter::GenerateGrassDataCPU()
         grass.Scale = MathHelper::RandF(0.8f, 1.5f);
         grass.Rotation = MathHelper::RandF(0.0f, DirectX::XM_2PI);
         grass.WindOffset = MathHelper::RandF(0.0f, DirectX::XM_2PI);
-        grass.TextureIndex = MathHelper::RandF(0, static_cast<float>(Atlas.size() - 1));
+        grass.TextureIndex = static_cast<uint32_t>(MathHelper::RandF(0.0f, static_cast<float>(Atlas.size() - 1)));
         grass.Padding[0] = grass.Padding[1] = grass.Padding[2] = 0;
     }
 }

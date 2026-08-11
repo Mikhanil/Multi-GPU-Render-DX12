@@ -307,7 +307,7 @@ void UILayer::DrawTime(uint16_t mins, uint16_t hours)
     std::string strHrs = std::to_string(hours);
     const char* cStrHrsValue = strHrs.c_str();
 
-    int len = strlen(cStrMinsValue) + strlen(cStrHrsValue) + 2;
+    const auto len = strlen(cStrMinsValue) + strlen(cStrHrsValue) + 2;
 
     char* finalStr = new char[len];
 
@@ -787,8 +787,8 @@ void UILayer::UpdateHBBar(const std::shared_ptr<GCommandList>& cmdList, float va
     par.GlowIntensity = 1.8f;
     par.FractalScale = 3.8f;
     par.FillThreshold = 1.7f;
-    par.CrackThickness = 0.005;
-    par.CrackRoughness = 0.3;
+    par.CrackThickness = 0.005f;
+    par.CrackRoughness = 0.3f;
 
     cmdList->TransitionBarrier(hbBarTex.GetD3D12Resource(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     cmdList->FlushResourceBarriers();
@@ -848,12 +848,12 @@ void UILayer::RenderEffects(const std::shared_ptr<GCommandQueue>& queue) noexcep
         mod = 1;
     }
 
-    totalTime += deltaTime * mod;
+    totalTime += static_cast<float>(deltaTime) * static_cast<float>(mod);
 
     const auto barVal = totalTime * (740.0f / 8096.0f);
     BlurIcon(
         ImVec2(0, 0),       // Позиция здесь не нужна для Compute Shader, если мы блюрим всю текстуру
-        ImVec2(mapPicSizeX, mapPicSizeY),   // Размеры текстуры
+        ImVec2(static_cast<float>(mapPicSizeX), static_cast<float>(mapPicSizeY)),   // Размеры текстуры
         cmdList
     );
 

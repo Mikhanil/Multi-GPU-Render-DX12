@@ -94,7 +94,7 @@ namespace PEPEngine::Graphics
                                const std::wstring& name = L"",
                                const D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE) :
             UploadBuffer(
-                device, elementCount, (sizeof(T)), name, flag)
+                device, elementCount, static_cast<UINT>(sizeof(T)), name, flag)
         {
         }
 
@@ -119,11 +119,11 @@ namespace PEPEngine::Graphics
         CounteredStructBuffer(const std::shared_ptr<GDevice>& device, const UINT elementCount,
                               const std::wstring& name = L"") :
             GBuffer(
-                device, (sizeof(T)), elementCount, D3D12_UAV_COUNTER_PLACEMENT_ALIGNMENT, name,
+                device, static_cast<UINT>(sizeof(T)), elementCount, D3D12_UAV_COUNTER_PLACEMENT_ALIGNMENT, name,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON,
                 CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT))
         {
-            upload = std::make_shared<UploadBuffer>(device, 1, (sizeof(DWORD)), name + L" Upload");
+            upload = std::make_shared<UploadBuffer>(device, 1, static_cast<UINT>(sizeof(DWORD)), name + L" Upload");
             read = std::make_shared<ReadBackBuffer<DWORD>>(device, 1, name + L" ReadBack");
         }
 

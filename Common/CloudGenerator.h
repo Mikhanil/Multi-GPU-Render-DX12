@@ -14,19 +14,19 @@ class CloudGenerator
 {
     struct alignas(sizeof(Vector4)) CloudGeneratorData
     {
-        float CloudCover = 0.2;
-        float CloudAlpha = 8.0;
-        float SkyTint = 0.5;
+        float CloudCover = 0.2f;
+        float CloudAlpha = 8.0f;
+        float SkyTint = 0.5f;
         float TotalTime = 0.0f;
 
-        float CloudScale = 1.1;
-        float CloudSpeed = 0.03;
-        float CloudDark = 0.5;
-        float CloudLight = 0.3;
+        float CloudScale = 1.1f;
+        float CloudSpeed = 0.03f;
+        float CloudDark = 0.5f;
+        float CloudLight = 0.3f;
 
-        Vector4 SkyColor1 = Vector4(0.2, 0.4, 0.6, 1);
-        Vector4 SkyColor2 = Vector4(0.4, 0.7, 1.0, 1);
-        Vector4 CloudColor = Vector4(1.1, 1.1, 0.9, 1);
+        Vector4 SkyColor1 = Vector4(0.2f, 0.4f, 0.6f, 1.0f);
+        Vector4 SkyColor2 = Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+        Vector4 CloudColor = Vector4(1.1f, 1.1f, 0.9f, 1.0f);
 
         Vector2 RenderTargetSize = Vector2(4096, 4096);
         Vector2 padding;

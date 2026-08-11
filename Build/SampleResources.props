@@ -10,6 +10,8 @@
 
     <!-- Each executable has its own runtime asset directory. -->
     <OutDir>$(RepositoryRoot)x64\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <!-- Keep object files separate as well: sharing x64\$(Configuration) causes MSB8028. -->
+    <IntDir>$(RepositoryRoot)x64\$(Configuration)\$(MSBuildProjectName)\obj\</IntDir>
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 

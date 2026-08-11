@@ -160,26 +160,26 @@ namespace PEPEngine::Graphics
     void GResource::CreateShaderResourceView(const D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, const GDescriptor* memory,
                                              const size_t offset) const
     {
-        device->GetDXDevice()->CreateShaderResourceView(dxResource.Get(), srvDesc, memory->GetCPUHandle(offset));
+        device->GetDXDevice()->CreateShaderResourceView(dxResource.Get(), srvDesc, memory->GetCPUHandle(static_cast<uint32_t>(offset)));
     }
 
     void GResource::CreateUnorderedAccessView(const D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, const GDescriptor* memory,
                                               const size_t offset, const ComPtr<ID3D12Resource>& counterResource) const
     {
         device->GetDXDevice()->CreateUnorderedAccessView(dxResource.Get(), counterResource.Get(), uavDesc,
-                                                         memory->GetCPUHandle(offset));
+                                                          memory->GetCPUHandle(static_cast<uint32_t>(offset)));
     }
 
     void GResource::CreateRenderTargetView(const D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, const GDescriptor* memory,
                                            const size_t offset) const
     {
-        device->GetDXDevice()->CreateRenderTargetView(dxResource.Get(), rtvDesc, memory->GetCPUHandle(offset));
+        device->GetDXDevice()->CreateRenderTargetView(dxResource.Get(), rtvDesc, memory->GetCPUHandle(static_cast<uint32_t>(offset)));
     }
 
     void GResource::CreateDepthStencilView(const D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, const GDescriptor* memory,
                                            const size_t offset) const
     {
-        device->GetDXDevice()->CreateDepthStencilView(dxResource.Get(), dsvDesc, memory->GetCPUHandle(offset));
+        device->GetDXDevice()->CreateDepthStencilView(dxResource.Get(), dsvDesc, memory->GetCPUHandle(static_cast<uint32_t>(offset)));
     }
 
     void GResource::SetName(const std::wstring& name)

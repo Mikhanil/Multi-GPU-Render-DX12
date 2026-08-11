@@ -96,9 +96,9 @@ void HybridShadowApp::InitFrameResource()
 {
     for (int i = 0; i < globalCountFrameResources; ++i)
     {
-        frameResources.push_back(std::make_unique<FrameResource>(devices[GraphicAdapterPrimary],
-                                                                 devices[GraphicAdapterSecond], 1,
-                                                                 assets[GraphicAdapterPrimary].GetMaterials().size()));
+        frameResources.push_back(std::make_unique<FrameResource>(
+            devices[GraphicAdapterPrimary], devices[GraphicAdapterSecond], 1,
+            static_cast<UINT>(assets[GraphicAdapterPrimary].GetMaterials().size())));
     }
     logQueue.Push(std::wstring(L"\nInit FrameResource "));
 }
@@ -113,7 +113,7 @@ void HybridShadowApp::InitRootSignature()
         texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
         texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
         texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                         assets[i].GetLoadTexturesCount() > 0 ? assets[i].GetLoadTexturesCount() : 1,
+                         static_cast<UINT>(assets[i].GetLoadTexturesCount() > 0 ? assets[i].GetLoadTexturesCount() : 1),
                          StandardShaderSlot::TexturesMap - 3, 0);
 
 
@@ -220,7 +220,7 @@ void HybridShadowApp::InitPipeLineResource()
         },
     };
 
-    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), defaultInputLayout.size()};
+    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size())};
 
     defaultPrimePipelineResources = RenderModeFactory();
     defaultPrimePipelineResources.LoadDefaultShaders();
@@ -436,17 +436,17 @@ void HybridShadowApp::LoadModels()
     models[GraphicAdapterPrimary][L"pbody"] = std::move(pbody);
 
     auto griffon = assets[GraphicAdapterPrimary].CreateModelFromFile(cmdList, "Data\\Objects\\Griffon\\Griffon.FBX");
-    griffon->scaleMatrix = Matrix::CreateScale(0.1);
+    griffon->scaleMatrix = Matrix::CreateScale(0.1f);
     models[GraphicAdapterPrimary][L"griffon"] = std::move(griffon);
 
     auto mountDragon = assets[GraphicAdapterPrimary].CreateModelFromFile(
         cmdList, "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
-    mountDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    mountDragon->scaleMatrix = Matrix::CreateScale(0.1f);
     models[GraphicAdapterPrimary][L"mountDragon"] = std::move(mountDragon);
 
     auto desertDragon = assets[GraphicAdapterPrimary].CreateModelFromFile(
         cmdList, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
-    desertDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    desertDragon->scaleMatrix = Matrix::CreateScale(0.1f);
     models[GraphicAdapterPrimary][L"desertDragon"] = std::move(desertDragon);
 
     auto sphere = assets[GraphicAdapterPrimary].GenerateSphere(cmdList);
@@ -648,15 +648,15 @@ void HybridShadowApp::CreateGO()
     for (int i = 0; i < 11; ++i)
     {
         auto nano = std::make_unique<GameObject>();
-        nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
+        nano->GetTransform()->SetPosition(Vector3::Right * -15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
         nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
         AddMultiDeviceOpaqueRenderComponent(nano.get(), L"nano");
         gameObjects.push_back(std::move(nano));
 
 
         auto doom = std::make_unique<GameObject>();
-        doom->SetScale(0.08);
-        doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
+        doom->SetScale(0.08f);
+        doom->GetTransform()->SetPosition(Vector3::Right * 15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
         doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
         AddMultiDeviceOpaqueRenderComponent(doom.get(), L"doom");
         gameObjects.push_back(std::move(doom));
@@ -668,14 +668,14 @@ void HybridShadowApp::CreateGO()
         {
             auto atlas = std::make_unique<GameObject>();
             atlas->GetTransform()->SetPosition(
-                Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                Vector3::Right * -60.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
             AddMultiDeviceOpaqueRenderComponent(atlas.get(), L"atlas");
             gameObjects.push_back(std::move(atlas));
 
 
             auto pbody = std::make_unique<GameObject>();
             pbody->GetTransform()->SetPosition(
-                Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                Vector3::Right * 130.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
             AddMultiDeviceOpaqueRenderComponent(pbody.get(), L"pbody");
             gameObjects.push_back(std::move(pbody));
         }
@@ -683,7 +683,7 @@ void HybridShadowApp::CreateGO()
 
 
     auto platform = std::make_unique<GameObject>();
-    platform->SetScale(0.2);
+    platform->SetScale(0.2f);
     platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
     platform->GetTransform()->SetPosition(Vector3::Backward * -130);
     AddMultiDeviceOpaqueRenderComponent(platform.get(), L"platform");
@@ -693,7 +693,7 @@ void HybridShadowApp::CreateGO()
     rotater->GetTransform()->SetParent(platform->GetTransform().get());
     rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
     rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
-    rotater->AddComponent(std::make_shared<Rotater>(10));
+    rotater->AddComponent(std::make_shared<Rotater>(10.0f));
 
     auto camera = std::make_unique<GameObject>("MainCamera");
     camera->GetTransform()->SetParent(rotater->GetTransform().get());
@@ -708,7 +708,7 @@ void HybridShadowApp::CreateGO()
 
     auto stair = std::make_unique<GameObject>();
     stair->GetTransform()->SetParent(platform->GetTransform().get());
-    stair->SetScale(0.2);
+    stair->SetScale(0.2f);
     stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
     stair->GetTransform()->SetPosition(Vector3::Left * 700);
     AddMultiDeviceOpaqueRenderComponent(stair.get(), L"stair");
@@ -716,13 +716,13 @@ void HybridShadowApp::CreateGO()
 
     auto columns = std::make_unique<GameObject>();
     columns->GetTransform()->SetParent(stair->GetTransform().get());
-    columns->SetScale(0.8);
+    columns->SetScale(0.8f);
     columns->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
     columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900);
     AddMultiDeviceOpaqueRenderComponent(columns.get(), L"columns");
 
     auto fountain = std::make_unique<GameObject>();
-    fountain->SetScale(0.005);
+    fountain->SetScale(0.005f);
     fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
     fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
     AddMultiDeviceOpaqueRenderComponent(fountain.get(), L"fountain");
@@ -748,13 +748,13 @@ void HybridShadowApp::CreateGO()
 
     auto griffon = std::make_unique<GameObject>();
     griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
-    griffon->SetScale(0.8);
+    griffon->SetScale(0.8f);
     griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
     AddMultiDeviceOpaqueRenderComponent(griffon.get(), L"griffon", RenderMode::OpaqueAlphaDrop);
     gameObjects.push_back(std::move(griffon));
 
     griffon = std::make_unique<GameObject>();
-    griffon->SetScale(0.8);
+    griffon->SetScale(0.8f);
     griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
     griffon->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
     AddMultiDeviceOpaqueRenderComponent(griffon.get(), L"griffon", RenderMode::OpaqueAlphaDrop);
@@ -1097,7 +1097,7 @@ void HybridShadowApp::UpdateMainPassCB(const GameTimer& gt)
         0.0f, 0.0f, 1.0f, 0.0f,
         0.5f, 0.5f, 0.0f, 1.0f);
     Matrix viewProjTex = XMMatrixMultiply(viewProj, T);
-    mainPassCB.debugMap = pathMapShow;
+    mainPassCB.debugMap = static_cast<float>(pathMapShow);
     mainPassCB.View = view.Transpose();
     mainPassCB.InvView = invView.Transpose();
     mainPassCB.Proj = proj.Transpose();

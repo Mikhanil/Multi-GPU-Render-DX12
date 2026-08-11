@@ -29,7 +29,7 @@ namespace PEPEngine::Allocator
 
         struct AllocationHeader
         {
-            char padding;
+            std::size_t padding;
         };
     };
 }

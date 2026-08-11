@@ -1240,7 +1240,7 @@ namespace Common
         Matrix viewProjTex = XMMatrixMultiply(viewProj, T);
 
 #if defined(DEBUG) || defined(_DEBUG)
-        mainPassCB.debugMap = debugMap;
+        mainPassCB.debugMap = static_cast<float>(debugMap);
 #else
         mainPassCB.debugMap = 0.0f;
 #endif

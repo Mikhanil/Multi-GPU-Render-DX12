@@ -162,8 +162,8 @@ namespace PEPEngine::Graphics
         {
             if (!staticSampler.empty())
             {
-                rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
-                                                          staticSampler.size(), staticSampler.data(),
+                rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(static_cast<UINT>(slotRootParameters.size()), slotRootParameters.data(),
+                                                           static_cast<UINT>(staticSampler.size()), staticSampler.data(),
                                                           flags);
             }
             else
@@ -175,13 +175,13 @@ namespace PEPEngine::Graphics
                     (flags & D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT) != 0;
                 if (useImplicitGlobalSamplers)
                 {
-                    rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
-                                                              staticSamplersVector.size(), staticSamplersVector.data(),
+                    rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(static_cast<UINT>(slotRootParameters.size()), slotRootParameters.data(),
+                                                               static_cast<UINT>(staticSamplersVector.size()), staticSamplersVector.data(),
                                                               flags);
                 }
                 else
                 {
-                    rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(slotRootParameters.size(), slotRootParameters.data(),
+                    rootSigDesc = CD3DX12_ROOT_SIGNATURE_DESC(static_cast<UINT>(slotRootParameters.size()), slotRootParameters.data(),
                                                               0u, nullptr, flags);
                 }
             }

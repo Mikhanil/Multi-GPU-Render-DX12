@@ -22,7 +22,7 @@ void SSAA::SetMultiplier(const UINT multi, const UINT newWidth, const UINT newHe
 
 float SSAA::GetMultiplier()
 {
-    return ResolutionMultiplier;
+    return static_cast<float>(ResolutionMultiplier);
 }
 
 GTexture& SSAA::GetRenderTarget()

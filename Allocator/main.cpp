@@ -18,10 +18,10 @@ int main()
     const std::vector<std::size_t> ALIGNMENTS{8, 8, 8, 8, 8, 8, 8};
 
     Allocator* cAllocator = new CAllocator();
-    Allocator* linearAllocator = new LinearAllocator(1e9);
-    Allocator* stackAllocator = new StackAllocator(1e9);
+    Allocator* linearAllocator = new LinearAllocator(1000000000ULL);
+    Allocator* stackAllocator = new StackAllocator(1000000000ULL);
     Allocator* poolAllocator = new PoolAllocator(16777216, 4096);
-    Allocator* freeListAllocator = new FreeListAllocator(1e8, FreeListAllocator::PlacementPolicy::FIND_FIRST);
+    Allocator* freeListAllocator = new FreeListAllocator(100000000ULL, FreeListAllocator::PlacementPolicy::FIND_FIRST);
 
     delete cAllocator;
     delete linearAllocator;

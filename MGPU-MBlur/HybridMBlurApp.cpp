@@ -668,7 +668,8 @@ void HybridMBlurApp::InitFrameResource()
 {
     for (int i = 0; i < globalCountFrameResources; ++i)
     {
-        frameResources.emplace_back(std::make_unique<FrameResource>(primeDevice, secondDevice, 2, assets->GetMaterials().size()));
+        frameResources.emplace_back(std::make_unique<FrameResource>(
+            primeDevice, secondDevice, 2, static_cast<UINT>(assets->GetMaterials().size())));
     }
 
     //debugLogger.PushMessage(std::wstring(L"\nInit FrameResource"));
@@ -686,7 +687,7 @@ void HybridMBlurApp::InitRootSignature()
     texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
     texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
     texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                     assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1,
+                     static_cast<UINT>(assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1),
                      StandardShaderSlot::TexturesMap - 3, 0);
 
 
@@ -726,7 +727,7 @@ void HybridMBlurApp::InitPipeLineResource()
         },
     };
 
-    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), defaultInputLayout.size()};
+    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size())};
 
     defaultPrimePipelineResources = RenderModeFactory();
     defaultPrimePipelineResources.LoadDefaultShaders();
@@ -781,7 +782,7 @@ void HybridMBlurApp::InitRenderPaths()
     ssaoPass = std::make_shared<SharedSSAO>();
     hbaoPass = std::make_shared<SharedHBAO>();
 
-    const D3D12_INPUT_LAYOUT_DESC layoutDesc = {defaultInputLayout.data(), defaultInputLayout.size()};
+    const D3D12_INPUT_LAYOUT_DESC layoutDesc = {defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size())};
 
 
     ssaoPass->Initialize(
@@ -906,18 +907,18 @@ void HybridMBlurApp::LoadModels()
 
     if (IsUsingManyModels) {
         auto griffon = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Griffon\\Griffon.FBX");
-        griffon->scaleMatrix = Matrix::CreateScale(0.1);
+        griffon->scaleMatrix = Matrix::CreateScale(0.1f);
         models[L"griffon"] = std::move(griffon);
     }
 
     /*auto mountDragon = assets->CreateModelFromFile(
         cmdList, "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
-    mountDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    mountDragon->scaleMatrix = Matrix::CreateScale(0.1f);
     models[L"mountDragon"] = std::move(mountDragon);
 
     auto desertDragon = assets->CreateModelFromFile(
         cmdList, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
-    desertDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    desertDragon->scaleMatrix = Matrix::CreateScale(0.1f);
     models[L"desertDragon"] = std::move(desertDragon);
     */
 
@@ -1069,7 +1070,7 @@ void HybridMBlurApp::CreateGO()
         for (int i = 0; i < 11; ++i)
         {
             auto nano = std::make_unique<GameObject>();
-            nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
+            nano->GetTransform()->SetPosition(Vector3::Right * -15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
             nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
             auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"nano"]);
             nano->AddComponent(renderer);
@@ -1078,8 +1079,8 @@ void HybridMBlurApp::CreateGO()
 
 
             auto doom = std::make_unique<GameObject>();
-            doom->SetScale(0.08);
-            doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
+            doom->SetScale(0.08f);
+            doom->GetTransform()->SetPosition(Vector3::Right * 15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
             doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
             renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"doom"]);
             doom->AddComponent(renderer);
@@ -1095,7 +1096,7 @@ void HybridMBlurApp::CreateGO()
             {
                 auto atlas = std::make_unique<GameObject>();
                 atlas->GetTransform()->SetPosition(
-                    Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                    Vector3::Right * -60.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
                 auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"atlas"]);
                 atlas->AddComponent(renderer);
                 typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
@@ -1104,7 +1105,7 @@ void HybridMBlurApp::CreateGO()
 
                 auto pbody = std::make_unique<GameObject>();
                 pbody->GetTransform()->SetPosition(
-                    Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                    Vector3::Right * 130.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
                 renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"pbody"]);
                 pbody->AddComponent(renderer);
                 typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
@@ -1125,7 +1126,7 @@ void HybridMBlurApp::CreateGO()
 
 
     auto platform = std::make_unique<GameObject>();
-    platform->SetScale(0.2);
+    platform->SetScale(0.2f);
     platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
     platform->GetTransform()->SetPosition(Vector3::Backward * -130);
     auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
@@ -1151,7 +1152,7 @@ void HybridMBlurApp::CreateGO()
 #if defined(DEBUG) || defined(_DEBUG)
     camera->AddComponent(std::make_shared<CameraController>());
 #else
-    rotater->AddComponent(std::make_shared<Rotater>(10));
+    rotater->AddComponent(std::make_shared<Rotater>(10.0f));
 #endif
 
     gameObjects.push_back(std::move(camera));
@@ -1160,7 +1161,7 @@ void HybridMBlurApp::CreateGO()
 
     auto stair = std::make_unique<GameObject>();
     stair->GetTransform()->SetParent(platform->GetTransform().get());
-    stair->SetScale(0.2);
+    stair->SetScale(0.2f);
     stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
     stair->GetTransform()->SetPosition(Vector3::Left * 700);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"stair"]);
@@ -1170,7 +1171,7 @@ void HybridMBlurApp::CreateGO()
     if (IsUsingManyModels) {
         auto columns = std::make_unique<GameObject>();
         columns->GetTransform()->SetParent(stair->GetTransform().get());
-        columns->SetScale(0.8);
+        columns->SetScale(0.8f);
         columns->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
         columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900);
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"columns"]);
@@ -1178,7 +1179,7 @@ void HybridMBlurApp::CreateGO()
         typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
 
         auto fountain = std::make_unique<GameObject>();
-        fountain->SetScale(0.005);
+        fountain->SetScale(0.005f);
         fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
         fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"fountain"]);
@@ -1214,7 +1215,7 @@ void HybridMBlurApp::CreateGO()
     if (IsUsingManyModels) {
         auto griffon = std::make_unique<GameObject>();
         griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
-        griffon->SetScale(0.8);
+        griffon->SetScale(0.8f);
         griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
         griffon->AddComponent(renderer);
@@ -1382,7 +1383,7 @@ void HybridMBlurApp::UpdateMainPassCB(const GameTimer& gt)
         0.0f, 0.0f, 1.0f, 0.0f,
         0.5f, 0.5f, 0.0f, 1.0f);
     Matrix viewProjTex = XMMatrixMultiply(viewProj, T);
-    mainPassCB.debugMap = pathMapShow;
+    mainPassCB.debugMap = static_cast<float>(pathMapShow);
     mainPassCB.View = view.Transpose();
     mainPassCB.InvView = invView.Transpose();
     mainPassCB.Proj = proj.Transpose();
@@ -1470,8 +1471,8 @@ void HybridMBlurApp::UpdateSsaoCB(const GameTimer& gt) const
         hbaoCB.ClipInfo = Vector2(1.0f / std::tan(XMConvertToRadians(camera->GetFov()) / 2.0f));
         hbaoCB.MaxRadiusPixels = 64;
         hbaoCB.TraceRadius = 2.0f;
-        hbaoCB.Resolution = Vector4(MainWindow->GetClientWidth(), MainWindow->GetClientHeight(),
-                                    1.0f / MainWindow->GetClientWidth(), 1.0f / MainWindow->GetClientHeight());
+        hbaoCB.Resolution = Vector4(static_cast<float>(MainWindow->GetClientWidth()), static_cast<float>(MainWindow->GetClientHeight()),
+                                    1.0f / static_cast<float>(MainWindow->GetClientWidth()), 1.0f / static_cast<float>(MainWindow->GetClientHeight()));
         hbaoCB.DiscardDistance = 300.0f;
 
         currentFrameResource->PrimeHBAOConstantUploadBuffer->CopyData(0, hbaoCB);
@@ -1501,8 +1502,8 @@ void HybridMBlurApp::UpdateMbCB(const GameTimer& gt) const {
     mbCB.gNearFar = Vector2(camera->GetNearZ(), camera->GetFarZ());
     assert(camera->GetNearZ() != 0);
     assert(camera->GetFarZ() != 0);
-    mbCB.gTexSizeV = Vector2(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
-    mbCB.gTileCount = Vector2(MainWindow->GetClientWidth() / SharedMB::tileSize, MainWindow->GetClientHeight() / SharedMB::tileSize);
+    mbCB.gTexSizeV = Vector2(static_cast<float>(MainWindow->GetClientWidth()), static_cast<float>(MainWindow->GetClientHeight()));
+    mbCB.gTileCount = Vector2(static_cast<float>(MainWindow->GetClientWidth() / SharedMB::tileSize), static_cast<float>(MainWindow->GetClientHeight() / SharedMB::tileSize));
 
     mbCB.MaxVelocity = SharedMB::maxVelocity;
 

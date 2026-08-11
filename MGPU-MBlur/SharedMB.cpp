@@ -473,8 +473,8 @@ void SharedMB::OnResize(const UINT newWidth, const UINT newHeight)
 
     mViewport.TopLeftX = 0.0f;
     mViewport.TopLeftY = 0.0f;
-    mViewport.Width = RenderTargetWidth;
-    mViewport.Height = RenderTargetHeight;
+    mViewport.Width = static_cast<float>(RenderTargetWidth);
+    mViewport.Height = static_cast<float>(RenderTargetHeight);
     mViewport.MinDepth = 0.0f;
     mViewport.MaxDepth = 1.0f;
 

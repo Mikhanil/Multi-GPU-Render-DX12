@@ -72,7 +72,7 @@ void Emitter::PSOInitialize()
         CD3DX12_DESCRIPTOR_RANGE range[3];
         range[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 1);
         range[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 1);
-        range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Atlas.size(), 2, 1);
+        range[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, static_cast<UINT>(Atlas.size()), 2, 1);
 
         renderSignature = std::make_shared<GRootSignature>();
         renderSignature->AddConstantBufferParameter(0); // Object position		

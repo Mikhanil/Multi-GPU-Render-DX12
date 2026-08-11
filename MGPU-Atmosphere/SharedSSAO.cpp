@@ -3,9 +3,6 @@
 #include <array>
 
 #include "SharedSSAO.h"
-#include <DirectXPackedVector.h>
-
-
 #include "GCommandList.h"
 #include "GDevice.h"
 #include "GResourceStateTracker.h"
@@ -316,7 +313,7 @@ void SSAOResources::BuildRandomTexture()
         }
     }
 
-    D3D12_SUBRESOURCE_DATA subResourceData = {};
+    D3D12_SUBRESOURCE_DATA subResourceData;
     subResourceData.pData = data.data();
     subResourceData.RowPitch = 256 * sizeof(Vector4);
     subResourceData.SlicePitch = subResourceData.RowPitch * 256;
@@ -333,7 +330,7 @@ void SSAOResources::BuildRandomTexture()
     device->Flush();
 }
 
-SharedSSAO::SharedSSAO()
+SharedSSAO::SharedSSAO() : RenderTargetWidth(0), RenderTargetHeight(0), mViewport(), mScissorRect()
 {
 }
 
@@ -401,8 +398,8 @@ void SharedSSAO::OnResize(const UINT newWidth, const UINT newHeight)
 
     mViewport.TopLeftX = 0.0f;
     mViewport.TopLeftY = 0.0f;
-    mViewport.Width = RenderTargetWidth;
-    mViewport.Height = RenderTargetHeight;
+    mViewport.Width = static_cast<float>(RenderTargetWidth);
+    mViewport.Height = static_cast<float>(RenderTargetHeight);
     mViewport.MinDepth = 0.0f;
     mViewport.MaxDepth = 1.0f;
 

@@ -620,7 +620,7 @@ namespace Common
             0.0f, 0.0f, 1.0f, 0.0f,
             0.5f, 0.5f, 0.0f, 1.0f);
         Matrix viewProjTex = XMMatrixMultiply(viewProj, T);
-        mainPassCB.debugMap = pathMapShow;
+        mainPassCB.debugMap = static_cast<float>(pathMapShow);
         mainPassCB.View = view.Transpose();
         mainPassCB.InvView = invView.Transpose();
         mainPassCB.Proj = proj.Transpose();
@@ -837,7 +837,7 @@ namespace Common
         texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
         texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
         texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
-        texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, loader.GetLoadTexturesCount(),
+        texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, static_cast<UINT>(loader.GetLoadTexturesCount()),
                          StandardShaderSlot::TexturesMap - 3, 0);
 
 
@@ -1220,8 +1220,9 @@ namespace Common
         for (int i = 0; i < globalCountFrameResources; ++i)
         {
             frameResources.push_back(
-                std::make_unique<FrameResource>(GDeviceFactory::GetDevice(), 2, gameObjects.size(),
-                                                loader.GetMaterials().size()));
+                std::make_unique<FrameResource>(GDeviceFactory::GetDevice(), 2,
+                                                static_cast<UINT>(gameObjects.size()),
+                                                static_cast<UINT>(loader.GetMaterials().size())));
         }
     }
 
@@ -1306,7 +1307,7 @@ namespace Common
         for (int i = 0; i < 11; ++i)
         {
             auto nano = CreateGOWithRenderer(models[L"nano"]);
-            nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
+            nano->GetTransform()->SetPosition(Vector3::Right * -15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
             nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
 
             typedGameObjects[static_cast<uint8_t>(RenderMode::Opaque)].push_back(nano.get());
@@ -1315,7 +1316,7 @@ namespace Common
 
             auto doom = CreateGOWithRenderer(models[L"doom"]);
             doom->SetScale(0.08);
-            doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
+            doom->GetTransform()->SetPosition(Vector3::Right * 15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
             doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
 
             typedGameObjects[static_cast<uint8_t>(RenderMode::Opaque)].push_back(doom.get());
@@ -1328,14 +1329,14 @@ namespace Common
             {
                 auto atlas = CreateGOWithRenderer(models[L"atlas"]);
                 atlas->GetTransform()->SetPosition(
-                    Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                    Vector3::Right * -60.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
                 typedGameObjects[static_cast<uint8_t>(RenderMode::Opaque)].push_back(atlas.get());
                 gameObjects.push_back(std::move(atlas));
 
 
                 auto pbody = CreateGOWithRenderer(models[L"pbody"]);
                 pbody->GetTransform()->SetPosition(
-                    Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+                    Vector3::Right * 130.0f + Vector3::Right * -30.0f * static_cast<float>(j) + Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
                 typedGameObjects[static_cast<uint8_t>(RenderMode::Opaque)].push_back(pbody.get());
                 gameObjects.push_back(std::move(pbody));
             }

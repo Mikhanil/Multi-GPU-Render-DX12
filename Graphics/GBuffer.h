@@ -1,5 +1,6 @@
 #pragma once
 #include "GResource.h"
+#include <cstddef>
 
 using namespace Microsoft::WRL;
 
@@ -17,17 +18,17 @@ namespace PEPEngine::Graphics
         D3D12_GPU_VIRTUAL_ADDRESS address{};
 
     public:
-        GBuffer(const std::shared_ptr<GCommandList>& cmdList, UINT elementSize, UINT elementCount, const void* data,
+        GBuffer(const std::shared_ptr<GCommandList>& cmdList, size_t elementSize, UINT elementCount, const void* data,
                 const std::wstring& name = L"", D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE);
 
-        GBuffer(const std::shared_ptr<GDevice>& device, UINT elementSize, UINT elementCount,
+        GBuffer(const std::shared_ptr<GDevice>& device, size_t elementSize, UINT elementCount,
                 const std::wstring& name = L"",
                 D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
                 D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON,
                 const D3D12_HEAP_PROPERTIES& heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
                 D3D12_HEAP_FLAGS heapFlags = D3D12_HEAP_FLAG_NONE);
 
-        GBuffer(const std::shared_ptr<GDevice>& device, UINT elementSize, UINT elementCount, UINT aligment,
+        GBuffer(const std::shared_ptr<GDevice>& device, size_t elementSize, UINT elementCount, UINT aligment,
                 const std::wstring& name = L"", D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
                 D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON,
                 const D3D12_HEAP_PROPERTIES& heapProp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

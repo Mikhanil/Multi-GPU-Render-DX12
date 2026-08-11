@@ -9,7 +9,7 @@
 
 void ModelRenderer::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
-    for (int i = 0; i < model->GetMeshesCount(); ++i)
+    for (UINT i = 0; i < model->GetMeshesCount(); ++i)
     {
         const auto mesh = model->GetMesh(i);
 
@@ -27,7 +27,7 @@ void ModelRenderer::Update()
     {
         objectWorldData.TextureTransform = transform->TextureTransform.Transpose();
         objectWorldData.World = (transform->GetWorldMatrix() * model->scaleMatrix).Transpose();
-        for (int i = 0; i < model->GetMeshesCount(); ++i)
+        for (UINT i = 0; i < model->GetMeshesCount(); ++i)
         {
             auto material = model->GetMeshMaterial(i);
             if (material != nullptr)

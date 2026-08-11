@@ -87,7 +87,7 @@ protected:
 
     bool IsStop = false;
 
-    const int StatisticStepSecondsCount = 120;
+    const UINT StatisticStepSecondsCount = 120;
 
 
     std::shared_ptr<ShadowMap> shadowPath;

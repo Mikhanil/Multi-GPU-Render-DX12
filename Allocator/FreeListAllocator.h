@@ -24,7 +24,7 @@ namespace PEPEngine::Allocator
         struct AllocationHeader
         {
             std::size_t blockSize;
-            char padding;
+            std::size_t padding;
         };
 
         using Node = SinglyLinkedList<FreeHeader>::Node;

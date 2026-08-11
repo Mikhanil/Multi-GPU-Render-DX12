@@ -10,9 +10,7 @@ Keyframe::Keyframe()
 {
 }
 
-Keyframe::~Keyframe()
-{
-}
+Keyframe::~Keyframe() = default;
 
 float BoneAnimation::GetStartTime() const
 {
@@ -179,12 +177,12 @@ float SkinnedData::GetClipEndTime(const std::string& clipName) const
 
 UINT SkinnedData::BoneCount() const
 {
-    return mBoneHierarchy.size();
+    return static_cast<UINT>(mBoneHierarchy.size());
 }
 
-void SkinnedData::Set(std::vector<int>& boneHierarchy,
-                      std::vector<XMFLOAT4X4>& boneOffsets,
-                      std::unordered_map<std::string, AnimationClip>& animations)
+void SkinnedData::Set(const std::vector<int>& boneHierarchy,
+                      const std::vector<XMFLOAT4X4>& boneOffsets,
+                      const std::unordered_map<std::string, AnimationClip>& animations)
 {
     mBoneHierarchy = boneHierarchy;
     mBoneOffsets = boneOffsets;
@@ -197,7 +195,7 @@ void SkinnedData::GetFinalTransforms(const std::string& clipName,
                                      std::vector<XMFLOAT3>& angularVelocities,
                                      std::vector<XMFLOAT3>& linearVelocities) const
 {
-    UINT numBones = mBoneOffsets.size();
+    const auto numBones = static_cast<UINT>(mBoneOffsets.size());
 
     std::vector<XMFLOAT4X4> toParentTransforms(numBones);
     std::vector<XMFLOAT3> angular(numBones);
@@ -242,7 +240,7 @@ void SkinnedData::GetFinalTransforms(const std::string& clipName,
 }
 
 
-XMVECTOR ConjugateQuat(XMVECTOR& q) 
+XMVECTOR ConjugateQuat(const XMVECTOR& q)
 {
     return XMVECTOR{-XMVectorGetX(q), -XMVectorGetY(q), -XMVectorGetZ(q), XMVectorGetW(q)};
 }

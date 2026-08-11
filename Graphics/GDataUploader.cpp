@@ -35,12 +35,12 @@ namespace PEPEngine::Graphics
 
         if (PageSize >= sizeInBytes)
         {
-            page = CreatePage(PageSize);
+            page = CreatePage(static_cast<uint32_t>(PageSize));
         }
         else
         {
             const auto newSize = Math::AlignUp(sizeInBytes, alignment);
-            page = CreatePage(newSize);
+            page = CreatePage(static_cast<uint32_t>(newSize));
         }
         pages.push_back(std::move(page));
         return pages.back()->Allocate(sizeInBytes, alignment);

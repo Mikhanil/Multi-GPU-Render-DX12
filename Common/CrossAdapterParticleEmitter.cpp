@@ -77,11 +77,11 @@ void CrossAdapterParticleEmitter::CreateBuffers()
         CrossAdapterParticles.reset();
     }
 
-    ParticlesPool = std::make_shared<GBuffer>(secondDevice, sizeof(ParticleData),
+    ParticlesPool = std::make_shared<GBuffer>(secondDevice, static_cast<UINT>(sizeof(ParticleData)),
                                               primeParticleEmitter->emitterData.ParticlesTotalCount,
                                               L"Second Particles Pool Buffer",
                                               D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    InjectedParticles = std::make_shared<GBuffer>(secondDevice, sizeof(ParticleData),
+    InjectedParticles = std::make_shared<GBuffer>(secondDevice, static_cast<UINT>(sizeof(ParticleData)),
                                                   primeParticleEmitter->emitterData.ParticleInjectCount,
                                                   L"Second Injected Particle Buffer",
                                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -110,7 +110,7 @@ void CrossAdapterParticleEmitter::CreateBuffers()
     {
         std::vector<UINT> deadIndex;
 
-        for (int i = 0; i < primeParticleEmitter->emitterData.ParticlesTotalCount; ++i)
+        for (DWORD i = 0; i < primeParticleEmitter->emitterData.ParticlesTotalCount; ++i)
         {
             deadIndex.push_back(i);
         }
@@ -243,9 +243,9 @@ void CrossAdapterParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& 
             const long check = (primeParticleEmitter->emitterData.ParticlesTotalCount - primeParticleEmitter->
                 emitterData.ParticlesAliveCount);
 
-            if (check >= primeParticleEmitter->emitterData.ParticleInjectCount)
+            if (static_cast<DWORD>(check) >= primeParticleEmitter->emitterData.ParticleInjectCount)
             {
-                for (int i = 0; i < primeParticleEmitter->emitterData.ParticleInjectCount; ++i)
+                for (DWORD i = 0; i < primeParticleEmitter->emitterData.ParticleInjectCount; ++i)
                 {
                     newParticles[i] = GenerateParticle();
                 }

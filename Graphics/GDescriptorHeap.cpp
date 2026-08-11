@@ -101,14 +101,14 @@ namespace PEPEngine::Graphics
 
         if (newSize > 0)
         {
-            AddNewBlock(newOffset, newSize);
+            AddNewBlock(static_cast<uint32_t>(newOffset), static_cast<uint32_t>(newSize));
         }
 
         freeHandlesCount -= descriptorCount;
 
         return GDescriptor(
-            CD3DX12_CPU_DESCRIPTOR_HANDLE(baseCPUPtr, offset, descriptorHandleIncrementSize),
-            CD3DX12_GPU_DESCRIPTOR_HANDLE(baseGPUPtr, offset, descriptorHandleIncrementSize),
+            CD3DX12_CPU_DESCRIPTOR_HANDLE(baseCPUPtr, static_cast<INT>(offset), descriptorHandleIncrementSize),
+            CD3DX12_GPU_DESCRIPTOR_HANDLE(baseGPUPtr, static_cast<INT>(offset), descriptorHandleIncrementSize),
             descriptorCount, descriptorHandleIncrementSize, shared_from_this());
     }
 
@@ -145,8 +145,8 @@ namespace PEPEngine::Graphics
         if (prevBlockIt != freeListByOffset.end() &&
             offset == prevBlockIt->first + prevBlockIt->second.Size)
         {
-            offset = prevBlockIt->first;
-            descriptorCount += prevBlockIt->second.Size;
+            offset = static_cast<uint32_t>(prevBlockIt->first);
+            descriptorCount += static_cast<uint32_t>(prevBlockIt->second.Size);
 
             freeListBySize.erase(prevBlockIt->second.FreeListBySizeIt);
             freeListByOffset.erase(prevBlockIt);
@@ -155,7 +155,7 @@ namespace PEPEngine::Graphics
         if (nextBlockIt != freeListByOffset.end() &&
             offset + descriptorCount == nextBlockIt->first)
         {
-            descriptorCount += nextBlockIt->second.Size;
+            descriptorCount += static_cast<uint32_t>(nextBlockIt->second.Size);
 
             freeListBySize.erase(nextBlockIt->second.FreeListBySizeIt);
             freeListByOffset.erase(nextBlockIt);
@@ -175,7 +175,7 @@ namespace PEPEngine::Graphics
             const auto offset = staleDescriptor.Offset;
             const auto numDescriptors = staleDescriptor.Size;
 
-            FreeBlock(offset, numDescriptors);
+            FreeBlock(static_cast<uint32_t>(offset), static_cast<uint32_t>(numDescriptors));
 
             staleDescriptors.pop();
         }

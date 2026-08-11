@@ -111,7 +111,7 @@ void WindFluidSimulator::Initialize(std::weak_ptr<GDevice> du, UINT gridRes)
     if (!CreateRootsAndPSOs(dev))
         return;
 
-    gpuCB_ = std::make_unique<GBuffer>(dev, sizeof(WindFluidGpuCB), 1u, L"WindFluid CB");
+    gpuCB_ = std::make_unique<GBuffer>(dev, static_cast<UINT>(sizeof(WindFluidGpuCB)), 1u, L"WindFluid CB");
 
     readableSrvHeapIdx_ = SrvVelB;
     readableDyeSrvHeapIdx_ = kInvalidSrvIndex;

@@ -2,6 +2,8 @@
 #include "GCommandList.h"
 #include "d3dcompiler.h"
 #include "d3dUtil.h"
+#include <cassert>
+#include <limits>
 
 namespace PEPEngine::Graphics
 {
@@ -17,37 +19,42 @@ namespace PEPEngine::Graphics
     }
 
     GBuffer::GBuffer(const std::shared_ptr<GCommandList>& cmdList,
-                     const UINT elementSize, const UINT elementCount, const void* data, const std::wstring& name,
+                     const size_t elementSize, const UINT elementCount, const void* data, const std::wstring& name,
                      const D3D12_RESOURCE_FLAGS flags) :
         GResource(cmdList->GetDevice(), CD3DX12_RESOURCE_DESC::Buffer(elementSize * elementCount, flags), name),
-        count(elementCount), stride(elementSize), bufferSize(stride * count)
+        count(elementCount), stride(static_cast<UINT>(elementSize)), bufferSize(stride * count)
     {
+        assert(elementSize <= (std::numeric_limits<UINT>::max)());
         address = dxResource->GetGPUVirtualAddress();
         ThrowIfFailed(D3DCreateBlob(bufferSize, bufferCPU.GetAddressOf()));
         LoadData(data, cmdList);
     }
 
     GBuffer::GBuffer(const std::shared_ptr<GDevice>& device,
-                     const UINT elementSize, const UINT elementCount, const std::wstring& name,
+                     const size_t elementSize, const UINT elementCount, const std::wstring& name,
                      const D3D12_RESOURCE_FLAGS flags,
                      const D3D12_RESOURCE_STATES initState,
                      const D3D12_HEAP_PROPERTIES& heapProp, const D3D12_HEAP_FLAGS heapFlags) :
         GResource(device, CD3DX12_RESOURCE_DESC::Buffer(elementSize * elementCount, flags), name, nullptr, initState,
-                  heapProp, heapFlags), count(elementCount), stride(elementSize), bufferSize(stride * count)
+                  heapProp, heapFlags), count(elementCount), stride(static_cast<UINT>(elementSize)), bufferSize(stride * count)
     {
+        assert(elementSize <= (std::numeric_limits<UINT>::max)());
         address = dxResource->GetGPUVirtualAddress();
         ThrowIfFailed(D3DCreateBlob(bufferSize, bufferCPU.GetAddressOf()));
     }
 
     GBuffer::GBuffer(const std::shared_ptr<GDevice>& device,
-                     const UINT elementSize, const UINT elementCount, const UINT aligment, const std::wstring& name,
+                     const size_t elementSize, const UINT elementCount, const UINT aligment, const std::wstring& name,
                      const D3D12_RESOURCE_FLAGS flags, const D3D12_RESOURCE_STATES initState,
                      const D3D12_HEAP_PROPERTIES& heapProp, const D3D12_HEAP_FLAGS heapFlags) :
         GResource(device, CD3DX12_RESOURCE_DESC::Buffer(
-                      (((elementSize * elementCount) + aligment - 1) & ~(aligment - 1)) + sizeof(UINT), flags), name,
-                  nullptr, initState, heapProp, heapFlags), count(elementCount), stride(elementSize),
-        bufferSize((((elementSize * elementCount) + aligment - 1) & ~(aligment - 1)) + sizeof(UINT))
+                       (((elementSize * elementCount) + static_cast<size_t>(aligment) - 1) &
+                        ~(static_cast<size_t>(aligment) - 1)) + sizeof(UINT), flags), name,
+                  nullptr, initState, heapProp, heapFlags), count(elementCount), stride(static_cast<UINT>(elementSize)),
+        bufferSize(static_cast<DWORD>(((elementSize * elementCount) + static_cast<size_t>(aligment) - 1) &
+                                      ~(static_cast<size_t>(aligment) - 1)) + sizeof(UINT))
     {
+        assert(elementSize <= (std::numeric_limits<UINT>::max)());
         address = dxResource->GetGPUVirtualAddress();
         ThrowIfFailed(D3DCreateBlob(bufferSize, bufferCPU.GetAddressOf()));
     }

@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cstddef>
 #include <d3d12.h>
 #include <wrl/client.h>
 #include "dxgi1_6.h"
@@ -81,7 +82,7 @@ namespace PEPEngine::Graphics
         void ReleaseSlateDescriptors(uint64_t frameCount) const;
         void ResetAllocators(uint64_t frameCount) const;
 
-        GDescriptor AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t descriptorCount = 1) const;
+        GDescriptor AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t descriptorCount = 1) const;
 
         UINT GetNodeMask() const;
 

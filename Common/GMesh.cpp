@@ -31,11 +31,11 @@ D3D12_INDEX_BUFFER_VIEW* GMesh::GetIndexView() const
 GMesh::GMesh(const std::shared_ptr<NativeMesh>& data, std::shared_ptr<GCommandList>& cmdList) : mesh(std::move(data))
 {
     indexBuffer = std::make_shared<GMeshBuffer>(std::move(GMeshBuffer::CreateBuffer(
-        cmdList, mesh->GetIndexes().data(), mesh->GetIndexSize(), mesh->GetIndexes().size(),
+        cmdList, mesh->GetIndexes().data(), mesh->GetIndexSize(), static_cast<UINT>(mesh->GetIndexes().size()),
         mesh->GetName() + L" Indexes")));
 
     vertexBuffer = std::make_shared<GMeshBuffer>(std::move(GMeshBuffer::CreateBuffer(
-        cmdList, mesh->GetVertexes().data(), mesh->GetVertexSize(), mesh->GetVertexes().size(),
+        cmdList, mesh->GetVertexes().data(), mesh->GetVertexSize(), static_cast<UINT>(mesh->GetVertexes().size()),
         mesh->GetName() + L" Vertexes")));
 }
 

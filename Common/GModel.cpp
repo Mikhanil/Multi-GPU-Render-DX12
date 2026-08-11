@@ -31,7 +31,7 @@ GModel::GModel(const std::shared_ptr<NativeModel>& model, std::shared_ptr<GComma
         meshesMaterials.resize(model->GetMeshesCount());
     }
 
-    for (int i = 0; i < model->GetMeshesCount(); ++i)
+    for (UINT i = 0; i < model->GetMeshesCount(); ++i)
     {
         auto nativeMesh = model->GetMesh(i);
         gmeshes.push_back(std::make_shared<GMesh>(nativeMesh, uploadCmdList));

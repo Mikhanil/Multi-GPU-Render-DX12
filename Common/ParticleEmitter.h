@@ -32,7 +32,7 @@ protected:
     void Update() override;
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
 
-    double CalculateGroupCount(DWORD particleCount) const;
+    DWORD CalculateGroupCount(DWORD particleCount) const;
 
     void DescriptorInitialize();
     void BufferInitialize();

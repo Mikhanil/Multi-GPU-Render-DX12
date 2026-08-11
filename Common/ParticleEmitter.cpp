@@ -7,19 +7,20 @@
 #include "MathHelper.h"
 #include "Transform.h"
 
-double ParticleEmitter::CalculateGroupCount(const DWORD particleCount) const
+DWORD ParticleEmitter::CalculateGroupCount(const DWORD particleCount) const
 {
     auto numGroups = (particleCount % 1024 != 0) ? ((particleCount / 1024) + 1) : (particleCount / 1024);
     auto secondRoot = std::pow(static_cast<double>(numGroups), 1.0 / 2.0);
     secondRoot = std::ceil(secondRoot);
-    return secondRoot;
+    return static_cast<DWORD>(secondRoot);
 }
 
 void ParticleEmitter::DescriptorInitialize()
 {
     particlesComputeDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4);
 
-    particlesRenderDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 2u + Atlas.size());
+    particlesRenderDescriptors = device->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                                                              2u + static_cast<uint32_t>(Atlas.size()));
 
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -71,9 +72,9 @@ void ParticleEmitter::BufferInitialize()
     }
 
 
-    ParticlesPool = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticlesTotalCount,
+    ParticlesPool = std::make_shared<GBuffer>(device, static_cast<UINT>(sizeof(ParticleData)), emitterData.ParticlesTotalCount,
                                               L"Particles Pool Buffer", D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-    InjectedParticles = std::make_shared<GBuffer>(device, sizeof(ParticleData), emitterData.ParticleInjectCount,
+    InjectedParticles = std::make_shared<GBuffer>(device, static_cast<UINT>(sizeof(ParticleData)), emitterData.ParticleInjectCount,
                                                   L"Injected Particle Buffer",
                                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     ParticlesAlive = std::make_shared<CounteredStructBuffer<DWORD>>(device, emitterData.ParticlesTotalCount,
@@ -194,7 +195,7 @@ ParticleEmitter::ParticleEmitter(const std::shared_ptr<GDevice>& device, const D
         }
         queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
 
-        emitterData.AtlasTextureCount = Atlas.size();
+        emitterData.AtlasTextureCount = static_cast<DWORD>(Atlas.size());
     }
 
     {
@@ -297,7 +298,7 @@ void ParticleEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList)
 
             cmdList->FlushResourceBarriers();
 
-            for (int i = 0; i < emitterData.ParticleInjectCount; ++i)
+            for (DWORD i = 0; i < emitterData.ParticleInjectCount; ++i)
             {
                 newParticles[i] = GenerateParticle();
             }

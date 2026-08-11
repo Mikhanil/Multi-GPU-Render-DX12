@@ -28,7 +28,7 @@ void SkyBox::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
     cmdList->GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(StandardShaderSlot::SkyMap, gpuTextureHandle);
 
-    for (int i = 0; i < model->GetMeshesCount(); ++i)
+    for (UINT i = 0; i < model->GetMeshesCount(); ++i)
     {
         const auto mesh = model->GetMesh(i);
 
@@ -46,7 +46,7 @@ void SkyBox::Update()
     {
         objectWorldData.TextureTransform = transform->TextureTransform.Transpose();
         objectWorldData.World = (transform->GetWorldMatrix() * model->scaleMatrix).Transpose();
-        for (int i = 0; i < model->GetMeshesCount(); ++i)
+        for (UINT i = 0; i < model->GetMeshesCount(); ++i)
         {
             modelDataBuffer->CopyData(i, objectWorldData);
         }

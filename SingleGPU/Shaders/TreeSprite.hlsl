@@ -96,10 +96,9 @@ void GS(point VertexOut gin[1], uint primID : SV_PrimitiveID,
 float4 PS(GeoOut pin) : SV_Target
 {
     MaterialData materialBuffer = materialData[objectBuffer.materialIndex];
-    float3 uvw = float3(pin.TexC, pin.PrimID % 3);
     /*��������� ��� �������� ��� ���� ������� ������, �� ����� ������ ����� Texture2DArray
      *������� �������� � ��������� ��� � �������� �������. POG*/
-    float4 diffuseAlbedo = texturesMaps[materialBuffer.DiffuseMapIndex].Sample(gsamAnisotropicWrap, uvw) *
+    float4 diffuseAlbedo = texturesMaps[materialBuffer.DiffuseMapIndex].Sample(gsamAnisotropicWrap, pin.TexC) *
         materialBuffer.DiffuseAlbedo;
 
 #ifdef ALPHA_TEST

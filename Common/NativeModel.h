@@ -36,7 +36,7 @@ public:
 
     UINT GetIndexCount() const
     {
-        return indexes.size();
+        return static_cast<UINT>(indexes.size());
     }
 
     std::wstring& GetName()
@@ -75,7 +75,7 @@ public:
         meshes.push_back(mesh);
     }
 
-    UINT GetMeshesCount() const { return meshes.size(); };
+    UINT GetMeshesCount() const { return static_cast<UINT>(meshes.size()); };
 
     std::wstring GetName() const { return name; };
 

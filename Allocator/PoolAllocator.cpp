@@ -62,8 +62,8 @@ namespace PEPEngine::Allocator
         used = 0;
         peak = 0;
         // Create a linked-list with all free positions
-        const int nChunks = totalSize / m_chunkSize;
-        for (int i = 0; i < nChunks; ++i)
+        const std::size_t nChunks = totalSize / m_chunkSize;
+        for (std::size_t i = 0; i < nChunks; ++i)
         {
             std::size_t address = (std::size_t)m_start_ptr + i * m_chunkSize;
             m_freeList.push((Node*)address);

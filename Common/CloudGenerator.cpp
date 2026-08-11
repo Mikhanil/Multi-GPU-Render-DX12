@@ -164,21 +164,21 @@ CloudGenerator::CloudGenerator(const std::shared_ptr<GDevice>& primeDevice, cons
 {
     Initialize();
 
-    generatorParameters.CloudScale = 1.1;
-    generatorParameters.CloudSpeed = 0.006;
-    generatorParameters.CloudDark = 0.5;
-    generatorParameters.CloudLight = 0.3;
+    generatorParameters.CloudScale = 1.1f;
+    generatorParameters.CloudSpeed = 0.006f;
+    generatorParameters.CloudDark = 0.5f;
+    generatorParameters.CloudLight = 0.3f;
 
-    generatorParameters.CloudCover = 0.2;
-    generatorParameters.CloudAlpha = 8.0;
+    generatorParameters.CloudCover = 0.2f;
+    generatorParameters.CloudAlpha = 8.0f;
     generatorParameters.SkyTint = 0.5;
     generatorParameters.TotalTime = 0;
 
-    generatorParameters.SkyColor1 = Vector4(0.2, 0.4, 0.6, 1);
-    generatorParameters.SkyColor2 = Vector4(0.4, 0.7, 1.0, 1);
-    generatorParameters.CloudColor = Vector4(1.1, 1.1, 0.9, 1);
+    generatorParameters.SkyColor1 = Vector4(0.2f, 0.4f, 0.6f, 1.0f);
+    generatorParameters.SkyColor2 = Vector4(0.4f, 0.7f, 1.0f, 1.0f);
+    generatorParameters.CloudColor = Vector4(1.1f, 1.1f, 0.9f, 1.0f);
 
-    generatorParameters.RenderTargetSize = Vector2(height, width);
+    generatorParameters.RenderTargetSize = Vector2(static_cast<float>(height), static_cast<float>(width));
 }
 
 GDescriptor* CloudGenerator::GetCloudSRV()

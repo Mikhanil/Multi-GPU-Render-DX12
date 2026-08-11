@@ -208,14 +208,14 @@ std::shared_ptr<GTexture> AssetsLoader::LoadTextureByPath(const std::wstring& na
 
     textures.push_back(texture);
 
-    texturesMap[name] = textures.size() - 1;
+    texturesMap[name] = static_cast<unsigned int>(textures.size() - 1);
 
     return texture;
 }
 
 void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, const std::shared_ptr<GCommandList>& cmdList)
 {
-    for (int i = 0; i < model->GetMeshesCount(); ++i)
+    for (UINT i = 0; i < model->GetMeshesCount(); ++i)
     {
         auto nativeMesh = model->GetMesh(i)->GetMeshData();
 
@@ -235,8 +235,8 @@ void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, con
         if (it == materialsMap.end())
         {
             material = std::make_shared<Material>(materialName);
-            material->FresnelR0 = Vector3::One * 0.05;
-            material->Roughness = 0.95;
+            material->FresnelR0 = Vector3::One * 0.05f;
+            material->Roughness = 0.95f;
 
             const auto modelDirectory = model->GetName().substr(0, model->GetName().find_last_of('\\'));
 
@@ -388,13 +388,13 @@ size_t AssetsLoader::GetLoadTexturesCount() const
 
 void AssetsLoader::AddMaterial(const std::shared_ptr<Material>& material)
 {
-    materialsMap[material->GetName()] = materials.size();
+    materialsMap[material->GetName()] = static_cast<unsigned int>(materials.size());
     materials.push_back((material));
 }
 
 void AssetsLoader::AddTexture(const std::shared_ptr<GTexture>& texture)
 {
-    texturesMap[texture->GetName()] = textures.size();
+    texturesMap[texture->GetName()] = static_cast<unsigned int>(textures.size());
     textures.push_back((texture));
 }
 

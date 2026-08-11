@@ -6,6 +6,8 @@
 #include "GCommandQueue.h"
 #include "GResource.h"
 #include "MemoryAllocator.h"
+#include <cassert>
+#include <limits>
 
 namespace PEPEngine::Graphics
 {
@@ -293,9 +295,10 @@ namespace PEPEngine::Graphics
         }
     }
 
-    GDescriptor GDevice::AllocateDescriptors(const D3D12_DESCRIPTOR_HEAP_TYPE type, const uint32_t descriptorCount) const
+    GDescriptor GDevice::AllocateDescriptors(const D3D12_DESCRIPTOR_HEAP_TYPE type, const size_t descriptorCount) const
     {
-        return graphicAllocators[type]->Allocate(descriptorCount);
+        assert(descriptorCount <= (std::numeric_limits<uint32_t>::max)());
+        return graphicAllocators[type]->Allocate(static_cast<uint32_t>(descriptorCount));
     }
 
     std::shared_ptr<GCommandQueue>& GDevice::GetCommandQueue(const GQueueType type)

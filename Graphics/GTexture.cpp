@@ -170,11 +170,11 @@ namespace PEPEngine::Graphics
                 continue;
             }
 
-            for (uint32_t TopMip = 0; TopMip < textureDesc.MipLevels - 1; TopMip++)
+            for (uint32_t TopMip = 0; TopMip < static_cast<uint32_t>(textureDesc.MipLevels) - 1; TopMip++)
             {
                 uint32_t dstWidth = std::max(static_cast<uint32_t>(textureDesc.Width >> (TopMip + 1)),
                                              static_cast<uint32_t>(1));
-                uint32_t dstHeight = std::max(textureDesc.Height >> TopMip + 1,
+                uint32_t dstHeight = std::max(textureDesc.Height >> (TopMip + 1),
                                               static_cast<uint32_t>(1));
 
                 srcTextureSRVDesc.Format = GetUAVCompatableFormat(textureDesc.Format);
@@ -193,10 +193,10 @@ namespace PEPEngine::Graphics
                     (1.0f / dstWidth), (1.0f / dstHeight)
                 };
                 cmdList->SetRoot32BitConstants(0, 2, &texelSize, 0);
-                cmdList->SetRootDescriptorTable(1, &mipMapsMemory, gpuOffset);
+                cmdList->SetRootDescriptorTable(1, &mipMapsMemory, static_cast<UINT>(gpuOffset));
                 gpuOffset++;
 
-                cmdList->SetRootDescriptorTable(2, &mipMapsMemory, gpuOffset);
+                cmdList->SetRootDescriptorTable(2, &mipMapsMemory, static_cast<UINT>(gpuOffset));
                 gpuOffset++;
 
                 // Top mip is read by CS, next mip is written as UAV.

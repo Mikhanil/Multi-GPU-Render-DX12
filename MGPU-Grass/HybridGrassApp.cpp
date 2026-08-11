@@ -1066,9 +1066,8 @@ void HybridGrassApp::InitFrameResource()
 {
     for (int i = 0; i < globalCountFrameResources; ++i)
     {
-        frameResources.push_back(std::make_unique<FrameResource>(primeDevice,
-                                                                 primeDevice, 2,
-                                                                 assets->GetMaterials().size()));
+        frameResources.push_back(std::make_unique<FrameResource>(
+            primeDevice, primeDevice, 2, static_cast<UINT>(assets->GetMaterials().size())));
     }
     logQueue.Push(std::wstring(L"\nInit FrameResource "));
 }
@@ -1081,7 +1080,7 @@ void HybridGrassApp::InitRootSignature()
     texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
     texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
     texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-                     assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1,
+                     static_cast<UINT>(assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1),
                      StandardShaderSlot::TexturesMap - 3, 0);
 
 
@@ -1179,7 +1178,7 @@ void HybridGrassApp::InitPipeLineResource()
         },
     };
 
-    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), defaultInputLayout.size()};
+    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size())};
 
     defaultPrimePipelineResources = RenderModeFactory();
     defaultPrimePipelineResources.LoadDefaultShaders();
@@ -1289,7 +1288,7 @@ void HybridGrassApp::LoadModels()
     // Default scene only (see CreateGO). Uncomment others when enabling benchmark / temple props.
     auto desertDragon = assets->CreateModelFromFile(
         cmdList, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
-    desertDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    desertDragon->scaleMatrix = Matrix::CreateScale(0.1f);
     models[L"desertDragon"] = std::move(desertDragon);
 
     auto sphere = assets->GenerateSphere(cmdList);
@@ -1491,7 +1490,7 @@ void HybridGrassApp::CreateGO()
 
      auto platform = std::make_unique<GameObject>();
      platformTransform = platform->GetTransform();
-     platformTransform->SetScale(Vector3(23.3, 2, 21.1f));
+     platformTransform->SetScale(Vector3(23.3f, 2.0f, 21.1f));
      platformTransform->SetPosition(Vector3(1500, 0, 100));
      auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
      platform->AddComponent(renderer);

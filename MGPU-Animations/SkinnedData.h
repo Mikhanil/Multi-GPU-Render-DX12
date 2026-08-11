@@ -62,9 +62,9 @@ public:
     float GetClipEndTime(const std::string& clipName) const;
 
     void Set(
-        std::vector<int>& boneHierarchy,
-        std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
-        std::unordered_map<std::string, AnimationClip>& animations);
+        const std::vector<int>& boneHierarchy,
+        const std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
+        const std::unordered_map<std::string, AnimationClip>& animations);
 
     // In a real project, you'd want to cache the result if there was a chance
     // that you were calling this several times with the same clipName at 
@@ -75,7 +75,7 @@ public:
                             std::vector<DirectX::XMFLOAT3>& linearVelocities) const;
 
 
-    [[nodiscard]] std::vector<int> getBoneHierarchy() const
+    [[nodiscard]] const std::vector<int>& getBoneHierarchy() const
     {
         return mBoneHierarchy;
     }
@@ -97,6 +97,6 @@ private:
     std::unordered_map<std::string, AnimationClip> mAnimations;
 };
 
-DirectX::XMVECTOR ConjugateQuat(DirectX::XMVECTOR& q);
+DirectX::XMVECTOR ConjugateQuat(const DirectX::XMVECTOR& q);
 void QuatToAxisAngle(DirectX::XMVECTOR const& q, DirectX::XMVECTOR& axis, float& angle);
 #endif // SKINNEDDATA_H

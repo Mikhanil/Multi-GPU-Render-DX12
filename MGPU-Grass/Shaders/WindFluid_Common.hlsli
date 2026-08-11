@@ -135,14 +135,12 @@ void WindFluid_WallFrame(float2 uv, out float2 rel, out float2 tangent, out floa
 
 float WindFluid_WallSolidMask(float2 uv)
 {
-    if (ObstacleWallA.x <= 0.5f)
-        return 0.0f;
-
     // Shadertoy circular barrier (Buffer A): aspect-corrected distance test.
     float2 toBarrier = ObstacleWallA.yz - uv;
     toBarrier.x *= WF_InvGridH / max(WF_InvGridW, 1e-6f);
     const float radiusSq = max(ObstacleWallB.x * ObstacleWallB.x, 1e-6f);
-    return dot(toBarrier, toBarrier) < radiusSq ? 1.0f : 0.0f;
+    const float mask = dot(toBarrier, toBarrier) < radiusSq ? 1.0f : 0.0f;
+    return ObstacleWallA.x <= 0.5f ? 0.0f : mask;
 }
 
 bool WindFluid_IsBorderCell(int2 cell)
@@ -180,9 +178,8 @@ float WindFluid_SolidAtCell(int2 cell)
 
 float2 WindFluid_LoadVelWithSolid(Texture2D<float2> vel, int2 cell)
 {
-    if (WindFluid_SolidAtCell(cell) > 0.5f)
-        return float2(0.0f, 0.0f);
-    return vel.Load(int3(cell.x, cell.y, 0)).xy;
+    const float2 velocity = vel.Load(int3(cell.x, cell.y, 0)).xy;
+    return WindFluid_SolidAtCell(cell) > 0.5f ? float2(0.0f, 0.0f) : velocity;
 }
 
 int2 WindFluid_ClampCell(int2 cell, int2 maxCell)

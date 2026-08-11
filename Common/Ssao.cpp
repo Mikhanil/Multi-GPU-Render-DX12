@@ -245,8 +245,8 @@ void SSAO::OnResize(const UINT newWidth, const UINT newHeight)
 
         mViewport.TopLeftX = 0.0f;
         mViewport.TopLeftY = 0.0f;
-        mViewport.Width = mRenderTargetWidth;
-        mViewport.Height = mRenderTargetHeight;
+        mViewport.Width = static_cast<float>(mRenderTargetWidth);
+        mViewport.Height = static_cast<float>(mRenderTargetHeight);
         mViewport.MinDepth = 0.0f;
         mViewport.MaxDepth = 1.0f;
 
@@ -358,7 +358,7 @@ void SSAO::BlurAmbientMap(const std::shared_ptr<GCommandList>& cmdList, const bo
 
     cmdList->SetRootDescriptorTable(2, &normalMapSrvMemory);
 
-    cmdList->SetRootDescriptorTable(3, &ambientMapMapSrvMemory, inputSrv);
+    cmdList->SetRootDescriptorTable(3, &ambientMapMapSrvMemory, static_cast<UINT>(inputSrv));
 
     // Draw fullscreen quad.
     cmdList->SetVBuffer(0, 0, nullptr);

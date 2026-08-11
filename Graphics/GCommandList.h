@@ -97,7 +97,7 @@ namespace PEPEngine::Graphics
         void SetComputeRootDescriptorTable(UINT rootSignatureSlot, const GDescriptor* memory, UINT offset = 0) const;
         void SetGraphicsRootDescriptorTable(UINT rootSignatureSlot, const GDescriptor* memory, UINT offset = 0) const;
 
-        void SetRootDescriptorTable(UINT rootSignatureSlot, const GDescriptor* memory, UINT offset = 0) const;
+        void SetRootDescriptorTable(UINT rootSignatureSlot, const GDescriptor* memory, size_t offset = 0) const;
 
         void UpdateSubresource(const GResource& destResource, const D3D12_SUBRESOURCE_DATA* subresources,
                                size_t countSubresources);

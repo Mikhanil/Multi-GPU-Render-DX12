@@ -44,9 +44,8 @@ namespace PEPEngine::Allocator
 
         const std::size_t nextAddress = currentAddress + padding;
         const std::size_t headerAddress = nextAddress - sizeof(AllocationHeader);
-        AllocationHeader allocationHeader{padding};
-        auto headerPtr = (AllocationHeader*)headerAddress;
-        headerPtr = &allocationHeader;
+        auto* headerPtr = reinterpret_cast<AllocationHeader*>(headerAddress);
+        headerPtr->padding = padding;
 
         m_offset += size;
 
