@@ -271,6 +271,9 @@ UpgradeLog*.htm
 [Rr]elease/
 [Rr]eleases/
 x64/
+
+# Shared sample resources and their build integration are source-controlled.
+!Build/
 x86/
 bld/
 [Bb]in/
@@ -591,3 +594,6 @@ references/*
 
 **LogData*.txt
 **.txt
+
+# Licenses are part of the shared sample assets.
+!*/Data/**/license.txt

@@ -1,0 +1,8 @@
+Model Information:
+* title:	Prince katamari Damacy
+* source:	https://sketchfab.com/3d-models/prince-katamari-damacy-9ef5869bf39b436b8e1c80a35389c250
+* author:	TacoSpoon (https://sketchfab.com/TacoSpoon)
+
+Model License:
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works

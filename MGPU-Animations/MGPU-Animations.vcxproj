@@ -110,6 +110,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
@@ -193,6 +194,7 @@
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\assimp-v143.5.4.3\build\native\assimp-v143.targets" Condition="Exists('..\packages\assimp-v143.5.4.3\build\native\assimp-v143.targets')" />
     <Import Project="..\packages\directxmesh_uwp.2025.3.25.2\build\native\directxmesh_uwp.targets" Condition="Exists('..\packages\directxmesh_uwp.2025.3.25.2\build\native\directxmesh_uwp.targets')" />

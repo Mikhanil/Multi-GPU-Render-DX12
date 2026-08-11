@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Shared shaders are linked into Solution Explorer; project shaders remain local and editable. -->
+  <ItemGroup>
+    <None Remove="Shaders\**\*.hlsl;Shaders\**\*.hlsli;Shaders\**\*.h" />
+    <None Include="$(SharedShadersDirectory)**\*.hlsl;$(SharedShadersDirectory)**\*.hlsli;$(SharedShadersDirectory)**\*.h" Condition="Exists('$(SharedShadersDirectory)')">
+      <Link>Shaders\Common\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="$(ProjectShadersDirectory)**\*.hlsl;$(ProjectShadersDirectory)**\*.hlsli;$(ProjectShadersDirectory)**\*.h" Condition="Exists('$(ProjectShadersDirectory)')">
+      <Link>Shaders\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="$(ProjectDataDirectory)**\*.*" Condition="Exists('$(ProjectDataDirectory)')">
+      <Link>Data\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="$(MSBuildProjectDirectory)\Textures\**\*.*" Condition="Exists('$(MSBuildProjectDirectory)\Textures\')">
+      <Link>Textures\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="$(MSBuildProjectDirectory)\Models\**\*.*" Condition="Exists('$(MSBuildProjectDirectory)\Models\')">
+      <Link>Models\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Include="$(MSBuildProjectDirectory)\Pictures\**\*.*" Condition="Exists('$(MSBuildProjectDirectory)\Pictures\')">
+      <Link>Pictures\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
+    <None Remove="@(FxCompile)" />
+  </ItemGroup>
+
+  <Target Name="CopySampleRuntimeResources" AfterTargets="Build">
+    <ItemGroup>
+      <SampleSharedData Include="$(SharedDataDirectory)**\*.*" Condition="Exists('$(SharedDataDirectory)')" />
+      <SampleProjectData Include="$(ProjectDataDirectory)**\*.*" Condition="Exists('$(ProjectDataDirectory)')" />
+      <SampleProjectTexture Include="$(MSBuildProjectDirectory)\Textures\**\*.*" Condition="Exists('$(MSBuildProjectDirectory)\Textures\')" />
+      <SampleProjectModel Include="$(MSBuildProjectDirectory)\Models\**\*.*" Condition="Exists('$(MSBuildProjectDirectory)\Models\')" />
+      <SampleProjectPicture Include="$(MSBuildProjectDirectory)\Pictures\**\*.*" Condition="Exists('$(MSBuildProjectDirectory)\Pictures\')" />
+      <SampleSharedShader Include="$(SharedShadersDirectory)**\*.hlsl;$(SharedShadersDirectory)**\*.hlsli;$(SharedShadersDirectory)**\*.h" Condition="Exists('$(SharedShadersDirectory)')" />
+      <SampleProjectShader Include="$(ProjectShadersDirectory)**\*.hlsl;$(ProjectShadersDirectory)**\*.hlsli;$(ProjectShadersDirectory)**\*.h" Condition="Exists('$(ProjectShadersDirectory)')" />
+    </ItemGroup>
+
+    <MakeDir Directories="$(OutDir)Data;$(OutDir)Shaders" />
+    <Copy SourceFiles="@(SampleSharedData)"
+          DestinationFiles="@(SampleSharedData->'$(OutDir)Data\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SampleProjectData)"
+          DestinationFiles="@(SampleProjectData->'$(OutDir)Data\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SampleProjectTexture)"
+          DestinationFiles="@(SampleProjectTexture->'$(OutDir)Textures\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SampleProjectModel)"
+          DestinationFiles="@(SampleProjectModel->'$(OutDir)Models\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SampleProjectPicture)"
+          DestinationFiles="@(SampleProjectPicture->'$(OutDir)Pictures\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SampleSharedShader)"
+          DestinationFiles="@(SampleSharedShader->'$(OutDir)Shaders\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <!-- Project shaders are copied last and intentionally override the common implementation. -->
+    <Copy SourceFiles="@(SampleProjectShader)"
+          DestinationFiles="@(SampleProjectShader->'$(OutDir)Shaders\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

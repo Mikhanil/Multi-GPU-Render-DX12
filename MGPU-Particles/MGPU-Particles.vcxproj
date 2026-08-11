@@ -70,6 +70,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
@@ -328,7 +329,7 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
       <FileType>Document</FileType>
     </None>
-    <FxCompile Include="Shaders\ParticleDraw.hlsl">
+    <FxCompile Include="..\Shaders\Common\ParticleDraw.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
@@ -344,6 +345,7 @@
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
     <Import Project="..\packages\directxmesh_uwp.2025.3.25.2\build\native\directxmesh_uwp.targets" Condition="Exists('..\packages\directxmesh_uwp.2025.3.25.2\build\native\directxmesh_uwp.targets')" />

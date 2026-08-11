@@ -70,6 +70,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
@@ -200,6 +201,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(SolutionDir)\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets" Condition="Exists('$(SolutionDir)\packages\directxmesh_uwp.2024.10.29.1\build\native\directxmesh_uwp.targets')" />
     <Import Project="$(SolutionDir)\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets" Condition="Exists('$(SolutionDir)\packages\directxtex_uwp.2024.10.29.1\build\native\directxtex_uwp.targets')" />

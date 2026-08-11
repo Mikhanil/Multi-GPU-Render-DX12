@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <RepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</RepositoryRoot>
+    <SharedDataDirectory>$(RepositoryRoot)Data\Common\</SharedDataDirectory>
+    <!-- Project-only resources stay next to the sample and are copied after shared resources. -->
+    <ProjectDataDirectory>$(MSBuildProjectDirectory)\Data\</ProjectDataDirectory>
+    <SharedShadersDirectory>$(RepositoryRoot)Shaders\Common\</SharedShadersDirectory>
+    <ProjectShadersDirectory>$(MSBuildProjectDirectory)\Shaders\</ProjectShadersDirectory>
+
+    <!-- Each executable has its own runtime asset directory. -->
+    <OutDir>$(RepositoryRoot)x64\$(Configuration)\$(MSBuildProjectName)\</OutDir>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <FxCompile>
+      <AdditionalIncludeDirectories>$(SharedShadersDirectory);$(ProjectShadersDirectory);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </FxCompile>
+  </ItemDefinitionGroup>
+</Project>
