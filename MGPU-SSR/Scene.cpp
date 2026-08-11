@@ -10,6 +10,8 @@
 #include "GTexture.h"
 #include "Material.h"
 #include "ModelRenderer.h"
+#include "Orbiter.h"
+#include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
 #include <assimp/postprocess.h>
@@ -55,6 +57,12 @@ namespace
     };
 
     constexpr float kSceneScale = 3.0f;
+    constexpr float kMirrorSphereRadius = 2.5f;
+    constexpr float kMovingAudiBoundingRadius = 2.5f;
+    constexpr float kMovingAudiOrbitRadius = 6.0f;
+    constexpr float kMovingAudiOrbitHeight = 6.0f;
+    constexpr float kReflectionProbeProxyHalfExtentXZ = 12.0f;
+    constexpr float kReflectionProbeProxyMaxY = 30.0f;
 
     constexpr unsigned int kDx12GeModelPostProcessFlags =
         aiProcess_Triangulate |
@@ -332,6 +340,40 @@ namespace Common
             gameObjects.push_back(std::move(mirrorSphere));
         }
 
+        // The moving Audi is part of the opaque pass, so dynamic cubemap captures
+        // include it. Its orbit is centered on the first cubemap capture point.
+        // The conservative bounding-sphere check keeps it outside the visible
+        // mirror sphere while remaining inside that probe's proxy box.
+        const Vector3 movingOrbitCenter = reflectionProbeCenters[0];
+        const Vector3 movingOrbitOffset(kMovingAudiOrbitRadius, kMovingAudiOrbitHeight, 0.0f);
+        const float orbitCenterToMirrorSphere =
+            (mirrorSpherePositions[0] - movingOrbitCenter).Length();
+        const float minimumDistanceToMirrorSphere = std::sqrt(
+            std::pow(std::abs(kMovingAudiOrbitRadius - orbitCenterToMirrorSphere), 2.0f) +
+            kMovingAudiOrbitHeight * kMovingAudiOrbitHeight);
+        assert(minimumDistanceToMirrorSphere > kMirrorSphereRadius + kMovingAudiBoundingRadius);
+        assert(std::abs(movingOrbitOffset.x) + kMovingAudiBoundingRadius < kReflectionProbeProxyHalfExtentXZ);
+        assert(std::abs(movingOrbitOffset.z) + kMovingAudiBoundingRadius < kReflectionProbeProxyHalfExtentXZ);
+        assert(movingOrbitCenter.y + movingOrbitOffset.y + kMovingAudiBoundingRadius <
+               kReflectionProbeProxyMaxY);
+        assert(movingOrbitCenter.y + movingOrbitOffset.y - kMovingAudiBoundingRadius > 0.0f);
+        assert((movingOrbitCenter - bounds.Center).Length() + movingOrbitOffset.Length() +
+               kMovingAudiBoundingRadius < bounds.Radius);
+
+        auto probeOrbitAnchor = std::make_unique<GameObject>("CubeMap Orbit Anchor");
+        probeOrbitAnchor->GetTransform()->SetPosition(movingOrbitCenter);
+        const auto probeOrbitTransform = probeOrbitAnchor->GetTransform();
+        gameObjects.push_back(std::move(probeOrbitAnchor));
+
+        auto movingAudi = std::make_unique<GameObject>("Dynamic CubeMap Audi");
+        movingAudi->GetTransform()->SetScale(Vector3(2.0f, 2.0f, 2.0f));
+        movingAudi->AddComponent(std::make_shared<Orbiter>(
+            probeOrbitTransform, movingOrbitOffset, 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
+        renderer = std::make_shared<ModelRenderer>(device, models[L"audi"]);
+        movingAudi->AddComponent(renderer);
+        typedGameObjects[static_cast<uint8_t>(RenderMode::Opaque)].push_back(movingAudi.get());
+        gameObjects.push_back(std::move(movingAudi));
+
         auto sun = std::make_unique<GameObject>("Directional Light");
         auto light = std::make_shared<Light>(Directional);
         light->Direction(directionalLightDirection);
@@ -532,14 +574,30 @@ namespace Common
         }
 
         auto mainCamera = std::make_unique<GameObject>("MainCamera");
+#if !defined(DEBUG) && !defined(_DEBUG)
+        auto cameraOrbit = std::make_unique<GameObject>("Release Camera Orbit");
+        cameraOrbit->GetTransform()->SetPosition(Vector3(0.0f, 8.0f, 10.0f));
+        // Match the CubeMap sample's parent orientation: Rotater advances local
+        // X, which becomes a horizontal orbit around the scene with this basis.
+        cameraOrbit->GetTransform()->SetEulerRotate(Vector3(0.0f, -90.0f, 90.0f));
+        mainCamera->GetTransform()->SetParent(cameraOrbit->GetTransform().get());
+        mainCamera->GetTransform()->SetPosition(Vector3(0.0f, 12.0f, -65.0f));
+#else
+        // Keep the debug camera independent, so CameraController remains fully manual.
         mainCamera->GetTransform()->SetPosition(Vector3(0.0f, 20.0f, -55.0f));
+#endif
         mainCamera->GetTransform()->SetEulerRotate(Vector3(18.0f, 180.0f, 0.0f));
         sceneCamera = std::make_shared<Camera>(aspectRatio);
         sceneCamera->SetFov(60.0f);
         sceneCamera->SetNearZ(0.1f);
         sceneCamera->SetFarZ(10000.0f);
         mainCamera->AddComponent(sceneCamera);
+#if defined(DEBUG) || defined(_DEBUG)
         mainCamera->AddComponent(std::make_shared<CameraController>(8.0f));
+#else
+        cameraOrbit->AddComponent(std::make_shared<Rotater>(8.0f));
+        gameObjects.push_back(std::move(cameraOrbit));
+#endif
         gameObjects.push_back(std::move(mainCamera));
     }
 

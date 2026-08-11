@@ -5,6 +5,8 @@
 #include "GDeviceFactory.h"
 #include "Window.h"
 #include "GameObject.h"
+#include "States/ReflectionBenchmarkState.h"
+#include <filesystem>
 
 using namespace DirectX::SimpleMath;
 
@@ -34,7 +36,8 @@ namespace Common
 
         renderer = std::make_unique<ReflectionRenderer>(MainWindow, *scene, camera, backBufferFormat,
                                                         depthStencilFormat, isM4xMsaa, m4xMsaaQuality);
-        renderer->SetRenderConfig(renderConfig);
+        renderer->SetUseSecondGpuForSsr(isUsingSecondGpuForSsr);
+        renderer->SetUseSecondGpuForReflectionProbes(isUsingSecondGpuForReflectionProbes);
         renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
         renderer->Initialize(cmdList);
 #if defined(DEBUG) || defined(_DEBUG)
@@ -48,6 +51,54 @@ namespace Common
 
         BuildFrameResources();
         Flush();
+
+        constexpr uint32_t benchmarkDurationSeconds = 10;
+        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+        const auto& devices = GDeviceFactory::GetAllDevices(false);
+        const bool hasSecondGpu = devices.size() > GraphicAdapterSecond;
+        const auto secondDevice = hasSecondGpu ? GDeviceFactory::GetDevice(GraphicAdapterSecond) : primaryDevice;
+
+        const auto makeBenchmarkLogFile = [&primaryDevice, &secondDevice](const std::wstring& name)
+        {
+            const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
+            std::error_code error;
+            std::filesystem::create_directories(logDirectory, error);
+            return logDirectory / (name + L" " + primaryDevice->GetName() + L"+" + secondDevice->GetName() + L".log");
+        };
+        const auto addBenchmarkState = [this, &makeBenchmarkLogFile, benchmarkDurationSeconds](const std::wstring& name,
+                                                                                                  const bool useSecondGpuForSsr,
+                                                                                                  const bool useSecondGpuForReflectionProbes,
+                                                                                                  const bool dynamicProbes)
+        {
+            benchmark.AddState<ReflectionBenchmarkState>(
+                *this, useSecondGpuForSsr, useSecondGpuForReflectionProbes, dynamicProbes,
+                name, benchmarkDurationSeconds,
+                FileQueueWriter(makeBenchmarkLogFile(name)));
+        };
+
+        // CubeMap baseline: capture all six faces on the primary GPU once (baked),
+        // or capture all faces every frame (dynamic / unbaked).
+        addBenchmarkState(L"SSR + Baked CubeMap Primary", false, false, false);
+        addBenchmarkState(L"SSR + Dynamic CubeMap Primary", false, false, true);
+        if (hasSecondGpu)
+        {
+            // CubeMap hybrid: SSR remains on primary; the probe cubemaps are
+            // captured on the additional GPU and imported through shared resources.
+            addBenchmarkState(L"SSR Primary + Baked CubeMap Secondary",
+                              false, true, false);
+            addBenchmarkState(L"SSR Primary + Dynamic CubeMap Secondary",
+                              false, true, true);
+            // Inverted load split: probes stay on primary and SSR runs on the
+            // additional GPU. Both baked and dynamic probe workloads are sampled.
+            addBenchmarkState(L"Baked CubeMap Primary + SSR Secondary",
+                              true, false, false);
+            addBenchmarkState(L"Dynamic CubeMap Primary + SSR Secondary",
+                              true, false, true);
+        }
+
+#if !defined(DEBUG) && !defined(_DEBUG)
+        benchmark.Start();
+#endif
 
         return true;
     }
@@ -223,6 +274,7 @@ namespace Common
 
     void ReflectionApp::Update(const GameTimer& gt)
     {
+        benchmark.Tick(gt.DeltaTime());
         auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
 
         currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
@@ -237,6 +289,26 @@ namespace Common
         scene->UpdateMaterials(currentFrameResource);
         renderer->SetFrameResource(currentFrameResource);
         renderer->Update(gt);
+    }
+
+    void ReflectionApp::SetReflectionBenchmarkConfiguration(const bool useSecondGpuForSsr,
+                                                            const bool useSecondGpuForReflectionProbes,
+                                                            const bool dynamicReflectionProbes)
+    {
+        Flush();
+        isUsingSecondGpuForSsr = useSecondGpuForSsr;
+        isUsingSecondGpuForReflectionProbes = useSecondGpuForReflectionProbes;
+        isUsingDynamicReflectionProbes = dynamicReflectionProbes;
+        renderer->SetUseSecondGpuForSsr(isUsingSecondGpuForSsr);
+        renderer->SetUseSecondGpuForReflectionProbes(isUsingSecondGpuForReflectionProbes);
+        renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
+    }
+
+    void ReflectionApp::SetReflectionBenchmarkTitle(const std::wstring& name, const uint32_t progress,
+                                                    const float fps)
+    {
+        MainWindow->SetWindowTitle(name + L" Progress " + std::to_wstring(progress) +
+                                   L"% FPS:" + std::to_wstring(fps));
     }
 
     void ReflectionApp::Draw(const GameTimer& gt)
@@ -293,8 +365,7 @@ namespace Common
 
         std::shared_ptr<GDevice> secondDevice = nullptr;
 
-        if (UsesSecondGpu(renderConfig) &&
-            GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
+        if (GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
         {
             secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
         }

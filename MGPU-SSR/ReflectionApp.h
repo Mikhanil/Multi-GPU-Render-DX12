@@ -4,6 +4,7 @@
 #include "FrameResource.h"
 #include "ReflectionRenderer.h"
 #include "Scene.h"
+#include "Services/BenchmarkService.h"
 #include <memory>
 #include <vector>
 #include "GameTimer.h"
@@ -19,6 +20,10 @@ namespace Common
         ~ReflectionApp() override;
 
         bool Initialize() override;
+        void SetReflectionBenchmarkConfiguration(bool useSecondGpuForSsr,
+                                                 bool useSecondGpuForReflectionProbes,
+                                                 bool dynamicReflectionProbes);
+        void SetReflectionBenchmarkTitle(const std::wstring& name, uint32_t progress, float fps);
 
 #if defined(DEBUG) || defined(_DEBUG)
         UINT pathMapShow = 0;
@@ -26,7 +31,10 @@ namespace Common
 #endif
         UINT ssaaMultiplier = 1;
         const UINT maxSsaaMultiplier = 4;
-        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::PrimarySsrSecondaryAllProbes;
+        bool isUsingSecondGpuForSsr = false;
+        // Debug starts with the reproducible baseline: SSR and a baked cubemap
+        // both run on the primary GPU. Release benchmark states override this.
+        bool isUsingSecondGpuForReflectionProbes = false;
         bool isUsingDynamicReflectionProbes = false; // false: capture once, true: update every frame.
 
     private:
@@ -46,6 +54,7 @@ namespace Common
 
         std::unique_ptr<Scene> scene;
         std::unique_ptr<ReflectionRenderer> renderer;
+        BenchmarkService benchmark;
 
         DirectX::SimpleMath::Vector3 mainLightDirection = DirectX::SimpleMath::Vector3(0.457f, -0.457f, -0.762f);
     };

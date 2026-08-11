@@ -282,9 +282,14 @@ namespace Common
         ssaa->SetMultiplier(multiplier, window->GetClientWidth(), window->GetClientHeight());
     }
 
-    void ReflectionRenderer::SetRenderConfig(const MultiGpuRenderConfig config)
+    void ReflectionRenderer::SetUseSecondGpuForSsr(const bool enabled)
     {
-        renderConfig = config;
+        useSecondGpuForSsr = enabled;
+    }
+
+    void ReflectionRenderer::SetUseSecondGpuForReflectionProbes(const bool enabled)
+    {
+        useSecondGpuForReflectionProbes = enabled;
     }
 
 
@@ -329,12 +334,12 @@ namespace Common
 
     bool ReflectionRenderer::IsMgpuSsrEnabled() const
     {
-        return RendersSsrOnSecondaryGpu(renderConfig) && mgpuSsrEnabled;
+        return useSecondGpuForSsr && mgpuSsrEnabled;
     }
 
     bool ReflectionRenderer::IsMgpuProbeEnabled() const
     {
-        return RendersProbesOnSecondaryGpu(renderConfig) && mgpuProbeEnabled;
+        return useSecondGpuForReflectionProbes && mgpuProbeEnabled;
     }
 
     void ReflectionRenderer::RenderMgpuPrimary(const std::shared_ptr<GCommandList>& cmdList)
@@ -908,16 +913,6 @@ namespace Common
         mgpuSsrEnabled = false;
         mgpuProbeEnabled = false;
 
-        if (!UsesSecondGpu(renderConfig))
-        {
-            if (renderConfig != MultiGpuRenderConfig::SingleGpu)
-            {
-                OutputDebugStringW(
-                    L"[MGPU-SSR] Selected multi-GPU configuration is not implemented; using the primary GPU.\n");
-            }
-            return;
-        }
-
         auto& devices = GDeviceFactory::GetAllDevices(false);
         if (devices.size() <= GraphicAdapterSecond)
         {
@@ -937,16 +932,9 @@ namespace Common
 
         secondGpuRootSignature = BuildRootSignature(secondDevice);
 
-        if (RendersSsrOnSecondaryGpu(renderConfig))
+        if (primaryDevice->TrySharedFence(primarySsrSharedFence, secondDevice, secondSsrSharedFence, 0,
+                                          nullptr, GENERIC_ALL, L"MGPU SSR Shared Fence"))
         {
-            if (!primaryDevice->TrySharedFence(primarySsrSharedFence, secondDevice, secondSsrSharedFence, 0,
-                                               nullptr, GENERIC_ALL, L"MGPU SSR Shared Fence"))
-            {
-                OutputDebugStringW(
-                    L"[MGPU-SSR] Cross-adapter fence creation failed. SSR stays on primary GPU.\n");
-                return;
-            }
-
             BuildSecondGpuSsrPSOs();
             BuildMgpuSsrResources();
 
@@ -961,24 +949,10 @@ namespace Common
                 primarySsrSharedFence != nullptr &&
                 secondSsrSharedFence != nullptr;
 
-            if (mgpuSsrEnabled)
-            {
-                std::wstring message = L"[MGPU-SSR] SSR second GPU: ";
-                message += secondDevice->GetName();
-                message += L"\n";
-                OutputDebugStringW(message.c_str());
-            }
-            else
-            {
-                OutputDebugStringW(
-                    L"[MGPU-SSR] Shared SSR resources were not initialized. SSR stays on primary GPU.\n");
-            }
-            return;
         }
-
-        if (!RendersProbesOnSecondaryGpu(renderConfig))
+        else
         {
-            return;
+            OutputDebugStringW(L"[MGPU-SSR] Cross-adapter fence creation failed. SSR stays on primary GPU.\n");
         }
 
         if (!primaryDevice->TrySharedFence(primaryProbeSharedFence, secondDevice, secondProbeSharedFence, 0,
@@ -1073,7 +1047,7 @@ namespace Common
 
     void ReflectionRenderer::BuildMgpuSsrResources()
     {
-        if (!RendersSsrOnSecondaryGpu(renderConfig) || secondDevice == nullptr ||
+        if (secondDevice == nullptr ||
             !composedSceneColor.IsValid() ||
             ssao == nullptr ||
             !ssao->NormalDepthMap().IsValid() ||
@@ -1160,7 +1134,7 @@ namespace Common
 
     void ReflectionRenderer::BuildMgpuProbeResources()
     {
-        if (!RendersProbesOnSecondaryGpu(renderConfig) || secondDevice == nullptr)
+        if (secondDevice == nullptr)
         {
             return;
         }

@@ -26,29 +26,6 @@ namespace Common
 {
     class Window;
 
-    enum class MultiGpuRenderConfig
-    {
-        SingleGpu,
-        PrimarySsrSecondaryAllProbes,
-        PrimarySsrThreeProbesSecondaryOne,
-        PrimaryAllProbesSecondarySsr
-    };
-
-    constexpr bool RendersSsrOnSecondaryGpu(const MultiGpuRenderConfig config) noexcept
-    {
-        return config == MultiGpuRenderConfig::PrimaryAllProbesSecondarySsr;
-    }
-
-    constexpr bool RendersProbesOnSecondaryGpu(const MultiGpuRenderConfig config) noexcept
-    {
-        return config == MultiGpuRenderConfig::PrimarySsrSecondaryAllProbes;
-    }
-
-    constexpr bool UsesSecondGpu(const MultiGpuRenderConfig config) noexcept
-    {
-        return RendersSsrOnSecondaryGpu(config) || RendersProbesOnSecondaryGpu(config);
-    }
-
     class ReflectionRenderer
     {
     public:
@@ -61,7 +38,8 @@ namespace Common
         void SetDebugMap(UINT debugMap);
         void SetFrameResource(FrameResource* frameResource);
         void SetSsaaMultiplier(UINT multiplier);
-        void SetRenderConfig(MultiGpuRenderConfig config);
+        void SetUseSecondGpuForSsr(bool enabled);
+        void SetUseSecondGpuForReflectionProbes(bool enabled);
         void SetUseDynamicReflectionProbes(bool enabled);
         void Update(const GameTimer& gt);
         void Render(const std::shared_ptr<GCommandList>& cmdList);
@@ -144,7 +122,8 @@ namespace Common
         DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_UNKNOWN;
         bool is4xMsaa = false;
         UINT msaaQuality = 0;
-        MultiGpuRenderConfig renderConfig = MultiGpuRenderConfig::SingleGpu;
+        bool useSecondGpuForSsr = false;
+        bool useSecondGpuForReflectionProbes = false;
 
         std::unique_ptr<GRootSignature> rootSignature;
         std::unique_ptr<GRootSignature> secondGpuRootSignature;

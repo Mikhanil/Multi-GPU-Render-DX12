@@ -16,6 +16,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{e7f91090-f647-4f37-bd23-f25a114f9865}</UniqueIdentifier>
     </Filter>
+    <Filter Include="States">
+      <UniqueIdentifier>{7E6B1D51-2B98-45CB-A676-DBC720ACA1FE}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -33,6 +36,9 @@
     <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="States\ReflectionBenchmarkState.cpp">
+      <Filter>States</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameResource.h">
@@ -46,6 +52,9 @@
     </ClInclude>
     <ClInclude Include="Scene.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="States\ReflectionBenchmarkState.h">
+      <Filter>States</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
