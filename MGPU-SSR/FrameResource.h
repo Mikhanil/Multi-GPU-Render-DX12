@@ -54,6 +54,7 @@ struct FrameResource
     std::shared_ptr<ConstantUploadBuffer<ReflectionProbeConstants>> ReflectionProbeConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondMainPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondReflectionProbePassConstantUploadBuffer = nullptr;
+    std::shared_ptr<ConstantUploadBuffer<ReflectionProbeConstants>> SecondReflectionProbeConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondShadowPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> ShadowPassConstantUploadBuffer = nullptr;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer = nullptr;
@@ -67,4 +68,5 @@ struct FrameResource
     UINT SpotLightCapacity = 0;
 
     UINT64 FenceValue = 0;
+    UINT64 SecondProbeFenceValue = 0;
 };

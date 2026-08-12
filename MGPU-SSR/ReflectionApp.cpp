@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "GameObject.h"
 #include "States/ReflectionBenchmarkState.h"
+#include <array>
 #include <filesystem>
 
 using namespace DirectX::SimpleMath;
@@ -39,6 +40,7 @@ namespace Common
         renderer->SetUseSecondGpuForSsr(isUsingSecondGpuForSsr);
         renderer->SetUseSecondGpuForReflectionProbes(isUsingSecondGpuForReflectionProbes);
         renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
+        renderer->SetUpdateOneProbeFacePerFrame(isUpdatingOneProbeFacePerFrame);
         renderer->Initialize(cmdList);
 #if defined(DEBUG) || defined(_DEBUG)
         renderer->SetDebugMap(pathMapShow);
@@ -52,51 +54,24 @@ namespace Common
         BuildFrameResources();
         Flush();
 
-        constexpr uint32_t benchmarkDurationSeconds = 10;
-        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
-        const auto& devices = GDeviceFactory::GetAllDevices(false);
-        const bool hasSecondGpu = devices.size() > GraphicAdapterSecond;
-        const auto secondDevice = hasSecondGpu ? GDeviceFactory::GetDevice(GraphicAdapterSecond) : primaryDevice;
-
-        const auto makeBenchmarkLogFile = [&primaryDevice, &secondDevice](const std::wstring& name)
-        {
-            const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
-            std::error_code error;
-            std::filesystem::create_directories(logDirectory, error);
-            return logDirectory / (name + L" " + primaryDevice->GetName() + L"+" + secondDevice->GetName() + L".log");
-        };
-        const auto addBenchmarkState = [this, &makeBenchmarkLogFile, benchmarkDurationSeconds](const std::wstring& name,
-                                                                                                  const bool useSecondGpuForSsr,
-                                                                                                  const bool useSecondGpuForReflectionProbes,
-                                                                                                  const bool dynamicProbes)
-        {
-            benchmark.AddState<ReflectionBenchmarkState>(
-                *this, useSecondGpuForSsr, useSecondGpuForReflectionProbes, dynamicProbes,
-                name, benchmarkDurationSeconds,
-                FileQueueWriter(makeBenchmarkLogFile(name)));
-        };
-
-        // CubeMap baseline: capture all six faces on the primary GPU once (baked),
-        // or capture all faces every frame (dynamic / unbaked).
-        addBenchmarkState(L"SSR + Baked CubeMap Primary", false, false, false);
-        addBenchmarkState(L"SSR + Dynamic CubeMap Primary", false, false, true);
-        if (hasSecondGpu)
-        {
-            // CubeMap hybrid: SSR remains on primary; the probe cubemaps are
-            // captured on the additional GPU and imported through shared resources.
-            addBenchmarkState(L"SSR Primary + Baked CubeMap Secondary",
-                              false, true, false);
-            addBenchmarkState(L"SSR Primary + Dynamic CubeMap Secondary",
-                              false, true, true);
-            // Inverted load split: probes stay on primary and SSR runs on the
-            // additional GPU. Both baked and dynamic probe workloads are sampled.
-            addBenchmarkState(L"Baked CubeMap Primary + SSR Secondary",
-                              true, false, false);
-            addBenchmarkState(L"Dynamic CubeMap Primary + SSR Secondary",
-                              true, false, true);
-        }
+        // Allocate and populate the complete baked set before Run() displays
+        // its first frame. Benchmark states never initialise cubemap resources.
+        currentFrameResourceIndex = 0;
+        currentFrameResource = frameResources[currentFrameResourceIndex].get();
+        scene->Update();
+        scene->UpdateMaterials(currentFrameResource);
+        renderer->SetFrameResource(currentFrameResource);
+        renderer->Update(*GetTimer());
+        renderer->PrewarmReflectionProbeBakes();
+        Flush();
 
 #if !defined(DEBUG) && !defined(_DEBUG)
+        // Each SSAA tier has 40 states: five 4-probe distributions, baked/full
+        // dynamic capture, whole-probe/one-face updates, and SSR on either adapter.
+        // Further tiers are appended only after the level's control state proves
+        // that the current SSAA factor still sustains more than 30 FPS.
+        benchmark.SetLooping(false);
+        AddSsaaBenchmarkLevel(1);
         benchmark.Start();
 #endif
 
@@ -221,7 +196,7 @@ namespace Common
 
                 if (firstPress && keycode == VK_F3 && keyboard.KeyIsPressed(VK_F3))
                 {
-                    ssaaMultiplier *= 2;
+                    ++ssaaMultiplier;
                     if (ssaaMultiplier > maxSsaaMultiplier)
                     {
                         ssaaMultiplier = 1;
@@ -257,6 +232,14 @@ namespace Common
         return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
     }
 
+    void ReflectionApp::CalculateFrameStats()
+    {
+#if defined(DEBUG) || defined(_DEBUG)
+        D3DApp::CalculateFrameStats();
+#endif
+        // Release title belongs exclusively to the active benchmark state.
+    }
+
     void ReflectionApp::OnResize()
     {
         D3DApp::OnResize();
@@ -274,7 +257,6 @@ namespace Common
 
     void ReflectionApp::Update(const GameTimer& gt)
     {
-        benchmark.Tick(gt.DeltaTime());
         auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
 
         currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
@@ -285,6 +267,24 @@ namespace Common
             commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);
         }
 
+        const auto& devices = GDeviceFactory::GetAllDevices(false);
+        if (devices.size() > GraphicAdapterSecond && currentFrameResource->SecondProbeFenceValue != 0)
+        {
+            auto secondQueue = GDeviceFactory::GetDevice(GraphicAdapterSecond)->GetCommandQueue(GQueueType::Graphics);
+            if (!secondQueue->IsFinish(currentFrameResource->SecondProbeFenceValue))
+            {
+                secondQueue->WaitForFenceValue(currentFrameResource->SecondProbeFenceValue);
+            }
+        }
+
+        benchmark.Tick(gt.DeltaTime());
+
+        if (benchmark.IsFinished() && !benchmarkFinished)
+        {
+            benchmarkFinished = true;
+            MainWindow->SetWindowTitle(L"MGPU-SSR | benchmark finished — close the window");
+        }
+
         scene->Update();
         scene->UpdateMaterials(currentFrameResource);
         renderer->SetFrameResource(currentFrameResource);
@@ -292,23 +292,134 @@ namespace Common
     }
 
     void ReflectionApp::SetReflectionBenchmarkConfiguration(const bool useSecondGpuForSsr,
-                                                            const bool useSecondGpuForReflectionProbes,
-                                                            const bool dynamicReflectionProbes)
+                                                             const UINT primaryProbeCount,
+                                                             const bool dynamicReflectionProbes,
+                                                             const bool updateOneProbeFacePerFrame,
+                                                             const UINT ssaaLevel)
     {
         Flush();
+        scene->ResetBenchmarkAnimation();
         isUsingSecondGpuForSsr = useSecondGpuForSsr;
-        isUsingSecondGpuForReflectionProbes = useSecondGpuForReflectionProbes;
+        isUsingSecondGpuForReflectionProbes = primaryProbeCount < Scene::ReflectionProbeCount;
         isUsingDynamicReflectionProbes = dynamicReflectionProbes;
+        isUpdatingOneProbeFacePerFrame = updateOneProbeFacePerFrame;
+        ssaaMultiplier = ssaaLevel;
+        renderer->SetSsaaMultiplier(ssaaMultiplier);
         renderer->SetUseSecondGpuForSsr(isUsingSecondGpuForSsr);
         renderer->SetUseSecondGpuForReflectionProbes(isUsingSecondGpuForReflectionProbes);
+        renderer->SetPrimaryProbeCount(primaryProbeCount);
         renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
+        renderer->SetUpdateOneProbeFacePerFrame(isUpdatingOneProbeFacePerFrame);
+        renderer->ResetSecondaryBenchmarkAnimation();
+
+        const bool presentOnSecondGpu = renderer->IsMgpuSsrEnabled();
+        const auto presentationDevice = presentOnSecondGpu
+                                            ? GDeviceFactory::GetDevice(GraphicAdapterSecond)
+                                            : GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+        MainWindow->SetPresentationDevice(presentationDevice);
+        renderer->SetPresentationOnSecondGpu(presentOnSecondGpu);
+        renderer->OnResize();
+
+        const UINT secondaryProbeCount = Scene::ReflectionProbeCount - primaryProbeCount;
+        MainWindow->SetWindowTitle(
+            L"MGPU-SSR | SSAA x" + std::to_wstring(ssaaLevel) +
+            L" | Cubemap " + std::to_wstring(primaryProbeCount) + L"/" +
+            std::to_wstring(secondaryProbeCount) +
+            (dynamicReflectionProbes ? L" | Full dynamic" : L" | Baked + dynamic overlay") +
+            (updateOneProbeFacePerFrame ? L" | One face/frame" : L" | One cubemap/frame") +
+            (useSecondGpuForSsr ? L" | SSR Secondary" : L" | SSR Primary"));
     }
 
-    void ReflectionApp::SetReflectionBenchmarkTitle(const std::wstring& name, const uint32_t progress,
-                                                    const float fps)
+    void ReflectionApp::AddSsaaBenchmarkLevel(const UINT ssaaLevel)
     {
-        MainWindow->SetWindowTitle(name + L" Progress " + std::to_wstring(progress) +
-                                   L"% FPS:" + std::to_wstring(fps));
+        constexpr uint32_t benchmarkDurationSeconds = 100;
+        constexpr std::array<UINT, 5> primaryProbeCounts = {4, 0, 1, 2, 3};
+        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+        const auto& devices = GDeviceFactory::GetAllDevices(false);
+        const auto secondDevice = devices.size() > GraphicAdapterSecond
+                                      ? GDeviceFactory::GetDevice(GraphicAdapterSecond)
+                                      : primaryDevice;
+        const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
+        std::error_code error;
+        std::filesystem::create_directories(logDirectory, error);
+
+        for (const bool fullDynamic : {false, true})
+        {
+            for (const UINT primaryCount : primaryProbeCounts)
+            {
+                for (const bool updateOneFace : {false, true})
+                {
+                    for (const bool ssrOnSecondary : {false, true})
+                    {
+                        const UINT secondaryCount = Scene::ReflectionProbeCount - primaryCount;
+                        const std::wstring cubeMapMode = fullDynamic
+                                                             ? L"Full dynamic"
+                                                             : L"Baked + local dynamic overlay";
+                        const std::wstring updateMode = updateOneFace
+                                                            ? L"One face/frame"
+                                                            : L"One cubemap/frame";
+                        const std::wstring ssrMode = ssrOnSecondary ? L"SSR Secondary" : L"SSR Primary";
+                        const std::wstring name = L"SSAA x" + std::to_wstring(ssaaLevel) + L" | " + cubeMapMode +
+                            L" | Cubemap " + std::to_wstring(primaryCount) + L"/" +
+                            std::to_wstring(secondaryCount) + L" | " + updateMode + L" | " + ssrMode;
+                        const std::wstring logName = L"SSAAx" + std::to_wstring(ssaaLevel) +
+                            (fullDynamic ? L"_FullDynamic" : L"_BakedOverlay") +
+                            L"_Cubemap" + std::to_wstring(primaryCount) + L"-" +
+                            std::to_wstring(secondaryCount) +
+                            (updateOneFace ? L"_OneFace" : L"_WholeCube") +
+                            (ssrOnSecondary ? L"_SSRSecondary" : L"_SSRPrimary");
+                        const bool isExpansionProbe = fullDynamic && primaryCount == 4 &&
+                            !updateOneFace && !ssrOnSecondary;
+                        const bool endsSsaaLevel = fullDynamic && primaryCount == 3 &&
+                            updateOneFace && ssrOnSecondary;
+                        const auto logPath = logDirectory /
+                            (logName + L" " + primaryDevice->GetName() + L"+" + secondDevice->GetName() + L".log");
+
+                        benchmark.AddState<ReflectionBenchmarkState>(
+                            *this, ssrOnSecondary, primaryCount, fullDynamic, updateOneFace, ssaaLevel,
+                            isExpansionProbe, endsSsaaLevel, name, benchmarkDurationSeconds,
+                            FileQueueWriter(logPath));
+                    }
+                }
+            }
+        }
+    }
+
+    void ReflectionApp::OnReflectionBenchmarkStateCompleted(const bool isSsaaExpansionProbe,
+                                                             const bool endsSsaaLevel,
+                                                             const float averageFps)
+    {
+        if (isSsaaExpansionProbe)
+        {
+            expansionProbeFps = averageFps;
+            nextSsaaLevelQueued = false;
+            if (ssaaMultiplier < maxSsaaMultiplier && expansionProbeFps > 30.0f)
+            {
+                // Add the next complete level as soon as its control sample is
+                // available. It stays after the already queued current level.
+                AddSsaaBenchmarkLevel(ssaaMultiplier + 1);
+                nextSsaaLevelQueued = true;
+            }
+        }
+
+        if (!endsSsaaLevel)
+        {
+            return;
+        }
+
+        if (!nextSsaaLevelQueued)
+        {
+            benchmarkFinished = true;
+            MainWindow->SetWindowTitle(L"MGPU-SSR | benchmark finished — close the window");
+        }
+    }
+
+    void ReflectionApp::SetReflectionBenchmarkTitle(const std::wstring& stateName,
+                                                    const uint32_t remainingSeconds, const float averageFps)
+    {
+        MainWindow->SetWindowTitle(
+            L"MGPU-SSR | " + stateName + L" | Remaining: " + std::to_wstring(remainingSeconds) +
+            L" s | Average FPS: " + std::format(L"{:.2f}", averageFps));
     }
 
     void ReflectionApp::Draw(const GameTimer& gt)
@@ -316,6 +427,7 @@ namespace Common
         if (isResizing) return;
 
         auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
+        bool shouldPresent = true;
 
         if (renderer->IsMgpuProbeEnabled())
         {
@@ -324,18 +436,20 @@ namespace Common
             auto cmdList = commandQueue->GetCommandList();
             renderer->RenderPrimaryWithImportedProbes(cmdList);
             currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
-            renderer->SignalPrimaryProbeConsumption();
+            if (renderer->IsMgpuSsrEnabled())
+            {
+                shouldPresent = renderer->RenderSsrOnSecondGpu();
+            }
         }
         else if (renderer->IsMgpuSsrEnabled())
         {
             auto cmdList = commandQueue->GetCommandList();
             renderer->RenderMgpuPrimary(cmdList);
-            commandQueue->ExecuteCommandList(cmdList);
-            renderer->RenderSsrOnSecondGpu();
+            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
 
-            auto presentCmdList = commandQueue->GetCommandList();
-            renderer->RenderMgpuPrimaryPresent(presentCmdList);
-            currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(presentCmdList);
+            // Like SSAO/MBlur, the secondary queue consumes current shared
+            // inputs and publishes its output independently for a later frame.
+            shouldPresent = renderer->RenderSsrOnSecondGpu();
         }
         else
         {
@@ -344,7 +458,10 @@ namespace Common
             currentFrameResource->FenceValue = commandQueue->ExecuteCommandList(cmdList);
         }
 
-        backBufferIndex = MainWindow->Present();
+        if (shouldPresent)
+        {
+            backBufferIndex = MainWindow->Present();
+        }
     }
 
     void ReflectionApp::BuildFrameResources()

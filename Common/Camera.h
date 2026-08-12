@@ -12,6 +12,8 @@ using namespace Utils;
 
 using namespace DirectX::SimpleMath;
 
+class Transform;
+
 class Camera : public Component
 {
     void Update() override;
@@ -27,12 +29,14 @@ class Camera : public Component
     float farZ = 10000;
 
     Vector3 focusPosition = Vector3::Zero;
+    Transform* lookAtTarget = nullptr;
 
 
     int NumFramesDirty = globalCountFrameResources;
 
 public:
     const Vector3& GetFocusPosition() const;
+    void SetLookAtTarget(Transform* target);
 
     Camera(float aspect);;
 

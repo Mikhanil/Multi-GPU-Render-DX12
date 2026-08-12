@@ -7,9 +7,13 @@ void Camera::Update()
 {
     auto transform = gameObject->GetTransform();
 
-    focusPosition = transform->GetForwardVector() + transform->GetWorldPosition();
+    const Vector3 cameraPosition = transform->GetWorldPosition();
+    focusPosition = lookAtTarget != nullptr
+                        ? lookAtTarget->GetWorldPosition()
+                        : cameraPosition + transform->GetForwardVector();
 
-    view = XMMatrixLookAtLH(transform->GetWorldPosition(), focusPosition, transform->GetUpVector());
+    view = XMMatrixLookAtLH(cameraPosition, focusPosition,
+                            lookAtTarget != nullptr ? Vector3::Up : transform->GetUpVector());
 
     if (NumFramesDirty > 0)
     {
@@ -27,6 +31,11 @@ void Camera::CreateProjection()
 const Vector3& Camera::GetFocusPosition() const
 {
     return focusPosition;
+}
+
+void Camera::SetLookAtTarget(Transform* target)
+{
+    lookAtTarget = target;
 }
 
 Camera::Camera(const float aspect) : aspectRatio(aspect)

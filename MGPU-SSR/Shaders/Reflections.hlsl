@@ -52,7 +52,14 @@ float3 BoxProjectedLookupDirection(float3 surfacePositionW, float3 reflectionDir
     float3 safeDirection = directionSign * max(abs(reflectionDirectionW), 1.0e-4f);
     float3 targetBounds = lerp(boxMinFromProbe, boxMaxFromProbe, step(0.0f, safeDirection));
     float3 distances = (targetBounds - surfaceFromProbe) / safeDirection;
-    float hitDistance = max(min(distances.x, min(distances.y, distances.z)), 0.0f);
+    // The point is inside the proxy box. Select the nearest *forward* plane;
+    // taking the minimum of all three distances also includes negative planes
+    // behind the ray and collapses the lookup direction to the surface point.
+    float3 forwardDistances = distances;
+    if (forwardDistances.x <= 0.0f) forwardDistances.x = 1.0e20f;
+    if (forwardDistances.y <= 0.0f) forwardDistances.y = 1.0e20f;
+    if (forwardDistances.z <= 0.0f) forwardDistances.z = 1.0e20f;
+    float hitDistance = min(forwardDistances.x, min(forwardDistances.y, forwardDistances.z));
 
     return normalize(surfaceFromProbe + reflectionDirectionW * hitDistance);
 }

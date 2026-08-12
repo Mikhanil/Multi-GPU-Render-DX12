@@ -722,6 +722,28 @@ namespace PEPEngine::Graphics
         CopyResourceFromCubeMap(dstTex.GetD3D12Resource(), srcCube.GetD3D12Resource(), faceIndex);
     }
 
+    void GCommandList::CopyCubeMapFace(const GResource& dstCube, const GResource& srcCube, const UINT faceIndex)
+    {
+        assert(cmdList);
+        assert(faceIndex < 6);
+
+        const auto dstResource = dstCube.GetD3D12Resource();
+        const auto srcResource = srcCube.GetD3D12Resource();
+        assert(dstResource && srcResource);
+
+        TransitionBarrier(dstResource, D3D12_RESOURCE_STATE_COPY_DEST);
+        TransitionBarrier(srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        FlushResourceBarriers();
+
+        const UINT subresource = D3D12CalcSubresource(0, faceIndex, 0, 1, 6);
+        const auto dstLocation = CD3DX12_TEXTURE_COPY_LOCATION(dstResource.Get(), subresource);
+        const auto srcLocation = CD3DX12_TEXTURE_COPY_LOCATION(srcResource.Get(), subresource);
+        cmdList->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, nullptr);
+
+        TrackResource(dstResource);
+        TrackResource(srcResource);
+    }
+
     void GCommandList::CopyResourceFromCubeMap(const ComPtr<ID3D12Resource>& dstTex,
                                                const ComPtr<ID3D12Resource>& srcCube,
                                                UINT faceIndex)
@@ -741,10 +763,10 @@ namespace PEPEngine::Graphics
         
         dstLoc.SubresourceIndex = D3D12CalcSubresource(
             0, // mip slice
-            0, // array slice = face cubemap
+            0, // array slice
             0, // plane slice
             1, // mip levels
-            6 // array size
+            1 // destination is a 2D texture, not a cubemap
         );
         
         srcLoc.SubresourceIndex = D3D12CalcSubresource(
@@ -752,7 +774,7 @@ namespace PEPEngine::Graphics
             faceIndex, // array slice
             0, // plane slice
             1, // mip levels
-            1 // array size
+            6 // source is a six-face cubemap
         );
 
         cmdList->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, nullptr);

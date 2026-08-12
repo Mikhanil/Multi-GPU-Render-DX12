@@ -10,5 +10,5 @@ void Rotater::Update()
 
     auto tr = gameObject->GetTransform();
 
-    tr->AdjustEulerRotation(Vector3(speed * dt, 0, 0));
+    tr->AdjustEulerRotation(rotationAxis * (speed * dt));
 }

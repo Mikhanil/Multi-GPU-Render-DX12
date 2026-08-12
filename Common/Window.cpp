@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Window.h"
 
+
 #include <cassert>
 
 
@@ -185,6 +186,7 @@ namespace Common
 
             HRESULT reason = d3dDevice->GetDeviceRemovedReason();
 
+
             OutputDebugStringA("[MY_DX12_APP] Present failed!\n");
 
             if (reason == DXGI_ERROR_DEVICE_REMOVED)
@@ -217,6 +219,37 @@ namespace Common
                                            TextureUsage::RenderTarget));
         }
 
+        OnResize();
+    }
+
+    void Window::SetPresentationDevice(const std::shared_ptr<GDevice>& presentationDevice)
+    {
+        if (presentationDevice == nullptr || presentationDevice == device)
+        {
+            return;
+        }
+
+        device->Flush();
+        presentationDevice->Flush();
+
+        for (auto& backBuffer : backBuffers)
+        {
+            if (backBuffer.IsValid())
+            {
+                GResourceStateTracker::RemoveGlobalResourceState(backBuffer.GetD3D12Resource().Get());
+                backBuffer.Reset();
+            }
+        }
+
+        swapChain.Reset();
+        if (swapChainEvent != nullptr)
+        {
+            CloseHandle(swapChainEvent);
+            swapChainEvent = nullptr;
+        }
+
+        device = presentationDevice;
+        swapChain = CreateSwapChain();
         OnResize();
     }
 

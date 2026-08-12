@@ -44,6 +44,7 @@ namespace Common
 
         UINT Present();
         void Initialize();
+        void SetPresentationDevice(const std::shared_ptr<GDevice>& presentationDevice);
 
         GTexture& GetCurrentBackBuffer();
 

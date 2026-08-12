@@ -20,6 +20,9 @@ FrameResource::FrameResource(std::shared_ptr<GDevice> primeDevice, std::shared_p
         SecondReflectionProbePassConstantUploadBuffer =
             std::make_shared<ConstantUploadBuffer<ReflectionPassConstants>>(
                 secondDevice, kReflectionProbeCount * 6, L"Second GPU Reflection Probe Pass Data");
+        SecondReflectionProbeConstantUploadBuffer =
+            std::make_shared<ConstantUploadBuffer<ReflectionProbeConstants>>(
+                secondDevice, 1, L"Second GPU Reflection Probe Data");
         SecondShadowPassConstantUploadBuffer = std::make_shared<ConstantUploadBuffer<ReflectionPassConstants>>(
             secondDevice, 1, L"Second GPU Shadow Pass Data");
         SecondMaterialBuffer = std::make_shared<StructuredUploadBuffer<MaterialConstants>>(

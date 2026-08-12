@@ -13,10 +13,16 @@ class BenchmarkService final
     int currentStateIndex = -1;
 
     BenchmarkState* CurrentState = nullptr;
+    bool looping = true;
 
     void SetState(BenchmarkState* state);
 
 public:
+    // Existing samples historically looped their benchmark queue.  Long-running
+    // exhaustive benchmarks can opt out so the last state is measured once.
+    void SetLooping(bool enabled) { looping = enabled; }
+    bool IsFinished() const { return currentStateIndex < 0; }
+
     void Start();
 
     template <class T = BenchmarkState, typename... Args>

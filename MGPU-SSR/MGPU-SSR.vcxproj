@@ -92,7 +92,7 @@
             <ConformanceMode>false</ConformanceMode>
             <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
             <MultiProcessorCompilation>true</MultiProcessorCompilation>
-            <LanguageStandard>stdcpp17</LanguageStandard>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Windows</SubSystem>
@@ -109,7 +109,7 @@
             <ConformanceMode>false</ConformanceMode>
             <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
             <MultiProcessorCompilation>true</MultiProcessorCompilation>
-            <LanguageStandard>stdcpp17</LanguageStandard>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Windows</SubSystem>
@@ -126,7 +126,7 @@
             <ConformanceMode>false</ConformanceMode>
             <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
             <MultiProcessorCompilation>true</MultiProcessorCompilation>
-            <LanguageStandard>stdcpp17</LanguageStandard>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Windows</SubSystem>
@@ -143,7 +143,7 @@
             <ConformanceMode>false</ConformanceMode>
             <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
             <MultiProcessorCompilation>true</MultiProcessorCompilation>
-            <LanguageStandard>stdcpp17</LanguageStandard>
+            <LanguageStandard>stdcpp20</LanguageStandard>
         </ClCompile>
         <Link>
             <SubSystem>Windows</SubSystem>

@@ -17,6 +17,8 @@ public:
         float orbitSpeedRad = 1.0f,
         const Vector3& selfEulerSpeedDeg = Vector3::Zero);
 
+    void Reset() { angleRad = 0.0f; }
+
 private:
     void Update() override;
 
@@ -26,4 +28,3 @@ private:
     float angleRad = 0.0f;
     Vector3 selfEulerSpeedDeg = Vector3::Zero;
 };
-    

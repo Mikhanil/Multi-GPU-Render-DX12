@@ -34,8 +34,22 @@ void BenchmarkService::Tick(float deltaTime)
         CurrentState->Tick(deltaTime);
         if (CurrentState->IsCompleted())
         {
-            currentStateIndex = (currentStateIndex + 1) % states.size();
-            SetState(states[currentStateIndex].get());
+            const int nextStateIndex = currentStateIndex + 1;
+            if (nextStateIndex < static_cast<int>(states.size()))
+            {
+                currentStateIndex = nextStateIndex;
+                SetState(states[currentStateIndex].get());
+            }
+            else if (looping && !states.empty())
+            {
+                currentStateIndex = 0;
+                SetState(states[currentStateIndex].get());
+            }
+            else
+            {
+                SetState(nullptr);
+                currentStateIndex = -1;
+            }
         }
     }
 }

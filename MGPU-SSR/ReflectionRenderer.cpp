@@ -23,7 +23,7 @@ using namespace PEPEngine::Graphics;
 namespace
 {
     constexpr float kSceneAmbientIntensity = 0.045f;
-    constexpr UINT kMaxSsaaMultiplier = 4;
+    constexpr UINT kMaxSsaaMultiplier = 6;
     constexpr UINT kReflectionProbeResolution = 256; // Change to 512 or 1024 for higher quality.
     constexpr float kReflectionProbeProxyHalfExtentXZ = 12.0f;
     constexpr float kReflectionProbeProxyMinY = 0.0f;
@@ -101,6 +101,12 @@ namespace Common
                 GDeviceFactory::GetDevice(), kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
                 DXGI_FORMAT_D32_FLOAT);
         }
+        for (auto& probe : bakedReflectionProbes)
+        {
+            probe = std::make_unique<BakedCubeMapRenderTarget>(
+                GDeviceFactory::GetDevice(), kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
+                DXGI_FORMAT_D32_FLOAT);
+        }
 
         const auto primaryDevice = GDeviceFactory::GetDevice();
         reflectionProbeSrvTable = primaryDevice->AllocateDescriptors(
@@ -116,6 +122,19 @@ namespace Common
         {
             reflectionProbes[probeIndex]->GetCubeMap().CreateShaderResourceView(
                 &probeSrvDesc, &reflectionProbeSrvTable, probeIndex);
+        }
+        for (UINT captureIndex = 0; captureIndex < ReflectionProbeCount; ++captureIndex)
+        {
+            auto& captureTable = reflectionProbeCaptureSrvTables[captureIndex];
+            captureTable = primaryDevice->AllocateDescriptors(
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ReflectionProbeCount);
+            for (UINT sampleIndex = 0; sampleIndex < ReflectionProbeCount; ++sampleIndex)
+            {
+                auto& sourceCubeMap = sampleIndex == captureIndex
+                                          ? bakedReflectionProbes[sampleIndex]->GetCubeMap()
+                                          : reflectionProbes[sampleIndex]->GetCubeMap();
+                sourceCubeMap.CreateShaderResourceView(&probeSrvDesc, &captureTable, sampleIndex);
+            }
         }
 
         // A new render target contains no baked pixels. It becomes sampleable only
@@ -136,6 +155,12 @@ namespace Common
 
     void ReflectionRenderer::OnResize()
     {
+        // OnResize replaces resources referenced by both queues.
+        if (secondDevice != nullptr)
+        {
+            secondDevice->Flush();
+        }
+
         viewport.Height = static_cast<float>(window->GetClientHeight());
         viewport.Width = static_cast<float>(window->GetClientWidth());
         viewport.MinDepth = 0.0f;
@@ -146,7 +171,10 @@ namespace Common
 
         if (renderTargetMemory.IsNull())
         {
-            renderTargetMemory = GDeviceFactory::GetDevice()->AllocateDescriptors(
+            const auto presentationDevice = presentationOnSecondGpu && secondDevice != nullptr
+                                                ? secondDevice
+                                                : GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+            renderTargetMemory = presentationDevice->AllocateDescriptors(
                 D3D12_DESCRIPTOR_HEAP_TYPE_RTV, globalCountFrameResources);
         }
 
@@ -287,9 +315,33 @@ namespace Common
         useSecondGpuForSsr = enabled;
     }
 
+    void ReflectionRenderer::SetPresentationOnSecondGpu(const bool enabled)
+    {
+        if (presentationOnSecondGpu == enabled)
+        {
+            return;
+        }
+
+        presentationOnSecondGpu = enabled;
+        renderTargetMemory = GDescriptor{};
+    }
+
     void ReflectionRenderer::SetUseSecondGpuForReflectionProbes(const bool enabled)
     {
         useSecondGpuForReflectionProbes = enabled;
+    }
+
+    void ReflectionRenderer::SetPrimaryProbeCount(UINT count)
+    {
+        primaryProbeCount = std::min(count, ReflectionProbeCount);
+        nextPrimaryProbeIndex = 0;
+        nextPrimaryProbeFace = 0;
+        nextSecondProbeIndex = primaryProbeCount < ReflectionProbeCount
+                                   ? primaryProbeCount
+                                   : InvalidProbeIndex;
+        nextSecondProbeFace = 0;
+        submittedSecondProbeIndex = InvalidProbeIndex;
+        submittedSecondProbeFace = AllProbeFaces;
     }
 
 
@@ -301,6 +353,74 @@ namespace Common
         message += useDynamicReflectionProbes ? L"true" : L"false";
         message += L"\n";
         OutputDebugStringW(message.c_str());
+    }
+
+    void ReflectionRenderer::SetUpdateOneProbeFacePerFrame(const bool enabled)
+    {
+        updateOneProbeFacePerFrame = enabled;
+        nextPrimaryProbeIndex = 0;
+        nextPrimaryProbeFace = 0;
+        nextSecondProbeIndex = primaryProbeCount < ReflectionProbeCount
+                                   ? primaryProbeCount
+                                   : InvalidProbeIndex;
+        nextSecondProbeFace = 0;
+        submittedSecondProbeIndex = InvalidProbeIndex;
+        submittedSecondProbeFace = AllProbeFaces;
+    }
+
+    void ReflectionRenderer::ResetSecondaryBenchmarkAnimation()
+    {
+        if (secondProbeScene != nullptr)
+        {
+            secondProbeScene->ResetBenchmarkAnimation();
+        }
+    }
+
+    void ReflectionRenderer::PrewarmReflectionProbeBakes()
+    {
+        if (currentFrameResource == nullptr)
+        {
+            return;
+        }
+
+        const bool savedUseSecondGpuForReflectionProbes = useSecondGpuForReflectionProbes;
+        const bool savedUseDynamicReflectionProbes = useDynamicReflectionProbes;
+        const UINT savedPrimaryProbeCount = primaryProbeCount;
+        const auto primaryQueue = GDeviceFactory::GetDevice(GraphicAdapterPrimary)->GetCommandQueue(GQueueType::Graphics);
+
+        // Prime GPU: capture every static probe once. This also prepares the
+        // matching dynamic targets used for local overlays.
+        useDynamicReflectionProbes = false;
+        isPrewarmingBakedProbes = true;
+        useSecondGpuForReflectionProbes = false;
+        primaryProbeCount = ReflectionProbeCount;
+        auto primaryCmdList = primaryQueue->GetCommandList();
+        RenderPrimaryBeforeSsr(primaryCmdList);
+        primaryQueue->WaitForFenceValue(primaryQueue->ExecuteCommandList(primaryCmdList));
+
+        // Secondary GPU owns an independent baked base. Capture it before the
+        // first displayed frame as well, so split states only reuse resources.
+        if (mgpuProbeEnabled && secondProbeScene != nullptr)
+        {
+            primaryProbeCount = 0;
+            useSecondGpuForReflectionProbes = true;
+            secondProbeScene->Update();
+            secondProbeScene->UpdateMaterials(currentFrameResource, true);
+            RenderProbesOnSecondGpu();
+        }
+
+        useSecondGpuForReflectionProbes = savedUseSecondGpuForReflectionProbes;
+        useDynamicReflectionProbes = savedUseDynamicReflectionProbes;
+        primaryProbeCount = savedPrimaryProbeCount;
+        nextSecondProbeIndex = primaryProbeCount < ReflectionProbeCount
+                                   ? primaryProbeCount
+                                   : InvalidProbeIndex;
+        nextPrimaryProbeIndex = 0;
+        nextPrimaryProbeFace = 0;
+        nextSecondProbeFace = 0;
+        submittedSecondProbeIndex = InvalidProbeIndex;
+        submittedSecondProbeFace = AllProbeFaces;
+        isPrewarmingBakedProbes = false;
     }
     void ReflectionRenderer::Update(const GameTimer& gt)
     {
@@ -339,7 +459,7 @@ namespace Common
 
     bool ReflectionRenderer::IsMgpuProbeEnabled() const
     {
-        return useSecondGpuForReflectionProbes && mgpuProbeEnabled;
+        return useSecondGpuForReflectionProbes && primaryProbeCount < ReflectionProbeCount && mgpuProbeEnabled;
     }
 
     void ReflectionRenderer::RenderMgpuPrimary(const std::shared_ptr<GCommandList>& cmdList)
@@ -352,30 +472,21 @@ namespace Common
 
         cmdList->StartMark(L"MGPU SSR Primary Frame");
 
+        if (!presentationOnSecondGpu)
+        {
+            cmdList->StartMark(L"MGPU SSR Copy Result From Shared");
+            CopySharedSsrOutputToPrimary(cmdList);
+            cmdList->EndMark();
+
+            cmdList->StartMark(L"Present Pass");
+            DrawPresentBackBuffer(cmdList);
+            cmdList->EndMark();
+        }
+
         RenderPrimaryBeforeSsr(cmdList);
 
         cmdList->StartMark(L"MGPU SSR Copy Inputs To Shared");
         CopyPrimarySsrInputsToShared(cmdList);
-        cmdList->EndMark();
-
-        cmdList->EndMark();
-    }
-
-    void ReflectionRenderer::RenderMgpuPrimaryPresent(const std::shared_ptr<GCommandList>& cmdList)
-    {
-        if (!IsMgpuSsrEnabled())
-        {
-            return;
-        }
-
-        cmdList->StartMark(L"MGPU SSR Primary Present");
-
-        cmdList->StartMark(L"MGPU SSR Copy Result From Shared");
-        CopySharedSsrOutputToPrimary(cmdList);
-        cmdList->EndMark();
-
-        cmdList->StartMark(L"Present Pass");
-        DrawPresentBackBuffer(cmdList);
         cmdList->EndMark();
 
         cmdList->EndMark();
@@ -420,46 +531,48 @@ namespace Common
         cmdList->EndMark();
     }
 
-    void ReflectionRenderer::RenderSsrOnSecondGpu()
+    bool ReflectionRenderer::RenderSsrOnSecondGpu()
     {
         if (!IsMgpuSsrEnabled())
         {
-            return;
+            return false;
         }
 
-        auto primaryQueue = GDeviceFactory::GetDevice(GraphicAdapterPrimary)->GetCommandQueue(GQueueType::Graphics);
         auto secondQueue = secondDevice->GetCommandQueue(GQueueType::Graphics);
-        if (currentFrameResource == nullptr || currentFrameResource->SecondMainPassConstantUploadBuffer == nullptr ||
-            primarySsrSharedFence == nullptr || secondSsrSharedFence == nullptr)
+        if (secondGpuSsrFenceValue != 0 && !secondQueue->IsFinish(secondGpuSsrFenceValue))
         {
-            return;
+            return !presentationOnSecondGpu;
         }
 
-        const UINT64 inputsReadyFenceValue = ++ssrSharedFenceValue;
-        primaryQueue->Signal(primarySsrSharedFence, inputsReadyFenceValue);
-        secondQueue->Wait(secondSsrSharedFence, inputsReadyFenceValue);
+        if (currentFrameResource == nullptr ||
+            currentFrameResource->SecondMainPassConstantUploadBuffer == nullptr)
+        {
+            return !presentationOnSecondGpu;
+        }
 
         currentFrameResource->SecondMainPassConstantUploadBuffer->CopyData(0, mainPassCB);
-
         auto secondCmdList = secondQueue->GetCommandList();
 
         secondCmdList->StartMark(L"MGPU SSR Pass");
         CopySharedSsrInputsToSecond(secondCmdList);
         DrawSsrOnSecondGpu(secondCmdList, *currentFrameResource->SecondMainPassConstantUploadBuffer);
-        CopySecondSsrOutputToShared(secondCmdList);
+        if (!presentationOnSecondGpu)
+        {
+            CopySecondSsrOutputToShared(secondCmdList);
+        }
         secondCmdList->EndMark();
 
-        secondQueue->ExecuteCommandList(secondCmdList);
-
-        const UINT64 outputReadyFenceValue = ++ssrSharedFenceValue;
-        secondQueue->Signal(secondSsrSharedFence, outputReadyFenceValue);
-        primaryQueue->Wait(primarySsrSharedFence, outputReadyFenceValue);
+        secondGpuSsrFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
+        return true;
     }
     void ReflectionRenderer::RenderProbesOnSecondGpu()
     {
+        submittedSecondProbeIndex = InvalidProbeIndex;
+        submittedSecondProbeFace = AllProbeFaces;
         if (!IsMgpuProbeEnabled() || currentFrameResource == nullptr || secondDevice == nullptr ||
             secondProbeScene == nullptr || secondGpuShadowMap == nullptr ||
             currentFrameResource->SecondReflectionProbePassConstantUploadBuffer == nullptr ||
+            currentFrameResource->SecondReflectionProbeConstantUploadBuffer == nullptr ||
             currentFrameResource->SecondShadowPassConstantUploadBuffer == nullptr ||
             currentFrameResource->SecondMaterialBuffer == nullptr ||
             currentFrameResource->SecondPointLightBuffer == nullptr ||
@@ -468,27 +581,70 @@ namespace Common
             return;
         }
 
-        auto primaryQueue = GDeviceFactory::GetDevice(GraphicAdapterPrimary)->GetCommandQueue(GQueueType::Graphics);
         auto secondQueue = secondDevice->GetCommandQueue(GQueueType::Graphics);
-        if (primaryProbeConsumedFenceValue != 0)
+        // Same model as MGPU-CubeMap: this fence protects only reuse of this
+        // frame resource on the secondary queue. There is no adapter-to-adapter wait.
+        if (currentFrameResource->SecondProbeFenceValue != 0 &&
+            !secondQueue->IsFinish(currentFrameResource->SecondProbeFenceValue))
         {
-            secondQueue->Wait(secondProbeSharedFence, primaryProbeConsumedFenceValue);
+            return;
         }
 
         auto secondCmdList = secondQueue->GetCommandList();
         secondCmdList->StartMark(L"MGPU Dynamic Reflection Probes");
-        if (useDynamicReflectionProbes || !secondProbeContentsValid)
+        if (isPrewarmingBakedProbes)
         {
-            DrawSecondGpuShadowMap(secondCmdList);
-            DrawReflectionProbesOnSecondGpu(secondCmdList);
-        }
-        CopySecondProbeOutputsToShared(secondCmdList);
-        secondCmdList->EndMark();
-        secondQueue->ExecuteCommandList(secondCmdList);
+            // The sun and the static scene do not move. Build the secondary
+            // shadow map once together with the baked cubemap bases.
+            if (!secondShadowMapBaked)
+            {
+                DrawSecondGpuShadowMap(secondCmdList);
+                secondShadowMapBaked = true;
+            }
 
-        const UINT64 probesReadyFenceValue = ++probeSharedFenceValue;
-        secondQueue->Signal(secondProbeSharedFence, probesReadyFenceValue);
-        primaryQueue->Wait(primaryProbeSharedFence, probesReadyFenceValue);
+            // Prewarm runs before displayed frames. Build the complete initial
+            // set once; runtime submissions below update exactly one probe.
+            for (UINT probeIndex = primaryProbeCount; probeIndex < ReflectionProbeCount; ++probeIndex)
+            {
+                DrawReflectionProbeOnSecondGpu(secondCmdList, probeIndex, AllProbeFaces);
+                CopySecondProbeOutputToShared(secondCmdList, probeIndex, AllProbeFaces);
+            }
+        }
+        else
+        {
+            if (nextSecondProbeIndex < primaryProbeCount || nextSecondProbeIndex >= ReflectionProbeCount)
+            {
+                nextSecondProbeIndex = primaryProbeCount;
+            }
+
+            const UINT probeIndex = nextSecondProbeIndex;
+            const UINT faceIndex = updateOneProbeFacePerFrame ? nextSecondProbeFace : AllProbeFaces;
+            DrawReflectionProbeOnSecondGpu(secondCmdList, probeIndex, faceIndex);
+            CopySecondProbeOutputToShared(secondCmdList, probeIndex, faceIndex);
+            submittedSecondProbeIndex = probeIndex;
+            submittedSecondProbeFace = faceIndex;
+
+            if (updateOneProbeFacePerFrame)
+            {
+                ++nextSecondProbeFace;
+                if (nextSecondProbeFace >= CubeMapRenderTarget::FaceCount)
+                {
+                    nextSecondProbeFace = 0;
+                    ++nextSecondProbeIndex;
+                }
+            }
+            else
+            {
+                ++nextSecondProbeIndex;
+            }
+
+            if (nextSecondProbeIndex >= ReflectionProbeCount)
+            {
+                nextSecondProbeIndex = primaryProbeCount;
+            }
+        }
+        secondCmdList->EndMark();
+        currentFrameResource->SecondProbeFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
     }
 
     void ReflectionRenderer::RenderPrimaryWithImportedProbes(const std::shared_ptr<GCommandList>& cmdList)
@@ -500,23 +656,23 @@ namespace Common
         }
 
         cmdList->StartMark(L"MGPU Import Reflection Probes");
+        // Consume the latest faces visible in shared memory without waiting for
+        // the secondary adapter to finish the cubemap currently being produced.
         CopySharedProbeOutputsToPrimary(cmdList);
         cmdList->EndMark();
         reflectionProbeContentsValid = true;
-        Render(cmdList);
-    }
-
-    void ReflectionRenderer::SignalPrimaryProbeConsumption()
-    {
-        if (!IsMgpuProbeEnabled() || primaryProbeSharedFence == nullptr)
+        // Probe distribution and SSR placement are independent benchmark axes.
+        // Preserve the requested secondary-SSR path after importing probes.
+        if (IsMgpuSsrEnabled())
         {
-            return;
+            RenderMgpuPrimary(cmdList);
         }
-
-        auto primaryQueue = GDeviceFactory::GetDevice(GraphicAdapterPrimary)->GetCommandQueue(GQueueType::Graphics);
-        primaryProbeConsumedFenceValue = ++probeSharedFenceValue;
-        primaryQueue->Signal(primaryProbeSharedFence, primaryProbeConsumedFenceValue);
+        else
+        {
+            Render(cmdList);
+        }
     }
+
     std::unique_ptr<GRootSignature> ReflectionRenderer::BuildRootSignature(const std::shared_ptr<GDevice>& device) const
     {
         auto signature = std::make_unique<GRootSignature>();
@@ -882,12 +1038,13 @@ namespace Common
         }
 
         secondGpuProbePsos.clear();
-        constexpr std::array<RenderMode, 6> probeRenderModes =
+        constexpr std::array<RenderMode, 7> probeRenderModes =
         {
             RenderMode::SkyBox,
             RenderMode::Opaque,
             RenderMode::OpaqueAlphaDrop,
             RenderMode::Transparent,
+            RenderMode::Reflection,
             RenderMode::ShadowMapOpaque,
             RenderMode::ShadowMapOpaqueDrop
         };
@@ -932,36 +1089,20 @@ namespace Common
 
         secondGpuRootSignature = BuildRootSignature(secondDevice);
 
-        if (primaryDevice->TrySharedFence(primarySsrSharedFence, secondDevice, secondSsrSharedFence, 0,
-                                          nullptr, GENERIC_ALL, L"MGPU SSR Shared Fence"))
-        {
-            BuildSecondGpuSsrPSOs();
-            BuildMgpuSsrResources();
+        // SSR follows the same asynchronous producer/consumer model as the
+        // SSAO and Motion Blur samples. Each adapter advances on its own queue;
+        // there is deliberately no cross-adapter fence in this path.
+        BuildSecondGpuSsrPSOs();
+        BuildMgpuSsrResources();
 
-            mgpuSsrEnabled = secondGpuSceneColor.IsValid() &&
-                secondGpuSceneDepth.IsValid() &&
-                secondGpuSceneNormal.IsValid() &&
-                secondGpuSsrOutputColor.IsValid() &&
-                sharedSceneColor != nullptr &&
-                sharedSceneDepth != nullptr &&
-                sharedSceneNormal != nullptr &&
-                sharedSsrOutputColor != nullptr &&
-                primarySsrSharedFence != nullptr &&
-                secondSsrSharedFence != nullptr;
-
-        }
-        else
-        {
-            OutputDebugStringW(L"[MGPU-SSR] Cross-adapter fence creation failed. SSR stays on primary GPU.\n");
-        }
-
-        if (!primaryDevice->TrySharedFence(primaryProbeSharedFence, secondDevice, secondProbeSharedFence, 0,
-                                           nullptr, GENERIC_ALL, L"MGPU Reflection Probe Shared Fence"))
-        {
-            OutputDebugStringW(
-                L"[MGPU-SSR] Cross-adapter probe fence creation failed. Probes stay on primary GPU.\n");
-            return;
-        }
+        mgpuSsrEnabled = secondGpuSceneColor.IsValid() &&
+            secondGpuSceneDepth.IsValid() &&
+            secondGpuSceneNormal.IsValid() &&
+            secondGpuSsrOutputColor.IsValid() &&
+            sharedSceneColor != nullptr && sharedSceneColor->IsInit() &&
+            sharedSceneDepth != nullptr && sharedSceneDepth->IsInit() &&
+            sharedSceneNormal != nullptr && sharedSceneNormal->IsInit() &&
+            sharedSsrOutputColor != nullptr && sharedSsrOutputColor->IsInit();
 
         secondProbeScene = std::make_unique<Scene>(secondDevice);
         auto secondQueue = secondDevice->GetCommandQueue(GQueueType::Graphics);
@@ -987,16 +1128,49 @@ namespace Common
                 secondDevice, kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
         }
 
+        secondGpuReflectionProbeSrvTable = secondDevice->AllocateDescriptors(
+            D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ReflectionProbeCount);
+        D3D12_SHADER_RESOURCE_VIEW_DESC secondProbeSrvDesc{};
+        secondProbeSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        secondProbeSrvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        secondProbeSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+        secondProbeSrvDesc.TextureCube.MostDetailedMip = 0;
+        secondProbeSrvDesc.TextureCube.MipLevels = 1;
+        secondProbeSrvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            secondGpuReflectionProbes[probeIndex]->GetCubeMap().CreateShaderResourceView(
+                &secondProbeSrvDesc, &secondGpuReflectionProbeSrvTable, probeIndex);
+        }
+        for (auto& probe : secondGpuBakedReflectionProbes)
+        {
+            probe = std::make_unique<BakedCubeMapRenderTarget>(
+                secondDevice, kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
+        }
+        for (UINT captureIndex = 0; captureIndex < ReflectionProbeCount; ++captureIndex)
+        {
+            auto& captureTable = secondGpuReflectionProbeCaptureSrvTables[captureIndex];
+            captureTable = secondDevice->AllocateDescriptors(
+                D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ReflectionProbeCount);
+            for (UINT sampleIndex = 0; sampleIndex < ReflectionProbeCount; ++sampleIndex)
+            {
+                auto& sourceCubeMap = sampleIndex == captureIndex
+                                          ? secondGpuBakedReflectionProbes[sampleIndex]->GetCubeMap()
+                                          : secondGpuReflectionProbes[sampleIndex]->GetCubeMap();
+                sourceCubeMap.CreateShaderResourceView(&secondProbeSrvDesc, &captureTable, sampleIndex);
+            }
+        }
+
         BuildSecondGpuProbePSOs();
         BuildMgpuProbeResources();
 
-        mgpuProbeEnabled = secondProbeScene != nullptr &&
-            secondGpuShadowMap != nullptr &&
-            primaryProbeSharedFence != nullptr &&
-            secondProbeSharedFence != nullptr;
+        mgpuProbeEnabled = secondProbeScene != nullptr && secondGpuShadowMap != nullptr &&
+            !secondGpuReflectionProbeSrvTable.IsNull();
         for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount && mgpuProbeEnabled; ++probeIndex)
         {
-            mgpuProbeEnabled = secondGpuReflectionProbes[probeIndex] != nullptr;
+            mgpuProbeEnabled = secondGpuReflectionProbes[probeIndex] != nullptr &&
+                secondGpuBakedReflectionProbes[probeIndex] != nullptr &&
+                !secondGpuReflectionProbeCaptureSrvTables[probeIndex].IsNull();
             for (UINT face = 0; face < CubeMapRenderTarget::FaceCount && mgpuProbeEnabled; ++face)
             {
                 mgpuProbeEnabled = sharedReflectionProbeFaces[probeIndex][face] != nullptr &&
@@ -1081,9 +1255,9 @@ namespace Common
         sharedSceneDepth = std::make_unique<::GCrossAdapterResource>(sceneDepthDesc, primaryDevice, secondDevice,
                                                                      L"MGPU SSR Shared Scene Depth");
         sharedSceneNormal = std::make_unique<::GCrossAdapterResource>(sceneNormalDesc, primaryDevice, secondDevice,
-                                                                      L"MGPU SSR Shared Scene Normal");
+                                                                       L"MGPU SSR Shared Scene Normal");
         sharedSsrOutputColor = std::make_unique<::GCrossAdapterResource>(ssrOutputDesc, primaryDevice, secondDevice,
-                                                                         L"MGPU SSR Shared Output Color");
+                                                                          L"MGPU SSR Shared Output Color");
 
         BuildSecondGpuSsrDescriptors();
     }
@@ -1130,6 +1304,7 @@ namespace Common
         rtvDesc.Texture2D.MipSlice = 0;
         rtvDesc.Texture2D.PlaneSlice = 0;
         secondGpuSsrOutputColor.CreateRenderTargetView(&rtvDesc, &secondGpuSsrOutputRtv);
+
     }
 
     void ReflectionRenderer::BuildMgpuProbeResources()
@@ -1313,12 +1488,15 @@ namespace Common
                         0.0f);
         }
         currentFrameResource->ReflectionProbeConstantUploadBuffer->CopyData(0, probeConstants);
+        if (currentFrameResource->SecondReflectionProbeConstantUploadBuffer != nullptr)
+        {
+            currentFrameResource->SecondReflectionProbeConstantUploadBuffer->CopyData(0, probeConstants);
+        }
     }
 
     void ReflectionRenderer::UpdateReflectionProbePassCBs()
     {
-        if ((!useDynamicReflectionProbes && reflectionProbeContentsValid) ||
-            currentFrameResource == nullptr ||
+        if (currentFrameResource == nullptr ||
             currentFrameResource->ReflectionProbePassConstantUploadBuffer == nullptr)
         {
             return;
@@ -1476,6 +1654,7 @@ namespace Common
 
         cmdList->SetPipelineState(*psos[RenderMode::DrawNormalsOpaque]);
         scene.Draw(cmdList, RenderMode::Opaque);
+        scene.Draw(cmdList, RenderMode::DynamicOpaque);
         cmdList->SetPipelineState(*psos[RenderMode::DrawNormalsOpaqueDrop]);
         scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
 
@@ -1486,8 +1665,7 @@ namespace Common
 
     void ReflectionRenderer::DrawReflectionProbes(const std::shared_ptr<GCommandList>& cmdList)
     {
-        if (IsMgpuProbeEnabled() || (!useDynamicReflectionProbes && reflectionProbeContentsValid) ||
-            currentFrameResource == nullptr ||
+        if (currentFrameResource == nullptr ||
             currentFrameResource->ReflectionProbePassConstantUploadBuffer == nullptr)
         {
             return;
@@ -1518,7 +1696,145 @@ namespace Common
         cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowMap->GetSrv());
         cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ssao->AmbientMapSrv());
 
-        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        UINT firstProbeIndex = 0;
+        UINT lastProbeIndex = primaryProbeCount;
+        UINT firstFaceIndex = 0;
+        UINT lastFaceIndex = CubeMapRenderTarget::FaceCount;
+        if (!isPrewarmingBakedProbes)
+        {
+            if (primaryProbeCount == 0)
+            {
+                reflectionProbeContentsValid = true;
+                return;
+            }
+
+            if (nextPrimaryProbeIndex >= primaryProbeCount)
+            {
+                nextPrimaryProbeIndex = 0;
+                nextPrimaryProbeFace = 0;
+            }
+
+            firstProbeIndex = nextPrimaryProbeIndex;
+            lastProbeIndex = firstProbeIndex + 1;
+            if (updateOneProbeFacePerFrame)
+            {
+                firstFaceIndex = nextPrimaryProbeFace;
+                lastFaceIndex = firstFaceIndex + 1;
+                ++nextPrimaryProbeFace;
+                if (nextPrimaryProbeFace >= CubeMapRenderTarget::FaceCount)
+                {
+                    nextPrimaryProbeFace = 0;
+                    nextPrimaryProbeIndex = (nextPrimaryProbeIndex + 1) % primaryProbeCount;
+                }
+            }
+            else
+            {
+                nextPrimaryProbeIndex = (nextPrimaryProbeIndex + 1) % primaryProbeCount;
+            }
+        }
+
+        if (!useDynamicReflectionProbes)
+        {
+            if (isPrewarmingBakedProbes)
+            {
+                for (UINT probeIndex = 0; probeIndex < primaryProbeCount; ++probeIndex)
+                {
+                    auto* bakedProbe = bakedReflectionProbes[probeIndex].get();
+                    auto& bakedCubeMap = bakedProbe->GetCubeMap();
+                    auto& bakedDepthMap = bakedProbe->GetDepthMap();
+                    const auto probeViewport = bakedProbe->GetViewport();
+                    const auto probeRect = bakedProbe->GetScissorRect();
+                    cmdList->TransitionBarrier(bakedCubeMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+                    cmdList->TransitionBarrier(bakedDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+                    cmdList->FlushResourceBarriers();
+                    cmdList->SetViewports(&probeViewport, 1);
+                    cmdList->SetScissorRects(&probeRect, 1);
+
+                    for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+                    {
+                        const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
+                        auto faceRtv = bakedProbe->GetRTV(face);
+                        auto faceDsv = bakedProbe->GetDSV(face);
+                        cmdList->SetRootConstantBufferView(
+                            StandardShaderSlot::CameraData,
+                            *currentFrameResource->ReflectionProbePassConstantUploadBuffer, passIndex);
+                        cmdList->ClearRenderTarget(&faceRtv, 0, DirectX::Colors::Black);
+                        cmdList->ClearDepthStencil(&faceDsv, 0, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0);
+                        cmdList->SetRenderTargets(1, &faceRtv, 0, &faceDsv);
+                        cmdList->SetPipelineState(*psos[RenderMode::SkyBox]);
+                        scene.Draw(cmdList, RenderMode::SkyBox);
+                        cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
+                        scene.Draw(cmdList, RenderMode::Opaque);
+                        cmdList->SetPipelineState(*psos[RenderMode::OpaqueAlphaDrop]);
+                        scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
+                        cmdList->SetPipelineState(*psos[RenderMode::Transparent]);
+                        scene.Draw(cmdList, RenderMode::Transparent);
+                    }
+                }
+            }
+
+            cmdList->SetRootConstantBufferView(kReflectionProbeConstantsSlot,
+                                               *currentFrameResource->ReflectionProbeConstantUploadBuffer);
+
+            // Restore a baked face, including its depth, then overlay the current
+            // DynamicOpaque objects. The sampled cubemap is therefore current while
+            // static geometry is not rendered again every frame.
+            for (UINT probeIndex = firstProbeIndex; probeIndex < lastProbeIndex; ++probeIndex)
+            {
+                auto* bakedProbe = bakedReflectionProbes[probeIndex].get();
+                auto* dynamicProbe = reflectionProbes[probeIndex].get();
+                const auto probeViewport = dynamicProbe->GetViewport();
+                const auto probeRect = dynamicProbe->GetScissorRect();
+                cmdList->SetViewports(&probeViewport, 1);
+                cmdList->SetScissorRects(&probeRect, 1);
+                auto& captureTable = reflectionProbeCaptureSrvTables[probeIndex];
+                cmdList->SetDescriptorsHeap(&captureTable);
+                cmdList->UpdateDescriptorHeaps();
+                cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &captureTable);
+                for (UINT sampleIndex = 0; sampleIndex < ReflectionProbeCount; ++sampleIndex)
+                {
+                    if (sampleIndex != probeIndex)
+                    {
+                        cmdList->TransitionBarrier(reflectionProbes[sampleIndex]->GetCubeMap(),
+                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                    }
+                }
+
+                for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
+                {
+                    const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
+                    cmdList->CopyCubeMapFace(dynamicProbe->GetCubeMap(), bakedProbe->GetCubeMap(), face);
+                    cmdList->CopyResourceFromCubeMap(dynamicProbe->GetDepthMap(), bakedProbe->GetDepthMap(), face);
+                    cmdList->TransitionBarrier(dynamicProbe->GetCubeMap(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+                    cmdList->TransitionBarrier(dynamicProbe->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+                    cmdList->TransitionBarrier(bakedProbe->GetCubeMap(),
+                                               D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                    cmdList->FlushResourceBarriers();
+
+                    auto faceRtv = dynamicProbe->GetRTV(face);
+                    cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+                                                       *currentFrameResource->ReflectionProbePassConstantUploadBuffer,
+                                                       passIndex);
+                    cmdList->SetRenderTargets(1, &faceRtv, 0, dynamicProbe->GetDSV());
+                    cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
+                    scene.Draw(cmdList, RenderMode::DynamicOpaque);
+                    cmdList->SetPipelineState(*psos[RenderMode::Reflection]);
+                    scene.DrawReflectionProbesExcept(cmdList, probeIndex);
+                }
+
+                cmdList->TransitionBarrier(dynamicProbe->GetCubeMap(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                cmdList->TransitionBarrier(dynamicProbe->GetDepthMap(), D3D12_RESOURCE_STATE_COMMON);
+                cmdList->FlushResourceBarriers();
+            }
+
+            reflectionProbeContentsValid = true;
+            return;
+        }
+
+        cmdList->SetRootConstantBufferView(kReflectionProbeConstantsSlot,
+                                           *currentFrameResource->ReflectionProbeConstantUploadBuffer);
+
+        for (UINT probeIndex = firstProbeIndex; probeIndex < lastProbeIndex; ++probeIndex)
         {
             auto* probe = reflectionProbes[probeIndex].get();
             auto& cubeMap = probe->GetCubeMap();
@@ -1532,7 +1848,7 @@ namespace Common
             cmdList->SetViewports(&probeViewport, 1);
             cmdList->SetScissorRects(&probeRect, 1);
 
-            for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+            for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
             {
                 const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
                 auto faceRtv = probe->GetRTV(face);
@@ -1544,21 +1860,39 @@ namespace Common
                 cmdList->ClearDepthStencil(probe->GetDSV(), 0, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0);
                 cmdList->SetRenderTargets(1, &faceRtv, 0, probe->GetDSV());
 
-                // Probe captures intentionally contain only the base scene. RenderMode::Reflection
-                // and the fullscreen SSR pass are excluded to prevent recursive reflections and
-                // screen-space history from being baked into the cubemaps.
-
                 cmdList->SetPipelineState(*psos[RenderMode::SkyBox]);
                 scene.Draw(cmdList, RenderMode::SkyBox);
 
                 cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
                 scene.Draw(cmdList, RenderMode::Opaque);
 
+                scene.Draw(cmdList, RenderMode::DynamicOpaque);
+
                 cmdList->SetPipelineState(*psos[RenderMode::OpaqueAlphaDrop]);
                 scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
 
                 cmdList->SetPipelineState(*psos[RenderMode::Transparent]);
                 scene.Draw(cmdList, RenderMode::Transparent);
+
+                auto& captureTable = reflectionProbeCaptureSrvTables[probeIndex];
+                cmdList->SetDescriptorsHeap(&captureTable);
+                cmdList->UpdateDescriptorHeaps();
+                cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &captureTable);
+                cmdList->TransitionBarrier(bakedReflectionProbes[probeIndex]->GetCubeMap(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                for (UINT sampleIndex = 0; sampleIndex < ReflectionProbeCount; ++sampleIndex)
+                {
+                    if (sampleIndex != probeIndex)
+                    {
+                        cmdList->TransitionBarrier(reflectionProbes[sampleIndex]->GetCubeMap(),
+                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+                    }
+                }
+
+                // Gauss-Seidel style update: probe N sees the newest completed
+                // state of probes 0..N-1 and the previous state of N+1..3.
+                cmdList->SetPipelineState(*psos[RenderMode::Reflection]);
+                scene.DrawReflectionProbesExcept(cmdList, probeIndex);
             }
 
             cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -1613,11 +1947,19 @@ namespace Common
         cmdList->FlushResourceBarriers();
     }
 
-    void ReflectionRenderer::DrawReflectionProbesOnSecondGpu(const std::shared_ptr<GCommandList>& cmdList)
+    void ReflectionRenderer::DrawReflectionProbeOnSecondGpu(const std::shared_ptr<GCommandList>& cmdList,
+                                                             const UINT probeIndex,
+                                                             const UINT faceIndex)
     {
+        const UINT firstFaceIndex = faceIndex < CubeMapRenderTarget::FaceCount ? faceIndex : 0;
+        const UINT lastFaceIndex = faceIndex < CubeMapRenderTarget::FaceCount
+                                       ? faceIndex + 1
+                                       : CubeMapRenderTarget::FaceCount;
         cmdList->SetRootSignature(*secondGpuRootSignature);
         cmdList->SetDescriptorsHeap(secondProbeScene->GetSrvHeap());
         cmdList->SetDescriptorsHeap(secondGpuShadowMap->GetSrv());
+        auto& captureTable = secondGpuReflectionProbeCaptureSrvTables[probeIndex];
+        cmdList->SetDescriptorsHeap(&captureTable);
         cmdList->UpdateDescriptorHeaps();
         cmdList->SetRootShaderResourceView(
             StandardShaderSlot::MaterialData,
@@ -1632,34 +1974,35 @@ namespace Common
         cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, secondGpuShadowMap->GetSrv());
         // Default.hlsl currently uses constant ambient light, but the root table still requires a valid descriptor.
         cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, secondGpuShadowMap->GetSrv());
+        cmdList->SetRootConstantBufferView(
+            kReflectionProbeConstantsSlot,
+            *currentFrameResource->SecondReflectionProbeConstantUploadBuffer);
+        cmdList->SetRootDescriptorTable(kReflectionProbe0Slot, &captureTable);
 
-        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        if (isPrewarmingBakedProbes)
         {
-            auto* probe = secondGpuReflectionProbes[probeIndex].get();
-            auto& cubeMap = probe->GetCubeMap();
-            auto& depthMap = probe->GetDepthMap();
-            const auto probeViewport = probe->GetViewport();
-            const auto probeRect = probe->GetScissorRect();
-
-            cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
-            cmdList->TransitionBarrier(depthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            auto* bakedProbe = secondGpuBakedReflectionProbes[probeIndex].get();
+            const auto probeViewport = bakedProbe->GetViewport();
+            const auto probeRect = bakedProbe->GetScissorRect();
+            auto& bakedCubeMap = bakedProbe->GetCubeMap();
+            auto& bakedDepthMap = bakedProbe->GetDepthMap();
+            cmdList->TransitionBarrier(bakedCubeMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            cmdList->TransitionBarrier(bakedDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
             cmdList->FlushResourceBarriers();
             cmdList->SetViewports(&probeViewport, 1);
             cmdList->SetScissorRects(&probeRect, 1);
 
-            for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+            for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
             {
                 const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
-                auto faceRtv = probe->GetRTV(face);
+                auto faceRtv = bakedProbe->GetRTV(face);
+                auto faceDsv = bakedProbe->GetDSV(face);
                 cmdList->SetRootConstantBufferView(
                     StandardShaderSlot::CameraData,
-                    *currentFrameResource->SecondReflectionProbePassConstantUploadBuffer,
-                    passIndex);
+                    *currentFrameResource->SecondReflectionProbePassConstantUploadBuffer, passIndex);
                 cmdList->ClearRenderTarget(&faceRtv, 0, DirectX::Colors::Black);
-                cmdList->ClearDepthStencil(probe->GetDSV(), 0, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0);
-                cmdList->SetRenderTargets(1, &faceRtv, 0, probe->GetDSV());
-
-                // Reflection spheres and fullscreen SSR are deliberately excluded from cubemap captures.
+                cmdList->ClearDepthStencil(&faceDsv, 0, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0);
+                cmdList->SetRenderTargets(1, &faceRtv, 0, &faceDsv);
                 cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::SkyBox]);
                 secondProbeScene->Draw(cmdList, RenderMode::SkyBox);
                 cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::Opaque]);
@@ -1670,40 +2013,118 @@ namespace Common
                 secondProbeScene->Draw(cmdList, RenderMode::Transparent);
             }
 
-            cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_COPY_SOURCE);
-            cmdList->TransitionBarrier(depthMap, D3D12_RESOURCE_STATE_COMMON);
+            cmdList->TransitionBarrier(bakedCubeMap, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            cmdList->TransitionBarrier(bakedDepthMap, D3D12_RESOURCE_STATE_COPY_SOURCE);
             cmdList->FlushResourceBarriers();
         }
 
-        secondProbeContentsValid = true;
-    }
-
-    void ReflectionRenderer::CopySecondProbeOutputsToShared(const std::shared_ptr<GCommandList>& cmdList)
-    {
-        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        auto* probe = secondGpuReflectionProbes[probeIndex].get();
+        auto& cubeMap = probe->GetCubeMap();
+        auto& depthMap = probe->GetDepthMap();
+        const auto probeViewport = probe->GetViewport();
+        const auto probeRect = probe->GetScissorRect();
+        cmdList->SetViewports(&probeViewport, 1);
+        cmdList->SetScissorRects(&probeRect, 1);
+        cmdList->TransitionBarrier(secondGpuBakedReflectionProbes[probeIndex]->GetCubeMap(),
+                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        for (UINT sampleIndex = 0; sampleIndex < ReflectionProbeCount; ++sampleIndex)
         {
-            auto& cubeMap = secondGpuReflectionProbes[probeIndex]->GetCubeMap();
-            for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+            if (sampleIndex != probeIndex)
             {
-                cmdList->CopyResourceFromCubeMap(
-                    sharedReflectionProbeFaces[probeIndex][face]->GetSharedResource(), cubeMap, face);
+                cmdList->TransitionBarrier(secondGpuReflectionProbes[sampleIndex]->GetCubeMap(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
             }
         }
+        for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
+        {
+            const UINT passIndex = probeIndex * CubeMapRenderTarget::FaceCount + face;
+            auto faceRtv = probe->GetRTV(face);
+            if (!useDynamicReflectionProbes)
+            {
+                auto* bakedProbe = secondGpuBakedReflectionProbes[probeIndex].get();
+                cmdList->CopyCubeMapFace(cubeMap, bakedProbe->GetCubeMap(), face);
+                cmdList->CopyResourceFromCubeMap(depthMap, bakedProbe->GetDepthMap(), face);
+            }
+            cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            cmdList->TransitionBarrier(depthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            cmdList->FlushResourceBarriers();
+            cmdList->SetRootConstantBufferView(
+                StandardShaderSlot::CameraData,
+                *currentFrameResource->SecondReflectionProbePassConstantUploadBuffer,
+                passIndex);
+            cmdList->SetRenderTargets(1, &faceRtv, 0, probe->GetDSV());
+            if (useDynamicReflectionProbes)
+            {
+                cmdList->ClearRenderTarget(&faceRtv, 0, DirectX::Colors::Black);
+                cmdList->ClearDepthStencil(probe->GetDSV(), 0, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0);
+                cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::SkyBox]);
+                secondProbeScene->Draw(cmdList, RenderMode::SkyBox);
+                cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::Opaque]);
+                secondProbeScene->Draw(cmdList, RenderMode::Opaque);
+                cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::OpaqueAlphaDrop]);
+                secondProbeScene->Draw(cmdList, RenderMode::OpaqueAlphaDrop);
+                cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::Transparent]);
+                secondProbeScene->Draw(cmdList, RenderMode::Transparent);
+            }
+
+            cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::Opaque]);
+            secondProbeScene->Draw(cmdList, RenderMode::DynamicOpaque);
+
+            // Use the latest local state of the other three probes. Because the
+            // cyclic update leaves every completed probe shader-readable, later
+            // probes see earlier results and the four reflections converge.
+            cmdList->SetPipelineState(*secondGpuProbePsos[RenderMode::Reflection]);
+            secondProbeScene->DrawReflectionProbesExcept(cmdList, probeIndex);
+        }
+
+        cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        cmdList->TransitionBarrier(depthMap, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->FlushResourceBarriers();
+    }
+
+    void ReflectionRenderer::CopySecondProbeOutputToShared(const std::shared_ptr<GCommandList>& cmdList,
+                                                            const UINT probeIndex,
+                                                            const UINT faceIndex)
+    {
+        auto& cubeMap = secondGpuReflectionProbes[probeIndex]->GetCubeMap();
+        const UINT firstFaceIndex = faceIndex < CubeMapRenderTarget::FaceCount ? faceIndex : 0;
+        const UINT lastFaceIndex = faceIndex < CubeMapRenderTarget::FaceCount
+                                       ? faceIndex + 1
+                                       : CubeMapRenderTarget::FaceCount;
+        for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
+        {
+            cmdList->CopyResourceFromCubeMap(
+                sharedReflectionProbeFaces[probeIndex][face]->GetSharedResource(), cubeMap, face);
+        }
+        cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->FlushResourceBarriers();
     }
 
     void ReflectionRenderer::CopySharedProbeOutputsToPrimary(const std::shared_ptr<GCommandList>& cmdList)
     {
-        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        if (submittedSecondProbeIndex < primaryProbeCount ||
+            submittedSecondProbeIndex >= ReflectionProbeCount)
         {
-            auto& cubeMap = reflectionProbes[probeIndex]->GetCubeMap();
-            for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
-            {
-                cmdList->CopyResourceToCubeMap(
-                    cubeMap, sharedReflectionProbeFaces[probeIndex][face]->GetPrimeResource(), face);
-            }
-            cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            return;
         }
+
+        const UINT probeIndex = submittedSecondProbeIndex;
+        auto& cubeMap = reflectionProbes[probeIndex]->GetCubeMap();
+        const UINT firstFaceIndex = submittedSecondProbeFace < CubeMapRenderTarget::FaceCount
+                                        ? submittedSecondProbeFace
+                                        : 0;
+        const UINT lastFaceIndex = submittedSecondProbeFace < CubeMapRenderTarget::FaceCount
+                                       ? submittedSecondProbeFace + 1
+                                       : CubeMapRenderTarget::FaceCount;
+        for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
+        {
+            cmdList->CopyResourceToCubeMap(
+                cubeMap, sharedReflectionProbeFaces[probeIndex][face]->GetPrimeResource(), face);
+        }
+        cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmdList->FlushResourceBarriers();
+        submittedSecondProbeIndex = InvalidProbeIndex;
+        submittedSecondProbeFace = AllProbeFaces;
     }
     void ReflectionRenderer::DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                                      GTexture* renderTarget,
@@ -1782,6 +2203,7 @@ namespace Common
         {
             cmdList->SetPipelineState(*psos[RenderMode::ShadowMapOpaque]);
             scene.Draw(cmdList, RenderMode::Opaque);
+            scene.Draw(cmdList, RenderMode::DynamicOpaque);
 
             cmdList->SetPipelineState(*psos[RenderMode::ShadowMapOpaqueDrop]);
             scene.Draw(cmdList, RenderMode::OpaqueAlphaDrop);
@@ -1799,6 +2221,7 @@ namespace Common
 
             cmdList->SetPipelineState(*psos[RenderMode::Opaque]);
             scene.Draw(cmdList, RenderMode::Opaque);
+            scene.Draw(cmdList, RenderMode::DynamicOpaque);
 
             if (reflectionProbeContentsValid)
             {
@@ -1956,9 +2379,19 @@ namespace Common
     }
 
     void ReflectionRenderer::DrawSsrOnSecondGpu(const std::shared_ptr<GCommandList>& cmdList,
-                                                const ConstantUploadBuffer<ReflectionPassConstants>& passConstants)
+                                                 const ConstantUploadBuffer<ReflectionPassConstants>& passConstants)
     {
-        const auto targetDesc = secondGpuSsrOutputColor.GetD3D12ResourceDesc();
+        auto& target = presentationOnSecondGpu ? window->GetCurrentBackBuffer() : secondGpuSsrOutputColor;
+        GDescriptor targetRtv;
+        if (presentationOnSecondGpu)
+        {
+            targetRtv = renderTargetMemory.Offset(window->GetCurrentBackBufferIndex());
+        }
+        else
+        {
+            targetRtv = secondGpuSsrOutputRtv.Offset(0);
+        }
+        const auto targetDesc = target.GetD3D12ResourceDesc();
         const D3D12_VIEWPORT targetViewport = {
             0.0f, 0.0f,
             static_cast<float>(targetDesc.Width),
@@ -1977,11 +2410,11 @@ namespace Common
         cmdList->TransitionBarrier(secondGpuSceneColor, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmdList->TransitionBarrier(secondGpuSceneDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmdList->TransitionBarrier(secondGpuSceneNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        cmdList->TransitionBarrier(secondGpuSsrOutputColor, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        cmdList->TransitionBarrier(target, D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->FlushResourceBarriers();
 
-        cmdList->ClearRenderTarget(&secondGpuSsrOutputRtv);
-        cmdList->SetRenderTargets(1, &secondGpuSsrOutputRtv);
+        cmdList->ClearRenderTarget(&targetRtv);
+        cmdList->SetRenderTargets(1, &targetRtv);
 
         cmdList->SetRootSignature(*secondGpuRootSignature);
         cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData, passConstants);
@@ -2005,7 +2438,9 @@ namespace Common
         cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmdList->Draw(3, 1, 0, 0);
 
-        cmdList->TransitionBarrier(secondGpuSsrOutputColor, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->TransitionBarrier(target, presentationOnSecondGpu
+                                               ? D3D12_RESOURCE_STATE_PRESENT
+                                               : D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(secondGpuSceneNormal, D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(secondGpuSceneDepth, D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(secondGpuSceneColor, D3D12_RESOURCE_STATE_COMMON);
@@ -2017,14 +2452,6 @@ namespace Common
         cmdList->CopyResource(sharedSceneColor->GetPrimeResource(), composedSceneColor);
         cmdList->CopyResource(sharedSceneDepth->GetPrimeResource(), ssao->NormalDepthMap());
         cmdList->CopyResource(sharedSceneNormal->GetPrimeResource(), ssao->NormalMap());
-
-        cmdList->TransitionBarrier(sharedSceneColor->GetPrimeResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(sharedSceneDepth->GetPrimeResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(sharedSceneNormal->GetPrimeResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(composedSceneColor, D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(ssao->NormalDepthMap(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(ssao->NormalMap(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->FlushResourceBarriers();
     }
 
     void ReflectionRenderer::CopySharedSsrInputsToSecond(const std::shared_ptr<GCommandList>& cmdList)
@@ -2032,44 +2459,44 @@ namespace Common
         cmdList->CopyResource(secondGpuSceneColor, sharedSceneColor->GetSharedResource());
         cmdList->CopyResource(secondGpuSceneDepth, sharedSceneDepth->GetSharedResource());
         cmdList->CopyResource(secondGpuSceneNormal, sharedSceneNormal->GetSharedResource());
+    }
 
-        cmdList->TransitionBarrier(sharedSceneColor->GetSharedResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(sharedSceneDepth->GetSharedResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(sharedSceneNormal->GetSharedResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(secondGpuSceneColor, D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(secondGpuSceneDepth, D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(secondGpuSceneNormal, D3D12_RESOURCE_STATE_COMMON);
+    void ReflectionRenderer::DrawPresentBackBuffer(const std::shared_ptr<GCommandList>& cmdList)
+    {
+        auto currentBackBufferRtv = renderTargetMemory.Offset(window->GetCurrentBackBufferIndex());
+#if defined(DEBUG) || defined(_DEBUG)
+        if (debugMap == 2)
+        {
+            // ShadowMap is a R32 depth SRV. Present samples it as a regular
+            // texture, which makes depth directly visible in grayscale.
+            DrawFullscreenTextureToRenderTarget(cmdList,
+                                                shadowMap->GetTexture(),
+                                                shadowMap->GetSrv(),
+                                                window->GetCurrentBackBuffer(),
+                                                &currentBackBufferRtv);
+        }
+        else
+#endif
+        {
+            DrawFullscreenTextureToRenderTarget(cmdList,
+                                                ssrOutputColor,
+                                                &ssrOutputColorSrv,
+                                                window->GetCurrentBackBuffer(),
+                                                &currentBackBufferRtv);
+        }
+
+        cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
         cmdList->FlushResourceBarriers();
     }
 
     void ReflectionRenderer::CopySecondSsrOutputToShared(const std::shared_ptr<GCommandList>& cmdList)
     {
         cmdList->CopyResource(sharedSsrOutputColor->GetSharedResource(), secondGpuSsrOutputColor);
-
-        cmdList->TransitionBarrier(sharedSsrOutputColor->GetSharedResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(secondGpuSsrOutputColor, D3D12_RESOURCE_STATE_COMMON);
-        cmdList->FlushResourceBarriers();
     }
 
     void ReflectionRenderer::CopySharedSsrOutputToPrimary(const std::shared_ptr<GCommandList>& cmdList)
     {
         cmdList->CopyResource(ssrOutputColor, sharedSsrOutputColor->GetPrimeResource());
-
-        cmdList->TransitionBarrier(sharedSsrOutputColor->GetPrimeResource(), D3D12_RESOURCE_STATE_COMMON);
-        cmdList->TransitionBarrier(ssrOutputColor, D3D12_RESOURCE_STATE_COMMON);
-        cmdList->FlushResourceBarriers();
     }
 
-    void ReflectionRenderer::DrawPresentBackBuffer(const std::shared_ptr<GCommandList>& cmdList)
-    {
-        auto currentBackBufferRtv = renderTargetMemory.Offset(window->GetCurrentBackBufferIndex());
-        DrawFullscreenTextureToRenderTarget(cmdList,
-                                            ssrOutputColor,
-                                            &ssrOutputColorSrv,
-                                            window->GetCurrentBackBuffer(),
-                                            &currentBackBufferRtv);
-
-        cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-        cmdList->FlushResourceBarriers();
-    }
 }

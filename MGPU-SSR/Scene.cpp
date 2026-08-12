@@ -59,8 +59,10 @@ namespace
     constexpr float kSceneScale = 3.0f;
     constexpr float kMirrorSphereRadius = 2.5f;
     constexpr float kMovingAudiBoundingRadius = 2.5f;
-    constexpr float kMovingAudiOrbitRadius = 6.0f;
-    constexpr float kMovingAudiOrbitHeight = 6.0f;
+    // Keep the dynamic object next to the cubemap centre rather than above it.
+    // The larger horizontal radius still clears the nearby reflection sphere.
+    constexpr float kMovingAudiOrbitRadius = 8.0f;
+    constexpr float kMovingAudiOrbitHeight = 2.5f;
     constexpr float kReflectionProbeProxyHalfExtentXZ = 12.0f;
     constexpr float kReflectionProbeProxyMaxY = 30.0f;
 
@@ -340,8 +342,8 @@ namespace Common
             gameObjects.push_back(std::move(mirrorSphere));
         }
 
-        // The moving Audi is part of the opaque pass, so dynamic cubemap captures
-        // include it. Its orbit is centered on the first cubemap capture point.
+        // The moving Audi uses the dedicated dynamic pass. The renderer includes
+        // that pass in every cubemap capture and in the main scene.
         // The conservative bounding-sphere check keeps it outside the visible
         // mirror sphere while remaining inside that probe's proxy box.
         const Vector3 movingOrbitCenter = reflectionProbeCenters[0];
@@ -371,7 +373,9 @@ namespace Common
             probeOrbitTransform, movingOrbitOffset, 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
         renderer = std::make_shared<ModelRenderer>(device, models[L"audi"]);
         movingAudi->AddComponent(renderer);
-        typedGameObjects[static_cast<uint8_t>(RenderMode::Opaque)].push_back(movingAudi.get());
+        typedGameObjects[static_cast<uint8_t>(RenderMode::DynamicOpaque)].push_back(movingAudi.get());
+        benchmarkMovingCar = movingAudi.get();
+        benchmarkMovingCarMatrix = movingAudi->GetTransform()->GetLocalMatrix();
         gameObjects.push_back(std::move(movingAudi));
 
         auto sun = std::make_unique<GameObject>("Directional Light");
@@ -576,17 +580,20 @@ namespace Common
         auto mainCamera = std::make_unique<GameObject>("MainCamera");
 #if !defined(DEBUG) && !defined(_DEBUG)
         auto cameraOrbit = std::make_unique<GameObject>("Release Camera Orbit");
-        cameraOrbit->GetTransform()->SetPosition(Vector3(0.0f, 8.0f, 10.0f));
-        // Match the CubeMap sample's parent orientation: Rotater advances local
-        // X, which becomes a horizontal orbit around the scene with this basis.
-        cameraOrbit->GetTransform()->SetEulerRotate(Vector3(0.0f, -90.0f, 90.0f));
+        // Orbit horizontally around the scene centre. Keeping the parent basis
+        // aligned with world axes makes the rotation axis explicit and stable.
+        cameraOrbit->GetTransform()->SetPosition(Vector3(0.0f, 10.0f, 10.0f));
+        benchmarkCameraOrbit = cameraOrbit.get();
+        benchmarkCameraOrbitMatrix = cameraOrbit->GetTransform()->GetLocalMatrix();
         mainCamera->GetTransform()->SetParent(cameraOrbit->GetTransform().get());
-        mainCamera->GetTransform()->SetPosition(Vector3(0.0f, 12.0f, -65.0f));
+        mainCamera->GetTransform()->SetPosition(Vector3(0.0f, 10.0f, -35.0f));
 #else
         // Keep the debug camera independent, so CameraController remains fully manual.
         mainCamera->GetTransform()->SetPosition(Vector3(0.0f, 20.0f, -55.0f));
 #endif
         mainCamera->GetTransform()->SetEulerRotate(Vector3(18.0f, 180.0f, 0.0f));
+        benchmarkCamera = mainCamera.get();
+        benchmarkCameraMatrix = mainCamera->GetTransform()->GetLocalMatrix();
         sceneCamera = std::make_shared<Camera>(aspectRatio);
         sceneCamera->SetFov(60.0f);
         sceneCamera->SetNearZ(0.1f);
@@ -595,7 +602,11 @@ namespace Common
 #if defined(DEBUG) || defined(_DEBUG)
         mainCamera->AddComponent(std::make_shared<CameraController>(8.0f));
 #else
-        cameraOrbit->AddComponent(std::make_shared<Rotater>(8.0f));
+        // Do not derive the view direction from local Euler angles: the parent
+        // turns every frame. Looking at the orbit centre keeps the test scene
+        // centred throughout the entire Release trajectory.
+        sceneCamera->SetLookAtTarget(cameraOrbit->GetTransform().get());
+        cameraOrbit->AddComponent(std::make_shared<Rotater>(8.0f, Vector3::UnitY));
         gameObjects.push_back(std::move(cameraOrbit));
 #endif
         gameObjects.push_back(std::move(mainCamera));
@@ -675,6 +686,45 @@ namespace Common
         for (auto* object : typedGameObjects[index])
         {
             object->Draw(cmdList);
+        }
+    }
+
+    void Scene::ResetBenchmarkAnimation()
+    {
+        if (benchmarkCameraOrbit != nullptr)
+        {
+            benchmarkCameraOrbit->GetTransform()->SetLocalMatrix(benchmarkCameraOrbitMatrix);
+            if (const auto rotater = benchmarkCameraOrbit->GetComponent<Rotater>())
+            {
+                rotater->Reset();
+            }
+        }
+
+        if (benchmarkCamera != nullptr)
+        {
+            benchmarkCamera->GetTransform()->SetLocalMatrix(benchmarkCameraMatrix);
+        }
+
+        if (benchmarkMovingCar != nullptr)
+        {
+            benchmarkMovingCar->GetTransform()->SetLocalMatrix(benchmarkMovingCarMatrix);
+            if (const auto orbiter = benchmarkMovingCar->GetComponent<Orbiter>())
+            {
+                orbiter->Reset();
+            }
+        }
+    }
+
+    void Scene::DrawReflectionProbesExcept(const std::shared_ptr<GCommandList>& cmdList,
+                                           const UINT excludedProbeIndex) const
+    {
+        const auto& reflectionObjects = typedGameObjects[static_cast<size_t>(RenderMode::Reflection)];
+        for (UINT probeIndex = 0; probeIndex < reflectionObjects.size(); ++probeIndex)
+        {
+            if (probeIndex != excludedProbeIndex)
+            {
+                reflectionObjects[probeIndex]->Draw(cmdList);
+            }
         }
     }
 

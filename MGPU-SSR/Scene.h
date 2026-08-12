@@ -29,8 +29,11 @@ namespace Common
                         const DirectX::SimpleMath::Vector3& directionalLightDirection);
 
         void Update();
+        // Restores deterministic camera/orbit/car positions before each benchmark state.
+        void ResetBenchmarkAnimation();
         void UpdateMaterials(FrameResource* frameResource, bool useSecondGpuBuffer = false);
         void Draw(const std::shared_ptr<GCommandList>& cmdList, PEPEngine::Graphics::RenderMode mode) const;
+        void DrawReflectionProbesExcept(const std::shared_ptr<GCommandList>& cmdList, UINT excludedProbeIndex) const;
 
         GDescriptor* GetSrvHeap();
         std::shared_ptr<Camera> GetCamera() const;
@@ -64,6 +67,12 @@ namespace Common
         std::vector<std::vector<GameObject*>> typedGameObjects;
         std::vector<Light*> lights;
         std::shared_ptr<Camera> sceneCamera;
+        GameObject* benchmarkCamera = nullptr;
+        GameObject* benchmarkCameraOrbit = nullptr;
+        GameObject* benchmarkMovingCar = nullptr;
+        DirectX::SimpleMath::Matrix benchmarkCameraMatrix = DirectX::SimpleMath::Matrix::Identity;
+        DirectX::SimpleMath::Matrix benchmarkCameraOrbitMatrix = DirectX::SimpleMath::Matrix::Identity;
+        DirectX::SimpleMath::Matrix benchmarkMovingCarMatrix = DirectX::SimpleMath::Matrix::Identity;
         DirectX::BoundingSphere bounds;
         std::array<DirectX::SimpleMath::Vector3, ReflectionProbeCount> reflectionProbeCenters{};
     };

@@ -181,6 +181,7 @@ namespace PEPEngine::Graphics
         void CopyResource(const GResource& dstRes, const GResource& srcRes);
         void CopyResourceToCubeMap(const GResource& dstCube, const GResource& srcTex, UINT faceIndex);
         void CopyResourceToCubeMap(const ComPtr<ID3D12Resource>& dstCube, const ComPtr<ID3D12Resource>& srcTex, UINT faceIndex);
+        void CopyCubeMapFace(const GResource& dstCube, const GResource& srcCube, UINT faceIndex);
         void CopyResourceFromCubeMap(const GResource& dstTex, const GResource& srcCube, UINT faceIndex);
         void CopyResourceFromCubeMap(const ComPtr<ID3D12Resource>& dstTex, const ComPtr<ID3D12Resource>& srcCube,
                                      UINT faceIndex);
