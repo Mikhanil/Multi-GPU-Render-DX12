@@ -8,6 +8,7 @@
 #include "States/ReflectionBenchmarkState.h"
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <filesystem>
 
 using namespace DirectX::SimpleMath;
@@ -243,17 +244,18 @@ namespace Common
             commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);
         }
 
-        if (activeGpuPairContext->secondaryDevice != nullptr &&
-            currentFrameResource->SecondProbeFenceValue != 0)
-        {
-            auto secondQueue = activeGpuPairContext->secondaryDevice->GetCommandQueue(GQueueType::Graphics);
-            if (!secondQueue->IsFinish(currentFrameResource->SecondProbeFenceValue))
-            {
-                secondQueue->WaitForFenceValue(currentFrameResource->SecondProbeFenceValue);
-            }
-        }
-
         benchmark.Tick(gt.DeltaTime());
+
+#if !defined(DEBUG) && !defined(_DEBUG)
+        // The final state's log has already been written synchronously from
+        // ReflectionBenchmarkState::Exit().  Exit here instead of closing the
+        // window: normal teardown flushes every GPU and can wait forever after
+        // a secondary adapter has stopped making progress.
+        if (benchmark.IsFinished())
+        {
+            std::exit(EXIT_SUCCESS);
+        }
+#endif
 
         if (benchmark.IsFinished() && !benchmarkFinished)
         {

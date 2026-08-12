@@ -343,8 +343,10 @@ namespace Common
                                    ? primaryProbeCount
                                    : InvalidProbeIndex;
         nextSecondProbeFace = 0;
-        submittedSecondProbeIndex = InvalidProbeIndex;
-        submittedSecondProbeFace = AllProbeFaces;
+        nextSharedProbeIndex = primaryProbeCount < ReflectionProbeCount
+                                   ? primaryProbeCount
+                                   : InvalidProbeIndex;
+        nextSharedProbeFace = 0;
     }
 
 
@@ -367,8 +369,10 @@ namespace Common
                                    ? primaryProbeCount
                                    : InvalidProbeIndex;
         nextSecondProbeFace = 0;
-        submittedSecondProbeIndex = InvalidProbeIndex;
-        submittedSecondProbeFace = AllProbeFaces;
+        nextSharedProbeIndex = primaryProbeCount < ReflectionProbeCount
+                                   ? primaryProbeCount
+                                   : InvalidProbeIndex;
+        nextSharedProbeFace = 0;
     }
 
     void ReflectionRenderer::ResetSecondaryBenchmarkAnimation()
@@ -421,8 +425,10 @@ namespace Common
         nextPrimaryProbeIndex = 0;
         nextPrimaryProbeFace = 0;
         nextSecondProbeFace = 0;
-        submittedSecondProbeIndex = InvalidProbeIndex;
-        submittedSecondProbeFace = AllProbeFaces;
+        nextSharedProbeIndex = primaryProbeCount < ReflectionProbeCount
+                                   ? primaryProbeCount
+                                   : InvalidProbeIndex;
+        nextSharedProbeFace = 0;
         isPrewarmingBakedProbes = false;
     }
     void ReflectionRenderer::Update(const GameTimer& gt)
@@ -570,8 +576,6 @@ namespace Common
     }
     void ReflectionRenderer::RenderProbesOnSecondGpu()
     {
-        submittedSecondProbeIndex = InvalidProbeIndex;
-        submittedSecondProbeFace = AllProbeFaces;
         if (!IsMgpuProbeEnabled() || currentFrameResource == nullptr || secondDevice == nullptr ||
             secondProbeScene == nullptr || secondGpuShadowMap == nullptr ||
             currentFrameResource->SecondReflectionProbePassConstantUploadBuffer == nullptr ||
@@ -624,8 +628,6 @@ namespace Common
             const UINT faceIndex = updateOneProbeFacePerFrame ? nextSecondProbeFace : AllProbeFaces;
             DrawReflectionProbeOnSecondGpu(secondCmdList, probeIndex, faceIndex);
             CopySecondProbeOutputToShared(secondCmdList, probeIndex, faceIndex);
-            submittedSecondProbeIndex = probeIndex;
-            submittedSecondProbeFace = faceIndex;
 
             if (updateOneProbeFacePerFrame)
             {
@@ -2099,19 +2101,20 @@ namespace Common
 
     void ReflectionRenderer::CopySharedProbeOutputsToPrimary(const std::shared_ptr<GCommandList>& cmdList)
     {
-        if (submittedSecondProbeIndex < primaryProbeCount ||
-            submittedSecondProbeIndex >= ReflectionProbeCount)
+        // The producer and consumer advance independently. Shared slots retain
+        // their latest contents, so primary copies one assigned cubemap (or one
+        // face) every frame without tracking what secondary submitted.
+        if (nextSharedProbeIndex < primaryProbeCount || nextSharedProbeIndex >= ReflectionProbeCount)
         {
-            return;
+            nextSharedProbeIndex = primaryProbeCount;
+            nextSharedProbeFace = 0;
         }
 
-        const UINT probeIndex = submittedSecondProbeIndex;
+        const UINT probeIndex = nextSharedProbeIndex;
         auto& cubeMap = reflectionProbes[probeIndex]->GetCubeMap();
-        const UINT firstFaceIndex = submittedSecondProbeFace < CubeMapRenderTarget::FaceCount
-                                        ? submittedSecondProbeFace
-                                        : 0;
-        const UINT lastFaceIndex = submittedSecondProbeFace < CubeMapRenderTarget::FaceCount
-                                       ? submittedSecondProbeFace + 1
+        const UINT firstFaceIndex = updateOneProbeFacePerFrame ? nextSharedProbeFace : 0;
+        const UINT lastFaceIndex = updateOneProbeFacePerFrame
+                                       ? firstFaceIndex + 1
                                        : CubeMapRenderTarget::FaceCount;
         for (UINT face = firstFaceIndex; face < lastFaceIndex; ++face)
         {
@@ -2120,8 +2123,25 @@ namespace Common
         }
         cmdList->TransitionBarrier(cubeMap, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         cmdList->FlushResourceBarriers();
-        submittedSecondProbeIndex = InvalidProbeIndex;
-        submittedSecondProbeFace = AllProbeFaces;
+
+        if (updateOneProbeFacePerFrame)
+        {
+            ++nextSharedProbeFace;
+            if (nextSharedProbeFace >= CubeMapRenderTarget::FaceCount)
+            {
+                nextSharedProbeFace = 0;
+                ++nextSharedProbeIndex;
+            }
+        }
+        else
+        {
+            ++nextSharedProbeIndex;
+        }
+
+        if (nextSharedProbeIndex >= ReflectionProbeCount)
+        {
+            nextSharedProbeIndex = primaryProbeCount;
+        }
     }
     void ReflectionRenderer::DrawSceneToRenderTarget(const std::shared_ptr<GCommandList>& cmdList,
                                                      GTexture* renderTarget,

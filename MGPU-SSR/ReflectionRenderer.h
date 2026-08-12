@@ -191,8 +191,8 @@ namespace Common
         bool secondShadowMapBaked = false;
         UINT nextSecondProbeIndex = InvalidProbeIndex;
         UINT nextSecondProbeFace = 0;
-        UINT submittedSecondProbeIndex = InvalidProbeIndex;
-        UINT submittedSecondProbeFace = AllProbeFaces;
+        UINT nextSharedProbeIndex = InvalidProbeIndex;
+        UINT nextSharedProbeFace = 0;
         std::unique_ptr<Scene> secondProbeScene;
         std::unique_ptr<ShadowMap> secondGpuShadowMap;
         std::array<std::unique_ptr<CubeMapRenderTarget>, ReflectionProbeCount> secondGpuReflectionProbes;
