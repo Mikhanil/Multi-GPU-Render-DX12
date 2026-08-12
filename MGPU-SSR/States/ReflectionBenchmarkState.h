@@ -12,7 +12,7 @@ namespace Common
     class ReflectionBenchmarkState final : public BenchmarkState
     {
     public:
-        ReflectionBenchmarkState(ReflectionApp& app, bool useSecondGpuForSsr,
+        ReflectionBenchmarkState(ReflectionApp& app, uint32_t gpuPairContextIndex, bool useSecondGpuForSsr,
                                  uint32_t primaryProbeCount, bool dynamicReflectionProbes,
                                  bool updateOneProbeFacePerFrame, uint32_t ssaaMultiplier,
                                  bool isSsaaExpansionProbe, bool endsSsaaLevel, std::wstring name,
@@ -27,6 +27,7 @@ namespace Common
 
     private:
         ReflectionApp& app;
+        uint32_t gpuPairContextIndex;
         bool useSecondGpuForSsr;
         uint32_t primaryProbeCount;
         bool dynamicReflectionProbes;

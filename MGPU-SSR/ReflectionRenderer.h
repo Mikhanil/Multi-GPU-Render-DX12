@@ -31,6 +31,7 @@ namespace Common
     {
     public:
         ReflectionRenderer(std::shared_ptr<Window> window, Scene& scene, std::shared_ptr<Camera> camera,
+                           std::shared_ptr<GDevice> primaryDevice, std::shared_ptr<GDevice> secondaryDevice,
                            DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthStencilFormat, bool is4xMsaa,
                            UINT msaaQuality);
 
@@ -123,6 +124,7 @@ namespace Common
         std::shared_ptr<Window> window;
         Scene& scene;
         std::shared_ptr<Camera> camera;
+        std::shared_ptr<GDevice> primaryDevice;
         FrameResource* currentFrameResource = nullptr;
         UINT debugMap = 0;
         DXGI_FORMAT backBufferFormat = DXGI_FORMAT_UNKNOWN;

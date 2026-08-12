@@ -192,6 +192,7 @@ namespace PEPEngine::Graphics
     std::vector<ComPtr<IDXGIAdapter3>> GDeviceFactory::adapters = GetAdapters();
     std::vector<std::shared_ptr<GDevice>> GDeviceFactory::hardwareDevices = CreateDevices();
     std::shared_ptr<GDevice> GDeviceFactory::wrapDevice = nullptr;
+    std::vector<std::shared_ptr<GDevice>> GDeviceFactory::devicesWithWarp;
 
     ComPtr<IDXGIFactory4> GDeviceFactory::CreateFactory()
     {
@@ -316,9 +317,9 @@ namespace PEPEngine::Graphics
         return dxgiFactory;
     }
 
-    std::shared_ptr<GDevice>& GDeviceFactory::GetDevice(const GraphicsAdapter adapter)
+    std::shared_ptr<GDevice>& GDeviceFactory::GetDevice(const UINT adapterIndex)
     {
-        return hardwareDevices[adapter];
+        return hardwareDevices[adapterIndex];
     }
 
 
@@ -341,8 +342,9 @@ namespace PEPEngine::Graphics
             }
         }
 
-        hardwareDevices.push_back(wrapDevice);
-        return hardwareDevices;
+        devicesWithWarp = hardwareDevices;
+        devicesWithWarp.push_back(wrapDevice);
+        return devicesWithWarp;
     }
 
     bool GDeviceFactory::IsTearingSupport()

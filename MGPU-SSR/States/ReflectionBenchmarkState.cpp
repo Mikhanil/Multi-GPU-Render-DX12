@@ -6,6 +6,7 @@
 namespace Common
 {
     ReflectionBenchmarkState::ReflectionBenchmarkState(ReflectionApp& app,
+                                                         const uint32_t gpuPairContextIndex,
                                                          const bool useSecondGpuForSsr,
                                                          const uint32_t primaryProbeCount,
                                                          const bool dynamicReflectionProbes,
@@ -18,6 +19,7 @@ namespace Common
                                                          const FileQueueWriter& writer)
         : BenchmarkState(writer),
           app(app),
+          gpuPairContextIndex(gpuPairContextIndex),
           useSecondGpuForSsr(useSecondGpuForSsr),
           primaryProbeCount(primaryProbeCount),
           dynamicReflectionProbes(dynamicReflectionProbes),
@@ -35,7 +37,7 @@ namespace Common
         BenchmarkState::Enter();
         samplesTaken = 0;
         totalFps = 0.0f;
-        app.SetReflectionBenchmarkConfiguration(useSecondGpuForSsr, primaryProbeCount,
+        app.SetReflectionBenchmarkConfiguration(gpuPairContextIndex, useSecondGpuForSsr, primaryProbeCount,
                                                 dynamicReflectionProbes, updateOneProbeFacePerFrame,
                                                 ssaaMultiplier);
         fileQueueWriter.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");

@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "GameObject.h"
 #include "States/ReflectionBenchmarkState.h"
+#include <algorithm>
 #include <array>
 #include <filesystem>
 
@@ -28,46 +29,19 @@ namespace Common
         if (!D3DApp::Initialize())
             return false;
 
-        auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
-        auto cmdList = commandQueue->GetCommandList();
-
-        scene = std::make_unique<Scene>(GDeviceFactory::GetDevice());
-        scene->Initialize(cmdList, AspectRatio(), mainLightDirection);
-        camera = scene->GetCamera();
-
-        renderer = std::make_unique<ReflectionRenderer>(MainWindow, *scene, camera, backBufferFormat,
-                                                        depthStencilFormat, isM4xMsaa, m4xMsaaQuality);
-        renderer->SetUseSecondGpuForSsr(isUsingSecondGpuForSsr);
-        renderer->SetUseSecondGpuForReflectionProbes(isUsingSecondGpuForReflectionProbes);
-        renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
-        renderer->SetUpdateOneProbeFacePerFrame(isUpdatingOneProbeFacePerFrame);
-        renderer->Initialize(cmdList);
-#if defined(DEBUG) || defined(_DEBUG)
-        renderer->SetDebugMap(pathMapShow);
-#endif
+        InitializeGpuPairContexts();
+        if (gpuPairContexts.empty())
+        {
+            return false;
+        }
+        ActivateGpuPairContext(0);
+        MainWindow->SetPresentationDevice(activeGpuPairContext->primaryDevice);
+        renderer->SetPresentationOnSecondGpu(false);
         renderer->OnResize();
 
-        commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
-        GDeviceFactory::GetDevice()->Flush();
-        Flush();
-
-        BuildFrameResources();
-        Flush();
-
-        // Allocate and populate the complete baked set before Run() displays
-        // its first frame. Benchmark states never initialise cubemap resources.
-        currentFrameResourceIndex = 0;
-        currentFrameResource = frameResources[currentFrameResourceIndex].get();
-        scene->Update();
-        scene->UpdateMaterials(currentFrameResource);
-        renderer->SetFrameResource(currentFrameResource);
-        renderer->Update(*GetTimer());
-        renderer->PrewarmReflectionProbeBakes();
-        Flush();
-
 #if !defined(DEBUG) && !defined(_DEBUG)
-        // Each SSAA tier has 40 states: five 4-probe distributions, baked/full
-        // dynamic capture, whole-probe/one-face updates, and SSR on either adapter.
+        // Each GPU pair has 40 states per SSAA tier: five 4-probe distributions,
+        // baked/full dynamic capture, whole-probe/one-face updates, and SSR placement.
         // Further tiers are appended only after the level's control state proves
         // that the current SSAA factor still sustains more than 30 FPS.
         benchmark.SetLooping(false);
@@ -257,20 +231,22 @@ namespace Common
 
     void ReflectionApp::Update(const GameTimer& gt)
     {
-        auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
+        auto commandQueue = activeGpuPairContext->primaryDevice->GetCommandQueue(GQueueType::Graphics);
 
-        currentFrameResourceIndex = (currentFrameResourceIndex + 1) % globalCountFrameResources;
-        currentFrameResource = frameResources[currentFrameResourceIndex].get();
+        activeGpuPairContext->currentFrameResourceIndex =
+            (activeGpuPairContext->currentFrameResourceIndex + 1) % globalCountFrameResources;
+        currentFrameResource = activeGpuPairContext->frameResources[
+            activeGpuPairContext->currentFrameResourceIndex].get();
 
         if (currentFrameResource->FenceValue != 0 && !commandQueue->IsFinish(currentFrameResource->FenceValue))
         {
             commandQueue->WaitForFenceValue(currentFrameResource->FenceValue);
         }
 
-        const auto& devices = GDeviceFactory::GetAllDevices(false);
-        if (devices.size() > GraphicAdapterSecond && currentFrameResource->SecondProbeFenceValue != 0)
+        if (activeGpuPairContext->secondaryDevice != nullptr &&
+            currentFrameResource->SecondProbeFenceValue != 0)
         {
-            auto secondQueue = GDeviceFactory::GetDevice(GraphicAdapterSecond)->GetCommandQueue(GQueueType::Graphics);
+            auto secondQueue = activeGpuPairContext->secondaryDevice->GetCommandQueue(GQueueType::Graphics);
             if (!secondQueue->IsFinish(currentFrameResource->SecondProbeFenceValue))
             {
                 secondQueue->WaitForFenceValue(currentFrameResource->SecondProbeFenceValue);
@@ -291,13 +267,15 @@ namespace Common
         renderer->Update(gt);
     }
 
-    void ReflectionApp::SetReflectionBenchmarkConfiguration(const bool useSecondGpuForSsr,
+    void ReflectionApp::SetReflectionBenchmarkConfiguration(const UINT gpuPairContextIndex,
+                                                             const bool useSecondGpuForSsr,
                                                              const UINT primaryProbeCount,
                                                              const bool dynamicReflectionProbes,
                                                              const bool updateOneProbeFacePerFrame,
                                                              const UINT ssaaLevel)
     {
         Flush();
+        ActivateGpuPairContext(gpuPairContextIndex);
         scene->ResetBenchmarkAnimation();
         isUsingSecondGpuForSsr = useSecondGpuForSsr;
         isUsingSecondGpuForReflectionProbes = primaryProbeCount < Scene::ReflectionProbeCount;
@@ -314,8 +292,8 @@ namespace Common
 
         const bool presentOnSecondGpu = renderer->IsMgpuSsrEnabled();
         const auto presentationDevice = presentOnSecondGpu
-                                            ? GDeviceFactory::GetDevice(GraphicAdapterSecond)
-                                            : GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+                                            ? activeGpuPairContext->secondaryDevice
+                                            : activeGpuPairContext->primaryDevice;
         MainWindow->SetPresentationDevice(presentationDevice);
         renderer->SetPresentationOnSecondGpu(presentOnSecondGpu);
         renderer->OnResize();
@@ -323,6 +301,8 @@ namespace Common
         const UINT secondaryProbeCount = Scene::ReflectionProbeCount - primaryProbeCount;
         MainWindow->SetWindowTitle(
             L"MGPU-SSR | SSAA x" + std::to_wstring(ssaaLevel) +
+            L" | GPU " + std::to_wstring(activeGpuPairContext->primaryAdapterIndex + 1) + L"+" +
+            std::to_wstring(activeGpuPairContext->secondaryAdapterIndex + 1) +
             L" | Cubemap " + std::to_wstring(primaryProbeCount) + L"/" +
             std::to_wstring(secondaryProbeCount) +
             (dynamicReflectionProbes ? L" | Full dynamic" : L" | Baked + dynamic overlay") +
@@ -334,51 +314,62 @@ namespace Common
     {
         constexpr uint32_t benchmarkDurationSeconds = 100;
         constexpr std::array<UINT, 5> primaryProbeCounts = {4, 0, 1, 2, 3};
-        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
-        const auto& devices = GDeviceFactory::GetAllDevices(false);
-        const auto secondDevice = devices.size() > GraphicAdapterSecond
-                                      ? GDeviceFactory::GetDevice(GraphicAdapterSecond)
-                                      : primaryDevice;
         const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
         std::error_code error;
         std::filesystem::create_directories(logDirectory, error);
 
-        for (const bool fullDynamic : {false, true})
+        for (UINT pairIndex = 0; pairIndex < gpuPairContexts.size(); ++pairIndex)
         {
-            for (const UINT primaryCount : primaryProbeCounts)
+            const auto& pair = *gpuPairContexts[pairIndex];
+            const std::wstring pairMode = L"GPU " + std::to_wstring(pair.primaryAdapterIndex + 1) + L"+" +
+                std::to_wstring(pair.secondaryAdapterIndex + 1);
+            const std::wstring pairLogName = L"GPU" + std::to_wstring(pair.primaryAdapterIndex + 1) + L"-" +
+                std::to_wstring(pair.secondaryAdapterIndex + 1);
+            for (const bool fullDynamic : {false, true})
             {
-                for (const bool updateOneFace : {false, true})
+                for (const UINT primaryCount : primaryProbeCounts)
                 {
-                    for (const bool ssrOnSecondary : {false, true})
+                    for (const bool updateOneFace : {false, true})
                     {
-                        const UINT secondaryCount = Scene::ReflectionProbeCount - primaryCount;
-                        const std::wstring cubeMapMode = fullDynamic
-                                                             ? L"Full dynamic"
-                                                             : L"Baked + local dynamic overlay";
-                        const std::wstring updateMode = updateOneFace
-                                                            ? L"One face/frame"
-                                                            : L"One cubemap/frame";
-                        const std::wstring ssrMode = ssrOnSecondary ? L"SSR Secondary" : L"SSR Primary";
-                        const std::wstring name = L"SSAA x" + std::to_wstring(ssaaLevel) + L" | " + cubeMapMode +
-                            L" | Cubemap " + std::to_wstring(primaryCount) + L"/" +
-                            std::to_wstring(secondaryCount) + L" | " + updateMode + L" | " + ssrMode;
-                        const std::wstring logName = L"SSAAx" + std::to_wstring(ssaaLevel) +
-                            (fullDynamic ? L"_FullDynamic" : L"_BakedOverlay") +
-                            L"_Cubemap" + std::to_wstring(primaryCount) + L"-" +
-                            std::to_wstring(secondaryCount) +
-                            (updateOneFace ? L"_OneFace" : L"_WholeCube") +
-                            (ssrOnSecondary ? L"_SSRSecondary" : L"_SSRPrimary");
-                        const bool isExpansionProbe = fullDynamic && primaryCount == 4 &&
-                            !updateOneFace && !ssrOnSecondary;
-                        const bool endsSsaaLevel = fullDynamic && primaryCount == 3 &&
-                            updateOneFace && ssrOnSecondary;
-                        const auto logPath = logDirectory /
-                            (logName + L" " + primaryDevice->GetName() + L"+" + secondDevice->GetName() + L".log");
+                        for (const bool ssrOnSecondary : {false, true})
+                        {
+                            if (pair.secondaryDevice == nullptr &&
+                                (ssrOnSecondary || primaryCount < Scene::ReflectionProbeCount))
+                            {
+                                continue;
+                            }
+                            const UINT secondaryCount = Scene::ReflectionProbeCount - primaryCount;
+                            const std::wstring cubeMapMode = fullDynamic
+                                                                 ? L"Full dynamic"
+                                                                 : L"Baked + local dynamic overlay";
+                            const std::wstring updateMode = updateOneFace
+                                                                ? L"One face/frame"
+                                                                : L"One cubemap/frame";
+                            const std::wstring ssrMode = ssrOnSecondary ? L"SSR Secondary" : L"SSR Primary";
+                            const std::wstring name = L"SSAA x" + std::to_wstring(ssaaLevel) + L" | " + pairMode +
+                                L" | " + cubeMapMode + L" | Cubemap " + std::to_wstring(primaryCount) + L"/" +
+                                std::to_wstring(secondaryCount) + L" | " + updateMode + L" | " + ssrMode;
+                            const std::wstring logName = L"SSAAx" + std::to_wstring(ssaaLevel) + L"_" + pairLogName +
+                                (fullDynamic ? L"_FullDynamic" : L"_BakedOverlay") +
+                                L"_Cubemap" + std::to_wstring(primaryCount) + L"-" +
+                                std::to_wstring(secondaryCount) +
+                                (updateOneFace ? L"_OneFace" : L"_WholeCube") +
+                                (ssrOnSecondary ? L"_SSRSecondary" : L"_SSRPrimary");
+                            const bool isExpansionProbe = pairIndex == 0 && fullDynamic && primaryCount == 4 &&
+                                !updateOneFace && !ssrOnSecondary;
+                            const bool endsSsaaLevel = pairIndex + 1 == gpuPairContexts.size() && fullDynamic &&
+                                primaryCount == 3 && updateOneFace && ssrOnSecondary;
+                            const auto logPath = logDirectory /
+                                (logName + L" " + pair.primaryDevice->GetName() + L"+" +
+                                 (pair.secondaryDevice != nullptr
+                                      ? pair.secondaryDevice->GetName()
+                                      : L"SingleGPU") + L".log");
 
-                        benchmark.AddState<ReflectionBenchmarkState>(
-                            *this, ssrOnSecondary, primaryCount, fullDynamic, updateOneFace, ssaaLevel,
-                            isExpansionProbe, endsSsaaLevel, name, benchmarkDurationSeconds,
-                            FileQueueWriter(logPath));
+                            benchmark.AddState<ReflectionBenchmarkState>(
+                                *this, pairIndex, ssrOnSecondary, primaryCount, fullDynamic, updateOneFace, ssaaLevel,
+                                isExpansionProbe, endsSsaaLevel, name, benchmarkDurationSeconds,
+                                FileQueueWriter(logPath));
+                        }
                     }
                 }
             }
@@ -426,7 +417,7 @@ namespace Common
     {
         if (isResizing) return;
 
-        auto commandQueue = GDeviceFactory::GetDevice()->GetCommandQueue(GQueueType::Graphics);
+        auto commandQueue = activeGpuPairContext->primaryDevice->GetCommandQueue(GQueueType::Graphics);
         bool shouldPresent = true;
 
         if (renderer->IsMgpuProbeEnabled())
@@ -464,11 +455,110 @@ namespace Common
         }
     }
 
-    void ReflectionApp::BuildFrameResources()
+    void ReflectionApp::InitializeGpuPairContexts()
+    {
+        const auto& devices = GDeviceFactory::GetAllDevices(false);
+        const UINT hardwareDeviceCount = static_cast<UINT>(std::min<size_t>(devices.size(), GraphicAdapterCount));
+        if (hardwareDeviceCount == 0)
+        {
+            return;
+        }
+
+        std::vector<std::pair<UINT, UINT>> adapterPairs;
+        if (hardwareDeviceCount >= GraphicAdapterCount)
+        {
+            // The extended benchmark is enabled only when three real hardware
+            // adapters exist. WARP is absent from `devices` by construction.
+            adapterPairs.emplace_back(GraphicAdapterPrimary, GraphicAdapterSecond);
+            adapterPairs.emplace_back(GraphicAdapterPrimary, GraphicAdapterThird);
+            adapterPairs.emplace_back(GraphicAdapterSecond, GraphicAdapterThird);
+        }
+        else if (hardwareDeviceCount >= 2)
+        {
+            adapterPairs.emplace_back(GraphicAdapterPrimary, GraphicAdapterSecond);
+        }
+        else
+        {
+            adapterPairs.emplace_back(0, 0);
+        }
+
+        for (const auto [primaryIndex, secondaryIndex] : adapterPairs)
+        {
+            auto context = std::make_unique<GpuPairContext>();
+            context->primaryAdapterIndex = primaryIndex;
+            context->secondaryAdapterIndex = secondaryIndex;
+            context->primaryDevice = devices[primaryIndex];
+            context->secondaryDevice = primaryIndex == secondaryIndex ? nullptr : devices[secondaryIndex];
+
+            MainWindow->SetPresentationDevice(context->primaryDevice);
+            auto commandQueue = context->primaryDevice->GetCommandQueue(GQueueType::Graphics);
+            auto cmdList = commandQueue->GetCommandList();
+
+            context->scene = std::make_unique<Scene>(context->primaryDevice);
+            context->scene->Initialize(cmdList, AspectRatio(), mainLightDirection);
+            const auto contextCamera = context->scene->GetCamera();
+            context->renderer = std::make_unique<ReflectionRenderer>(
+                MainWindow, *context->scene, contextCamera, context->primaryDevice, context->secondaryDevice,
+                backBufferFormat, depthStencilFormat, isM4xMsaa, m4xMsaaQuality);
+            context->renderer->SetUseSecondGpuForSsr(isUsingSecondGpuForSsr);
+            context->renderer->SetUseSecondGpuForReflectionProbes(isUsingSecondGpuForReflectionProbes);
+            context->renderer->SetUseDynamicReflectionProbes(isUsingDynamicReflectionProbes);
+            context->renderer->SetUpdateOneProbeFacePerFrame(isUpdatingOneProbeFacePerFrame);
+            context->renderer->Initialize(cmdList);
+#if defined(DEBUG) || defined(_DEBUG)
+            context->renderer->SetDebugMap(pathMapShow);
+#endif
+            context->renderer->OnResize();
+
+            commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+            context->primaryDevice->Flush();
+            Flush();
+
+            BuildFrameResources(*context);
+            context->currentFrameResourceIndex = 0;
+            auto* prewarmFrameResource = context->frameResources[0].get();
+            context->scene->Update();
+            context->scene->UpdateMaterials(prewarmFrameResource);
+            context->renderer->SetFrameResource(prewarmFrameResource);
+            context->renderer->Update(*GetTimer());
+            context->renderer->PrewarmReflectionProbeBakes();
+            Flush();
+
+            std::wstring message = L"[MGPU-SSR] Prepared GPU pair ";
+            message += std::to_wstring(primaryIndex + 1);
+            message += L"+";
+            message += std::to_wstring(secondaryIndex + 1);
+            message += L": ";
+            message += context->primaryDevice->GetName();
+            if (context->secondaryDevice != nullptr)
+            {
+                message += L" + ";
+                message += context->secondaryDevice->GetName();
+            }
+            message += L"\n";
+            OutputDebugStringW(message.c_str());
+
+            gpuPairContexts.emplace_back(std::move(context));
+        }
+    }
+
+    void ReflectionApp::ActivateGpuPairContext(const UINT contextIndex)
+    {
+        assert(contextIndex < gpuPairContexts.size());
+        activeGpuPairContext = gpuPairContexts[contextIndex].get();
+        scene = activeGpuPairContext->scene.get();
+        renderer = activeGpuPairContext->renderer.get();
+        camera = scene->GetCamera();
+        currentFrameResource = activeGpuPairContext->frameResources[
+            activeGpuPairContext->currentFrameResourceIndex].get();
+        renderer->SetFrameResource(currentFrameResource);
+    }
+
+    void ReflectionApp::BuildFrameResources(GpuPairContext& context)
     {
         UINT pointLightCount = 0;
         UINT spotLightCount = 0;
-        for (const auto* light : scene->GetLights())
+        for (const auto* light : context.scene->GetLights())
         {
             if (light->Type() == Point)
             {
@@ -480,19 +570,12 @@ namespace Common
             }
         }
 
-        std::shared_ptr<GDevice> secondDevice = nullptr;
-
-        if (GDeviceFactory::GetAllDevices(false).size() > GraphicAdapterSecond)
-        {
-            secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
-        }
-
         for (int i = 0; i < globalCountFrameResources; ++i)
         {
-            frameResources.push_back(
-                std::make_unique<FrameResource>(GDeviceFactory::GetDevice(), secondDevice,
-                                                static_cast<UINT>(scene->GetObjectCount()),
-                                                static_cast<UINT>(scene->GetMaterialCount()),
+            context.frameResources.push_back(
+                std::make_unique<FrameResource>(context.primaryDevice, context.secondaryDevice,
+                                                static_cast<UINT>(context.scene->GetObjectCount()),
+                                                static_cast<UINT>(context.scene->GetMaterialCount()),
                                                 pointLightCount, spotLightCount));
         }
     }

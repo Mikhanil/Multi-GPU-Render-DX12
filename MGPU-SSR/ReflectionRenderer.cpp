@@ -72,6 +72,8 @@ namespace Common
 {
     ReflectionRenderer::ReflectionRenderer(std::shared_ptr<Window> window, Scene& scene,
                                            std::shared_ptr<Camera> camera,
+                                           std::shared_ptr<GDevice> primaryDevice,
+                                           std::shared_ptr<GDevice> secondaryDevice,
                                            const DXGI_FORMAT backBufferFormat,
                                            const DXGI_FORMAT depthStencilFormat,
                                            const bool is4xMsaa,
@@ -79,6 +81,8 @@ namespace Common
         : window(std::move(window)),
           scene(scene),
           camera(std::move(camera)),
+          primaryDevice(std::move(primaryDevice)),
+          secondDevice(std::move(secondaryDevice)),
           backBufferFormat(backBufferFormat),
           depthStencilFormat(depthStencilFormat),
           is4xMsaa(is4xMsaa),
@@ -91,24 +95,23 @@ namespace Common
         const int width = window->GetClientWidth();
         const int height = window->GetClientHeight();
 
-        shadowMap = std::make_unique<ShadowMap>(GDeviceFactory::GetDevice(), 4096, 4096);
-        ssao = std::make_unique<SSAO>(GDeviceFactory::GetDevice(), cmdList, width, height);
-        ssaa = std::make_unique<SSAA>(GDeviceFactory::GetDevice(), 1, width, height, depthStencilFormat);
+        shadowMap = std::make_unique<ShadowMap>(primaryDevice, 4096, 4096);
+        ssao = std::make_unique<SSAO>(primaryDevice, cmdList, width, height);
+        ssaa = std::make_unique<SSAA>(primaryDevice, 1, width, height, depthStencilFormat);
         ssaa->OnResize(width, height);
         for (auto& probe : reflectionProbes)
         {
             probe = std::make_unique<CubeMapRenderTarget>(
-                GDeviceFactory::GetDevice(), kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
+                primaryDevice, kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
                 DXGI_FORMAT_D32_FLOAT);
         }
         for (auto& probe : bakedReflectionProbes)
         {
             probe = std::make_unique<BakedCubeMapRenderTarget>(
-                GDeviceFactory::GetDevice(), kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
+                primaryDevice, kReflectionProbeResolution, DXGI_FORMAT_R8G8B8A8_UNORM,
                 DXGI_FORMAT_D32_FLOAT);
         }
 
-        const auto primaryDevice = GDeviceFactory::GetDevice();
         reflectionProbeSrvTable = primaryDevice->AllocateDescriptors(
             D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, ReflectionProbeCount);
         D3D12_SHADER_RESOURCE_VIEW_DESC probeSrvDesc{};
@@ -173,7 +176,7 @@ namespace Common
         {
             const auto presentationDevice = presentationOnSecondGpu && secondDevice != nullptr
                                                 ? secondDevice
-                                                : GDeviceFactory::GetDevice(GraphicAdapterPrimary);
+                                                : primaryDevice;
             renderTargetMemory = presentationDevice->AllocateDescriptors(
                 D3D12_DESCRIPTOR_HEAP_TYPE_RTV, globalCountFrameResources);
         }
@@ -212,7 +215,7 @@ namespace Common
     void ReflectionRenderer::BuildColorRenderTarget(GTexture& texture, GDescriptor& rtv, GDescriptor& srv,
                                                     const std::wstring& name) const
     {
-        auto device = GDeviceFactory::GetDevice();
+        auto device = primaryDevice;
         const auto width = std::max(static_cast<UINT>(window->GetClientWidth()), 1u);
         const auto height = std::max(static_cast<UINT>(window->GetClientHeight()), 1u);
         const auto format = GetSRGBFormat(backBufferFormat);
@@ -306,7 +309,7 @@ namespace Common
             return;
         }
 
-        GDeviceFactory::GetDevice()->Flush();
+        primaryDevice->Flush();
         ssaa->SetMultiplier(multiplier, window->GetClientWidth(), window->GetClientHeight());
     }
 
@@ -386,7 +389,7 @@ namespace Common
         const bool savedUseSecondGpuForReflectionProbes = useSecondGpuForReflectionProbes;
         const bool savedUseDynamicReflectionProbes = useDynamicReflectionProbes;
         const UINT savedPrimaryProbeCount = primaryProbeCount;
-        const auto primaryQueue = GDeviceFactory::GetDevice(GraphicAdapterPrimary)->GetCommandQueue(GQueueType::Graphics);
+        const auto primaryQueue = primaryDevice->GetCommandQueue(GQueueType::Graphics);
 
         // Prime GPU: capture every static probe once. This also prepares the
         // matching dynamic targets used for local overlays.
@@ -709,7 +712,7 @@ namespace Common
 
     void ReflectionRenderer::BuildRootSignature()
     {
-        rootSignature = BuildRootSignature(GDeviceFactory::GetDevice());
+        rootSignature = BuildRootSignature(primaryDevice);
     }
 
     void ReflectionRenderer::BuildSsaoRootSignature()
@@ -751,7 +754,7 @@ namespace Common
             ssaoRootSignature->AddStaticSampler(sampler);
         }
 
-        ssaoRootSignature->Initialize(GDeviceFactory::GetDevice());
+        ssaoRootSignature->Initialize(primaryDevice);
     }
 
     void ReflectionRenderer::BuildShadersAndInputLayout()
@@ -1002,7 +1005,7 @@ namespace Common
 
         for (auto& pso : psos)
         {
-            pso.second->Initialize(GDeviceFactory::GetDevice());
+            pso.second->Initialize(primaryDevice);
         }
     }
 
@@ -1070,16 +1073,13 @@ namespace Common
         mgpuSsrEnabled = false;
         mgpuProbeEnabled = false;
 
-        auto& devices = GDeviceFactory::GetAllDevices(false);
-        if (devices.size() <= GraphicAdapterSecond)
+        if (primaryDevice == nullptr || secondDevice == nullptr)
         {
             OutputDebugStringW(
-                L"[MGPU-SSR] Second hardware adapter was not found; using the primary GPU.\n");
+                L"[MGPU-SSR] Secondary hardware adapter was not selected; using one GPU.\n");
             return;
         }
 
-        auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
-        secondDevice = GDeviceFactory::GetDevice(GraphicAdapterSecond);
         if (!primaryDevice->IsCrossAdapterTextureSupported() || !secondDevice->IsCrossAdapterTextureSupported())
         {
             OutputDebugStringW(
@@ -1231,8 +1231,6 @@ namespace Common
             return;
         }
 
-        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
-
         CreateSecondGpuTextureLike(secondGpuSceneColor, composedSceneColor, L"Second GPU SSR Scene Color",
                                    TextureUsage::RenderTarget);
         CreateSecondGpuTextureLike(secondGpuSceneDepth, ssao->NormalDepthMap(), L"Second GPU SSR Scene Depth",
@@ -1314,7 +1312,6 @@ namespace Common
             return;
         }
 
-        const auto primaryDevice = GDeviceFactory::GetDevice(GraphicAdapterPrimary);
         for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
         {
             if (secondGpuReflectionProbes[probeIndex] == nullptr)

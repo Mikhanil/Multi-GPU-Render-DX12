@@ -15,7 +15,8 @@ namespace PEPEngine::Graphics
     {
         GraphicAdapterPrimary = 0,
         GraphicAdapterSecond = GraphicAdapterPrimary + 1,
-        GraphicAdapterCount = GraphicAdapterSecond + 1
+        GraphicAdapterThird = GraphicAdapterSecond + 1,
+        GraphicAdapterCount = GraphicAdapterThird + 1
     };
 
     class GDevice;
@@ -31,6 +32,7 @@ namespace PEPEngine::Graphics
         static std::vector<std::shared_ptr<GDevice>> CreateDevices();
         static std::vector<std::shared_ptr<GDevice>> hardwareDevices;
         static std::shared_ptr<GDevice> wrapDevice;
+        static std::vector<std::shared_ptr<GDevice>> devicesWithWarp;
 
         static std::vector<ComPtr<IDXGIAdapter3>> GetAdapters();
         static std::vector<ComPtr<IDXGIAdapter3>> adapters;
@@ -42,7 +44,9 @@ namespace PEPEngine::Graphics
 
         static ComPtr<IDXGIFactory4> GetFactory();
 
-        static std::shared_ptr<GDevice>& GetDevice(GraphicsAdapter adapter = GraphicAdapterPrimary);
+        // Device selection is index-based so callers are not limited by the
+        // legacy two-adapter enum. The enum names remain for older samples.
+        static std::shared_ptr<GDevice>& GetDevice(UINT adapterIndex = GraphicAdapterPrimary);
 
         static std::vector<std::shared_ptr<GDevice>>& GetAllDevices(bool useWrap = false);
 
