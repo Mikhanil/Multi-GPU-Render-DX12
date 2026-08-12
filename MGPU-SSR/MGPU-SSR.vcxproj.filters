@@ -59,53 +59,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Shaders\Common.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\Default.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\DrawNormals.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\LightingUtil.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\MipMapCS.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\ParticleCommon.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\Present.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\Quad.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\Reflections.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\Shadows.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\SkyBoxShader.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\SSR.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\SsrDebug.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\Ssao.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\SsaoBlur.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Shaders\TreeSprite.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
   </ItemGroup>
 </Project>
