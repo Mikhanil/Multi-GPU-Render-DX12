@@ -88,10 +88,38 @@ float4 PS(VertexOut pin) : SV_Target
     
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = {diffuseAlbedo, fresnelR0, shininess};
-    float4 directLight = ComputeLighting(worldBuffer.Lights, mat, pin.PosW,
-                                         bumpedNormalW, toEyeW, shadowFactor);
+    float3 directLight = shadowFactor[0] *
+        ComputeDirectionalLight(worldBuffer.DirectionalLight, mat, bumpedNormalW, toEyeW);
 
-    float4 litColor = ambient + directLight;
+    [loop]
+    for (uint pointLightIndex = 0; pointLightIndex < worldBuffer.PointLightCount; ++pointLightIndex)
+    {
+        Light pointLight = pointLightData[pointLightIndex];
+        if (pointLight.FalloffEnd <= 0.0f)
+            continue;
+        float3 toLight = pointLight.Position - pin.PosW;
+        if (dot(toLight, toLight) > pointLight.FalloffEnd * pointLight.FalloffEnd)
+            continue;
+        directLight += ComputePointLight(pointLight, mat, pin.PosW, bumpedNormalW, toEyeW);
+    }
+
+    [loop]
+    for (uint spotLightIndex = 0; spotLightIndex < worldBuffer.SpotLightCount; ++spotLightIndex)
+    {
+        Light spotLight = spotLightData[spotLightIndex];
+        if (spotLight.FalloffEnd <= 0.0f)
+            continue;
+        float3 toLight = spotLight.Position - pin.PosW;
+        float distanceSq = dot(toLight, toLight);
+        if (distanceSq > spotLight.FalloffEnd * spotLight.FalloffEnd)
+            continue;
+        float3 lightDirection = toLight * rsqrt(max(distanceSq, 0.0001f));
+        if (dot(-lightDirection, spotLight.Direction) <= 0.0f)
+            continue;
+        directLight += ComputeSpotLight(spotLight, mat, pin.PosW, bumpedNormalW, toEyeW);
+    }
+
+    float4 litColor = ambient + float4(directLight, 0.0f);
     
     litColor.a = diffuseAlbedo.a;
     return litColor;

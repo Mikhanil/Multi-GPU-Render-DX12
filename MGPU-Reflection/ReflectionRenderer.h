@@ -54,6 +54,7 @@ private:
     void UpdateShadowTransform(const GameTimer& gt);
     void UpdateShadowPassCB(const GameTimer& gt);
     void UpdateMainPassCB(const GameTimer& gt);
+    void UpdateLightBuffers();
     void UpdateSsaoCB(const GameTimer& gt);
     void PopulateShadowMapCommands(GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList);
     void PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList);
@@ -65,7 +66,7 @@ private:
     void PopulateCopyResource(const std::shared_ptr<GCommandList>& cmdList, const GResource& srcResource,
                               const GResource& dstResource);
     void PopulateDynamicCubeMapCommands(GraphicsAdapter adapter, const std::shared_ptr<GCommandList>& cmdList);
-    std::array<PassConstants, 6> BuildCubeFacePassCBs(const DirectX::SimpleMath::Vector3& center) const;
+    std::array<ReflectionPassConstants, 6> BuildCubeFacePassCBs(const DirectX::SimpleMath::Vector3& center) const;
     void CreateDynamicTextures(GraphicsAdapter adapter);
 
     std::shared_ptr<Common::Window> window;
@@ -88,7 +89,7 @@ private:
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
     std::shared_ptr<SSAO> ambientPrimePath;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
-    PassConstants mainPassCB{}, shadowPassCB{};
+    ReflectionPassConstants mainPassCB{}, shadowPassCB{};
     ComPtr<ID3D12Fence> primeFence, secondFence;
     UINT64 sharedFenceValue = 0;
     std::vector<std::shared_ptr<FrameResource>> frameResources{};

@@ -15,6 +15,12 @@ using namespace PEPEngine;
 using namespace Utils;
 using namespace Graphics;
 
+namespace
+{
+constexpr UINT kPointLightsSlot = StandardShaderSlot::Count;
+constexpr UINT kSpotLightsSlot = StandardShaderSlot::Count + 1;
+}
+
 ReflectionRenderer::ReflectionRenderer(std::shared_ptr<Common::Window> windowValue,
                                        std::vector<std::shared_ptr<GDevice>>& devicesValue,
                                        std::vector<std::unique_ptr<Common::Scene>>& scenesValue,
@@ -71,7 +77,11 @@ void ReflectionRenderer::InitFrameResource()
     {
         frameResources.push_back(std::make_unique<FrameResource>(
             devices[GraphicAdapterPrimary], devices[GraphicAdapterSecond], 8,
-            static_cast<UINT>(scenes[GraphicAdapterPrimary]->GetMaterialCount())));
+            static_cast<UINT>(scenes[GraphicAdapterPrimary]->GetMaterialCount()),
+            std::max(scenes[GraphicAdapterPrimary]->GetLightCount(Point),
+                     scenes[GraphicAdapterSecond]->GetLightCount(Point)),
+            std::max(scenes[GraphicAdapterPrimary]->GetLightCount(Spot),
+                     scenes[GraphicAdapterSecond]->GetLightCount(Spot))));
     }
 }
 
@@ -96,6 +106,8 @@ void ReflectionRenderer::InitRootSignature()
         rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootSignature->AddShaderResourceView(1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootSignature->AddShaderResourceView(2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->Initialize(devices[i]);
 
         if (i == GraphicAdapterPrimary)
@@ -353,6 +365,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     }
 
     UpdateShadowTransform(gt);
+    UpdateLightBuffers();
     UpdateMainPassCB(gt);
     UpdateShadowPassCB(gt);
     UpdateSsaoCB(gt);
@@ -470,30 +483,43 @@ void ReflectionRenderer::UpdateMainPassCB(const GameTimer& gt)
     mainPassCB.DeltaTime = gt.DeltaTime();
     mainPassCB.AmbientLight = Vector4{0.25f, 0.25f, 0.35f, 1.0f};
 
-    for (int i = 0; i < MaxLights; ++i)
-    {
-        const auto& sceneLights = scenes[GraphicAdapterPrimary]->GetLights();
-        if (i < sceneLights.size())
-        {
-            mainPassCB.Lights[i] = sceneLights[i]->GetData();
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    mainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
-    mainPassCB.Lights[0].Strength = Vector3{0.9f, 0.8f, 0.7f};
-    mainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
-    mainPassCB.Lights[1].Strength = Vector3{0.4f, 0.4f, 0.4f};
-    mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
-    mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
+    mainPassCB.DirectionalLight = {};
+    mainPassCB.DirectionalLight.Direction = mRotatedLightDirections[0];
+    mainPassCB.DirectionalLight.Strength = Vector3{0.9f, 0.8f, 0.7f};
 
     {
         auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
         currentPassCB->CopyData(0, mainPassCB);
+        currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
     }
+}
+
+void ReflectionRenderer::UpdateLightBuffers()
+{
+    UINT pointLightCount = 0;
+    UINT spotLightCount = 0;
+
+    for (UINT adapter = 0; adapter < GraphicAdapterCount; ++adapter)
+    {
+        UINT pointLightIndex = 0;
+        UINT spotLightIndex = 0;
+        for (const auto* light : scenes[adapter]->GetLights())
+        {
+            if (light->Type() == Point && pointLightIndex < currentFrameResource->PointLightCapacity)
+                currentFrameResource->PointLightBuffers[adapter]->CopyData(pointLightIndex++, light->GetData());
+            else if (light->Type() == Spot && spotLightIndex < currentFrameResource->SpotLightCapacity)
+                currentFrameResource->SpotLightBuffers[adapter]->CopyData(spotLightIndex++, light->GetData());
+        }
+
+        if (adapter == GraphicAdapterPrimary)
+        {
+            pointLightCount = pointLightIndex;
+            spotLightCount = spotLightIndex;
+        }
+    }
+
+    mainPassCB.PointLightCount = pointLightCount;
+    mainPassCB.SpotLightCount = spotLightCount;
 }
 
 void ReflectionRenderer::UpdateSsaoCB(const GameTimer& gt)
@@ -542,6 +568,10 @@ void ReflectionRenderer::PopulateShadowMapCommands(const GraphicsAdapter adapter
         cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                           *currentFrameResource->PointLightBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                           *currentFrameResource->SpotLightBuffers[GraphicAdapterPrimary]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterPrimary]->GetSrvHeap());
         cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
                                            *currentFrameResource->PrimePassConstantUploadBuffer, 1);
@@ -564,6 +594,10 @@ void ReflectionRenderer::PopulateNormalMapCommands(const std::shared_ptr<GComman
         cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                           *currentFrameResource->PointLightBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                           *currentFrameResource->SpotLightBuffers[GraphicAdapterPrimary]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterPrimary]->GetSrvHeap());
 
         cmdList->SetViewports(&fullViewport, 1);
@@ -605,6 +639,10 @@ void ReflectionRenderer::PopulateAmbientMapCommands(const std::shared_ptr<GComma
         cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                           *currentFrameResource->PointLightBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                           *currentFrameResource->SpotLightBuffers[GraphicAdapterPrimary]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterPrimary]->GetSrvHeap());
 
         cmdList->SetRootSignature(*ssaoPrimeRootSignature.get());
@@ -620,6 +658,10 @@ void ReflectionRenderer::PopulateForwardPathCommands(const std::shared_ptr<GComm
         cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                           *currentFrameResource->PointLightBuffers[GraphicAdapterPrimary]);
+        cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                           *currentFrameResource->SpotLightBuffers[GraphicAdapterPrimary]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterPrimary]->GetSrvHeap());
 
         cmdList->SetViewports(&antiAliasingPrimePath->GetViewPort(), 1);
@@ -770,7 +812,7 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     currentFrameResourceIndex = window->Present();
 }
 
-std::array<PassConstants, ReflectionRenderer::DynamicCubeMapFaceCount> ReflectionRenderer::BuildCubeFacePassCBs(
+std::array<ReflectionPassConstants, ReflectionRenderer::DynamicCubeMapFaceCount> ReflectionRenderer::BuildCubeFacePassCBs(
     const Vector3& center) const
 {
     constexpr float nearZ = 0.1f;
@@ -804,7 +846,7 @@ std::array<PassConstants, ReflectionRenderer::DynamicCubeMapFaceCount> Reflectio
         0.0f, 0.0f, 1.0f, 0.0f,
         0.5f, 0.5f, 0.0f, 1.0f);
 
-    std::array<PassConstants, DynamicCubeMapFaceCount> out{};
+    std::array<ReflectionPassConstants, DynamicCubeMapFaceCount> out{};
 
     for (UINT i = 0; i < DynamicCubeMapFaceCount; ++i)
     {
@@ -815,7 +857,7 @@ std::array<PassConstants, ReflectionRenderer::DynamicCubeMapFaceCount> Reflectio
         Matrix view = XMMatrixLookAtLH(eye, at, up);
         Matrix viewProj = view * proj;
 
-        PassConstants pass = mainPassCB;
+        ReflectionPassConstants pass = mainPassCB;
         pass.View = view.Transpose();
         pass.InvView = view.Invert().Transpose();
         pass.Proj = proj.Transpose();
@@ -853,6 +895,10 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
 
         cmdList->SetGraphicsRootShaderResourceView(StandardShaderSlot::MaterialData,
                                                    *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
+        cmdList->SetGraphicsRootShaderResourceView(kPointLightsSlot,
+                                                   *currentFrameResource->PointLightBuffers[GraphicAdapterPrimary]);
+        cmdList->SetGraphicsRootShaderResourceView(kSpotLightsSlot,
+                                                   *currentFrameResource->SpotLightBuffers[GraphicAdapterPrimary]);
         cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterPrimary]->GetSrvHeap());
         cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPathPrimeDevice->GetSrv());
 
@@ -937,6 +983,10 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
 
                 cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                    *currentFrameResource->MaterialBuffers[GraphicAdapterSecond]);
+                cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                                   *currentFrameResource->PointLightBuffers[GraphicAdapterSecond]);
+                cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                                   *currentFrameResource->SpotLightBuffers[GraphicAdapterSecond]);
                 cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterSecond]->GetSrvHeap());
 
 
@@ -992,6 +1042,10 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
 
             cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                                *currentFrameResource->MaterialBuffers[GraphicAdapterSecond]);
+            cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                               *currentFrameResource->PointLightBuffers[GraphicAdapterSecond]);
+            cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                               *currentFrameResource->SpotLightBuffers[GraphicAdapterSecond]);
             cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterSecond]->GetSrvHeap());
 
             auto whiteSsao = scenes[GraphicAdapterSecond]->GetTextureIndex(L"white1x1Tex");

@@ -37,6 +37,7 @@ namespace Common
         GDescriptor* GetSrvHeap();
         std::shared_ptr<Camera> GetCamera() const;
         const std::vector<Light*>& GetLights() const;
+        UINT GetLightCount(LightType type) const;
         DirectX::BoundingSphere GetBounds() const;
         size_t GetObjectCount() const;
         size_t GetMaterialCount();

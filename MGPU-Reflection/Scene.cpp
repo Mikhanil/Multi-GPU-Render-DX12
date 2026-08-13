@@ -361,6 +361,11 @@ namespace Common
     GDescriptor* Scene::GetSrvHeap() { return &srvHeap; }
     std::shared_ptr<Camera> Scene::GetCamera() const { return sceneCamera; }
     const std::vector<Light*>& Scene::GetLights() const { return lights; }
+    UINT Scene::GetLightCount(const LightType type) const
+    {
+        return static_cast<UINT>(std::count_if(lights.begin(), lights.end(),
+            [type](const Light* light) { return light->Type() == type; }));
+    }
     DirectX::BoundingSphere Scene::GetBounds() const { return bounds; }
     size_t Scene::GetObjectCount() const { return gameObjects.size(); }
     size_t Scene::GetMaterialCount() { return loader.GetMaterials().size(); }
