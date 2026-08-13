@@ -2,14 +2,11 @@
 
 #include <array>
 
-#include "AssetsLoader.h"
 #include "BakedCubeMapRenderTarget.h"
 #include "d3dApp.h"
 #include "GDeviceFactory.h"
-#include "GModel.h"
 #include "GraphicPSO.h"
 #include "Light.h"
-#include "Renderer.h"
 #include "RenderModeFactory.h"
 #include "ShadowMap.h"
 #include "FrameResource.h"
@@ -17,7 +14,7 @@
 #include "SSAO.h"
 #include "GCrossAdapterResource.h"
 #include "CubeMapRenderTarget.h"
-#include "Transform.h"
+#include "Scene.h"
 
 using namespace DirectX::SimpleMath;
 using namespace PEPEngine;
@@ -39,7 +36,6 @@ public:
 
 protected:
     void inline Update(const GameTimer& gt) override;
-    void inline UpdateMaterials();
     void inline UpdateShadowTransform(const GameTimer& gt);
     void inline UpdateShadowPassCB(const GameTimer& gt);
     void inline UpdateMainPassCB(const GameTimer& gt);
@@ -68,18 +64,7 @@ private:
     void inline InitFrameResource();
     void inline InitRootSignature();
     void inline InitPipeLineResource();
-    void inline CreateMaterials();
-    void inline InitSRVMemoryAndMaterials();
     void inline InitRenderPaths();
-    void inline LoadStudyTexture();
-    void inline LoadModels();
-    void inline MipMasGenerate();
-    void inline DublicateResource();
-    void inline SortGO();
-    std::shared_ptr<Renderer> inline CreateRenderer(UINT deviceIndex, std::shared_ptr<GModel> model);
-    void inline AddMultiDeviceOpaqueRenderComponent(GameObject* object, const std::wstring& modelName,
-                                                    RenderMode psoType = RenderMode::Opaque);
-    void inline CreateGO();
 
     void CalculateFrameStats() override;
     void LogWriting();
@@ -97,12 +82,7 @@ private:
 
     std::vector<std::shared_ptr<GDevice>> devices = std::vector<std::shared_ptr<GDevice>>();
 
-    std::vector<GDescriptor> srvTexturesMemory = std::vector<GDescriptor>();
-
-    std::vector<AssetsLoader> assets = std::vector<AssetsLoader>();
-
-    std::vector<std::unordered_map<std::wstring, std::shared_ptr<GModel>>> models = std::vector<
-        std::unordered_map<std::wstring, std::shared_ptr<GModel>>>();
+    std::vector<std::unique_ptr<Common::Scene>> scenes;
 
     std::shared_ptr<GRootSignature> primeDeviceSignature;
     std::shared_ptr<GRootSignature> ssaoPrimeRootSignature;
@@ -130,11 +110,6 @@ private:
     std::shared_ptr<SSAO> ambientPrimePath;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
 
-    std::vector<std::shared_ptr<GameObject>> gameObjects = std::vector<std::shared_ptr<
-        GameObject>>();
-
-    std::vector<std::vector<std::vector<std::shared_ptr<Renderer>>>> typedRenderer = std::vector
-        <std::vector<std::vector<std::shared_ptr<Renderer>>>>();
 
     PassConstants mainPassCB;
     PassConstants shadowPassCB;
@@ -149,7 +124,6 @@ private:
     std::shared_ptr<FrameResource> currentFrameResource = nullptr;
     std::atomic<UINT> currentFrameResourceIndex = 0;
 
-    std::vector<Light*> lights = std::vector<Light*>();
 
     float mLightNearZ = 0.0f;
     float mLightFarZ = 0.0f;
@@ -183,8 +157,6 @@ private:
     
     // end of new
 
-    std::shared_ptr<Renderer> mirrorSphereRenderer = nullptr;
-    std::shared_ptr<Transform> mirrorSphereTransform = nullptr;
 
     float mLightRotationAngle = 0.0f;
     Vector3 mBaseLightDirections[3] = {

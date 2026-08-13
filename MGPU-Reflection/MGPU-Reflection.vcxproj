@@ -156,10 +156,12 @@
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="ReflectionApp.cpp" />
+    <ClCompile Include="Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="ReflectionApp.h" />
+    <ClInclude Include="Scene.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
