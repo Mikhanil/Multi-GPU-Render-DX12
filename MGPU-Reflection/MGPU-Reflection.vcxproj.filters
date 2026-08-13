@@ -24,9 +24,12 @@
     <ClCompile Include="FrameResource.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ReflectionApp.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+      <ClCompile Include="ReflectionApp.cpp">
+        <Filter>Source Files</Filter>
+      </ClCompile>
+      <ClCompile Include="ReflectionRenderer.cpp">
+        <Filter>Source Files</Filter>
+      </ClCompile>
     <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -35,9 +38,12 @@
     <ClInclude Include="FrameResource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ReflectionApp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+      <ClInclude Include="ReflectionApp.h">
+        <Filter>Header Files</Filter>
+      </ClInclude>
+      <ClInclude Include="ReflectionRenderer.h">
+        <Filter>Header Files</Filter>
+      </ClInclude>
     <ClInclude Include="Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>

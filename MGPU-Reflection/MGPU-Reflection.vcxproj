@@ -155,12 +155,14 @@
   <ItemGroup>
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="Source.cpp" />
-    <ClCompile Include="ReflectionApp.cpp" />
+      <ClCompile Include="ReflectionApp.cpp" />
+      <ClCompile Include="ReflectionRenderer.cpp" />
     <ClCompile Include="Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameResource.h" />
-    <ClInclude Include="ReflectionApp.h" />
+      <ClInclude Include="ReflectionApp.h" />
+      <ClInclude Include="ReflectionRenderer.h" />
     <ClInclude Include="Scene.h" />
   </ItemGroup>
   <ItemGroup>
