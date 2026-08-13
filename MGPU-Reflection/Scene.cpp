@@ -335,9 +335,17 @@ namespace Common
         if (benchmarkCamera)
             benchmarkCamera->GetTransform()->SetLocalMatrix(benchmarkCameraMatrix);
         if (benchmarkCameraOrbit)
+        {
             benchmarkCameraOrbit->GetTransform()->SetLocalMatrix(benchmarkCameraOrbitMatrix);
+            if (const auto rotater = benchmarkCameraOrbit->GetComponent<Rotater>())
+                rotater->Reset();
+        }
         if (benchmarkMovingObject)
+        {
             benchmarkMovingObject->GetTransform()->SetLocalMatrix(benchmarkMovingObjectMatrix);
+            if (const auto orbiter = benchmarkMovingObject->GetComponent<Orbiter>())
+                orbiter->Reset();
+        }
     }
 
     void Scene::UpdateMaterials(FrameResource* frameResource, const bool useSecondGpuBuffer)
