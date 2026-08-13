@@ -8,7 +8,9 @@ namespace Common
     class ReflectionApp;
 
     // A benchmark step applies its adapter placement and SSAA configuration
-    // before sampling; baked probe resources remain cached across states.
+    // before sampling. Resources stay cached across adjacent states of one GPU
+    // pair (including its adaptive SSAA levels) and are recreated when the
+    // benchmark advances to another pair.
     class ReflectionBenchmarkState final : public BenchmarkState
     {
     public:

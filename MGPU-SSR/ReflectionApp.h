@@ -62,9 +62,11 @@ namespace Common
         void Update(const GameTimer& gt) override;
         void Draw(const GameTimer& gt) override;
         void InitializeGpuPairContexts();
+        void InitializeGpuPairContext(GpuPairContext& context);
+        void ReleaseActiveGpuPairContext();
         void ActivateGpuPairContext(UINT contextIndex);
         void BuildFrameResources(GpuPairContext& context);
-        void AddSsaaBenchmarkLevel(UINT ssaaLevel);
+        void AddSsaaBenchmarkLevel(UINT ssaaLevel, UINT gpuPairContextIndex);
 
         UINT backBufferIndex = 0;
         DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -77,8 +79,10 @@ namespace Common
         Scene* scene = nullptr;
         ReflectionRenderer* renderer = nullptr;
         BenchmarkService benchmark;
+        UINT currentBenchmarkPairIndex = 0;
         float expansionProbeFps = 0.0f;
         bool nextSsaaLevelQueued = false;
+        bool nextGpuPairQueued = false;
         bool benchmarkFinished = false;
 
         DirectX::SimpleMath::Vector3 mainLightDirection = DirectX::SimpleMath::Vector3(0.457f, -0.457f, -0.762f);
