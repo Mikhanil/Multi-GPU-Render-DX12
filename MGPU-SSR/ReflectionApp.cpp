@@ -276,7 +276,6 @@ namespace Common
     {
         assert(gpuPairContextIndex < gpuPairContexts.size());
         const bool gpuPairChanged = activeGpuPairContext != gpuPairContexts[gpuPairContextIndex].get();
-        const bool wasPresentingOnSecondGpu = renderer != nullptr && renderer->IsMgpuSsrEnabled();
 
         if (!gpuPairChanged && activeGpuPairContext != nullptr)
         {
@@ -309,10 +308,11 @@ namespace Common
                                             : activeGpuPairContext->primaryDevice;
         MainWindow->SetPresentationDevice(presentationDevice);
         renderer->SetPresentationOnSecondGpu(presentOnSecondGpu);
-        if (!gpuPairChanged && wasPresentingOnSecondGpu != presentOnSecondGpu)
-        {
-            renderer->OnResize();
-        }
+        // MGPU OnResize also rebinds the active swap-chain back buffers and
+        // rebuilds the cross-adapter SSR resources. It must run after the final
+        // benchmark configuration even when the presentation adapter did not
+        // change; skipping it leaves stale bindings after lazy pair creation.
+        renderer->OnResize();
 
         const UINT secondaryProbeCount = Scene::ReflectionProbeCount - primaryProbeCount;
         MainWindow->SetWindowTitle(
