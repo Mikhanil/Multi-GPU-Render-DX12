@@ -43,8 +43,16 @@ namespace Common
         GenerateMipMaps();
         BuildTextureHeap();
         BuildMaterials();
+        AssignMaterialIndices();
         BuildObjects(aspectRatio, directionalLightDirection);
         SortObjects();
+    }
+
+    void Scene::AssignMaterialIndices()
+    {
+        UINT index = 0;
+        for (const auto& material : loader.GetMaterials())
+            material->SetMaterialIndex(index++);
     }
 
     void Scene::LoadTextures(const std::shared_ptr<GCommandList>& cmdList)

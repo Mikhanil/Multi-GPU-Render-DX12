@@ -38,8 +38,8 @@ VertexOut VS(VertexIn vin)
     float4 texC = mul(float4(vin.TexC, 0.0f, 1.0f), objectBuffer.TexTransform);
     vout.TexC = mul(texC, matData.MatTransform).xy; //vin.TexC
     //vout.TexC = vin.TexC;
-    
-    
+
+
     // Generate projective tex-coords to project SSAO map onto scene.
     vout.SsaoPosH = mul(posW, worldBuffer.ViewProjTex);
 
@@ -73,19 +73,19 @@ float4 PS(VertexOut pin) : SV_Target
 
     float4 normalMapSample = texturesMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
     float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
-    
+
 
     float3 toEyeW = normalize(worldBuffer.EyePosW - pin.PosW);
 
     pin.SsaoPosH /= pin.SsaoPosH.w;
     float ambientAccess = ssaoMap.Sample(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
-    
+
     float4 ambient = ambientAccess * worldBuffer.AmbientLight * diffuseAlbedo;
-    
+
     // Only the first light casts a shadow.
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
-    
+
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = {diffuseAlbedo, fresnelR0, shininess};
     float3 directLight = shadowFactor[0] *
@@ -120,7 +120,7 @@ float4 PS(VertexOut pin) : SV_Target
     }
 
     float4 litColor = ambient + float4(directLight, 0.0f);
-    
+
     litColor.a = diffuseAlbedo.a;
     return litColor;
 }

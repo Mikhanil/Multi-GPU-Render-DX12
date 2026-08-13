@@ -51,6 +51,7 @@ namespace Common
         void GenerateMipMaps();
         void BuildTextureHeap();
         void BuildMaterials();
+        void AssignMaterialIndices();
         void BuildObjects(float aspectRatio, const DirectX::SimpleMath::Vector3& directionalLightDirection);
         void SortObjects();
         std::shared_ptr<Renderer> CreateRenderer(const std::wstring& modelName) const;

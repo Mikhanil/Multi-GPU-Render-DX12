@@ -32,8 +32,17 @@ ReflectionRenderer::ReflectionRenderer(std::shared_ptr<Common::Window> windowVal
 void ReflectionRenderer::Initialize()
 {
     mSceneBounds = scenes[GraphicAdapterPrimary]->GetBounds();
-    devices[GraphicAdapterPrimary]->SharedFence(primeFence, devices[GraphicAdapterSecond], secondFence, sharedFenceValue);
+    hasSecondaryAdapter = devices.size() == ReflectionAdapterCount && scenes.size() == ReflectionAdapterCount;
+    if (hasSecondaryAdapter)
+        devices[GraphicAdapterPrimary]->SharedFence(primeFence, devices[GraphicAdapterSecond], secondFence, sharedFenceValue);
     InitRenderPaths(); Flush(); InitRootSignature(); Flush(); InitPipeLineResource(); Flush(); InitFrameResource(); Flush();
+}
+
+void ReflectionRenderer::ResetBenchmarkAnimation()
+{
+    mLightRotationAngle = 0.0f;
+    for (int i = 0; i < 3; ++i)
+        mRotatedLightDirections[i] = mBaseLightDirections[i];
 }
 
 void ReflectionRenderer::SetSsaaMultiplier(const UINT value)
@@ -76,18 +85,18 @@ void ReflectionRenderer::InitFrameResource()
     for (int i = 0; i < globalCountFrameResources; ++i)
     {
         frameResources.push_back(std::make_unique<FrameResource>(
-            devices[GraphicAdapterPrimary], devices[GraphicAdapterSecond], 8,
+            devices[GraphicAdapterPrimary], hasSecondaryAdapter ? devices[GraphicAdapterSecond] : nullptr, 8,
             static_cast<UINT>(scenes[GraphicAdapterPrimary]->GetMaterialCount()),
             std::max(scenes[GraphicAdapterPrimary]->GetLightCount(Point),
-                     scenes[GraphicAdapterSecond]->GetLightCount(Point)),
+                     hasSecondaryAdapter ? scenes[GraphicAdapterSecond]->GetLightCount(Point) : 0),
             std::max(scenes[GraphicAdapterPrimary]->GetLightCount(Spot),
-                     scenes[GraphicAdapterSecond]->GetLightCount(Spot))));
+                     hasSecondaryAdapter ? scenes[GraphicAdapterSecond]->GetLightCount(Spot) : 0)));
     }
 }
 
 void ReflectionRenderer::InitRootSignature()
 {
-    for (int i = 0; i < GraphicAdapterCount; ++i)
+    for (UINT i = 0; i < devices.size(); ++i)
     {
         auto rootSignature = std::make_shared<GRootSignature>();
         CD3DX12_DESCRIPTOR_RANGE texParam[4];
@@ -211,11 +220,14 @@ void ReflectionRenderer::InitPipeLineResource()
                                           backBufferFormat, depthStencilFormat, ssaoPrimeRootSignature,
                                           NormalMapFormat, AmbientMapFormat);
 
-    secondPipelineResources = RenderModeFactory();
-    secondPipelineResources.LoadDefaultShaders();
-    secondPipelineResources.LoadDefaultPSO(devices[GraphicAdapterSecond], secondDeviceSignature, desc,
-                                           backBufferFormat, depthStencilFormat, nullptr,
-                                           NormalMapFormat, AmbientMapFormat);
+    if (hasSecondaryAdapter)
+    {
+        secondPipelineResources = RenderModeFactory();
+        secondPipelineResources.LoadDefaultShaders();
+        secondPipelineResources.LoadDefaultPSO(devices[GraphicAdapterSecond], secondDeviceSignature, desc,
+                                               backBufferFormat, depthStencilFormat, nullptr,
+                                               NormalMapFormat, AmbientMapFormat);
+    }
 
     ambientPrimePath->SetPipelineData(*primePipelineResources.GetPSO(RenderMode::Ssao),
                                       *primePipelineResources.GetPSO(RenderMode::SsaoBlur));
@@ -246,22 +258,23 @@ void ReflectionRenderer::InitRenderPaths()
     dynamicCubeMap = std::make_shared<CubeMapRenderTarget>(
         devices[GraphicAdapterPrimary], DynamicCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
 
-    bakedCubeMapSecond = std::make_shared<BakedCubeMapRenderTarget>(
-        devices[GraphicAdapterSecond], BakedCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
-
-    CreateDynamicTextures(GraphicAdapterSecond);
-
-    // cubeMapDesc.DepthOrArraySize = 1;
-
-    auto desc = dynamicCubeMap->GetCubeMap().GetD3D12ResourceDesc();
-    desc.DepthOrArraySize = 1;
-    for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+    if (hasSecondaryAdapter)
     {
-        crossAdapterCubeMaps[face] = std::make_shared<GCrossAdapterResource>(desc,
-                                                                             devices[GraphicAdapterPrimary],
-                                                                             devices[GraphicAdapterSecond],
-                                                                             L"Shared Cube Map " +
-                                                                             std::to_wstring(face));
+        bakedCubeMapSecond = std::make_shared<BakedCubeMapRenderTarget>(
+            devices[GraphicAdapterSecond], BakedCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
+        CreateDynamicTextures(GraphicAdapterSecond);
+
+        // cubeMapDesc.DepthOrArraySize = 1;
+        auto desc = dynamicCubeMap->GetCubeMap().GetD3D12ResourceDesc();
+        desc.DepthOrArraySize = 1;
+        for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
+        {
+            crossAdapterCubeMaps[face] = std::make_shared<GCrossAdapterResource>(desc,
+                                                                                  devices[GraphicAdapterPrimary],
+                                                                                  devices[GraphicAdapterSecond],
+                                                                                  L"Shared Cube Map " +
+                                                                                  std::to_wstring(face));
+        }
     }
 
 }
@@ -280,7 +293,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         }
         else
         {
-            for (int i = 0; i < GraphicAdapterCount; ++i)
+            for (UINT i = 0; i < devices.size(); ++i)
             {
                 gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
             }
@@ -289,7 +302,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
 
     const auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Graphics);
     const auto copyQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Copy);
-    const auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics);
+    const auto secondQueue = hasSecondaryAdapter ? devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics) : nullptr;
 
     currentFrameResource = frameResources[currentFrameResourceIndex];
 
@@ -305,7 +318,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         copyQueue->WaitForFenceValue(currentFrameResource->PrimeCopyFenceValue);
     }
 
-    if (currentFrameResource->SecondRenderFenceValue != 0 && !secondQueue->IsFinish(
+    if (hasSecondaryAdapter && currentFrameResource->SecondRenderFenceValue != 0 && !secondQueue->IsFinish(
         currentFrameResource->SecondRenderFenceValue))
     {
         secondQueue->WaitForFenceValue(currentFrameResource->SecondRenderFenceValue);
@@ -321,7 +334,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         mRotatedLightDirections[i] = lightDir;
     }
 
-    for (UINT i = 0; i < GraphicAdapterCount; ++i)
+    for (UINT i = 0; i < scenes.size(); ++i)
     {
         scenes[i]->Update();
         scenes[i]->UpdateMaterials(currentFrameResource.get(), i == GraphicAdapterSecond);
@@ -400,10 +413,13 @@ void ReflectionRenderer::UpdateShadowPassCB()
     shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
     shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
-    auto currPassCB = currentFrameResource->SecondPassConstantUploadBuffer;
-    currPassCB->CopyData(0, shadowPassCB);
+    if (hasSecondaryAdapter)
+    {
+        auto currPassCB = currentFrameResource->SecondPassConstantUploadBuffer;
+        currPassCB->CopyData(0, shadowPassCB);
+    }
 
-    currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
+    auto currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
     currPassCB->CopyData(1, shadowPassCB);
 }
 
@@ -453,7 +469,8 @@ void ReflectionRenderer::UpdateMainPassCB(const GameTimer& gt)
     {
         auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
         currentPassCB->CopyData(0, mainPassCB);
-        currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
+        if (hasSecondaryAdapter)
+            currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
     }
 }
 
@@ -462,7 +479,7 @@ void ReflectionRenderer::UpdateLightBuffers()
     UINT pointLightCount = 0;
     UINT spotLightCount = 0;
 
-    for (UINT adapter = 0; adapter < GraphicAdapterCount; ++adapter)
+    for (UINT adapter = 0; adapter < scenes.size(); ++adapter)
     {
         UINT pointLightIndex = 0;
         UINT spotLightIndex = 0;
@@ -503,7 +520,7 @@ void ReflectionRenderer::UpdateSsaoCB()
     ssaoCB.InvProj = mainPassCB.InvProj;
     XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(P * T));
 
-    //for (int i = 0; i < GraphicAdapterCount; ++i)
+    // Secondary-only SSAO data is intentionally not allocated for the primary-only fallback.
     {
         ambientPrimePath->GetOffsetVectors(ssaoCB.OffsetVectors);
 

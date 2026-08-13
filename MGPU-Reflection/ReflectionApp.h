@@ -34,7 +34,7 @@ private:
     std::vector<std::shared_ptr<GDevice>> devices;
     std::vector<std::unique_ptr<Common::Scene>> scenes;
     std::unique_ptr<ReflectionRenderer> renderer;
-    UINT64 gpuTimes[GraphicAdapterCount]{};
+    UINT64 gpuTimes[ReflectionAdapterCount]{};
     BenchmarkService benchmark;
 };
 

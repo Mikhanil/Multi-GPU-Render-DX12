@@ -30,22 +30,28 @@ HybridCubeMapApp::~HybridCubeMapApp()
 
 void HybridCubeMapApp::InitDevices()
 {
-    devices.resize(GraphicAdapterCount);
-    const auto allDevices = GDeviceFactory::GetAllDevices(true);
-    const auto firstDevice = allDevices[0];
-    const auto otherDevice = allDevices[1];
-    if (firstDevice->GetName().find(L"NVIDIA") == std::wstring::npos &&
-        otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
+    const auto& allDevices = GDeviceFactory::GetAllDevices(false);
+    if (allDevices.empty())
+        throw std::runtime_error("MGPU-Reflection requires a hardware Direct3D 12 adapter.");
+
+    const auto& firstDevice = allDevices[0];
+    devices.push_back(firstDevice);
+    if (allDevices.size() > 1 && firstDevice->IsCrossAdapterTextureSupported() &&
+        allDevices[1]->IsCrossAdapterTextureSupported())
     {
-        devices[GraphicAdapterPrimary] = otherDevice;
-        devices[GraphicAdapterSecond] = firstDevice;
+        const auto& otherDevice = allDevices[1];
+        if (firstDevice->GetName().find(L"NVIDIA") == std::wstring::npos &&
+            otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
+        {
+            devices[GraphicAdapterPrimary] = otherDevice;
+            devices.push_back(firstDevice);
+        }
+        else
+        {
+            devices.push_back(otherDevice);
+        }
     }
-    else
-    {
-        devices[GraphicAdapterPrimary] = firstDevice;
-        devices[GraphicAdapterSecond] = otherDevice;
-    }
-    scenes.resize(GraphicAdapterCount);
+    scenes.resize(devices.size());
 }
 
 bool HybridCubeMapApp::Initialize()
@@ -53,7 +59,7 @@ bool HybridCubeMapApp::Initialize()
     InitDevices();
     InitMainWindow();
     constexpr Vector3 mainLightDirection(0.57735f, -0.57735f, 0.57735f);
-    for (UINT i = 0; i < GraphicAdapterCount; ++i)
+    for (UINT i = 0; i < scenes.size(); ++i)
     {
         scenes[i] = std::make_unique<Common::Scene>(devices[i]);
         scenes[i]->Initialize(AspectRatio(), mainLightDirection);
@@ -70,13 +76,23 @@ bool HybridCubeMapApp::Initialize()
     const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
     std::error_code error;
     std::filesystem::create_directories(logDirectory, error);
+    if (error)
+    {
+        OutputDebugStringW(L"MGPU-Reflection failed to create benchmark log directory.\n");
+        MessageBoxW(nullptr, L"MGPU-Reflection failed to create benchmark log directory.",
+                    L"MGPU-Reflection benchmark error", MB_OK | MB_ICONERROR);
+        return false;
+    }
     const auto primaryName = devices[GraphicAdapterPrimary]->GetName();
-    const auto secondName = devices[GraphicAdapterSecond]->GetName();
     benchmark.SetLooping(false);
     benchmark.AddState<ReflectionBenchmarkState>(*this, true, L"Primary baseline",
         benchmarkDurationSeconds, FileQueueWriter(logDirectory / (L"MGPU-Reflection_Primary_" + primaryName + L".log")));
-    benchmark.AddState<ReflectionBenchmarkState>(*this, false, L"MGPU reflection",
-        benchmarkDurationSeconds, FileQueueWriter(logDirectory / (L"MGPU-Reflection_MGPU_" + primaryName + L"+" + secondName + L".log")));
+    if (devices.size() == ReflectionAdapterCount)
+    {
+        const auto secondName = devices[GraphicAdapterSecond]->GetName();
+        benchmark.AddState<ReflectionBenchmarkState>(*this, false, L"MGPU reflection",
+            benchmarkDurationSeconds, FileQueueWriter(logDirectory / (L"MGPU-Reflection_MGPU_" + primaryName + L"+" + secondName + L".log")));
+    }
     benchmark.Start();
 #endif
     return true;
@@ -116,7 +132,7 @@ bool HybridCubeMapApp::InitMainWindow()
 void HybridCubeMapApp::CalculateFrameStats()
 {
     if (!renderer) return;
-    for (UINT i = 0; i < GraphicAdapterCount; ++i)
+    for (UINT i = 0; i < devices.size(); ++i)
         gpuTimes[i] = renderer->GetGpuTime(static_cast<GraphicsAdapter>(i));
 #if defined(DEBUG) || defined(_DEBUG)
     D3DApp::CalculateFrameStats();
@@ -130,6 +146,7 @@ void HybridCubeMapApp::SetReflectionBenchmarkConfiguration(const bool useOnlyPri
     {
         scene->ResetBenchmarkAnimation();
     }
+    renderer->ResetBenchmarkAnimation();
     renderer->SetUseOnlyPrime(useOnlyPrime);
     for (auto& gpuTime : gpuTimes)
     {

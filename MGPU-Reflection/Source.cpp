@@ -16,13 +16,18 @@ int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,
     {
         ReflectionApp theApp(hInstance);
         if (!theApp.Initialize())
-            return 0;
+            return 1;
 
         return theApp.Run();
     }
     catch (DxException& e)
     {
         MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
-        return 0;
+        return 1;
+    }
+    catch (const std::exception& e)
+    {
+        MessageBoxA(nullptr, e.what(), "MGPU-Reflection failed", MB_OK | MB_ICONERROR);
+        return 1;
     }
 }

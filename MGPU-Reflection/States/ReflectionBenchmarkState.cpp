@@ -3,6 +3,7 @@
 #include "../ReflectionApp.h"
 #include "Utils.h"
 #include <algorithm>
+#include <cstdlib>
 
 ReflectionBenchmarkState::ReflectionBenchmarkState(HybridCubeMapApp& app, const bool useOnlyPrime,
                                                    std::wstring name, const uint32_t durationInSeconds,
@@ -46,7 +47,13 @@ void ReflectionBenchmarkState::Tick(const float deltaTime)
 
 void ReflectionBenchmarkState::Exit()
 {
-    fileQueueWriter.WriteAllLog();
+    if (!fileQueueWriter.WriteAllLog())
+    {
+        OutputDebugStringW(L"MGPU-Reflection failed to write benchmark metrics.\n");
+        MessageBoxW(nullptr, L"MGPU-Reflection failed to write benchmark metrics.",
+                    L"MGPU-Reflection benchmark error", MB_OK | MB_ICONERROR);
+        std::exit(EXIT_FAILURE);
+    }
     BenchmarkState::Exit();
 }
 

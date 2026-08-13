@@ -24,6 +24,9 @@ using namespace PEPEngine::Utils;
 
 namespace Common { class Window; }
 
+// This sample has one primary path and, when available, one compatible hardware secondary.
+constexpr UINT ReflectionAdapterCount = 2;
+
 class ReflectionRenderer
 {
 public:
@@ -39,8 +42,9 @@ public:
     void Draw(const GameTimer& gt);
     void OnResize(float aspectRatio);
     void Flush();
-    void SetUseOnlyPrime(bool value) { UseOnlyPrime = value; }
+    void SetUseOnlyPrime(bool value) { UseOnlyPrime = value || !hasSecondaryAdapter; }
     bool GetUseOnlyPrime() const { return UseOnlyPrime; }
+    void ResetBenchmarkAnimation();
     void SetSsaaMultiplier(UINT value);
     UINT GetSsaaMultiplier() const { return multi; }
     void SetDebugMap(UINT value) { pathMapShow = value; }
@@ -72,7 +76,8 @@ private:
     std::vector<std::unique_ptr<Common::Scene>>& scenes;
     DXGI_FORMAT backBufferFormat;
     DXGI_FORMAT depthStencilFormat;
-    UINT64 gpuTimes[GraphicAdapterCount]{};
+    UINT64 gpuTimes[ReflectionAdapterCount]{};
+    bool hasSecondaryAdapter = false;
     bool UseOnlyPrime = true;
     UINT multi = 1;
     D3D12_VIEWPORT fullViewport{};

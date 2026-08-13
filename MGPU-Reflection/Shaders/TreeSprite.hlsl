@@ -65,7 +65,7 @@ void GS(point VertexOut gin[1], uint primID : SV_PrimitiveID,
     v[3] = float4(gin[0].CenterW - halfWidth * right + halfHeight * up, 1.0f);
 
     //
-    // Transform quad vertices to world space and output 
+    // Transform quad vertices to world space and output
     // them as a triangle strip.
     //
 
@@ -103,7 +103,7 @@ float4 PS(GeoOut pin) : SV_Target
         materialBuffer.DiffuseAlbedo;
 
 #ifdef ALPHA_TEST
-    // Discard pixel if texture alpha < 0.1.  We do this test as soon 
+    // Discard pixel if texture alpha < 0.1.  We do this test as soon
     // as possible in the shader so that we can potentially exit the
     // shader early, thereby skipping the rest of the shader code.
     clip(diffuseAlbedo.a - 0.1f);
@@ -112,7 +112,7 @@ float4 PS(GeoOut pin) : SV_Target
     // Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 
-    // Vector from point being lit to eye. 
+    // Vector from point being lit to eye.
     float3 toEyeW = worldBuffer.EyePosW - pin.PosW;
     float distToEye = length(toEyeW);
     toEyeW /= distToEye; // normalize
