@@ -51,22 +51,20 @@ private:
     void InitRootSignature();
     void InitPipeLineResource();
     void InitRenderPaths();
-    void UpdateShadowTransform(const GameTimer& gt);
-    void UpdateShadowPassCB(const GameTimer& gt);
+    void UpdateShadowTransform();
+    void UpdateShadowPassCB();
     void UpdateMainPassCB(const GameTimer& gt);
     void UpdateLightBuffers();
-    void UpdateSsaoCB(const GameTimer& gt);
-    void PopulateShadowMapCommands(GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList);
+    void UpdateSsaoCB();
+    void PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList);
     void PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void PopulateForwardPathCommands(const std::shared_ptr<GCommandList>& cmdList);
     void PopulateDrawCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList, RenderMode type);
     void PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList, const GTexture& renderTarget,
                                  const GDescriptor* rtvMemory, UINT offsetRTV);
-    void PopulateCopyResource(const std::shared_ptr<GCommandList>& cmdList, const GResource& srcResource,
-                              const GResource& dstResource);
     void PopulateDynamicCubeMapCommands(GraphicsAdapter adapter, const std::shared_ptr<GCommandList>& cmdList);
-    std::array<ReflectionPassConstants, 6> BuildCubeFacePassCBs(const DirectX::SimpleMath::Vector3& center) const;
+    std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> BuildCubeFacePassCBs(const DirectX::SimpleMath::Vector3& center) const;
     void CreateDynamicTextures(GraphicsAdapter adapter);
 
     std::shared_ptr<Common::Window> window;
@@ -81,11 +79,8 @@ private:
     D3D12_RECT fullRect{};
     std::shared_ptr<GRootSignature> primeDeviceSignature, ssaoPrimeRootSignature, ssaoSecondRootSignature, secondDeviceSignature;
     RenderModeFactory primePipelineResources, secondPipelineResources;
-    std::shared_ptr<GraphicPSO> shadowMapPSOSecondDevice;
-    std::shared_ptr<GCrossAdapterResource> crossAdapterShadowMap;
-    std::array<std::shared_ptr<GCrossAdapterResource>, 6> crossAdapterCubeMaps;
-    std::shared_ptr<ShadowMap> shadowPathSecondDevice, cubeMapSecondDevice, shadowPathPrimeDevice, cubeMapPrimeDevice;
-    GDescriptor primeCopyCubeMapSRV;
+    std::array<std::shared_ptr<GCrossAdapterResource>, CubeMapRenderTarget::FaceCount> crossAdapterCubeMaps;
+    std::shared_ptr<ShadowMap> cubeMapSecondDevice, shadowPathPrimeDevice, cubeMapPrimeDevice;
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
     std::shared_ptr<SSAO> ambientPrimePath;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
@@ -98,13 +93,13 @@ private:
     float mLightNearZ = 0.0f, mLightFarZ = 0.0f;
     DirectX::SimpleMath::Vector3 mLightPosW;
     DirectX::SimpleMath::Matrix mLightView = DirectX::SimpleMath::Matrix::Identity, mLightProj = DirectX::SimpleMath::Matrix::Identity, mShadowTransform = DirectX::SimpleMath::Matrix::Identity;
-    static constexpr UINT DynamicCubeMapFaceCount = 6, DynamicCubeMapFirstPassIndex = 2, DynamicCubeMapSize = 1024;
-    std::shared_ptr<CubeMapRenderTarget> dynamicCubeMap, dynamicCubeMapSecond;
+    static constexpr UINT DynamicCubeMapFirstPassIndex = 2, DynamicCubeMapSize = 1024;
+    std::shared_ptr<CubeMapRenderTarget> dynamicCubeMap;
     std::shared_ptr<BakedCubeMapRenderTarget> bakedCubeMapSecond;
     std::atomic<bool> isBaked = false;
-    static constexpr UINT BakedCubeMapFaceCount = 6, BakedCubeMapFirstPassIndex = 2, BakedCubeMapSize = 1024;
+    static constexpr UINT BakedCubeMapFirstPassIndex = 2, BakedCubeMapSize = 1024;
     GTexture dynamicCubeMapFaceColor, dynamicCubeMapFaceDepth;
-    GDescriptor dynamicCubeMapFaceSrv, dynamicCubeMapFaceRtv, dynamicCubeMapFaceDsv;
+    GDescriptor dynamicCubeMapFaceRtv, dynamicCubeMapFaceDsv;
     float mLightRotationAngle = 0.0f;
     DirectX::SimpleMath::Vector3 mBaseLightDirections[3] = {
         {0.57735f, -0.57735f, 0.57735f}, {-0.57735f, -0.57735f, 0.57735f}, {0.0f, -0.707f, -0.707f}};

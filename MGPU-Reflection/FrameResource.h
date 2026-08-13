@@ -1,8 +1,9 @@
 #pragma once
 
 #include "GDescriptor.h"
+#include "DirectXBuffers.h"
+#include "GDevice.h"
 #include "ShaderBuffersData.h"
-#include "GTexture.h"
 
 using namespace PEPEngine;
 using namespace Graphics;
@@ -23,9 +24,6 @@ struct FrameResource
                   UINT materialCount, UINT pointLightCount, UINT spotLightCount);
     FrameResource(const FrameResource& rhs) = delete;
     FrameResource& operator=(const FrameResource& rhs) = delete;
-    ~FrameResource();
-
-
     GDescriptor BackBufferRTVMemory;
 
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> PrimePassConstantUploadBuffer;

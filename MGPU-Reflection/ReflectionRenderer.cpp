@@ -222,32 +222,6 @@ void ReflectionRenderer::InitPipeLineResource()
 
 
 
-    const auto primeDeviceShadowMapPso = primePipelineResources.GetPSO(RenderMode::ShadowMapOpaque);
-
-
-    auto descPSO = primeDeviceShadowMapPso->GetPsoDescription();
-
-
-    D3D12_GRAPHICS_PIPELINE_STATE_DESC basePsoDesc;
-
-    ZeroMemory(&basePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-    basePsoDesc.InputLayout = descPSO.InputLayout;
-    basePsoDesc.VS = descPSO.VS;
-    basePsoDesc.RasterizerState = descPSO.RasterizerState;
-    basePsoDesc.BlendState = descPSO.BlendState;
-    basePsoDesc.DepthStencilState = descPSO.DepthStencilState;
-    basePsoDesc.SampleMask = descPSO.SampleMask;
-    basePsoDesc.PrimitiveTopologyType = descPSO.PrimitiveTopologyType;
-    basePsoDesc.NumRenderTargets = 0;
-    basePsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-    basePsoDesc.SampleDesc = descPSO.SampleDesc;
-    basePsoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-
-
-    shadowMapPSOSecondDevice = std::make_shared<GraphicPSO>();
-    shadowMapPSOSecondDevice->SetPsoDesc(basePsoDesc);
-    shadowMapPSOSecondDevice->SetRootSignature(secondDeviceSignature->GetNativeSignature().Get());
-    shadowMapPSOSecondDevice->Initialize(devices[GraphicAdapterSecond]);
 }
 
 void ReflectionRenderer::InitRenderPaths()
@@ -269,18 +243,8 @@ void ReflectionRenderer::InitRenderPaths()
 
     shadowPathPrimeDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterPrimary], 2048, 2048));
 
-    shadowPathSecondDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterSecond], 2048, 2048));
-    auto shadowMapDesc = shadowPathSecondDevice->GetTexture().GetD3D12ResourceDesc();
-
-    crossAdapterShadowMap = std::make_shared<GCrossAdapterResource>(shadowMapDesc, devices[GraphicAdapterPrimary],
-                                                                    devices[GraphicAdapterSecond],
-                                                                    L"Shared Shadow Map");
-
     dynamicCubeMap = std::make_shared<CubeMapRenderTarget>(
         devices[GraphicAdapterPrimary], DynamicCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
-
-    dynamicCubeMapSecond = std::make_shared<CubeMapRenderTarget>(
-        devices[GraphicAdapterSecond], DynamicCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
 
     bakedCubeMapSecond = std::make_shared<BakedCubeMapRenderTarget>(
         devices[GraphicAdapterSecond], BakedCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
@@ -289,7 +253,7 @@ void ReflectionRenderer::InitRenderPaths()
 
     // cubeMapDesc.DepthOrArraySize = 1;
 
-    auto desc = dynamicCubeMapSecond->GetCubeMap().GetD3D12ResourceDesc();
+    auto desc = dynamicCubeMap->GetCubeMap().GetD3D12ResourceDesc();
     desc.DepthOrArraySize = 1;
     for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
     {
@@ -300,7 +264,6 @@ void ReflectionRenderer::InitRenderPaths()
                                                                              std::to_wstring(face));
     }
 
-    primeCopyCubeMapSRV = devices[GraphicAdapterPrimary]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void ReflectionRenderer::Update(const GameTimer& gt)
@@ -364,14 +327,14 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         scenes[i]->UpdateMaterials(currentFrameResource.get(), i == GraphicAdapterSecond);
     }
 
-    UpdateShadowTransform(gt);
+    UpdateShadowTransform();
     UpdateLightBuffers();
     UpdateMainPassCB(gt);
-    UpdateShadowPassCB(gt);
-    UpdateSsaoCB(gt);
+    UpdateShadowPassCB();
+    UpdateSsaoCB();
 }
 
-void ReflectionRenderer::UpdateShadowTransform(const GameTimer& gt)
+void ReflectionRenderer::UpdateShadowTransform()
 {
     // Only the first "main" light casts a shadow.
     Vector3 lightDir = mRotatedLightDirections[0];
@@ -412,7 +375,7 @@ void ReflectionRenderer::UpdateShadowTransform(const GameTimer& gt)
     mShadowTransform = S;
 }
 
-void ReflectionRenderer::UpdateShadowPassCB(const GameTimer& gt)
+void ReflectionRenderer::UpdateShadowPassCB()
 {
     auto view = mLightView;
     auto proj = mLightProj;
@@ -432,8 +395,8 @@ void ReflectionRenderer::UpdateShadowPassCB(const GameTimer& gt)
     shadowPassCB.NearZ = mLightNearZ;
     shadowPassCB.FarZ = mLightFarZ;
 
-    UINT w = shadowPathSecondDevice->Width();
-    UINT h = shadowPathSecondDevice->Height();
+    UINT w = shadowPathPrimeDevice->Width();
+    UINT h = shadowPathPrimeDevice->Height();
     shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
     shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
@@ -522,7 +485,7 @@ void ReflectionRenderer::UpdateLightBuffers()
     mainPassCB.SpotLightCount = spotLightCount;
 }
 
-void ReflectionRenderer::UpdateSsaoCB(const GameTimer& gt)
+void ReflectionRenderer::UpdateSsaoCB()
 {
     const auto camera = scenes[GraphicAdapterPrimary]->GetCamera();
     SsaoConstants ssaoCB;
@@ -563,7 +526,7 @@ void ReflectionRenderer::UpdateSsaoCB(const GameTimer& gt)
     }
 }
 
-void ReflectionRenderer::PopulateShadowMapCommands(const GraphicsAdapter adapter, std::shared_ptr<GCommandList> cmdList)
+void ReflectionRenderer::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList)
 {
         cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
@@ -759,17 +722,6 @@ void ReflectionRenderer::PopulateDrawQuadCommand(const std::shared_ptr<GCommandL
     cmdList->FlushResourceBarriers();
 }
 
-void ReflectionRenderer::PopulateCopyResource(const std::shared_ptr<GCommandList>& cmdList, const GResource& srcResource,
-                                           const GResource& dstResource)
-{
-    cmdList->CopyResource(dstResource, srcResource);
-    cmdList->TransitionBarrier(dstResource,
-                               D3D12_RESOURCE_STATE_COMMON);
-    cmdList->TransitionBarrier(srcResource, D3D12_RESOURCE_STATE_COMMON);
-    cmdList->FlushResourceBarriers();
-}
-
-
 void ReflectionRenderer::Draw(const GameTimer& gt)
 {
 
@@ -797,7 +749,7 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     primeCmdList->EndQuery(timestampHeapIndex);
     PopulateNormalMapCommands(primeCmdList);
     PopulateAmbientMapCommands(primeCmdList);
-    PopulateShadowMapCommands(GraphicAdapterPrimary, primeCmdList);
+    PopulateShadowMapCommands(primeCmdList);
     PopulateDynamicCubeMapCommands(GraphicAdapterPrimary, primeCmdList);
     PopulateForwardPathCommands(primeCmdList);
     PopulateDrawQuadCommand(primeCmdList, window->GetCurrentBackBuffer(),
@@ -812,7 +764,7 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     currentFrameResourceIndex = window->Present();
 }
 
-std::array<ReflectionPassConstants, ReflectionRenderer::DynamicCubeMapFaceCount> ReflectionRenderer::BuildCubeFacePassCBs(
+std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> ReflectionRenderer::BuildCubeFacePassCBs(
     const Vector3& center) const
 {
     constexpr float nearZ = 0.1f;
@@ -820,7 +772,7 @@ std::array<ReflectionPassConstants, ReflectionRenderer::DynamicCubeMapFaceCount>
 
     Matrix proj = XMMatrixPerspectiveFovLH(0.5f * XM_PI, 1.0f, nearZ, farZ);
 
-    std::array<Vector3, DynamicCubeMapFaceCount> targets =
+    std::array<Vector3, CubeMapRenderTarget::FaceCount> targets =
     {
         center + Vector3(1.0f, 0.0f, 0.0f),
         center + Vector3(-1.0f, 0.0f, 0.0f),
@@ -830,7 +782,7 @@ std::array<ReflectionPassConstants, ReflectionRenderer::DynamicCubeMapFaceCount>
         center + Vector3(0.0f, 0.0f, -1.0f)
     };
 
-    std::array<Vector3, DynamicCubeMapFaceCount> ups =
+    std::array<Vector3, CubeMapRenderTarget::FaceCount> ups =
     {
         Vector3(0.0f, 1.0f, 0.0f),
         Vector3(0.0f, 1.0f, 0.0f),
@@ -846,9 +798,9 @@ std::array<ReflectionPassConstants, ReflectionRenderer::DynamicCubeMapFaceCount>
         0.0f, 0.0f, 1.0f, 0.0f,
         0.5f, 0.5f, 0.0f, 1.0f);
 
-    std::array<ReflectionPassConstants, DynamicCubeMapFaceCount> out{};
+    std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> out{};
 
-    for (UINT i = 0; i < DynamicCubeMapFaceCount; ++i)
+    for (UINT i = 0; i < CubeMapRenderTarget::FaceCount; ++i)
     {
         auto eye = XMVectorSet(center.x, center.y, center.z, 1.0f);
         auto at = XMVectorSet(targets[i].x, targets[i].y, targets[i].z, 1.0f);
@@ -913,7 +865,7 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
         cmdList->TransitionBarrier(dynamicCubeMap->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
         cmdList->FlushResourceBarriers();
 
-        for (UINT face = 0; face < DynamicCubeMapFaceCount; ++face)
+        for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
         {
             UINT passIndex = DynamicCubeMapFirstPassIndex + face;
             currentFrameResource->PrimePassConstantUploadBuffer->CopyData(passIndex, cubePasses[face]);
@@ -1142,17 +1094,6 @@ void ReflectionRenderer::CreateDynamicTextures(const GraphicsAdapter adapter)
 
     dynamicCubeMapFaceRtv = devices[adapter]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
     dynamicCubeMapFaceDsv = devices[adapter]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1);
-    dynamicCubeMapFaceSrv = devices[adapter]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = format;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-    dynamicCubeMapFaceColor.CreateShaderResourceView(&srvDesc, &dynamicCubeMapFaceSrv);
-
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
     rtvDesc.Format = format;
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
