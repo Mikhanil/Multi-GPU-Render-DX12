@@ -17,7 +17,7 @@ HybridCubeMapApp::HybridCubeMapApp(const HINSTANCE hInstance) : D3DApp(hInstance
 
 HybridCubeMapApp::~HybridCubeMapApp()
 {
-    Flush();
+    HybridCubeMapApp::Flush();
     for (auto& device : devices)
     {
         if (device)
@@ -36,8 +36,7 @@ void HybridCubeMapApp::InitDevices()
 
     const auto& firstDevice = allDevices[0];
     devices.push_back(firstDevice);
-    if (allDevices.size() > 1 && firstDevice->IsCrossAdapterTextureSupported() &&
-        allDevices[1]->IsCrossAdapterTextureSupported())
+    if (allDevices.size() > 1)
     {
         const auto& otherDevice = allDevices[1];
         if (firstDevice->GetName().find(L"NVIDIA") == std::wstring::npos &&
@@ -72,7 +71,7 @@ bool HybridCubeMapApp::Initialize()
 #if !defined(DEBUG) && !defined(_DEBUG)
     // Keep the two existing rendering modes as separate, repeatable samples:
     // primary-only is the baseline and the second state enables the MGPU path.
-    constexpr uint32_t benchmarkDurationSeconds = 100;
+    constexpr uint32_t benchmarkDurationSeconds = 20;
     const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
     std::error_code error;
     std::filesystem::create_directories(logDirectory, error);
@@ -173,6 +172,45 @@ void HybridCubeMapApp::Flush()
 
 LRESULT HybridCubeMapApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
+#if defined(DEBUG) || defined(_DEBUG)
+    if (renderer)
+    {
+        renderer->ForwardUiMessage(hwnd, msg, wParam, lParam);
+        if (renderer->UiWantsMouseCapture())
+        {
+            switch (msg)
+            {
+            case WM_INPUT:
+                return DefWindowProc(hwnd, msg, wParam, lParam);
+            case WM_MOUSEMOVE:
+            case WM_LBUTTONDOWN:
+            case WM_RBUTTONDOWN:
+            case WM_MBUTTONDOWN:
+            case WM_MOUSEWHEEL:
+                return 0;
+            case WM_LBUTTONUP:
+                mouse.OnLeftReleased(LOWORD(lParam), HIWORD(lParam));
+                return 0;
+            case WM_RBUTTONUP:
+                mouse.OnRightReleased(LOWORD(lParam), HIWORD(lParam));
+                return 0;
+            case WM_MBUTTONUP:
+                mouse.OnMiddleReleased(LOWORD(lParam), HIWORD(lParam));
+                return 0;
+            }
+        }
+        if (renderer->UiWantsKeyboardCapture())
+        {
+            if (msg == WM_KEYUP)
+            {
+                keyboard.OnKeyReleased(static_cast<char>(wParam));
+                return 0;
+            }
+            if (msg == WM_KEYDOWN)
+                return 0;
+        }
+    }
+#endif
     switch (msg)
     {
     case WM_KEYUP:

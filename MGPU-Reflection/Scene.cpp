@@ -2,6 +2,7 @@
 
 #include "Camera.h"
 #include "CameraController.h"
+#include "d3dUtil.h"
 #include "GameObject.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
@@ -158,6 +159,21 @@ namespace Common
         loader.AddMaterial(mirror);
         models[L"mirrorSphere"]->SetMeshMaterial(0, mirror);
         for (const auto& material : loader.GetMaterials()) material->InitMaterial(&srvHeap);
+
+        // The secondary cubemap path uses this as its intentional no-AO input.
+        // It is not referenced by a material, so Material::InitMaterial would not
+        // otherwise create its slot in the scene's texture table.
+        const auto whiteIndex = loader.GetTextureIndex(L"white1x1Tex");
+        const auto& whiteTexture = loader.GetTexture(whiteIndex);
+        const auto whiteDesc = whiteTexture->GetD3D12Resource()->GetDesc();
+        D3D12_SHADER_RESOURCE_VIEW_DESC whiteSrv{};
+        whiteSrv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        whiteSrv.Format = GetSRGBFormat(whiteDesc.Format);
+        whiteSrv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        whiteSrv.Texture2D.MostDetailedMip = 0;
+        whiteSrv.Texture2D.MipLevels = whiteDesc.MipLevels;
+        whiteSrv.Texture2D.ResourceMinLODClamp = 0.0f;
+        whiteTexture->CreateShaderResourceView(&whiteSrv, &srvHeap, whiteIndex);
     }
 
     std::shared_ptr<Renderer> Scene::CreateRenderer(const std::wstring& modelName) const

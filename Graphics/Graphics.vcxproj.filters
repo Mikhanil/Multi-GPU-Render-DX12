@@ -51,6 +51,9 @@
     <ClInclude Include="GCommandList.h">
       <Filter>Header Files\Render</Filter>
     </ClInclude>
+    <ClInclude Include="GCommandListMarker.h">
+      <Filter>Header Files\Render</Filter>
+    </ClInclude>
     <ClInclude Include="GCommandQueue.h">
       <Filter>Header Files\Render</Filter>
     </ClInclude>

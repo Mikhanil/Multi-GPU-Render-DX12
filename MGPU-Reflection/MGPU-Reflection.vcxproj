@@ -89,7 +89,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -106,7 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -123,7 +123,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -140,7 +140,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NOMINMAX;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Submodule\imgui;$(SolutionDir)Submodule\imgui\backends;$(SolutionDir)\Common;$(SolutionDir)\Utils;$(SolutionDir)Assimp\include;$(SolutionDir)\Graphics;$(SolutionDir)\Allocator;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
@@ -153,12 +153,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_dx12.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_win32.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Submodule\imgui\imgui.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Submodule\imgui\imgui_draw.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Submodule\imgui\imgui_tables.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="Source.cpp" />
       <ClCompile Include="ReflectionApp.cpp" />
       <ClCompile Include="ReflectionRenderer.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="States\ReflectionBenchmarkState.cpp" />
+    <ClCompile Include="UILayer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameResource.h" />
@@ -166,6 +187,7 @@
       <ClInclude Include="ReflectionRenderer.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="States\ReflectionBenchmarkState.h" />
+    <ClInclude Include="UILayer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

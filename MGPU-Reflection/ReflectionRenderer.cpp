@@ -5,6 +5,10 @@
 #include "d3dx12.h"
 #include "GameObject.h"
 #include "GCommandList.h"
+#include "GCommandListMarker.h"
+#if defined(DEBUG) || defined(_DEBUG)
+#include "UILayer.h"
+#endif
 #include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
@@ -29,13 +33,17 @@ ReflectionRenderer::ReflectionRenderer(std::shared_ptr<Common::Window> windowVal
     : window(std::move(windowValue)), devices(devicesValue), scenes(scenesValue),
       backBufferFormat(backBufferFormatValue), depthStencilFormat(depthStencilFormatValue) {}
 
+ReflectionRenderer::~ReflectionRenderer() = default;
+
 void ReflectionRenderer::Initialize()
 {
     mSceneBounds = scenes[GraphicAdapterPrimary]->GetBounds();
     hasSecondaryAdapter = devices.size() == ReflectionAdapterCount && scenes.size() == ReflectionAdapterCount;
-    if (hasSecondaryAdapter)
-        devices[GraphicAdapterPrimary]->SharedFence(primeFence, devices[GraphicAdapterSecond], secondFence, sharedFenceValue);
     InitRenderPaths(); Flush(); InitRootSignature(); Flush(); InitPipeLineResource(); Flush(); InitFrameResource(); Flush();
+#if defined(DEBUG) || defined(_DEBUG)
+    uiLayer = std::make_unique<UILayer>(devices[GraphicAdapterPrimary], window->GetWindowHandle(),
+                                        GetSRGBFormat(backBufferFormat), *this);
+#endif
 }
 
 void ReflectionRenderer::ResetBenchmarkAnimation()
@@ -53,6 +61,9 @@ void ReflectionRenderer::SetSsaaMultiplier(const UINT value)
 
 void ReflectionRenderer::OnResize(const float aspectRatio)
 {
+#if defined(DEBUG) || defined(_DEBUG)
+    if (uiLayer) uiLayer->Invalidate();
+#endif
     fullViewport = { 0.0f, 0.0f, static_cast<float>(window->GetClientWidth()),
                      static_cast<float>(window->GetClientHeight()), 0.0f, 1.0f };
     fullRect = { 0, 0, window->GetClientWidth(), window->GetClientHeight() };
@@ -72,9 +83,12 @@ void ReflectionRenderer::OnResize(const float aspectRatio)
     if (antiAliasingPrimePath)
         antiAliasingPrimePath->OnResize(window->GetClientWidth(), window->GetClientHeight());
     currentFrameResourceIndex = window->GetCurrentBackBufferIndex();
+#if defined(DEBUG) || defined(_DEBUG)
+    if (uiLayer) uiLayer->CreateDeviceObjects();
+#endif
 }
 
-void ReflectionRenderer::Flush()
+void ReflectionRenderer::Flush() const
 {
     for (const auto& device : devices)
         if (device) device->Flush();
@@ -252,7 +266,6 @@ void ReflectionRenderer::InitRenderPaths()
 
     commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
 
-
     shadowPathPrimeDevice = (std::make_shared<ShadowMap>(devices[GraphicAdapterPrimary], 2048, 2048));
 
     dynamicCubeMap = std::make_shared<CubeMapRenderTarget>(
@@ -260,6 +273,9 @@ void ReflectionRenderer::InitRenderPaths()
 
     if (hasSecondaryAdapter)
     {
+        shadowPathSecondDevice = std::make_shared<ShadowMap>(devices[GraphicAdapterSecond],
+                                                              shadowPathPrimeDevice->Width(),
+                                                              shadowPathPrimeDevice->Height());
         bakedCubeMapSecond = std::make_shared<BakedCubeMapRenderTarget>(
             devices[GraphicAdapterSecond], BakedCubeMapSize, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_D32_FLOAT);
         CreateDynamicTextures(GraphicAdapterSecond);
@@ -284,19 +300,17 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     UINT olderIndex = currentFrameResourceIndex - 1 > globalCountFrameResources
                           ? 0
                           : static_cast<UINT>(currentFrameResourceIndex);
+    if (UseOnlyPrime)
     {
-        if (UseOnlyPrime)
+        gpuTimes[GraphicAdapterPrimary] = devices[GraphicAdapterPrimary]->GetCommandQueue()->GetTimestamp(
+            olderIndex);
+        gpuTimes[GraphicAdapterSecond] = 0;
+    }
+    else
+    {
+        for (UINT i = 0; i < devices.size(); ++i)
         {
-            gpuTimes[GraphicAdapterPrimary] = devices[GraphicAdapterPrimary]->GetCommandQueue()->GetTimestamp(
-                olderIndex);
-            gpuTimes[GraphicAdapterSecond] = 0;
-        }
-        else
-        {
-            for (UINT i = 0; i < devices.size(); ++i)
-            {
-                gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
-            }
+            gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
         }
     }
 
@@ -318,6 +332,8 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         copyQueue->WaitForFenceValue(currentFrameResource->PrimeCopyFenceValue);
     }
 
+    // This frame resource owns the secondary upload buffers.  Do not overwrite
+    // them while GPU2 can still consume the previous submission.
     if (hasSecondaryAdapter && currentFrameResource->SecondRenderFenceValue != 0 && !secondQueue->IsFinish(
         currentFrameResource->SecondRenderFenceValue))
     {
@@ -345,6 +361,9 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     UpdateMainPassCB(gt);
     UpdateShadowPassCB();
     UpdateSsaoCB();
+#if defined(DEBUG) || defined(_DEBUG)
+    if (uiLayer) uiLayer->Update();
+#endif
 }
 
 void ReflectionRenderer::UpdateShadowTransform()
@@ -416,7 +435,7 @@ void ReflectionRenderer::UpdateShadowPassCB()
     if (hasSecondaryAdapter)
     {
         auto currPassCB = currentFrameResource->SecondPassConstantUploadBuffer;
-        currPassCB->CopyData(0, shadowPassCB);
+        currPassCB->CopyData(1, shadowPassCB);
     }
 
     auto currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
@@ -545,6 +564,7 @@ void ReflectionRenderer::UpdateSsaoCB()
 
 void ReflectionRenderer::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList)
 {
+        GCommandListMarker marker(cmdList, L"Shadow map");
         cmdList->SetRootSignature(*primeDeviceSignature.get());
         cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
                                            *currentFrameResource->MaterialBuffers[GraphicAdapterPrimary]);
@@ -566,8 +586,33 @@ void ReflectionRenderer::PopulateShadowMapCommands(std::shared_ptr<GCommandList>
         cmdList->FlushResourceBarriers();
 }
 
+void ReflectionRenderer::PopulateSecondaryStaticShadowMapCommands(const std::shared_ptr<GCommandList>& cmdList)
+{
+    GCommandListMarker marker(cmdList, L"Static shadow map (secondary)");
+    cmdList->SetRootSignature(*secondDeviceSignature.get());
+    cmdList->SetDescriptorsHeap(scenes[GraphicAdapterSecond]->GetSrvHeap());
+    cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+                                       *currentFrameResource->MaterialBuffers[GraphicAdapterSecond]);
+    cmdList->SetRootShaderResourceView(kPointLightsSlot,
+                                       *currentFrameResource->PointLightBuffers[GraphicAdapterSecond]);
+    cmdList->SetRootShaderResourceView(kSpotLightsSlot,
+                                       *currentFrameResource->SpotLightBuffers[GraphicAdapterSecond]);
+    cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, scenes[GraphicAdapterSecond]->GetSrvHeap());
+    cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+                                       *currentFrameResource->SecondPassConstantUploadBuffer, 1);
+
+    shadowPathSecondDevice->PopulatePreRenderCommands(cmdList);
+    cmdList->SetPipelineState(*secondPipelineResources.GetPSO(RenderMode::ShadowMapOpaque));
+    PopulateDrawCommands(GraphicAdapterSecond, cmdList, RenderMode::Opaque);
+    cmdList->SetPipelineState(*secondPipelineResources.GetPSO(RenderMode::ShadowMapOpaqueDrop));
+    PopulateDrawCommands(GraphicAdapterSecond, cmdList, RenderMode::OpaqueAlphaDrop);
+    cmdList->TransitionBarrier(shadowPathSecondDevice->GetTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->FlushResourceBarriers();
+}
+
 void ReflectionRenderer::PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList)
 {
+    GCommandListMarker marker(cmdList, L"Normals");
     //Draw Normals
     {
         cmdList->SetDescriptorsHeap(scenes[GraphicAdapterPrimary]->GetSrvHeap());
@@ -613,6 +658,7 @@ void ReflectionRenderer::PopulateNormalMapCommands(const std::shared_ptr<GComman
 
 void ReflectionRenderer::PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList)
 {
+    GCommandListMarker marker(cmdList, L"SSAO / ambient");
     //Draw Ambient
     {
         cmdList->SetDescriptorsHeap(scenes[GraphicAdapterPrimary]->GetSrvHeap());
@@ -632,6 +678,7 @@ void ReflectionRenderer::PopulateAmbientMapCommands(const std::shared_ptr<GComma
 
 void ReflectionRenderer::PopulateForwardPathCommands(const std::shared_ptr<GCommandList>& cmdList)
 {
+    GCommandListMarker marker(cmdList, L"Forward path");
     //Forward Path with SSAA
     {
         cmdList->SetDescriptorsHeap(scenes[GraphicAdapterPrimary]->GetSrvHeap());
@@ -721,6 +768,7 @@ void ReflectionRenderer::PopulateDrawCommands(const GraphicsAdapter adapterIndex
 void ReflectionRenderer::PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList,
                                               const GTexture& renderTarget, const GDescriptor* rtvMemory, const UINT offsetRTV)
 {
+    GCommandListMarker marker(cmdList, L"Final quad / composite");
     cmdList->SetViewports(&fullViewport, 1);
     cmdList->SetScissorRects(&fullRect, 1);
 
@@ -735,8 +783,6 @@ void ReflectionRenderer::PopulateDrawQuadCommand(const std::shared_ptr<GCommandL
     cmdList->SetPipelineState(*primePipelineResources.GetPSO(RenderMode::Quad));
     PopulateDrawCommands(GraphicAdapterPrimary, cmdList, (RenderMode::Quad));
 
-    cmdList->TransitionBarrier(renderTarget, D3D12_RESOURCE_STATE_PRESENT);
-    cmdList->FlushResourceBarriers();
 }
 
 void ReflectionRenderer::Draw(const GameTimer& gt)
@@ -771,6 +817,13 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     PopulateForwardPathCommands(primeCmdList);
     PopulateDrawQuadCommand(primeCmdList, window->GetCurrentBackBuffer(),
                             &currentFrameResource->BackBufferRTVMemory, 0);
+#if defined(DEBUG) || defined(_DEBUG)
+    if (uiLayer)
+    {
+        GCommandListMarker marker(primeCmdList, L"UI");
+        uiLayer->Render(primeCmdList);
+    }
+#endif
     primeCmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
     primeCmdList->FlushResourceBarriers();
     primeCmdList->EndQuery(timestampHeapIndex + 1);
@@ -781,8 +834,18 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     currentFrameResourceIndex = window->Present();
 }
 
+#if defined(DEBUG) || defined(_DEBUG)
+void ReflectionRenderer::ForwardUiMessage(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam) const
+{
+    if (uiLayer) uiLayer->ForwardMessage(hwnd, msg, wParam, lParam);
+}
+
+bool ReflectionRenderer::UiWantsMouseCapture() const { return uiLayer && uiLayer->WantsMouseCapture(); }
+bool ReflectionRenderer::UiWantsKeyboardCapture() const { return uiLayer && uiLayer->WantsKeyboardCapture(); }
+#endif
+
 std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> ReflectionRenderer::BuildCubeFacePassCBs(
-    const Vector3& center) const
+    const Vector3& center, const bool useBakedSecondaryLighting) const
 {
     constexpr float nearZ = 0.1f;
     constexpr float farZ = 500.0f;
@@ -827,6 +890,11 @@ std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> ReflectionRe
         Matrix viewProj = view * proj;
 
         ReflectionPassConstants pass = mainPassCB;
+        if (useBakedSecondaryLighting && hasBakedSecondaryLighting)
+        {
+            pass.DirectionalLight = bakedSecondaryDirectionalLight;
+            pass.ShadowTransform = bakedSecondaryShadowTransform;
+        }
         pass.View = view.Transpose();
         pass.InvView = view.Invert().Transpose();
         pass.Proj = proj.Transpose();
@@ -851,6 +919,7 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
 {
     if (UseOnlyPrime)
     {
+        GCommandListMarker marker(cmdList, L"Dynamic cubemap (primary-only)");
         if (dynamicCubeMap == nullptr) return;
         Vector3 center = scenes[GraphicAdapterPrimary]->GetMirrorSpherePosition();
 
@@ -876,7 +945,7 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
                                         scenes[GraphicAdapterPrimary]->GetSrvHeap(),
                                         whiteSsao);
 
-        auto cubePasses = BuildCubeFacePassCBs(center);
+        auto cubePasses = BuildCubeFacePassCBs(center, false);
 
         cmdList->TransitionBarrier(dynamicCubeMap->GetCubeMap(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         cmdList->TransitionBarrier(dynamicCubeMap->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -925,6 +994,7 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
     {
         if (adapter == GraphicAdapterPrimary)
         {
+            GCommandListMarker marker(cmdList, L"Dynamic cubemap (MGPU import)");
             cmdList->TransitionBarrier(dynamicCubeMap->GetCubeMap(), D3D12_RESOURCE_STATE_COMMON);
             cmdList->FlushResourceBarriers();
             for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
@@ -937,10 +1007,19 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
         }
         else
         {
+            GCommandListMarker marker(cmdList, L"Dynamic cubemap (secondary baked/dynamic update)");
             Vector3 center = scenes[GraphicAdapterSecond]->GetMirrorSpherePosition();
 
             cmdList->SetDescriptorsHeap(scenes[GraphicAdapterSecond]->GetSrvHeap());
             cmdList->SetRootSignature(*secondDeviceSignature.get());
+
+            if (!isBaked)
+            {
+                bakedSecondaryDirectionalLight = mainPassCB.DirectionalLight;
+                bakedSecondaryShadowTransform = mainPassCB.ShadowTransform;
+                hasBakedSecondaryLighting = true;
+                PopulateSecondaryStaticShadowMapCommands(cmdList);
+            }
 
             // BEGIN PROTECTED BAKED CUBEMAP
             if (!isBaked)
@@ -961,14 +1040,13 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
 
                 auto whiteSsao = scenes[GraphicAdapterSecond]->GetTextureIndex(L"white1x1Tex");
 
-                cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, scenes[GraphicAdapterSecond]->GetSrvHeap(),
-                    whiteSsao);
+                cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPathSecondDevice->GetSrv());
 
                 cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap,
                                                 scenes[GraphicAdapterSecond]->GetSrvHeap(),
                                                 whiteSsao);
 
-                auto cubePasses = BuildCubeFacePassCBs(center);
+                auto cubePasses = BuildCubeFacePassCBs(center, true);
 
                 cmdList->TransitionBarrier(bakedCubeMapSecond->GetCubeMap(), D3D12_RESOURCE_STATE_RENDER_TARGET);
                 cmdList->TransitionBarrier(bakedCubeMapSecond->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -1019,14 +1097,13 @@ void ReflectionRenderer::PopulateDynamicCubeMapCommands(const GraphicsAdapter ad
 
             auto whiteSsao = scenes[GraphicAdapterSecond]->GetTextureIndex(L"white1x1Tex");
 
-            cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, scenes[GraphicAdapterSecond]->GetSrvHeap(),
-                whiteSsao);
+            cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPathSecondDevice->GetSrv());
 
             cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap,
                                             scenes[GraphicAdapterSecond]->GetSrvHeap(),
                                             whiteSsao);
 
-            auto cubePasses = BuildCubeFacePassCBs(center);
+            auto cubePasses = BuildCubeFacePassCBs(center, true);
 
             for (UINT face = 0; face < CubeMapRenderTarget::FaceCount; ++face)
             {

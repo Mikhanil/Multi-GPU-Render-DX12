@@ -23,6 +23,9 @@ using namespace PEPEngine::Graphics;
 using namespace PEPEngine::Utils;
 
 namespace Common { class Window; }
+#if defined(DEBUG) || defined(_DEBUG)
+class UILayer;
+#endif
 
 // This sample has one primary path and, when available, one compatible hardware secondary.
 constexpr UINT ReflectionAdapterCount = 2;
@@ -36,12 +39,13 @@ public:
                        std::vector<std::shared_ptr<GDevice>>& devices,
                        std::vector<std::unique_ptr<Common::Scene>>& scenes,
                        DXGI_FORMAT backBufferFormat, DXGI_FORMAT depthStencilFormat);
+    ~ReflectionRenderer();
 
     void Initialize();
     void Update(const GameTimer& gt);
     void Draw(const GameTimer& gt);
     void OnResize(float aspectRatio);
-    void Flush();
+    void Flush() const;
     void SetUseOnlyPrime(bool value) { UseOnlyPrime = value || !hasSecondaryAdapter; }
     bool GetUseOnlyPrime() const { return UseOnlyPrime; }
     void ResetBenchmarkAnimation();
@@ -49,6 +53,11 @@ public:
     UINT GetSsaaMultiplier() const { return multi; }
     void SetDebugMap(UINT value) { pathMapShow = value; }
     UINT64 GetGpuTime(GraphicsAdapter adapter) const { return gpuTimes[adapter]; }
+#if defined(DEBUG) || defined(_DEBUG)
+    void ForwardUiMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) const;
+    bool UiWantsMouseCapture() const;
+    bool UiWantsKeyboardCapture() const;
+#endif
 
 private:
     void InitFrameResource();
@@ -61,6 +70,7 @@ private:
     void UpdateLightBuffers();
     void UpdateSsaoCB();
     void PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList);
+    void PopulateSecondaryStaticShadowMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList);
     void PopulateForwardPathCommands(const std::shared_ptr<GCommandList>& cmdList);
@@ -68,7 +78,8 @@ private:
     void PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList, const GTexture& renderTarget,
                                  const GDescriptor* rtvMemory, UINT offsetRTV);
     void PopulateDynamicCubeMapCommands(GraphicsAdapter adapter, const std::shared_ptr<GCommandList>& cmdList);
-    std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> BuildCubeFacePassCBs(const DirectX::SimpleMath::Vector3& center) const;
+    std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> BuildCubeFacePassCBs(
+        const DirectX::SimpleMath::Vector3& center, bool useBakedSecondaryLighting) const;
     void CreateDynamicTextures(GraphicsAdapter adapter);
 
     std::shared_ptr<Common::Window> window;
@@ -85,13 +96,14 @@ private:
     std::shared_ptr<GRootSignature> primeDeviceSignature, ssaoPrimeRootSignature, ssaoSecondRootSignature, secondDeviceSignature;
     RenderModeFactory primePipelineResources, secondPipelineResources;
     std::array<std::shared_ptr<GCrossAdapterResource>, CubeMapRenderTarget::FaceCount> crossAdapterCubeMaps;
-    std::shared_ptr<ShadowMap> cubeMapSecondDevice, shadowPathPrimeDevice, cubeMapPrimeDevice;
+    std::shared_ptr<ShadowMap> shadowPathPrimeDevice, shadowPathSecondDevice;
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
     std::shared_ptr<SSAO> ambientPrimePath;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
     ReflectionPassConstants mainPassCB{}, shadowPassCB{};
-    ComPtr<ID3D12Fence> primeFence, secondFence;
-    UINT64 sharedFenceValue = 0;
+    bool hasBakedSecondaryLighting = false;
+    LightData bakedSecondaryDirectionalLight{};
+    DirectX::SimpleMath::Matrix bakedSecondaryShadowTransform = DirectX::SimpleMath::Matrix::Identity;
     std::vector<std::shared_ptr<FrameResource>> frameResources{};
     std::shared_ptr<FrameResource> currentFrameResource;
     std::atomic<UINT> currentFrameResourceIndex = 0;
@@ -111,4 +123,7 @@ private:
     DirectX::SimpleMath::Vector3 mRotatedLightDirections[3];
     DirectX::BoundingSphere mSceneBounds{};
     UINT pathMapShow = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+    std::unique_ptr<UILayer> uiLayer;
+#endif
 };
