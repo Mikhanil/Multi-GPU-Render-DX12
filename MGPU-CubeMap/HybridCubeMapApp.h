@@ -17,6 +17,7 @@
 #include "SSAO.h"
 #include "GCrossAdapterResource.h"
 #include "CubeMapRenderTarget.h"
+#include "Services/BenchmarkService.h"
 #include "Transform.h"
 
 using namespace DirectX::SimpleMath;
@@ -81,15 +82,13 @@ private:
                                                     RenderMode psoType = RenderMode::Opaque);
     void inline CreateGO();
 
-    void CalculateFrameStats() override;
-    void LogWriting();
+    void BuildCubeMapBenchmark();
 
-    UINT64 gpuTimes[GraphicAdapterCount];
-    std::atomic<bool> logThreadIsAlive = true;
+    BenchmarkService benchmark;
+    bool benchmarkFinished = false;
+    bool isUsingSecondGpuForCubeMap = false;
     LockThreadQueue<std::wstring> logQueue{};
-    bool finishTest = false;
 
-    std::atomic<bool> UseOnlyPrime = true;
     UINT multi = 1;
 
     D3D12_VIEWPORT fullViewport{};

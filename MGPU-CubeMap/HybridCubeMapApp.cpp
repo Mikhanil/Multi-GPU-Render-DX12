@@ -16,6 +16,8 @@
 #include "GCommandList.h"
 #include "ModelRenderer.h"
 #include "Orbiter.h"
+#include "Services/States/WaitState.h"
+#include "Utils.h"
 
 using namespace SimpleMath;
 using namespace PEPEngine;
@@ -24,7 +26,7 @@ using namespace Graphics;
 
 #define GraphicAdapterCount 2
 
-HybridCubeMapApp::HybridCubeMapApp(const HINSTANCE hInstance) : D3DApp(hInstance), gpuTimes{}, fullRect()
+HybridCubeMapApp::HybridCubeMapApp(const HINSTANCE hInstance) : D3DApp(hInstance), fullRect()
 {
     mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
     mSceneBounds.Radius = 200;
@@ -43,7 +45,6 @@ HybridCubeMapApp::~HybridCubeMapApp()
 
     devices.clear();
 
-    logThreadIsAlive = false;
 }
 
 void HybridCubeMapApp::InitDevices()
@@ -887,137 +888,53 @@ void HybridCubeMapApp::CreateGO()
     logQueue.Push(std::wstring(L"\nFinish create GO"));
 }
 
-void HybridCubeMapApp::CalculateFrameStats()
+void HybridCubeMapApp::BuildCubeMapBenchmark()
 {
-    static float minFps = std::numeric_limits<float>::max();
-    static float minMspf = std::numeric_limits<float>::max();
-    static float maxFps = std::numeric_limits<float>::min();
-    static float maxMspf = std::numeric_limits<float>::min();
-    static UINT writeStaticticCount = 0;
-    static UINT64 primeGPUTimeMax = std::numeric_limits<UINT64>::min();
-    static UINT64 primeGPUTimeMin = std::numeric_limits<UINT64>::max();
-    static UINT64 secondGPUTimeMax = std::numeric_limits<UINT64>::min();
-    static UINT64 secondGPUTimeMin = std::numeric_limits<UINT64>::max();
-    frameCount++;
+    constexpr UINT TestTime = 60;
+    constexpr UINT MaxSsaaMultiplier = 8;
 
-    if ((timer.TotalTime() - timeElapsed) >= 1.0f)
+    benchmark.SetLooping(false);
+    for (UINT ssaaMultiplier = 1; ssaaMultiplier <= MaxSsaaMultiplier; ++ssaaMultiplier)
     {
-        float fps = static_cast<float>(frameCount); // fps = frameCnt / 1
-        float mspf = 1000.0f / fps;
-
-        minFps = std::min(fps, minFps);
-        minMspf = std::min(mspf, minMspf);
-        maxFps = std::max(fps, maxFps);
-        maxMspf = std::max(mspf, maxMspf);
-
-        primeGPUTimeMin = std::min(gpuTimes[GraphicAdapterPrimary], primeGPUTimeMin);
-        primeGPUTimeMax = std::max(gpuTimes[GraphicAdapterPrimary], primeGPUTimeMax);
-        secondGPUTimeMin = std::min(gpuTimes[GraphicAdapterSecond], secondGPUTimeMin);
-        secondGPUTimeMax = std::max(gpuTimes[GraphicAdapterSecond], secondGPUTimeMax);
-
-
-        if (writeStaticticCount >= 60)
+        const auto configureState = [this, ssaaMultiplier](const bool useSecondGpu, FileQueueWriter& logs)
         {
-            const std::wstring staticticStr = L"\nTotal SSAA X" + std::to_wstring(multi) +
-                L"\n\tCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +
-                L"\n\tMin FPS:" + std::to_wstring(minFps)
-                + L"\n\tMin MSPF:" + std::to_wstring(minMspf)
-                + L"\n\tMax FPS:" + std::to_wstring(maxFps)
-                + L"\n\tMax MSPF:" + std::to_wstring(maxMspf)
-                + L"\n\tMax Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMax) +
-                +L"\n\tMin Prime GPU Rendering Time:" + std::to_wstring(primeGPUTimeMin) +
-                +L"\n\tMax Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMax)
-                + L"\n\tMin Second GPU Rendering Time:" + std::to_wstring(secondGPUTimeMin);
+            Flush();
+            isUsingSecondGpuForCubeMap = useSecondGpu;
+            multi = ssaaMultiplier;
+            antiAliasingPrimePath->SetMultiplier(multi, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+            logs.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
+        };
 
-            logQueue.Push(staticticStr);
-
-
-            if (UseOnlyPrime)
-            {
-                Flush();
-                UseOnlyPrime = !UseOnlyPrime;
-                OnResize();
-            }
-            else
-            {
-                if (multi < 8)
-                {
-                    Flush();
-                    multi = multi + 1;
-                    antiAliasingPrimePath->SetMultiplier(multi, MainWindow->GetClientWidth(),
-                                                         MainWindow->GetClientHeight());
-                    UseOnlyPrime = true;
-                    OnResize();
-                }
-                else
-                {
-                    finishTest = true;
-                }
-            }
-
-            MainWindow->SetWindowTitle(
-                MainWindow->GetWindowName() + L" SSAA X" + std::to_wstring(multi) + L" Calculate Part Shadow Map:" +
-                std::to_wstring(!UseOnlyPrime));
-
-            writeStaticticCount = 0;
-
-            minFps = std::numeric_limits<float>::max();
-            minMspf = std::numeric_limits<float>::max();
-            maxFps = std::numeric_limits<float>::min();
-            maxMspf = std::numeric_limits<float>::min();
-            primeGPUTimeMax = std::numeric_limits<UINT64>::min();
-            primeGPUTimeMin = std::numeric_limits<UINT64>::max();
-            secondGPUTimeMax = std::numeric_limits<UINT64>::min();
-            secondGPUTimeMin = std::numeric_limits<UINT64>::max();
-        }
-        else
+        auto& nativeState = benchmark.AddState<WaitState>(
+            TestTime, FileQueueWriter(Benchmark::GetLogFile(
+                L"Native Cube Map SSAA X" + std::to_wstring(ssaaMultiplier) + L" ",
+                *devices[GraphicAdapterPrimary], *devices[GraphicAdapterSecond])));
+        nativeState.OnEnter = [configureState](FileQueueWriter& logs) { configureState(false, logs); };
+        nativeState.OnStatChanged = [this, ssaaMultiplier](FileQueueWriter& logs, const TimeStats& stats,
+                                                             const float progress)
         {
-            const std::wstring staticticStr = L"\nStep SSAA X" + std::to_wstring(multi) +
-                L"\n\tCalculate Part Shadow Map:" + std::to_wstring(!UseOnlyPrime) +
-                L"\n\tFPS:" + std::to_wstring(fps)
-                + L"\n\tMSPF:" + std::to_wstring(mspf)
-                + L"\n\tPrime GPU Rendering Time:" + std::to_wstring(gpuTimes[GraphicAdapterPrimary])
-                + L"\n\tSecond GPU Rendering Time:" + std::to_wstring(gpuTimes[GraphicAdapterSecond]);
+            Benchmark::PrintStatsCSV(stats, logs);
+            MainWindow->SetWindowTitle(L"Native Cube Map Progress SSAA X" + std::to_wstring(ssaaMultiplier) +
+                                        std::format(L" {:.2f}", progress * 100.0f) +
+                                        L"% FPS:" + std::to_wstring(stats.fps));
+        };
+        nativeState.OnExit = [this](FileQueueWriter& logs) { logs.WriteAllLog(); Flush(); };
 
-            logQueue.Push(staticticStr);
-
-            writeStaticticCount++;
-        }
-        frameCount = 0;
-        timeElapsed += 1.0f;
-    }
-}
-
-void HybridCubeMapApp::LogWriting()
-{
-    const std::filesystem::path filePath(
-        L"PartShadow " + devices[0]->GetName() + L"+" + devices[1]->GetName() + L".txt");
-
-    const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
-
-    OutputDebugStringW(path.c_str());
-
-    std::wofstream fileSteam;
-    fileSteam.open(path.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
-    if (fileSteam.is_open())
-    {
-        fileSteam << L"Information" << std::endl;
-    }
-
-    std::wstring line;
-
-    while (logQueue.Size() > 0)
-    {
-        while (logQueue.TryPop(line))
+        auto& hybridState = benchmark.AddState<WaitState>(
+            TestTime, FileQueueWriter(Benchmark::GetLogFile(
+                L"Hybrid Cube Map SSAA X" + std::to_wstring(ssaaMultiplier) + L" ",
+                *devices[GraphicAdapterPrimary], *devices[GraphicAdapterSecond])));
+        hybridState.OnEnter = [configureState](FileQueueWriter& logs) { configureState(true, logs); };
+        hybridState.OnStatChanged = [this, ssaaMultiplier](FileQueueWriter& logs, const TimeStats& stats,
+                                                             const float progress)
         {
-            fileSteam << line;
-        }
+            Benchmark::PrintStatsCSV(stats, logs);
+            MainWindow->SetWindowTitle(L"Hybrid Cube Map Progress SSAA X" + std::to_wstring(ssaaMultiplier) +
+                                        std::format(L" {:.2f}", progress * 100.0f) +
+                                        L"% FPS:" + std::to_wstring(stats.fps));
+        };
+        hybridState.OnExit = [this](FileQueueWriter& logs) { logs.WriteAllLog(); Flush(); };
     }
-
-    fileSteam << L"\nFinish Logs" << std::endl;
-
-    fileSteam.flush();
-    fileSteam.close();
 }
 
 bool HybridCubeMapApp::Initialize()
@@ -1053,9 +970,8 @@ bool HybridCubeMapApp::Initialize()
 
     Flush();
 
-    MainWindow->SetWindowTitle(
-        MainWindow->GetWindowName() + L" SSAA X" + std::to_wstring(multi) + L" Calculate Part Shadow Map:" +
-        std::to_wstring(!UseOnlyPrime));
+    BuildCubeMapBenchmark();
+    benchmark.Start();
 
 
     return true;
@@ -1078,25 +994,6 @@ void HybridCubeMapApp::UpdateMaterials()
 
 void HybridCubeMapApp::Update(const GameTimer& gt)
 {
-    UINT olderIndex = currentFrameResourceIndex - 1 > globalCountFrameResources
-                          ? 0
-                          : static_cast<UINT>(currentFrameResourceIndex);
-    {
-        if (UseOnlyPrime)
-        {
-            gpuTimes[GraphicAdapterPrimary] = devices[GraphicAdapterPrimary]->GetCommandQueue()->GetTimestamp(
-                olderIndex);
-            gpuTimes[GraphicAdapterSecond] = 0;
-        }
-        else
-        {
-            for (int i = 0; i < GraphicAdapterCount; ++i)
-            {
-                gpuTimes[i] = devices[i]->GetCommandQueue()->GetTimestamp(olderIndex);
-            }
-        }
-    }
-
     const auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Graphics);
     const auto copyQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Copy);
     const auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics);
@@ -1142,6 +1039,9 @@ void HybridCubeMapApp::Update(const GameTimer& gt)
     UpdateMainPassCB(gt);
     UpdateShadowPassCB(gt);
     UpdateSsaoCB(gt);
+
+    benchmark.Tick(gt.DeltaTime());
+    benchmarkFinished = benchmark.IsFinished();
 }
 
 void HybridCubeMapApp::UpdateShadowTransform(const GameTimer& gt)
@@ -1521,7 +1421,7 @@ void HybridCubeMapApp::Draw(const GameTimer& gt)
     const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
 
 
-    if (!UseOnlyPrime)
+    if (isUsingSecondGpuForCubeMap)
     {
         auto secondRenderQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
         if (currentFrameResource->SecondRenderFenceValue == 0 || secondRenderQueue->IsFinish(
@@ -1624,10 +1524,9 @@ int HybridCubeMapApp::Run()
         // Otherwise, do animation/game stuff.
         else
         {
-            if (finishTest)
+            if (benchmarkFinished)
             {
                 MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" Finished. Wait...");
-                LogWriting();
                 Quit();
                 continue;
             }
@@ -1636,7 +1535,6 @@ int HybridCubeMapApp::Run()
 
             //if (!isAppPaused)
             {
-                CalculateFrameStats();
                 Update(timer);
                 Draw(timer);
             }
@@ -1853,7 +1751,7 @@ std::array<PassConstants, HybridCubeMapApp::DynamicCubeMapFaceCount> HybridCubeM
 void HybridCubeMapApp::PopulateDynamicCubeMapCommands(const GraphicsAdapter adapter,
                                                      const std::shared_ptr<GCommandList>& cmdList)
 {
-    if (UseOnlyPrime)
+    if (!isUsingSecondGpuForCubeMap)
     {
         if (dynamicCubeMap == nullptr) return;
         if (mirrorSphereTransform == nullptr) return;
