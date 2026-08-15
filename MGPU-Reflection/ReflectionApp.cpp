@@ -102,56 +102,55 @@ bool HybridCubeMapApp::Initialize()
     const uint32_t totalStateCount = static_cast<uint32_t>(captureModes.size() * updateModes.size()) *
         distributionCount * ssrModeCount;
     uint32_t stateIndex = 0;
-    for (const auto captureMode : captureModes)
+    constexpr std::array ssrModes = {SsrExecutionMode::Primary, SsrExecutionMode::Secondary};
+    for (const auto ssrMode : ssrModes)
     {
-        const std::wstring captureName = captureMode == ReflectionProbeCaptureMode::FullDynamic
-                                             ? L"Full dynamic"
-                                             : L"Baked + dynamic overlay";
-        const std::wstring captureLogName = captureMode == ReflectionProbeCaptureMode::FullDynamic
-                                                ? L"FullDynamic"
-                                                : L"BakedOverlay";
-        for (const auto updateMode : updateModes)
+        if (ssrMode == SsrExecutionMode::Secondary && devices.size() < ReflectionAdapterCount)
+            continue;
+        const std::wstring ssrName = ssrMode == SsrExecutionMode::Primary
+                                         ? L"SSR Primary" : L"SSR Secondary";
+        const std::wstring ssrLogName = ssrMode == SsrExecutionMode::Primary
+                                            ? L"SSRPrimary" : L"SSRSecondary";
+        for (const auto captureMode : captureModes)
         {
-            std::wstring updateName;
-            std::wstring updateLogName;
-            switch (updateMode)
+            const std::wstring captureName = captureMode == ReflectionProbeCaptureMode::FullDynamic
+                                                 ? L"Full dynamic"
+                                                 : L"Baked + dynamic overlay";
+            const std::wstring captureLogName = captureMode == ReflectionProbeCaptureMode::FullDynamic
+                                                    ? L"FullDynamic"
+                                                    : L"BakedOverlay";
+            for (const auto updateMode : updateModes)
             {
-            case ReflectionProbeUpdateMode::AllProbesPerFrame:
-                updateName = L"All probes/frame";
-                updateLogName = L"AllProbes";
-                break;
-            case ReflectionProbeUpdateMode::OneProbePerFrame:
-                updateName = L"One probe/frame";
-                updateLogName = L"OneProbe";
-                break;
-            case ReflectionProbeUpdateMode::OneFacePerFrame:
-                updateName = L"One face/frame";
-                updateLogName = L"OneFace";
-                break;
-            }
-
-            for (UINT primaryProbeCount = 0;
-                 primaryProbeCount <= Common::Scene::ReflectionProbeCount;
-                 ++primaryProbeCount)
-            {
-                if (devices.size() < ReflectionAdapterCount &&
-                    primaryProbeCount != Common::Scene::ReflectionProbeCount)
+                std::wstring updateName;
+                std::wstring updateLogName;
+                switch (updateMode)
                 {
-                    continue;
+                case ReflectionProbeUpdateMode::AllProbesPerFrame:
+                    updateName = L"All probes/frame";
+                    updateLogName = L"AllProbes";
+                    break;
+                case ReflectionProbeUpdateMode::OneProbePerFrame:
+                    updateName = L"One probe/frame";
+                    updateLogName = L"OneProbe";
+                    break;
+                case ReflectionProbeUpdateMode::OneFacePerFrame:
+                    updateName = L"One face/frame";
+                    updateLogName = L"OneFace";
+                    break;
                 }
 
-                constexpr std::array ssrModes = {SsrExecutionMode::Primary, SsrExecutionMode::Secondary};
-                for (const auto ssrMode : ssrModes)
+                for (UINT primaryProbeCount = 0;
+                     primaryProbeCount <= Common::Scene::ReflectionProbeCount;
+                     ++primaryProbeCount)
                 {
-                    if (ssrMode == SsrExecutionMode::Secondary && devices.size() < ReflectionAdapterCount)
+                    if (devices.size() < ReflectionAdapterCount &&
+                        primaryProbeCount != Common::Scene::ReflectionProbeCount)
+                    {
                         continue;
+                    }
                     const UINT secondaryProbeCount = Common::Scene::ReflectionProbeCount - primaryProbeCount;
                     const std::wstring distributionName = L"Primary " + std::to_wstring(primaryProbeCount) +
                         L" / Secondary " + std::to_wstring(secondaryProbeCount);
-                    const std::wstring ssrName = ssrMode == SsrExecutionMode::Primary
-                                                     ? L"SSR Primary" : L"SSR Secondary";
-                    const std::wstring ssrLogName = ssrMode == SsrExecutionMode::Primary
-                                                        ? L"SSRPrimary" : L"SSRSecondary";
                     const std::wstring stateName = captureName + L" | " + updateName + L" | " +
                         distributionName + L" | " + ssrName;
                     const std::wstring logPrefix = L"MGPU-Reflection_" + captureLogName + L"_" + updateLogName +

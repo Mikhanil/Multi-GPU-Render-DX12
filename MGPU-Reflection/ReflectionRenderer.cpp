@@ -926,12 +926,14 @@ void ReflectionRenderer::BuildSsrResources()
     srvDesc.Texture2D.MipLevels = 1;
     srvDesc.Format = GetSRGBFormat(backBufferFormat);
     composedSceneColor.CreateShaderResourceView(&srvDesc, &primarySsrInputSrvs, 0);
-    devices[GraphicAdapterPrimary]->GetDXDevice()->CopyDescriptorsSimple(
-        1, primarySsrInputSrvs.GetCPUHandle(1), ambientPrimePath->NormalDepthMapSrv()->GetCPUHandle(),
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    devices[GraphicAdapterPrimary]->GetDXDevice()->CopyDescriptorsSimple(
-        1, primarySsrInputSrvs.GetCPUHandle(2), ambientPrimePath->NormalMapSrv()->GetCPUHandle(),
-        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    ambientPrimePath->NormalDepthMap().CreateShaderResourceView(
+        &srvDesc, &primarySsrInputSrvs, 1);
+
+    srvDesc.Format = NormalMapFormat;
+    ambientPrimePath->NormalMap().CreateShaderResourceView(
+        &srvDesc, &primarySsrInputSrvs, 2);
 
     if (!hasSecondaryAdapter)
         return;
