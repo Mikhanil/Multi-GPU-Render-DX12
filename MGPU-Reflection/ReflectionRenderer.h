@@ -18,6 +18,7 @@
 #include "Scene.h"
 #include "GDeviceFactory.h"
 #include "GameTimer.h"
+#include "Services/States/BenchmarkState.h"
 
 using namespace PEPEngine;
 using namespace PEPEngine::Graphics;
@@ -42,11 +43,18 @@ enum class ReflectionProbeUpdateMode : uint8_t
     OneFacePerFrame
 };
 
+enum class SsrExecutionMode : uint8_t
+{
+    Primary,
+    Secondary
+};
+
 struct ReflectionProbeConfiguration
 {
     UINT PrimaryProbeCount = Common::Scene::ReflectionProbeCount;
     ReflectionProbeCaptureMode CaptureMode = ReflectionProbeCaptureMode::FullDynamic;
     ReflectionProbeUpdateMode UpdateMode = ReflectionProbeUpdateMode::AllProbesPerFrame;
+    SsrExecutionMode SsrMode = SsrExecutionMode::Primary;
 };
 
 struct ReflectionBenchmarkDisplayState
@@ -58,12 +66,7 @@ struct ReflectionBenchmarkDisplayState
     uint32_t RemainingSeconds = 0;
     std::wstring PrimaryGpuName;
     std::wstring SecondaryGpuName;
-    float Fps = 0.0f;
-    float Mspf = 0.0f;
-    float MinFps = 0.0f;
-    float MinMspf = 0.0f;
-    float MaxFps = 0.0f;
-    float MaxMspf = 0.0f;
+    TimeStats LatestStats{};
 };
 
 class ReflectionRenderer
@@ -83,6 +86,8 @@ public:
     void OnResize(float aspectRatio);
     void Flush() const;
     void SetUseOnlyPrime(bool value);
+    void SetSsrExecutionMode(SsrExecutionMode mode);
+    bool HasSecondaryAdapter() const { return hasSecondaryAdapter; }
     bool GetUseOnlyPrime() const { return probeConfiguration.PrimaryProbeCount == ReflectionProbeCount; }
     const ReflectionProbeConfiguration& GetReflectionProbeConfiguration() const { return probeConfiguration; }
     void SetReflectionProbeConfiguration(ReflectionProbeConfiguration configuration);
@@ -97,6 +102,14 @@ public:
     bool UiWantsKeyboardCapture() const;
 
 private:
+    struct SsrInputSet
+    {
+        GTexture* SceneColor = nullptr;
+        GTexture* SceneDepth = nullptr;
+        GTexture* SceneNormal = nullptr;
+        const GDescriptor* Srvs = nullptr;
+    };
+
     void InitFrameResource();
     void InitRootSignature();
     void InitPipeLineResource();
@@ -113,6 +126,12 @@ private:
     void PopulateDrawCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList, RenderMode type);
     void PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList, const GTexture& renderTarget,
                                  const GDescriptor* rtvMemory, UINT offsetRTV);
+    void PopulateSsrCommands(const std::shared_ptr<GCommandList>& cmdList, GraphicsAdapter adapter,
+                             const SsrInputSet& inputs, GTexture& renderTarget,
+                             const GDescriptor* renderTargetRtv);
+    void BuildSsrResources();
+    void BuildPresentationViews();
+    void ApplyPresentationDevice();
     void PopulateBakedProbeCommands(GraphicsAdapter adapter, UINT probeIndex,
                                     const std::shared_ptr<GCommandList>& cmdList);
     void PopulatePrimaryProbeCommands(const std::shared_ptr<GCommandList>& cmdList);
@@ -143,7 +162,9 @@ private:
     UINT nextSharedProbeIndex = InvalidProbeIndex;
     UINT nextSharedProbeFace = 0;
     UINT64 secondaryProbeFenceValue = 0;
+    UINT64 secondarySsrFenceValue = 0;
     bool secondaryProbeSubmissionReady = false;
+    bool secondarySsrSubmissionReady = false;
     UINT multi = 1;
     D3D12_VIEWPORT fullViewport{};
     D3D12_RECT fullRect{};
@@ -155,6 +176,15 @@ private:
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
     std::shared_ptr<SSAO> ambientPrimePath;
     std::shared_ptr<SSAA> antiAliasingPrimePath;
+    GTexture composedSceneColor;
+    GDescriptor composedSceneColorRtv, primarySsrInputSrvs;
+    GTexture secondSsrSceneColor, secondSsrSceneDepth, secondSsrSceneNormal;
+    GDescriptor secondSsrInputSrvs;
+    std::shared_ptr<GCrossAdapterResource> sharedSsrSceneColor;
+    std::shared_ptr<GCrossAdapterResource> sharedSsrSceneDepth;
+    std::shared_ptr<GCrossAdapterResource> sharedSsrSceneNormal;
+    GDescriptor presentationBackBufferRtvs;
+    SsrExecutionMode activePresentationMode = SsrExecutionMode::Primary;
     ReflectionPassConstants mainPassCB{}, shadowPassCB{};
     bool hasBakedSecondaryLighting = false;
     LightData bakedSecondaryDirectionalLight{};

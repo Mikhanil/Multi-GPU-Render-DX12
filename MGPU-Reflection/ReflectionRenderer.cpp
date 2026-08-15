@@ -21,6 +21,7 @@ namespace
 {
 constexpr UINT kPointLightsSlot = StandardShaderSlot::Count;
 constexpr UINT kSpotLightsSlot = StandardShaderSlot::Count + 1;
+constexpr UINT kSsrInputsSlot = StandardShaderSlot::Count + 2;
 
 struct ProbeUpdateBatch
 {
@@ -116,11 +117,20 @@ void ReflectionRenderer::SetUseOnlyPrime(const bool value)
     SetReflectionProbeConfiguration(configuration);
 }
 
+void ReflectionRenderer::SetSsrExecutionMode(const SsrExecutionMode mode)
+{
+    auto configuration = probeConfiguration;
+    configuration.SsrMode = mode;
+    SetReflectionProbeConfiguration(configuration);
+}
+
 void ReflectionRenderer::SetReflectionProbeConfiguration(ReflectionProbeConfiguration configuration)
 {
     configuration.PrimaryProbeCount = hasSecondaryAdapter
                                           ? std::min(configuration.PrimaryProbeCount, ReflectionProbeCount)
                                           : ReflectionProbeCount;
+    if (!hasSecondaryAdapter && configuration.SsrMode == SsrExecutionMode::Secondary)
+        configuration.SsrMode = SsrExecutionMode::Primary;
     probeConfiguration = configuration;
 
     if (probeConfiguration.CaptureMode == ReflectionProbeCaptureMode::BakedDynamicOverlay)
@@ -174,16 +184,16 @@ void ReflectionRenderer::SetSsaaMultiplier(const UINT value)
 
 void ReflectionRenderer::OnResize(const float aspectRatio)
 {
+    // Window::OnResize flushes only the presentation device. When GPU2 owns
+    // the swap chain, GPU1 must finish before its size-dependent targets are replaced.
+    if (activePresentationMode == SsrExecutionMode::Secondary)
+        devices[GraphicAdapterPrimary]->Flush();
     if (uiLayer) uiLayer->Invalidate();
     fullViewport = { 0.0f, 0.0f, static_cast<float>(window->GetClientWidth()),
                      static_cast<float>(window->GetClientHeight()), 0.0f, 1.0f };
     fullRect = { 0, 0, window->GetClientWidth(), window->GetClientHeight() };
 
-    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-    rtvDesc.Format = GetSRGBFormat(backBufferFormat);
-    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    for (int i = 0; i < globalCountFrameResources; ++i)
-        window->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &frameResources[i]->BackBufferRTVMemory);
+    BuildPresentationViews();
 
     scenes[GraphicAdapterPrimary]->GetCamera()->SetAspectRatio(aspectRatio);
     if (ambientPrimePath)
@@ -193,6 +203,7 @@ void ReflectionRenderer::OnResize(const float aspectRatio)
     }
     if (antiAliasingPrimePath)
         antiAliasingPrimePath->OnResize(window->GetClientWidth(), window->GetClientHeight());
+    BuildSsrResources();
     currentFrameResourceIndex = window->GetCurrentBackBufferIndex();
     if (uiLayer) uiLayer->CreateDeviceObjects();
 }
@@ -241,6 +252,9 @@ void ReflectionRenderer::InitRootSignature()
         rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->AddShaderResourceView(1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->AddShaderResourceView(2, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_DESCRIPTOR_RANGE ssrInputs;
+        ssrInputs.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0, 2);
+        rootSignature->AddDescriptorParameter(&ssrInputs, 1, D3D12_SHADER_VISIBILITY_PIXEL);
         rootSignature->Initialize(devices[i]);
 
         if (i == GraphicAdapterPrimary)
@@ -339,18 +353,18 @@ void ReflectionRenderer::InitPipeLineResource()
     const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), static_cast<UINT>(defaultInputLayout.size())};
 
     primePipelineResources = RenderModeFactory();
-    primePipelineResources.LoadDefaultShaders();
+    primePipelineResources.LoadDefaultShaders(true);
     primePipelineResources.LoadDefaultPSO(devices[GraphicAdapterPrimary], primeDeviceSignature, desc,
                                           backBufferFormat, depthStencilFormat, ssaoPrimeRootSignature,
-                                          NormalMapFormat, AmbientMapFormat);
+                                          NormalMapFormat, AmbientMapFormat, true);
 
     if (hasSecondaryAdapter)
     {
         secondPipelineResources = RenderModeFactory();
-        secondPipelineResources.LoadDefaultShaders();
+        secondPipelineResources.LoadDefaultShaders(true);
         secondPipelineResources.LoadDefaultPSO(devices[GraphicAdapterSecond], secondDeviceSignature, desc,
                                                backBufferFormat, depthStencilFormat, nullptr,
-                                               NormalMapFormat, AmbientMapFormat);
+                                               NormalMapFormat, AmbientMapFormat, true);
     }
 
     ambientPrimePath->SetPipelineData(*primePipelineResources.GetPSO(RenderMode::Ssao),
@@ -409,6 +423,7 @@ void ReflectionRenderer::InitRenderPaths()
 
 void ReflectionRenderer::Update(const GameTimer& gt)
 {
+    ApplyPresentationDevice();
     const auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Graphics);
     const auto secondQueue = hasSecondaryAdapter ? devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics) : nullptr;
 
@@ -426,6 +441,8 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     secondaryProbeSubmissionReady = hasSecondaryAdapter &&
         probeConfiguration.PrimaryProbeCount < ReflectionProbeCount &&
         (secondaryProbeFenceValue == 0 || secondQueue->IsFinish(secondaryProbeFenceValue));
+    secondarySsrSubmissionReady = probeConfiguration.SsrMode == SsrExecutionMode::Secondary && hasSecondaryAdapter &&
+        (secondarySsrFenceValue == 0 || secondQueue->IsFinish(secondarySsrFenceValue));
 
     mLightRotationAngle += 0.1f * gt.DeltaTime();
 
@@ -449,7 +466,8 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     UpdateMainPassCB(gt);
     UpdateShadowPassCB();
     UpdateSsaoCB();
-    if (uiLayer) uiLayer->Update();
+    if (uiLayer && (probeConfiguration.SsrMode != SsrExecutionMode::Secondary || secondarySsrSubmissionReady))
+        uiLayer->Update();
 }
 
 void ReflectionRenderer::UpdateShadowTransform()
@@ -574,8 +592,6 @@ void ReflectionRenderer::UpdateMainPassCB(const GameTimer& gt)
     {
         auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
         currentPassCB->CopyData(0, mainPassCB);
-        if (secondaryProbeSubmissionReady)
-            currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
     }
 }
 
@@ -704,9 +720,9 @@ void ReflectionRenderer::PopulateNormalMapCommands(const std::shared_ptr<GComman
 
         cmdList->SetPipelineState(*primePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
         PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::Opaque);
+        PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::DynamicOpaque);
         cmdList->SetPipelineState(*primePipelineResources.GetPSO(RenderMode::DrawNormalsOpaqueDrop));
         PopulateDrawCommands(GraphicAdapterPrimary, cmdList, RenderMode::OpaqueAlphaDrop);
-
 
         cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_COMMON);
         cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_COMMON);
@@ -846,6 +862,140 @@ void ReflectionRenderer::PopulateDrawQuadCommand(const std::shared_ptr<GCommandL
 
 }
 
+void ReflectionRenderer::PopulateSsrCommands(const std::shared_ptr<GCommandList>& cmdList,
+                                             const GraphicsAdapter adapter,
+                                             const SsrInputSet& inputs,
+                                             GTexture& renderTarget,
+                                             const GDescriptor* renderTargetRtv)
+{
+    GCommandListMarker marker(cmdList, adapter == GraphicAdapterPrimary ? L"SSR (primary)" : L"SSR (secondary)");
+    cmdList->SetViewports(&fullViewport, 1);
+    cmdList->SetScissorRects(&fullRect, 1);
+    cmdList->TransitionBarrier(*inputs.SceneColor, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->TransitionBarrier(*inputs.SceneDepth, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->TransitionBarrier(*inputs.SceneNormal, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->TransitionBarrier(renderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    cmdList->FlushResourceBarriers();
+    cmdList->SetRenderTargets(1, renderTargetRtv);
+
+    const auto& signature = adapter == GraphicAdapterPrimary ? primeDeviceSignature : secondDeviceSignature;
+    cmdList->SetRootSignature(*signature);
+    cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+        adapter == GraphicAdapterPrimary
+            ? *currentFrameResource->PrimePassConstantUploadBuffer
+            : *currentFrameResource->SecondPassConstantUploadBuffer);
+    cmdList->SetDescriptorsHeap(inputs.Srvs);
+    cmdList->SetRootDescriptorTable(kSsrInputsSlot, inputs.Srvs);
+    cmdList->SetPipelineState(*(adapter == GraphicAdapterPrimary
+                                   ? primePipelineResources.GetPSO(RenderMode::Ssr)
+                                   : secondPipelineResources.GetPSO(RenderMode::Ssr)));
+    cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    cmdList->Draw(3, 1, 0, 0);
+}
+
+void ReflectionRenderer::BuildSsrResources()
+{
+    if (!ambientPrimePath || !antiAliasingPrimePath || window->GetClientWidth() <= 0 || window->GetClientHeight() <= 0)
+        return;
+
+    const UINT width = static_cast<UINT>(window->GetClientWidth());
+    const UINT height = static_cast<UINT>(window->GetClientHeight());
+    if (composedSceneColor.IsValid())
+    {
+        const auto currentDesc = composedSceneColor.GetD3D12ResourceDesc();
+        const bool secondaryResourcesReady = !hasSecondaryAdapter ||
+            (sharedSsrSceneColor && sharedSsrSceneDepth && sharedSsrSceneNormal);
+        if (currentDesc.Width == width && currentDesc.Height == height && secondaryResourcesReady)
+            return;
+    }
+    auto colorDesc = CD3DX12_RESOURCE_DESC::Tex2D(GetSRGBFormat(backBufferFormat), width, height, 1, 1, 1, 0,
+                                                  D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+    const auto clearValue = CD3DX12_CLEAR_VALUE(GetSRGBFormat(backBufferFormat), Colors::Black);
+    composedSceneColor = GTexture(devices[GraphicAdapterPrimary], colorDesc, L"SSR Composed Scene",
+                                  TextureUsage::RenderTarget, &clearValue);
+    composedSceneColorRtv = devices[GraphicAdapterPrimary]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 1);
+    primarySsrInputSrvs = devices[GraphicAdapterPrimary]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+    rtvDesc.Format = GetSRGBFormat(backBufferFormat);
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    composedSceneColor.CreateRenderTargetView(&rtvDesc, &composedSceneColorRtv);
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Format = GetSRGBFormat(backBufferFormat);
+    composedSceneColor.CreateShaderResourceView(&srvDesc, &primarySsrInputSrvs, 0);
+    devices[GraphicAdapterPrimary]->GetDXDevice()->CopyDescriptorsSimple(
+        1, primarySsrInputSrvs.GetCPUHandle(1), ambientPrimePath->NormalDepthMapSrv()->GetCPUHandle(),
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    devices[GraphicAdapterPrimary]->GetDXDevice()->CopyDescriptorsSimple(
+        1, primarySsrInputSrvs.GetCPUHandle(2), ambientPrimePath->NormalMapSrv()->GetCPUHandle(),
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    if (!hasSecondaryAdapter)
+        return;
+
+    const auto createSecondTexture = [this](GTexture& destination, const GTexture& source,
+                                            const std::wstring& name, const TextureUsage usage)
+    {
+        destination = GTexture(devices[GraphicAdapterSecond], source.GetD3D12ResourceDesc(), name, usage);
+    };
+    createSecondTexture(secondSsrSceneColor, composedSceneColor, L"Secondary SSR Scene Color", TextureUsage::RenderTarget);
+    createSecondTexture(secondSsrSceneDepth, ambientPrimePath->NormalDepthMap(), L"Secondary SSR Scene Depth", TextureUsage::Depth);
+    createSecondTexture(secondSsrSceneNormal, ambientPrimePath->NormalMap(), L"Secondary SSR Scene Normal", TextureUsage::Normalmap);
+    secondSsrInputSrvs = devices[GraphicAdapterSecond]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 3);
+    srvDesc.Format = GetSRGBFormat(backBufferFormat);
+    secondSsrSceneColor.CreateShaderResourceView(&srvDesc, &secondSsrInputSrvs, 0);
+    srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+    secondSsrSceneDepth.CreateShaderResourceView(&srvDesc, &secondSsrInputSrvs, 1);
+    srvDesc.Format = secondSsrSceneNormal.GetD3D12ResourceDesc().Format;
+    secondSsrSceneNormal.CreateShaderResourceView(&srvDesc, &secondSsrInputSrvs, 2);
+
+    auto sharedColorDesc = composedSceneColor.GetD3D12ResourceDesc();
+    auto sharedDepthDesc = ambientPrimePath->NormalDepthMap().GetD3D12ResourceDesc();
+    auto sharedNormalDesc = ambientPrimePath->NormalMap().GetD3D12ResourceDesc();
+    sharedSsrSceneColor = std::make_shared<GCrossAdapterResource>(sharedColorDesc, devices[GraphicAdapterPrimary],
+        devices[GraphicAdapterSecond], L"Shared SSR Scene Color");
+    sharedSsrSceneDepth = std::make_shared<GCrossAdapterResource>(sharedDepthDesc, devices[GraphicAdapterPrimary],
+        devices[GraphicAdapterSecond], L"Shared SSR Scene Depth");
+    sharedSsrSceneNormal = std::make_shared<GCrossAdapterResource>(sharedNormalDesc, devices[GraphicAdapterPrimary],
+        devices[GraphicAdapterSecond], L"Shared SSR Scene Normal");
+}
+
+void ReflectionRenderer::BuildPresentationViews()
+{
+    if (frameResources.empty())
+        return;
+    const auto adapter = activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter
+                             ? GraphicAdapterSecond : GraphicAdapterPrimary;
+    presentationBackBufferRtvs = devices[adapter]->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+                                                                        globalCountFrameResources);
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+    rtvDesc.Format = GetSRGBFormat(backBufferFormat);
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    for (UINT index = 0; index < globalCountFrameResources; ++index)
+        window->GetBackBuffer(index).CreateRenderTargetView(&rtvDesc, &presentationBackBufferRtvs, index);
+}
+
+void ReflectionRenderer::ApplyPresentationDevice()
+{
+    const auto requestedMode = probeConfiguration.SsrMode == SsrExecutionMode::Secondary && hasSecondaryAdapter
+                                   ? SsrExecutionMode::Secondary : SsrExecutionMode::Primary;
+    if (requestedMode == activePresentationMode)
+        return;
+    activePresentationMode = requestedMode;
+    const auto adapter = activePresentationMode == SsrExecutionMode::Secondary
+                             ? GraphicAdapterSecond : GraphicAdapterPrimary;
+    window->SetPresentationDevice(devices[adapter]);
+    uiLayer.reset();
+    BuildPresentationViews();
+    currentFrameResourceIndex = window->GetCurrentBackBufferIndex();
+    secondarySsrFenceValue = 0;
+    uiLayer = std::make_unique<UILayer>(devices[adapter], window->GetWindowHandle(),
+                                        GetSRGBFormat(backBufferFormat), *this);
+}
+
 void ReflectionRenderer::Draw(const GameTimer& gt)
 {
     if (secondaryProbeSubmissionReady)
@@ -864,16 +1014,58 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     CopySharedProbeOutputsToPrimary(cmdList);
     PopulatePrimaryProbeCommands(cmdList);
     PopulateForwardPathCommands(cmdList);
-    PopulateDrawQuadCommand(cmdList, window->GetCurrentBackBuffer(),
-                            &currentFrameResource->BackBufferRTVMemory, 0);
-    if (uiLayer)
+    PopulateDrawQuadCommand(cmdList, composedSceneColor, &composedSceneColorRtv, 0);
+
+    if (activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter)
     {
-        GCommandListMarker marker(cmdList, L"UI");
-        uiLayer->Render(cmdList);
+        cmdList->CopyResource(sharedSsrSceneColor->GetPrimeResource(), composedSceneColor);
+        cmdList->CopyResource(sharedSsrSceneDepth->GetPrimeResource(), ambientPrimePath->NormalDepthMap());
+        cmdList->CopyResource(sharedSsrSceneNormal->GetPrimeResource(), ambientPrimePath->NormalMap());
     }
-    cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-    cmdList->FlushResourceBarriers();
+    else
+    {
+        const auto backBufferIndex = window->GetCurrentBackBufferIndex();
+        const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
+        const SsrInputSet inputs{&composedSceneColor, &ambientPrimePath->NormalDepthMap(),
+                                 &ambientPrimePath->NormalMap(), &primarySsrInputSrvs};
+        PopulateSsrCommands(cmdList, GraphicAdapterPrimary, inputs, window->GetCurrentBackBuffer(),
+                            &backBufferRtv);
+        if (uiLayer)
+        {
+            GCommandListMarker marker(cmdList, L"UI");
+            uiLayer->Render(cmdList);
+        }
+        cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+        cmdList->FlushResourceBarriers();
+    }
     currentFrameResource->PrimeRenderFenceValue = commandQueue->ExecuteCommandList(cmdList);
+
+    if (activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter)
+    {
+        const auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics);
+        if (!secondarySsrSubmissionReady)
+            return;
+
+        currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
+        const auto secondCmdList = secondQueue->GetCommandList();
+        secondCmdList->CopyResource(secondSsrSceneColor, sharedSsrSceneColor->GetSharedResource());
+        secondCmdList->CopyResource(secondSsrSceneDepth, sharedSsrSceneDepth->GetSharedResource());
+        secondCmdList->CopyResource(secondSsrSceneNormal, sharedSsrSceneNormal->GetSharedResource());
+        const auto backBufferIndex = window->GetCurrentBackBufferIndex();
+        const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
+        const SsrInputSet inputs{&secondSsrSceneColor, &secondSsrSceneDepth,
+                                 &secondSsrSceneNormal, &secondSsrInputSrvs};
+        PopulateSsrCommands(secondCmdList, GraphicAdapterSecond, inputs,
+                            window->GetCurrentBackBuffer(), &backBufferRtv);
+        if (uiLayer)
+        {
+            GCommandListMarker marker(secondCmdList, L"UI");
+            uiLayer->Render(secondCmdList);
+        }
+        secondCmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+        secondCmdList->FlushResourceBarriers();
+        secondarySsrFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
+    }
 
     currentFrameResourceIndex = window->Present();
 }

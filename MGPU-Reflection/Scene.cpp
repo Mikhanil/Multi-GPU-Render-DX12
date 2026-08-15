@@ -14,6 +14,7 @@
 #include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
+#include <assimp/postprocess.h>
 #include <algorithm>
 
 using namespace DirectX::SimpleMath;
@@ -97,6 +98,11 @@ namespace Common
         load(L"fountain", "Data\\Objects\\Temple\\SM_Fountain.FBX");
         load(L"platform", "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
         load(L"doom", "Data\\Objects\\DoomSlayer\\doommarine.obj");
+        models[L"police"] = loader.CreateModelFromFile(
+            cmdList, "Data\\DX12GE\\Models\\cars\\police\\scene.gltf",
+            aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace |
+            aiProcess_FlipUVs | aiProcess_PreTransformVertices | aiProcess_SortByPType |
+            aiProcess_JoinIdenticalVertices);
         models[L"griffon"]->scaleMatrix = Matrix::CreateScale(0.1f);
         models[L"mountDragon"]->scaleMatrix = Matrix::CreateScale(0.1f);
         models[L"desertDragon"]->scaleMatrix = Matrix::CreateScale(0.1f);
@@ -223,18 +229,18 @@ namespace Common
         sun->AddComponent(light);
         gameObjects.push_back(std::move(sun));
 
-        auto orbitNano = std::make_unique<GameObject>("OrbitNano");
-        orbitNano->SetScale(0.5f);
-        AddObjectRenderer(orbitNano.get(), L"nano", RenderMode::DynamicOpaque);
+        auto orbitCar = std::make_unique<GameObject>("OrbitPoliceCar");
+        orbitCar->SetScale(2.0f);
+        AddObjectRenderer(orbitCar.get(), L"police", RenderMode::DynamicOpaque);
         auto reflectionProbeCenter = std::make_unique<GameObject>("ReflectionProbeCenter");
         reflectionProbeCenter->GetTransform()->SetPosition({0.0f, 20.0f, 2.0f});
         const auto reflectionProbeCenterTransform = reflectionProbeCenter->GetTransform();
         gameObjects.push_back(std::move(reflectionProbeCenter));
-        orbitNano->AddComponent(std::make_shared<Orbiter>(
+        orbitCar->AddComponent(std::make_shared<Orbiter>(
             reflectionProbeCenterTransform, Vector3(14.0f, -5.0f, 0.0f), 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
-        benchmarkMovingObject = orbitNano.get();
-        benchmarkMovingObjectMatrix = orbitNano->GetTransform()->GetLocalMatrix();
-        gameObjects.push_back(std::move(orbitNano));
+        benchmarkMovingObject = orbitCar.get();
+        benchmarkMovingObjectMatrix = orbitCar->GetTransform()->GetLocalMatrix();
+        gameObjects.push_back(std::move(orbitCar));
 
         for (int j = 0; j < 11; ++j)
         {

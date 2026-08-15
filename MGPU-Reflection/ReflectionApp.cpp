@@ -71,7 +71,7 @@ bool HybridCubeMapApp::Initialize()
 
 #if !defined(DEBUG) && !defined(_DEBUG)
     // Every benchmark axis is explicit in both the state title and log name:
-    // capture strategy, update cadence, and primary/secondary probe split.
+    // capture strategy, update cadence, probe split, and SSR execution adapter.
     constexpr uint32_t benchmarkDurationSeconds = 20;
     const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
     std::error_code error;
@@ -98,8 +98,9 @@ bool HybridCubeMapApp::Initialize()
     const uint32_t distributionCount = devices.size() == ReflectionAdapterCount
                                            ? Common::Scene::ReflectionProbeCount + 1
                                            : 1;
+    const uint32_t ssrModeCount = devices.size() == ReflectionAdapterCount ? 2u : 1u;
     const uint32_t totalStateCount = static_cast<uint32_t>(captureModes.size() * updateModes.size()) *
-        distributionCount;
+        distributionCount * ssrModeCount;
     uint32_t stateIndex = 0;
     for (const auto captureMode : captureModes)
     {
@@ -139,22 +140,33 @@ bool HybridCubeMapApp::Initialize()
                     continue;
                 }
 
-                const UINT secondaryProbeCount = Common::Scene::ReflectionProbeCount - primaryProbeCount;
-                const std::wstring distributionName = L"Primary " + std::to_wstring(primaryProbeCount) +
-                    L" / Secondary " + std::to_wstring(secondaryProbeCount);
-                const std::wstring stateName = captureName + L" | " + updateName + L" | " + distributionName;
-                const std::wstring logPrefix = L"MGPU-Reflection_" + captureLogName + L"_" + updateLogName +
-                    L"_Primary" + std::to_wstring(primaryProbeCount) + L"-Secondary" +
-                    std::to_wstring(secondaryProbeCount) + L" ";
-                const auto logPath = devices.size() == ReflectionAdapterCount
-                                         ? Benchmark::GetLogFile(logPrefix, *devices[GraphicAdapterPrimary],
-                                                                 *devices[GraphicAdapterSecond])
-                                         : logDirectory / (logPrefix + devices[GraphicAdapterPrimary]->GetName() +
-                                                           L"+SingleGPU.log");
-                ++stateIndex;
-                benchmark.AddState<ReflectionBenchmarkState>(
-                    *this, ReflectionProbeConfiguration{primaryProbeCount, captureMode, updateMode}, stateName,
-                    stateIndex, totalStateCount, benchmarkDurationSeconds, FileQueueWriter(logPath));
+                constexpr std::array ssrModes = {SsrExecutionMode::Primary, SsrExecutionMode::Secondary};
+                for (const auto ssrMode : ssrModes)
+                {
+                    if (ssrMode == SsrExecutionMode::Secondary && devices.size() < ReflectionAdapterCount)
+                        continue;
+                    const UINT secondaryProbeCount = Common::Scene::ReflectionProbeCount - primaryProbeCount;
+                    const std::wstring distributionName = L"Primary " + std::to_wstring(primaryProbeCount) +
+                        L" / Secondary " + std::to_wstring(secondaryProbeCount);
+                    const std::wstring ssrName = ssrMode == SsrExecutionMode::Primary
+                                                     ? L"SSR Primary" : L"SSR Secondary";
+                    const std::wstring ssrLogName = ssrMode == SsrExecutionMode::Primary
+                                                        ? L"SSRPrimary" : L"SSRSecondary";
+                    const std::wstring stateName = captureName + L" | " + updateName + L" | " +
+                        distributionName + L" | " + ssrName;
+                    const std::wstring logPrefix = L"MGPU-Reflection_" + captureLogName + L"_" + updateLogName +
+                        L"_Primary" + std::to_wstring(primaryProbeCount) + L"-Secondary" +
+                        std::to_wstring(secondaryProbeCount) + L"_" + ssrLogName + L" ";
+                    const auto logPath = devices.size() == ReflectionAdapterCount
+                                             ? Benchmark::GetLogFile(logPrefix, *devices[GraphicAdapterPrimary],
+                                                                     *devices[GraphicAdapterSecond])
+                                             : logDirectory / (logPrefix + devices[GraphicAdapterPrimary]->GetName() +
+                                                               L"+SingleGPU.log");
+                    ++stateIndex;
+                    benchmark.AddState<ReflectionBenchmarkState>(
+                        *this, ReflectionProbeConfiguration{primaryProbeCount, captureMode, updateMode, ssrMode},
+                        stateName, stateIndex, totalStateCount, benchmarkDurationSeconds, FileQueueWriter(logPath));
+                }
             }
         }
     }
@@ -242,14 +254,7 @@ void HybridCubeMapApp::UpdateReflectionBenchmarkStatus(const std::wstring& state
     displayState.PrimaryGpuName = primaryGpuName;
     displayState.SecondaryGpuName = secondaryGpuName;
     if (latestStats)
-    {
-        displayState.Fps = latestStats->fps;
-        displayState.Mspf = latestStats->mspf;
-        displayState.MinFps = latestStats->minFps;
-        displayState.MinMspf = latestStats->minMspf;
-        displayState.MaxFps = latestStats->maxFps;
-        displayState.MaxMspf = latestStats->maxMspf;
-    }
+        displayState.LatestStats = *latestStats;
     renderer->SetBenchmarkDisplayState(std::move(displayState));
 }
 

@@ -16,6 +16,14 @@ struct ReflectionPassConstants : CommonPassConstants
     UINT SpotLightCount = 0;
     UINT LightPad0 = 0;
     UINT LightPad1 = 0;
+    float SsrMaxDistance = 100.0f;
+    float SsrThickness = 0.5f;
+    float SsrStride = 1.0f;
+    float SsrIntensity = 1.0f;
+    UINT SsrMaxSteps = 96;
+    UINT SsrBinarySteps = 5;
+    float SsrEdgeFadeScale = 24.0f;
+    float SsrPad = 0.0f;
 };
 
 struct FrameResource
@@ -24,8 +32,6 @@ struct FrameResource
                   UINT materialCount, UINT pointLightCount, UINT spotLightCount);
     FrameResource(const FrameResource& rhs) = delete;
     FrameResource& operator=(const FrameResource& rhs) = delete;
-    GDescriptor BackBufferRTVMemory;
-
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> PrimePassConstantUploadBuffer;
     std::shared_ptr<ConstantUploadBuffer<ReflectionPassConstants>> SecondPassConstantUploadBuffer;
     std::shared_ptr<ConstantUploadBuffer<SsaoConstants>> SsaoConstantUploadBuffer;

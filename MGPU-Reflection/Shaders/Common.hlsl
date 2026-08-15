@@ -37,6 +37,14 @@ struct WorldData
     uint PointLightCount;
     uint SpotLightCount;
     uint2 LightCountPad;
+    float SsrMaxDistance;
+    float SsrThickness;
+    float SsrStride;
+    float SsrIntensity;
+    uint SsrMaxSteps;
+    uint SsrBinarySteps;
+    float SsrEdgeFadeScale;
+    float SsrPad;
 };
 
 struct MaterialData

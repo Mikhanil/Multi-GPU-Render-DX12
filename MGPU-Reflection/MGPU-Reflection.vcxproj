@@ -226,6 +226,10 @@
     <None Include="Shaders\Reflections.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="Shaders\SSR.hlsl"><FileType>Document</FileType></None>
+    <None Include="..\MGPU-SSR\Data\DX12GE\Models\cars\police\**\*.*">
+      <Link>Data\DX12GE\Models\cars\police\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SolutionDir)\Common\Common.vcxproj">
@@ -243,6 +247,14 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(MSBuildThisFileDirectory)..\Build\SampleResources.targets" />
+  <Target Name="CopyReflectionPoliceCar" AfterTargets="CopySampleRuntimeResources">
+    <ItemGroup>
+      <ReflectionPoliceCar Include="$(MSBuildThisFileDirectory)..\MGPU-SSR\Data\DX12GE\Models\cars\police\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ReflectionPoliceCar)"
+          DestinationFiles="@(ReflectionPoliceCar->'$(OutDir)Data\DX12GE\Models\cars\police\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('$(SolutionDir)\packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
     <Import Project="..\packages\directxmesh_uwp.2026.5.8.1\build\native\directxmesh_uwp.targets" Condition="Exists('..\packages\directxmesh_uwp.2026.5.8.1\build\native\directxmesh_uwp.targets')" />

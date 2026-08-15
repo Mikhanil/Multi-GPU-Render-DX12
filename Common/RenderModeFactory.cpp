@@ -40,7 +40,7 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
                                        D3D12_INPUT_LAYOUT_DESC defautlInputDesc, DXGI_FORMAT backBufferFormat,
                                        DXGI_FORMAT depthStencilFormat,
                                        std::shared_ptr<GRootSignature> ssaoRootSignature, DXGI_FORMAT normalMapFormat,
-                                       DXGI_FORMAT ambientMapFormat)
+                                       DXGI_FORMAT ambientMapFormat, const bool includeSsr)
 {
     this->PSO.clear();
 
@@ -201,6 +201,16 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
     depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     quadPso->SetDepthStencilState(depthStencilDesc);
 
+    std::shared_ptr<GraphicPSO> ssrPso;
+    bool ssrShadersLoaded = false;
+    if (includeSsr)
+    {
+        ssrPso = std::make_shared<GraphicPSO>(RenderMode::Ssr);
+        ssrPso->SetPsoDesc(quadPso->GetPsoDescription());
+        ssrShadersLoaded = setShaders(*ssrPso, {"ssrVS", "ssrPS"});
+        ssrPso->SetInputLayout({nullptr, 0});
+    }
+
 
     auto noisePSO = std::make_shared<GraphicPSO>(RenderMode::Debug);
     noisePSO->SetPsoDesc(basePsoDesc);
@@ -272,6 +282,8 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
     addPso(drawNormalsDropPso, drawNormalsDropPsoShadersLoaded);
     addPso(debugPso, debugPsoShadersLoaded);
     addPso(quadPso, quadPsoShadersLoaded);
+    if (includeSsr)
+        addPso(ssrPso, ssrShadersLoaded);
     addPso(noisePSO, noisePsoShadersLoaded);
     addPso(uiPSO, uiPsoShadersLoaded);
 
@@ -281,10 +293,8 @@ void RenderModeFactory::LoadDefaultPSO(std::shared_ptr<GDevice> device, std::sha
     }
 }
 
-void RenderModeFactory::LoadDefaultShaders()
+void RenderModeFactory::LoadDefaultShaders(const bool includeSsr)
 {
-    if (!shaders.empty()) return;
-
     constexpr D3D_SHADER_MACRO defines[] =
     {
         "FOG", "1",
@@ -313,42 +323,51 @@ void RenderModeFactory::LoadDefaultShaders()
         shaders[name] = std::move(shader);
     };
 
-    loadShader("StandardVertex", L"Shaders\\Default.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("AlphaDrop", L"Shaders\\Default.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
-    loadShader("shadowVS", L"Shaders\\Shadows.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("shadowOpaquePS", L"Shaders\\Shadows.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
-    loadShader("shadowOpaqueDropPS", L"Shaders\\Shadows.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
-    loadShader("OpaquePixel", L"Shaders\\Default.hlsl", PixelShader, defines, "PS", "ps_5_1");
-    loadShader("SkyBoxVertex", L"Shaders\\SkyBoxShader.hlsl", VertexShader, defines, "SKYMAP_VS", "vs_5_1");
-    loadShader("SkyBoxPixel", L"Shaders\\SkyBoxShader.hlsl", PixelShader, defines, "SKYMAP_PS", "ps_5_1");
+    if (shaders.empty())
+    {
+        loadShader("StandardVertex", L"Shaders\\Default.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("AlphaDrop", L"Shaders\\Default.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
+        loadShader("shadowVS", L"Shaders\\Shadows.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("shadowOpaquePS", L"Shaders\\Shadows.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+        loadShader("shadowOpaqueDropPS", L"Shaders\\Shadows.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
+        loadShader("OpaquePixel", L"Shaders\\Default.hlsl", PixelShader, defines, "PS", "ps_5_1");
+        loadShader("SkyBoxVertex", L"Shaders\\SkyBoxShader.hlsl", VertexShader, defines, "SKYMAP_VS", "vs_5_1");
+        loadShader("SkyBoxPixel", L"Shaders\\SkyBoxShader.hlsl", PixelShader, defines, "SKYMAP_PS", "ps_5_1");
 
-    loadShader("ReflectionsVertex", L"Shaders\\Reflections.hlsl", VertexShader, defines, "REFLECTIONS_VS", "vs_5_1");
-    loadShader("ReflectionsPixel", L"Shaders\\Reflections.hlsl", PixelShader, defines, "REFLECTIONS_PS", "ps_5_1");
+        loadShader("ReflectionsVertex", L"Shaders\\Reflections.hlsl", VertexShader, defines, "REFLECTIONS_VS", "vs_5_1");
+        loadShader("ReflectionsPixel", L"Shaders\\Reflections.hlsl", PixelShader, defines, "REFLECTIONS_PS", "ps_5_1");
 
-    loadShader("treeSpriteVS", L"Shaders\\TreeSprite.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("treeSpriteGS", L"Shaders\\TreeSprite.hlsl", GeometryShader, nullptr, "GS", "gs_5_1");
-    loadShader("treeSpritePS", L"Shaders\\TreeSprite.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
+        loadShader("treeSpriteVS", L"Shaders\\TreeSprite.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("treeSpriteGS", L"Shaders\\TreeSprite.hlsl", GeometryShader, nullptr, "GS", "gs_5_1");
+        loadShader("treeSpritePS", L"Shaders\\TreeSprite.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
 
-    loadShader("drawNormalsVS", L"Shaders\\DrawNormals.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("drawNormalsPS", L"Shaders\\DrawNormals.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
-    loadShader("drawNormalsAlphaDropPS", L"Shaders\\DrawNormals.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
+        loadShader("drawNormalsVS", L"Shaders\\DrawNormals.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("drawNormalsPS", L"Shaders\\DrawNormals.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+        loadShader("drawNormalsAlphaDropPS", L"Shaders\\DrawNormals.hlsl", PixelShader, alphaTestDefines, "PS", "ps_5_1");
 
-    loadShader("ssaoVS", L"Shaders\\Ssao.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("ssaoPS", L"Shaders\\Ssao.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+        loadShader("ssaoVS", L"Shaders\\Ssao.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("ssaoPS", L"Shaders\\Ssao.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
 
-    loadShader("ssaoBlurVS", L"Shaders\\SsaoBlur.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("ssaoBlurPS", L"Shaders\\SsaoBlur.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+        loadShader("ssaoBlurVS", L"Shaders\\SsaoBlur.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("ssaoBlurPS", L"Shaders\\SsaoBlur.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
 
-    loadShader("quadVS", L"Shaders\\Quad.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("quadPS", L"Shaders\\Quad.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+        loadShader("quadVS", L"Shaders\\Quad.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("quadPS", L"Shaders\\Quad.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
 
-    loadShader("noiseVS", L"Shaders\\NoiseDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
-    loadShader("noisePS", L"Shaders\\NoiseDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+        loadShader("noiseVS", L"Shaders\\NoiseDraw.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("noisePS", L"Shaders\\NoiseDraw.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
 
-    loadShader("velocityCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "velocityCS", "cs_5_1");
-    loadShader("tilemaxCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "tilemaxCS", "cs_5_1");
-    loadShader("neighbourmaxCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "neighbourmaxCS", "cs_5_1");
-    loadShader("mbCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "mbCS", "cs_5_1");
+        loadShader("velocityCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "velocityCS", "cs_5_1");
+        loadShader("tilemaxCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "tilemaxCS", "cs_5_1");
+        loadShader("neighbourmaxCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "neighbourmaxCS", "cs_5_1");
+        loadShader("mbCS", L"Shaders\\MotionBlur.hlsl", ComputeShader, nullptr, "mbCS", "cs_5_1");
+    }
+
+    if (includeSsr && shaders.find("ssrVS") == shaders.end())
+    {
+        loadShader("ssrVS", L"Shaders\\SSR.hlsl", VertexShader, nullptr, "VS", "vs_5_1");
+        loadShader("ssrPS", L"Shaders\\SSR.hlsl", PixelShader, nullptr, "PS", "ps_5_1");
+    }
 }
 
 const std::shared_ptr<GShader>& RenderModeFactory::GetShader(const std::string& name)

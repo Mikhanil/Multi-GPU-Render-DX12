@@ -43,6 +43,11 @@ const char* UpdateModeName(const ReflectionProbeUpdateMode mode)
     }
     return "Unknown";
 }
+
+const char* SsrModeName(const SsrExecutionMode mode)
+{
+    return mode == SsrExecutionMode::Secondary ? "Secondary GPU" : "Primary GPU";
+}
 }
 
 void ReflectionUiAllocateDescriptor(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* cpu,
@@ -147,6 +152,7 @@ void UILayer::Update()
         ImGui::Text("Distribution: Primary %u / Secondary %u",
                     configuration.PrimaryProbeCount,
                     Common::Scene::ReflectionProbeCount - configuration.PrimaryProbeCount);
+        ImGui::Text("SSR: %s", SsrModeName(configuration.SsrMode));
         ImGui::Separator();
         ImGui::Text("Primary GPU: %s", cachedPrimaryGpuNameUtf8.c_str());
         ImGui::Text("Secondary GPU: %s", cachedSecondaryGpuNameUtf8.empty() ? "not used" : cachedSecondaryGpuNameUtf8.c_str());
@@ -157,12 +163,12 @@ void UILayer::Update()
         if (benchmark.HasStats)
         {
             ImGui::Text("Latest sample");
-            ImGui::Text("FPS: %.2f", benchmark.Fps);
-            ImGui::Text("MSPF: %.2f", benchmark.Mspf);
-            ImGui::Text("Min FPS: %.2f", benchmark.MinFps);
-            ImGui::Text("Min MSPF: %.2f", benchmark.MinMspf);
-            ImGui::Text("Max FPS: %.2f", benchmark.MaxFps);
-            ImGui::Text("Max MSPF: %.2f", benchmark.MaxMspf);
+            ImGui::Text("FPS: %.2f", benchmark.LatestStats.fps);
+            ImGui::Text("MSPF: %.2f", benchmark.LatestStats.mspf);
+            ImGui::Text("Min FPS: %.2f", benchmark.LatestStats.minFps);
+            ImGui::Text("Min MSPF: %.2f", benchmark.LatestStats.minMspf);
+            ImGui::Text("Max FPS: %.2f", benchmark.LatestStats.maxFps);
+            ImGui::Text("Max MSPF: %.2f", benchmark.LatestStats.maxMspf);
         }
         else
         {
@@ -186,12 +192,24 @@ void UILayer::Update()
     ImGui::SetNextWindowSize(controlsSize, ImGuiCond_Always);
     ImGui::Begin("MGPU-Reflection controls", nullptr, pinnedWindowFlags);
     bool primaryOnly = renderer.GetUseOnlyPrime();
-    if (ImGui::Checkbox("Primary GPU only", &primaryOnly))
+    if (ImGui::Checkbox("Reflection probes on primary only", &primaryOnly))
     {
         renderer.Flush();
         renderer.SetUseOnlyPrime(primaryOnly);
     }
-    ImGui::Text("Mode: %s", renderer.GetUseOnlyPrime() ? "Primary" : "MGPU");
+    ImGui::Text("Probe mode: %s", renderer.GetUseOnlyPrime() ? "Primary" : "MGPU");
+    auto ssrMode = renderer.GetReflectionProbeConfiguration().SsrMode;
+    int ssrAdapter = ssrMode == SsrExecutionMode::Secondary ? 1 : 0;
+    if (!renderer.HasSecondaryAdapter()) ImGui::BeginDisabled();
+    if (ImGui::RadioButton("SSR on primary GPU", ssrAdapter == 0))
+    {
+        renderer.SetSsrExecutionMode(SsrExecutionMode::Primary);
+    }
+    if (ImGui::RadioButton("SSR on secondary GPU", ssrAdapter == 1))
+    {
+        renderer.SetSsrExecutionMode(SsrExecutionMode::Secondary);
+    }
+    if (!renderer.HasSecondaryAdapter()) ImGui::EndDisabled();
     ImGui::Checkbox("Show ImGui demo", &showDemoWindow);
     ImGui::End();
 

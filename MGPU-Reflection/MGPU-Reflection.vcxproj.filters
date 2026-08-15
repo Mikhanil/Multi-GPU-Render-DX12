@@ -98,5 +98,6 @@
     <None Include="Shaders\Reflections.hlsl">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\SSR.hlsl"><Filter>Shaders</Filter></None>
   </ItemGroup>
 </Project>

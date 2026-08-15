@@ -20,9 +20,9 @@ public:
                         D3D12_INPUT_LAYOUT_DESC defautlInputDesc, DXGI_FORMAT backBufferFormat,
                         DXGI_FORMAT depthStencilFormat, std::shared_ptr<GRootSignature> ssaoRootSignature,
                         DXGI_FORMAT normalMapFormat, DXGI_FORMAT
-                        ambientMapFormat);
+                        ambientMapFormat, bool includeSsr = false);
 
-    static void LoadDefaultShaders();
+    static void LoadDefaultShaders(bool includeSsr = false);
 
     static const std::shared_ptr<GShader>& GetShader(const std::string& name);
 

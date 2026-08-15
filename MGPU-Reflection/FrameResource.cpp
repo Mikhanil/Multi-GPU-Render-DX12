@@ -44,5 +44,4 @@ FrameResource::FrameResource(std::shared_ptr<GDevice> primeDevice, std::shared_p
                                                                 secondDevice->GetName() + L" Spot Lights Data"));
     }
 
-    BackBufferRTVMemory = (primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
 }
