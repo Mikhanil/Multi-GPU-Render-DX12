@@ -167,6 +167,7 @@
     <ClInclude Include="GBuffer.h" />
     <ClInclude Include="GMeshBuffer.h" />
     <ClInclude Include="GCommandList.h" />
+    <ClInclude Include="GCommandListMarker.h" />
     <ClInclude Include="GCommandQueue.h" />
     <ClInclude Include="DirectXBuffers.h" />
     <ClInclude Include="ComputePSO.h" />
