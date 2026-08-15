@@ -435,12 +435,6 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         commandQueue->WaitForFenceValue(currentFrameResource->PrimeRenderFenceValue);
     }
 
-    if (hasSecondaryAdapter && currentFrameResource->SecondRenderFenceValue != 0 &&
-        !secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
-    {
-        secondQueue->WaitForFenceValue(currentFrameResource->SecondRenderFenceValue);
-    }
-
     mLightRotationAngle += 0.1f * gt.DeltaTime();
 
     Matrix R = Matrix::CreateRotationY(mLightRotationAngle);
@@ -997,80 +991,82 @@ void ReflectionRenderer::ApplyPresentationDevice()
 void ReflectionRenderer::Draw(const GameTimer& gt)
 {
     currentFrameResource = frameResources[currentFrameResourceIndex];
-    if (hasSecondaryAdapter && probeConfiguration.PrimaryProbeCount < ReflectionProbeCount)
+
     {
-        auto commandQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
-        if (currentFrameResource->SecondRenderFenceValue == 0 ||
-            commandQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+        auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Graphics);
+        auto cmdList = commandQueue->GetCommandList();
+        PopulateNormalMapCommands(cmdList);
+        PopulateAmbientMapCommands(cmdList);
+        PopulateShadowMapCommands(cmdList);
+        CopySharedProbeOutputsToPrimary(cmdList);
+        PopulatePrimaryProbeCommands(cmdList);
+        PopulateForwardPathCommands(cmdList);
+        PopulateDrawQuadCommand(cmdList, composedSceneColor, &composedSceneColorRtv, 0);
+
+        if (activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter)
         {
-            const auto cmdList = commandQueue->GetCommandList();
-            PopulateSecondaryProbeCommands(cmdList);
-            currentFrameResource->SecondRenderFenceValue = commandQueue->ExecuteCommandList(cmdList);
+            cmdList->CopyResource(sharedSsrSceneColor->GetPrimeResource(), composedSceneColor);
+            cmdList->CopyResource(sharedSsrSceneDepth->GetPrimeResource(), ambientPrimePath->NormalDepthMap());
+            cmdList->CopyResource(sharedSsrSceneNormal->GetPrimeResource(), ambientPrimePath->NormalMap());
         }
-    }
-
-    auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Graphics);
-    auto cmdList = commandQueue->GetCommandList();
-    PopulateNormalMapCommands(cmdList);
-    PopulateAmbientMapCommands(cmdList);
-    PopulateShadowMapCommands(cmdList);
-    CopySharedProbeOutputsToPrimary(cmdList);
-    PopulatePrimaryProbeCommands(cmdList);
-    PopulateForwardPathCommands(cmdList);
-    PopulateDrawQuadCommand(cmdList, composedSceneColor, &composedSceneColorRtv, 0);
-
-    if (activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter)
-    {
-        cmdList->CopyResource(sharedSsrSceneColor->GetPrimeResource(), composedSceneColor);
-        cmdList->CopyResource(sharedSsrSceneDepth->GetPrimeResource(), ambientPrimePath->NormalDepthMap());
-        cmdList->CopyResource(sharedSsrSceneNormal->GetPrimeResource(), ambientPrimePath->NormalMap());
-    }
-    else
-    {
-        const auto backBufferIndex = window->GetCurrentBackBufferIndex();
-        const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
-        const SsrInputSet inputs{&composedSceneColor, &ambientPrimePath->NormalDepthMap(),
-                                 &ambientPrimePath->NormalMap(), &primarySsrInputSrvs};
-        PopulateSsrCommands(cmdList, GraphicAdapterPrimary, inputs, window->GetCurrentBackBuffer(),
-                            &backBufferRtv);
-        if (uiLayer)
+        else
         {
-            GCommandListMarker marker(cmdList, L"UI");
-            uiLayer->Render(cmdList);
+            const auto backBufferIndex = window->GetCurrentBackBufferIndex();
+            const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
+            const SsrInputSet inputs{
+                &composedSceneColor, &ambientPrimePath->NormalDepthMap(),
+                &ambientPrimePath->NormalMap(), &primarySsrInputSrvs
+            };
+            PopulateSsrCommands(cmdList, GraphicAdapterPrimary, inputs, window->GetCurrentBackBuffer(),
+                                &backBufferRtv);
+            if (uiLayer)
+            {
+                GCommandListMarker marker(cmdList, L"UI");
+                uiLayer->Render(cmdList);
+            }
+            cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+            cmdList->FlushResourceBarriers();
         }
-        cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-        cmdList->FlushResourceBarriers();
+        currentFrameResource->PrimeRenderFenceValue = commandQueue->ExecuteCommandList(cmdList);
     }
-    currentFrameResource->PrimeRenderFenceValue = commandQueue->ExecuteCommandList(cmdList);
 
-    if (activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter)
+    if (hasSecondaryAdapter)
     {
-        const auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics);
+        auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
         if (currentFrameResource->SecondRenderFenceValue == 0 ||
             secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
         {
-            currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
             const auto secondCmdList = secondQueue->GetCommandList();
-            secondCmdList->CopyResource(secondSsrSceneColor, sharedSsrSceneColor->GetSharedResource());
-            secondCmdList->CopyResource(secondSsrSceneDepth, sharedSsrSceneDepth->GetSharedResource());
-            secondCmdList->CopyResource(secondSsrSceneNormal, sharedSsrSceneNormal->GetSharedResource());
-            const auto backBufferIndex = window->GetCurrentBackBufferIndex();
-            const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
-            const SsrInputSet inputs{&secondSsrSceneColor, &secondSsrSceneDepth,
-                                     &secondSsrSceneNormal, &secondSsrInputSrvs};
-            PopulateSsrCommands(secondCmdList, GraphicAdapterSecond, inputs,
-                                window->GetCurrentBackBuffer(), &backBufferRtv);
-            if (uiLayer)
-            {
-                GCommandListMarker marker(secondCmdList, L"UI");
-                uiLayer->Render(secondCmdList);
+            
+            if (probeConfiguration.PrimaryProbeCount < ReflectionProbeCount)
+            {                
+                PopulateSecondaryProbeCommands(secondCmdList);
             }
-            secondCmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-            secondCmdList->FlushResourceBarriers();
+            
+            if (activePresentationMode == SsrExecutionMode::Secondary)
+            {
+                currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
+                secondCmdList->CopyResource(secondSsrSceneColor, sharedSsrSceneColor->GetSharedResource());
+                secondCmdList->CopyResource(secondSsrSceneDepth, sharedSsrSceneDepth->GetSharedResource());
+                secondCmdList->CopyResource(secondSsrSceneNormal, sharedSsrSceneNormal->GetSharedResource());
+                const auto backBufferIndex = window->GetCurrentBackBufferIndex();
+                const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
+                const SsrInputSet inputs{&secondSsrSceneColor, &secondSsrSceneDepth,
+                    &secondSsrSceneNormal, &secondSsrInputSrvs};
+                PopulateSsrCommands(secondCmdList, GraphicAdapterSecond, inputs,
+                                    window->GetCurrentBackBuffer(), &backBufferRtv);
+                if (uiLayer)
+                {
+                    GCommandListMarker marker(secondCmdList, L"UI");
+                    uiLayer->Render(secondCmdList);
+                }
+                secondCmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+                secondCmdList->FlushResourceBarriers();
+            }            
             currentFrameResource->SecondRenderFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
         }
     }
-
+    
     currentFrameResourceIndex = window->Present();
 }
 
