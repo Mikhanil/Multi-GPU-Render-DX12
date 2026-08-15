@@ -1,9 +1,8 @@
 #pragma once
 
-#if defined(DEBUG) || defined(_DEBUG)
-
 #include <array>
 #include <memory>
+#include <string>
 
 #include "GDescriptor.h"
 
@@ -16,6 +15,7 @@ class ReflectionRenderer;
 class UILayer final
 {
     static constexpr UINT DescriptorCount = 16;
+    static constexpr size_t FrameTimeHistorySize = 120;
 
 public:
     UILayer(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device, HWND hwnd,
@@ -40,6 +40,12 @@ private:
     std::array<bool, DescriptorCount> descriptorInUse{};
     std::shared_ptr<PEPEngine::Graphics::GDevice> device;
     ReflectionRenderer& renderer;
+    bool showDemoWindow = true;
+    std::wstring cachedPrimaryGpuName;
+    std::wstring cachedSecondaryGpuName;
+    std::string cachedPrimaryGpuNameUtf8;
+    std::string cachedSecondaryGpuNameUtf8;
+    std::array<float, FrameTimeHistorySize> frameTimeHistory{};
+    size_t frameTimeHistoryOffset = 0;
+    size_t frameTimeHistoryCount = 0;
 };
-
-#endif

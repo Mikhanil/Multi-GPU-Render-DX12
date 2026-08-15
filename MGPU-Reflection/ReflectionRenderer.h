@@ -3,6 +3,7 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "BakedCubeMapRenderTarget.h"
@@ -23,9 +24,7 @@ using namespace PEPEngine::Graphics;
 using namespace PEPEngine::Utils;
 
 namespace Common { class Window; }
-#if defined(DEBUG) || defined(_DEBUG)
 class UILayer;
-#endif
 
 // This sample has one primary path and, when available, one compatible hardware secondary.
 constexpr UINT ReflectionAdapterCount = 2;
@@ -50,6 +49,23 @@ struct ReflectionProbeConfiguration
     ReflectionProbeUpdateMode UpdateMode = ReflectionProbeUpdateMode::AllProbesPerFrame;
 };
 
+struct ReflectionBenchmarkDisplayState
+{
+    bool IsSettling = false;
+    bool HasStats = false;
+    uint32_t CurrentState = 0;
+    uint32_t TotalStates = 0;
+    uint32_t RemainingSeconds = 0;
+    std::wstring PrimaryGpuName;
+    std::wstring SecondaryGpuName;
+    float Fps = 0.0f;
+    float Mspf = 0.0f;
+    float MinFps = 0.0f;
+    float MinMspf = 0.0f;
+    float MaxFps = 0.0f;
+    float MaxMspf = 0.0f;
+};
+
 class ReflectionRenderer
 {
 public:
@@ -68,16 +84,17 @@ public:
     void Flush() const;
     void SetUseOnlyPrime(bool value);
     bool GetUseOnlyPrime() const { return probeConfiguration.PrimaryProbeCount == ReflectionProbeCount; }
+    const ReflectionProbeConfiguration& GetReflectionProbeConfiguration() const { return probeConfiguration; }
     void SetReflectionProbeConfiguration(ReflectionProbeConfiguration configuration);
     void ResetBenchmarkAnimation();
+    void SetBenchmarkDisplayState(ReflectionBenchmarkDisplayState state);
+    const ReflectionBenchmarkDisplayState& GetBenchmarkDisplayState() const { return benchmarkDisplayState; }
     void SetSsaaMultiplier(UINT value);
     UINT GetSsaaMultiplier() const { return multi; }
     void SetDebugMap(UINT value) { pathMapShow = value; }
-#if defined(DEBUG) || defined(_DEBUG)
     void ForwardUiMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) const;
     bool UiWantsMouseCapture() const;
     bool UiWantsKeyboardCapture() const;
-#endif
 
 private:
     void InitFrameResource();
@@ -87,7 +104,6 @@ private:
     void UpdateShadowTransform();
     void UpdateShadowPassCB();
     void UpdateMainPassCB(const GameTimer& gt);
-    void UpdateLightBuffers();
     void UpdateSsaoCB();
     void PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList);
     void PopulateSecondaryStaticShadowMapCommands(const std::shared_ptr<GCommandList>& cmdList);
@@ -119,6 +135,7 @@ private:
     std::array<std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount>, ReflectionProbeCount>
         cubeFaceCameraPasses{};
     ReflectionProbeConfiguration probeConfiguration;
+    ReflectionBenchmarkDisplayState benchmarkDisplayState;
     UINT nextPrimaryProbeIndex = 0;
     UINT nextPrimaryProbeFace = 0;
     UINT nextSecondaryProbeIndex = InvalidProbeIndex;
@@ -163,7 +180,5 @@ private:
     DirectX::SimpleMath::Vector3 mRotatedLightDirections[3];
     DirectX::BoundingSphere mSceneBounds{};
     UINT pathMapShow = 0;
-#if defined(DEBUG) || defined(_DEBUG)
     std::unique_ptr<UILayer> uiLayer;
-#endif
 };

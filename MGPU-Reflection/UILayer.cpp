@@ -1,7 +1,5 @@
 #include "UILayer.h"
 
-#if defined(DEBUG) || defined(_DEBUG)
-
 #include "ReflectionRenderer.h"
 #include "GCommandList.h"
 #include "GCommandQueue.h"
@@ -11,6 +9,41 @@
 #include "imgui_impl_win32.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+
+namespace
+{
+std::string ToUtf8(const std::wstring& value)
+{
+    if (value.empty()) return {};
+    const int size = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()),
+                                         nullptr, 0, nullptr, nullptr);
+    std::string result(size, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()),
+                        result.data(), size, nullptr, nullptr);
+    return result;
+}
+
+const char* CaptureModeName(const ReflectionProbeCaptureMode mode)
+{
+    return mode == ReflectionProbeCaptureMode::FullDynamic
+               ? "Full dynamic"
+               : "Baked + dynamic overlay";
+}
+
+const char* UpdateModeName(const ReflectionProbeUpdateMode mode)
+{
+    switch (mode)
+    {
+    case ReflectionProbeUpdateMode::AllProbesPerFrame:
+        return "All probes / frame";
+    case ReflectionProbeUpdateMode::OneProbePerFrame:
+        return "One probe / GPU / frame";
+    case ReflectionProbeUpdateMode::OneFacePerFrame:
+        return "One face / GPU / frame";
+    }
+    return "Unknown";
+}
+}
 
 void ReflectionUiAllocateDescriptor(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* cpu,
                                    D3D12_GPU_DESCRIPTOR_HANDLE* gpu)
@@ -77,7 +110,81 @@ void UILayer::Update()
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("MGPU-Reflection");
+
+    const ImVec2 benchmarkPosition(12.0f, 12.0f);
+    const ImVec2 benchmarkSize(500.0f, 0.0f);
+    const ImVec2 controlsSize(350.0f, 0.0f);
+    constexpr ImGuiWindowFlags pinnedWindowFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+    const float frameTimeMs = ImGui::GetIO().DeltaTime * 1000.0f;
+    frameTimeHistory[frameTimeHistoryOffset] = frameTimeMs;
+    frameTimeHistoryOffset = (frameTimeHistoryOffset + 1) % FrameTimeHistorySize;
+    if (frameTimeHistoryCount < FrameTimeHistorySize)
+        ++frameTimeHistoryCount;
+
+    ImGui::SetNextWindowPos(benchmarkPosition, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(benchmarkSize, ImGuiCond_Always);
+    ImGui::Begin("Benchmark status", nullptr, pinnedWindowFlags | ImGuiWindowFlags_AlwaysAutoResize);
+    const auto& benchmark = renderer.GetBenchmarkDisplayState();
+    if (benchmark.TotalStates == 0)
+    {
+        ImGui::TextDisabled("Benchmark is not running");
+    }
+    else
+    {
+        if (cachedPrimaryGpuName != benchmark.PrimaryGpuName)
+        {
+            cachedPrimaryGpuName = benchmark.PrimaryGpuName;
+            cachedPrimaryGpuNameUtf8 = ToUtf8(cachedPrimaryGpuName);
+        }
+        if (cachedSecondaryGpuName != benchmark.SecondaryGpuName)
+        {
+            cachedSecondaryGpuName = benchmark.SecondaryGpuName;
+            cachedSecondaryGpuNameUtf8 = ToUtf8(cachedSecondaryGpuName);
+        }
+        const auto& configuration = renderer.GetReflectionProbeConfiguration();
+        ImGui::Text("Capture: %s", CaptureModeName(configuration.CaptureMode));
+        ImGui::Text("Update: %s", UpdateModeName(configuration.UpdateMode));
+        ImGui::Text("Distribution: Primary %u / Secondary %u",
+                    configuration.PrimaryProbeCount,
+                    Common::Scene::ReflectionProbeCount - configuration.PrimaryProbeCount);
+        ImGui::Separator();
+        ImGui::Text("Primary GPU: %s", cachedPrimaryGpuNameUtf8.c_str());
+        ImGui::Text("Secondary GPU: %s", cachedSecondaryGpuNameUtf8.empty() ? "not used" : cachedSecondaryGpuNameUtf8.c_str());
+        ImGui::Text("State: %u/%u", benchmark.CurrentState, benchmark.TotalStates);
+        ImGui::Text("Phase: %s", benchmark.IsSettling ? "prewarm" : "sampling");
+        ImGui::Text("Remaining: %u s", benchmark.RemainingSeconds);
+        ImGui::Separator();
+        if (benchmark.HasStats)
+        {
+            ImGui::Text("Latest sample");
+            ImGui::Text("FPS: %.2f", benchmark.Fps);
+            ImGui::Text("MSPF: %.2f", benchmark.Mspf);
+            ImGui::Text("Min FPS: %.2f", benchmark.MinFps);
+            ImGui::Text("Min MSPF: %.2f", benchmark.MinMspf);
+            ImGui::Text("Max FPS: %.2f", benchmark.MaxFps);
+            ImGui::Text("Max MSPF: %.2f", benchmark.MaxMspf);
+        }
+        else
+        {
+            ImGui::TextDisabled("Waiting for the first statistics sample...");
+        }
+    }
+    ImGui::Separator();
+    ImGui::Text("Frame time: %.3f ms", frameTimeMs);
+    ImGui::PushStyleColor(ImGuiCol_PlotLines, ImVec4(1.0f, 0.12f, 0.08f, 1.0f));
+    const float plotWidth = ImGui::GetContentRegionAvail().x;
+    ImGui::PlotLines("##FrameTimePlot", frameTimeHistory.data(), static_cast<int>(frameTimeHistoryCount),
+                     frameTimeHistoryCount == FrameTimeHistorySize ? static_cast<int>(frameTimeHistoryOffset) : 0,
+                     nullptr, FLT_MAX, FLT_MAX, ImVec2(plotWidth, 110.0f));
+    ImGui::PopStyleColor();
+    ImGui::TextUnformatted("Frame time (ms)");
+    const float benchmarkWindowHeight = ImGui::GetWindowSize().y;
+    ImGui::End();
+
+    const ImVec2 controlsPosition(benchmarkPosition.x, benchmarkPosition.y + benchmarkWindowHeight + 12.0f);
+    ImGui::SetNextWindowPos(controlsPosition, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(controlsSize, ImGuiCond_Always);
+    ImGui::Begin("MGPU-Reflection controls", nullptr, pinnedWindowFlags);
     bool primaryOnly = renderer.GetUseOnlyPrime();
     if (ImGui::Checkbox("Primary GPU only", &primaryOnly))
     {
@@ -85,7 +192,14 @@ void UILayer::Update()
         renderer.SetUseOnlyPrime(primaryOnly);
     }
     ImGui::Text("Mode: %s", renderer.GetUseOnlyPrime() ? "Primary" : "MGPU");
+    ImGui::Checkbox("Show ImGui demo", &showDemoWindow);
     ImGui::End();
+
+    if (showDemoWindow)
+    {
+        ImGui::SetNextWindowPos(ImVec2(374.0f, 12.0f), ImGuiCond_Always);
+        ImGui::ShowDemoWindow(&showDemoWindow);
+    }
 }
 
 void UILayer::Render(const std::shared_ptr<PEPEngine::Graphics::GCommandList>& commandList) const
@@ -102,5 +216,3 @@ void UILayer::ForwardMessage(HWND window, UINT message, WPARAM wParam, LPARAM lP
 
 bool UILayer::WantsMouseCapture() const { return ImGui::GetIO().WantCaptureMouse; }
 bool UILayer::WantsKeyboardCapture() const { return ImGui::GetIO().WantCaptureKeyboard; }
-
-#endif

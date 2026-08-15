@@ -153,33 +153,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_dx12.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_win32.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\Submodule\imgui\imgui.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\Submodule\imgui\imgui_draw.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\Submodule\imgui\imgui_tables.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\Submodule\imgui\backends\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_demo.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp" />
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="Source.cpp" />
       <ClCompile Include="ReflectionApp.cpp" />
       <ClCompile Include="ReflectionRenderer.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="States\ReflectionBenchmarkState.cpp" />
-    <ClCompile Include="UILayer.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)'=='Release'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="UILayer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FrameResource.h" />

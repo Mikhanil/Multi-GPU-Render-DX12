@@ -12,6 +12,7 @@ class ReflectionBenchmarkState final : public BenchmarkState
 {
 public:
     ReflectionBenchmarkState(HybridCubeMapApp& app, ReflectionProbeConfiguration configuration, std::wstring name,
+                             uint32_t stateIndex, uint32_t stateCount,
                              uint32_t durationInSeconds, const FileQueueWriter& writer);
 
     void Enter() override;
@@ -26,10 +27,12 @@ private:
     HybridCubeMapApp& app;
     ReflectionProbeConfiguration configuration;
     std::wstring name;
+    uint32_t stateIndex;
+    uint32_t stateCount;
     uint32_t durationInSeconds;
     float settleElapsed = 0.0f;
     uint32_t samplesTaken = 0;
-    float totalFps = 0.0f;
+    uint32_t displayedSettleSeconds = 0;
     bool sampling = false;
     static constexpr float SettleSeconds = 2.0f;
 };

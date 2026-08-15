@@ -16,8 +16,10 @@ public:
     // Called only by Release benchmark states. Scene owns transform reset;
     // renderer receives the capture/update cadence and probe distribution.
     void SetReflectionBenchmarkConfiguration(ReflectionProbeConfiguration configuration);
-    void SetReflectionBenchmarkTitle(const std::wstring& stateName, uint32_t remainingSeconds,
-                                     float averageFps, bool isSettling);
+    void UpdateReflectionBenchmarkStatus(const std::wstring& stateName,
+                                         uint32_t currentState, uint32_t totalStates,
+                                         uint32_t remainingSeconds, const TimeStats* latestStats,
+                                         bool isSettling);
 
 protected:
     void Update(const GameTimer& gt) override;

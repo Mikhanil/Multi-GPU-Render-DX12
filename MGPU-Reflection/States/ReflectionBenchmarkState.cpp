@@ -3,14 +3,17 @@
 #include "../ReflectionApp.h"
 #include "Utils.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 ReflectionBenchmarkState::ReflectionBenchmarkState(HybridCubeMapApp& app,
                                                    const ReflectionProbeConfiguration configuration,
                                                    std::wstring name,
+                                                   const uint32_t stateIndex,
+                                                   const uint32_t stateCount,
                                                    const uint32_t durationInSeconds, const FileQueueWriter& writer)
     : BenchmarkState(writer), app(app), configuration(configuration), name(std::move(name)),
-      durationInSeconds(durationInSeconds)
+      stateIndex(stateIndex), stateCount(stateCount), durationInSeconds(durationInSeconds)
 {
 }
 
@@ -19,10 +22,11 @@ void ReflectionBenchmarkState::Enter()
     BenchmarkState::Enter();
     settleElapsed = 0.0f;
     samplesTaken = 0;
-    totalFps = 0.0f;
+    displayedSettleSeconds = static_cast<uint32_t>(std::ceil(SettleSeconds));
     sampling = false;
     app.SetReflectionBenchmarkConfiguration(configuration);
-    app.SetReflectionBenchmarkTitle(name, durationInSeconds, 0.0f, true);
+    app.UpdateReflectionBenchmarkStatus(name, stateIndex, stateCount,
+                                        displayedSettleSeconds, nullptr, true);
 }
 
 void ReflectionBenchmarkState::Tick(const float deltaTime)
@@ -30,6 +34,14 @@ void ReflectionBenchmarkState::Tick(const float deltaTime)
     if (!sampling)
     {
         settleElapsed += deltaTime;
+        const auto remainingSettleSeconds = static_cast<uint32_t>(
+            std::ceil(std::max(0.0f, SettleSeconds - settleElapsed)));
+        if (remainingSettleSeconds != displayedSettleSeconds)
+        {
+            displayedSettleSeconds = remainingSettleSeconds;
+            app.UpdateReflectionBenchmarkStatus(name, stateIndex, stateCount,
+                                                displayedSettleSeconds, nullptr, true);
+        }
         if (settleElapsed < SettleSeconds)
         {
             return;
@@ -40,7 +52,8 @@ void ReflectionBenchmarkState::Tick(const float deltaTime)
         BenchmarkState::Enter();
         sampling = true;
         fileQueueWriter.PushMessage(L"FPS;MSPF;MinFPS;MinMSPF;MaxFPS;MaxMSPF");
-        app.SetReflectionBenchmarkTitle(name, durationInSeconds, 0.0f, false);
+        app.UpdateReflectionBenchmarkStatus(name, stateIndex, stateCount,
+                                            durationInSeconds, nullptr, false);
     }
 
     BenchmarkState::Tick(deltaTime);
@@ -66,8 +79,8 @@ bool ReflectionBenchmarkState::IsCompleted()
 void ReflectionBenchmarkState::OnStatsCalculated(const TimeStats& stats)
 {
     ++samplesTaken;
-    totalFps += stats.fps;
     Benchmark::PrintStatsCSV(stats, fileQueueWriter);
     const uint32_t remainingSeconds = durationInSeconds - std::min(samplesTaken, durationInSeconds);
-    app.SetReflectionBenchmarkTitle(name, remainingSeconds, totalFps / samplesTaken, false);
+    app.UpdateReflectionBenchmarkStatus(name, stateIndex, stateCount,
+                                        remainingSeconds, &stats, false);
 }

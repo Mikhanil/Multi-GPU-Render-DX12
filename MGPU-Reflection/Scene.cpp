@@ -193,10 +193,12 @@ namespace Common
 
         constexpr std::array<Vector3, ReflectionProbeCount> reflectionProbePositions =
         {
-            Vector3(0.0f, 20.0f, 0.0f),
-            Vector3(12.0f, 20.0f, 0.0f),
-            Vector3(0.0f, 20.0f, 12.0f),
-            Vector3(12.0f, 20.0f, 12.0f)
+            // Shift the probe cluster left and toward the camera so it sits between
+            // the griffons instead of being hidden against the stairs.
+            Vector3(-6.0f, 20.0f, -4.0f),
+            Vector3(6.0f, 20.0f, -4.0f),
+            Vector3(-6.0f, 20.0f, 8.0f),
+            Vector3(6.0f, 20.0f, 8.0f)
         };
         for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
         {
@@ -225,11 +227,11 @@ namespace Common
         orbitNano->SetScale(0.5f);
         AddObjectRenderer(orbitNano.get(), L"nano", RenderMode::DynamicOpaque);
         auto reflectionProbeCenter = std::make_unique<GameObject>("ReflectionProbeCenter");
-        reflectionProbeCenter->GetTransform()->SetPosition({6.0f, 20.0f, 6.0f});
+        reflectionProbeCenter->GetTransform()->SetPosition({0.0f, 20.0f, 2.0f});
         const auto reflectionProbeCenterTransform = reflectionProbeCenter->GetTransform();
         gameObjects.push_back(std::move(reflectionProbeCenter));
         orbitNano->AddComponent(std::make_shared<Orbiter>(
-            reflectionProbeCenterTransform, Vector3(9.0f, -5.0f, 0.0f), 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
+            reflectionProbeCenterTransform, Vector3(14.0f, -5.0f, 0.0f), 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
         benchmarkMovingObject = orbitNano.get();
         benchmarkMovingObjectMatrix = orbitNano->GetTransform()->GetLocalMatrix();
         gameObjects.push_back(std::move(orbitNano));

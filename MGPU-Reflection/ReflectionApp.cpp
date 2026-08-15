@@ -95,6 +95,12 @@ bool HybridCubeMapApp::Initialize()
         ReflectionProbeUpdateMode::OneProbePerFrame,
         ReflectionProbeUpdateMode::OneFacePerFrame
     };
+    const uint32_t distributionCount = devices.size() == ReflectionAdapterCount
+                                           ? Common::Scene::ReflectionProbeCount + 1
+                                           : 1;
+    const uint32_t totalStateCount = static_cast<uint32_t>(captureModes.size() * updateModes.size()) *
+        distributionCount;
+    uint32_t stateIndex = 0;
     for (const auto captureMode : captureModes)
     {
         const std::wstring captureName = captureMode == ReflectionProbeCaptureMode::FullDynamic
@@ -145,9 +151,10 @@ bool HybridCubeMapApp::Initialize()
                                                                  *devices[GraphicAdapterSecond])
                                          : logDirectory / (logPrefix + devices[GraphicAdapterPrimary]->GetName() +
                                                            L"+SingleGPU.log");
+                ++stateIndex;
                 benchmark.AddState<ReflectionBenchmarkState>(
                     *this, ReflectionProbeConfiguration{primaryProbeCount, captureMode, updateMode}, stateName,
-                    benchmarkDurationSeconds, FileQueueWriter(logPath));
+                    stateIndex, totalStateCount, benchmarkDurationSeconds, FileQueueWriter(logPath));
             }
         }
     }
@@ -205,15 +212,45 @@ void HybridCubeMapApp::SetReflectionBenchmarkConfiguration(const ReflectionProbe
     renderer->SetReflectionProbeConfiguration(configuration);
 }
 
-void HybridCubeMapApp::SetReflectionBenchmarkTitle(const std::wstring& stateName,
-                                                    const uint32_t remainingSeconds,
-                                                    const float averageFps,
-                                                    const bool isSettling)
+void HybridCubeMapApp::UpdateReflectionBenchmarkStatus(const std::wstring& stateName,
+                                                       const uint32_t currentState,
+                                                       const uint32_t totalStates,
+                                                       const uint32_t remainingSeconds,
+                                                       const TimeStats* latestStats,
+                                                       const bool isSettling)
 {
+    const std::wstring primaryGpuName = devices[GraphicAdapterPrimary]->GetName();
+    const std::wstring secondaryGpuName = devices.size() == ReflectionAdapterCount
+                                              ? devices[GraphicAdapterSecond]->GetName()
+                                              : L"";
+    const std::wstring gpuNames = secondaryGpuName.empty()
+                                      ? primaryGpuName
+                                      : primaryGpuName + L" + " + secondaryGpuName;
+    const std::wstring fps = latestStats ? std::format(L"{:.2f}", latestStats->fps) : L"--";
     MainWindow->SetWindowTitle(
-        L"MGPU-Reflection | " + stateName +
-        (isSettling ? L" | settling/prewarm" : L" | Remaining: " + std::to_wstring(remainingSeconds) +
-         L" s | Average FPS: " + std::format(L"{:.2f}", averageFps)));
+        stateName + L" | GPUs: " + gpuNames +
+        L" | Remaining: " + std::to_wstring(remainingSeconds) + L" s" +
+        L" | State: " + std::to_wstring(currentState) + L"/" + std::to_wstring(totalStates) +
+        L" | FPS: " + fps);
+
+    ReflectionBenchmarkDisplayState displayState{};
+    displayState.IsSettling = isSettling;
+    displayState.HasStats = latestStats != nullptr;
+    displayState.CurrentState = currentState;
+    displayState.TotalStates = totalStates;
+    displayState.RemainingSeconds = remainingSeconds;
+    displayState.PrimaryGpuName = primaryGpuName;
+    displayState.SecondaryGpuName = secondaryGpuName;
+    if (latestStats)
+    {
+        displayState.Fps = latestStats->fps;
+        displayState.Mspf = latestStats->mspf;
+        displayState.MinFps = latestStats->minFps;
+        displayState.MinMspf = latestStats->minMspf;
+        displayState.MaxFps = latestStats->maxFps;
+        displayState.MaxMspf = latestStats->maxMspf;
+    }
+    renderer->SetBenchmarkDisplayState(std::move(displayState));
 }
 
 void HybridCubeMapApp::Flush()
@@ -224,7 +261,6 @@ void HybridCubeMapApp::Flush()
 
 LRESULT HybridCubeMapApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
 {
-#if defined(DEBUG) || defined(_DEBUG)
     if (renderer)
     {
         renderer->ForwardUiMessage(hwnd, msg, wParam, lParam);
@@ -262,7 +298,6 @@ LRESULT HybridCubeMapApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM 
                 return 0;
         }
     }
-#endif
     switch (msg)
     {
     case WM_KEYUP:

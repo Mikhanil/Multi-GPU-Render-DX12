@@ -6,9 +6,7 @@
 #include "GameObject.h"
 #include "GCommandList.h"
 #include "GCommandListMarker.h"
-#if defined(DEBUG) || defined(_DEBUG)
 #include "UILayer.h"
-#endif
 #include "Rotater.h"
 #include "SkyBox.h"
 #include "Transform.h"
@@ -95,10 +93,8 @@ void ReflectionRenderer::Initialize()
     hasSecondaryAdapter = devices.size() == ReflectionAdapterCount && scenes.size() == ReflectionAdapterCount;
     InitCubeFacePasses();
     InitRenderPaths(); Flush(); InitRootSignature(); Flush(); InitPipeLineResource(); Flush(); InitFrameResource(); Flush();
-#if defined(DEBUG) || defined(_DEBUG)
     uiLayer = std::make_unique<UILayer>(devices[GraphicAdapterPrimary], window->GetWindowHandle(),
                                         GetSRGBFormat(backBufferFormat), *this);
-#endif
 }
 
 void ReflectionRenderer::ResetBenchmarkAnimation()
@@ -106,6 +102,11 @@ void ReflectionRenderer::ResetBenchmarkAnimation()
     mLightRotationAngle = 0.0f;
     for (int i = 0; i < 3; ++i)
         mRotatedLightDirections[i] = mBaseLightDirections[i];
+}
+
+void ReflectionRenderer::SetBenchmarkDisplayState(ReflectionBenchmarkDisplayState state)
+{
+    benchmarkDisplayState = std::move(state);
 }
 
 void ReflectionRenderer::SetUseOnlyPrime(const bool value)
@@ -173,9 +174,7 @@ void ReflectionRenderer::SetSsaaMultiplier(const UINT value)
 
 void ReflectionRenderer::OnResize(const float aspectRatio)
 {
-#if defined(DEBUG) || defined(_DEBUG)
     if (uiLayer) uiLayer->Invalidate();
-#endif
     fullViewport = { 0.0f, 0.0f, static_cast<float>(window->GetClientWidth()),
                      static_cast<float>(window->GetClientHeight()), 0.0f, 1.0f };
     fullRect = { 0, 0, window->GetClientWidth(), window->GetClientHeight() };
@@ -195,9 +194,7 @@ void ReflectionRenderer::OnResize(const float aspectRatio)
     if (antiAliasingPrimePath)
         antiAliasingPrimePath->OnResize(window->GetClientWidth(), window->GetClientHeight());
     currentFrameResourceIndex = window->GetCurrentBackBufferIndex();
-#if defined(DEBUG) || defined(_DEBUG)
     if (uiLayer) uiLayer->CreateDeviceObjects();
-#endif
 }
 
 void ReflectionRenderer::Flush() const
@@ -449,13 +446,10 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     }
 
     UpdateShadowTransform();
-    UpdateLightBuffers();
     UpdateMainPassCB(gt);
     UpdateShadowPassCB();
     UpdateSsaoCB();
-#if defined(DEBUG) || defined(_DEBUG)
     if (uiLayer) uiLayer->Update();
-#endif
 }
 
 void ReflectionRenderer::UpdateShadowTransform()
@@ -583,35 +577,6 @@ void ReflectionRenderer::UpdateMainPassCB(const GameTimer& gt)
         if (secondaryProbeSubmissionReady)
             currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
     }
-}
-
-void ReflectionRenderer::UpdateLightBuffers()
-{
-    UINT pointLightCount = 0;
-    UINT spotLightCount = 0;
-
-    const UINT adapterCount = secondaryProbeSubmissionReady ? ReflectionAdapterCount : 1;
-    for (UINT adapter = 0; adapter < adapterCount; ++adapter)
-    {
-        UINT pointLightIndex = 0;
-        UINT spotLightIndex = 0;
-        for (const auto* light : scenes[adapter]->GetLights())
-        {
-            if (light->Type() == Point && pointLightIndex < currentFrameResource->PointLightCapacity)
-                currentFrameResource->PointLightBuffers[adapter]->CopyData(pointLightIndex++, light->GetData());
-            else if (light->Type() == Spot && spotLightIndex < currentFrameResource->SpotLightCapacity)
-                currentFrameResource->SpotLightBuffers[adapter]->CopyData(spotLightIndex++, light->GetData());
-        }
-
-        if (adapter == GraphicAdapterPrimary)
-        {
-            pointLightCount = pointLightIndex;
-            spotLightCount = spotLightIndex;
-        }
-    }
-
-    mainPassCB.PointLightCount = pointLightCount;
-    mainPassCB.SpotLightCount = spotLightCount;
 }
 
 void ReflectionRenderer::UpdateSsaoCB()
@@ -901,13 +866,11 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     PopulateForwardPathCommands(cmdList);
     PopulateDrawQuadCommand(cmdList, window->GetCurrentBackBuffer(),
                             &currentFrameResource->BackBufferRTVMemory, 0);
-#if defined(DEBUG) || defined(_DEBUG)
     if (uiLayer)
     {
         GCommandListMarker marker(cmdList, L"UI");
         uiLayer->Render(cmdList);
     }
-#endif
     cmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
     cmdList->FlushResourceBarriers();
     currentFrameResource->PrimeRenderFenceValue = commandQueue->ExecuteCommandList(cmdList);
@@ -915,7 +878,6 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     currentFrameResourceIndex = window->Present();
 }
 
-#if defined(DEBUG) || defined(_DEBUG)
 void ReflectionRenderer::ForwardUiMessage(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam) const
 {
     if (uiLayer) uiLayer->ForwardMessage(hwnd, msg, wParam, lParam);
@@ -923,7 +885,6 @@ void ReflectionRenderer::ForwardUiMessage(const HWND hwnd, const UINT msg, const
 
 bool ReflectionRenderer::UiWantsMouseCapture() const { return uiLayer && uiLayer->WantsMouseCapture(); }
 bool ReflectionRenderer::UiWantsKeyboardCapture() const { return uiLayer && uiLayer->WantsKeyboardCapture(); }
-#endif
 
 void ReflectionRenderer::InitCubeFacePasses()
 {
