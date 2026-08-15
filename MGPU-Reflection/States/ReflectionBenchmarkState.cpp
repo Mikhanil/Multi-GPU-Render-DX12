@@ -5,10 +5,11 @@
 #include <algorithm>
 #include <cstdlib>
 
-ReflectionBenchmarkState::ReflectionBenchmarkState(HybridCubeMapApp& app, const bool useOnlyPrime,
-                                                   std::wstring name, const uint32_t durationInSeconds,
-                                                   const FileQueueWriter& writer)
-    : BenchmarkState(writer), app(app), useOnlyPrime(useOnlyPrime), name(std::move(name)),
+ReflectionBenchmarkState::ReflectionBenchmarkState(HybridCubeMapApp& app,
+                                                   const ReflectionProbeConfiguration configuration,
+                                                   std::wstring name,
+                                                   const uint32_t durationInSeconds, const FileQueueWriter& writer)
+    : BenchmarkState(writer), app(app), configuration(configuration), name(std::move(name)),
       durationInSeconds(durationInSeconds)
 {
 }
@@ -20,7 +21,7 @@ void ReflectionBenchmarkState::Enter()
     samplesTaken = 0;
     totalFps = 0.0f;
     sampling = false;
-    app.SetReflectionBenchmarkConfiguration(useOnlyPrime);
+    app.SetReflectionBenchmarkConfiguration(configuration);
     app.SetReflectionBenchmarkTitle(name, durationInSeconds, 0.0f, true);
 }
 

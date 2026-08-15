@@ -30,6 +30,26 @@ class UILayer;
 // This sample has one primary path and, when available, one compatible hardware secondary.
 constexpr UINT ReflectionAdapterCount = 2;
 
+enum class ReflectionProbeCaptureMode : uint8_t
+{
+    BakedDynamicOverlay,
+    FullDynamic
+};
+
+enum class ReflectionProbeUpdateMode : uint8_t
+{
+    AllProbesPerFrame,
+    OneProbePerFrame,
+    OneFacePerFrame
+};
+
+struct ReflectionProbeConfiguration
+{
+    UINT PrimaryProbeCount = Common::Scene::ReflectionProbeCount;
+    ReflectionProbeCaptureMode CaptureMode = ReflectionProbeCaptureMode::FullDynamic;
+    ReflectionProbeUpdateMode UpdateMode = ReflectionProbeUpdateMode::AllProbesPerFrame;
+};
+
 class ReflectionRenderer
 {
 public:
@@ -46,13 +66,13 @@ public:
     void Draw(const GameTimer& gt);
     void OnResize(float aspectRatio);
     void Flush() const;
-    void SetUseOnlyPrime(bool value) { UseOnlyPrime = value || !hasSecondaryAdapter; }
-    bool GetUseOnlyPrime() const { return UseOnlyPrime; }
+    void SetUseOnlyPrime(bool value);
+    bool GetUseOnlyPrime() const { return probeConfiguration.PrimaryProbeCount == ReflectionProbeCount; }
+    void SetReflectionProbeConfiguration(ReflectionProbeConfiguration configuration);
     void ResetBenchmarkAnimation();
     void SetSsaaMultiplier(UINT value);
     UINT GetSsaaMultiplier() const { return multi; }
     void SetDebugMap(UINT value) { pathMapShow = value; }
-    UINT64 GetGpuTime(GraphicsAdapter adapter) const { return gpuTimes[adapter]; }
 #if defined(DEBUG) || defined(_DEBUG)
     void ForwardUiMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) const;
     bool UiWantsMouseCapture() const;
@@ -77,9 +97,15 @@ private:
     void PopulateDrawCommands(GraphicsAdapter adapterIndex, const std::shared_ptr<GCommandList>& cmdList, RenderMode type);
     void PopulateDrawQuadCommand(const std::shared_ptr<GCommandList>& cmdList, const GTexture& renderTarget,
                                  const GDescriptor* rtvMemory, UINT offsetRTV);
-    void PopulateDynamicCubeMapCommands(GraphicsAdapter adapter, const std::shared_ptr<GCommandList>& cmdList);
-    std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount> BuildCubeFacePassCBs(
-        const DirectX::SimpleMath::Vector3& center, bool useBakedSecondaryLighting) const;
+    void PopulateBakedProbeCommands(GraphicsAdapter adapter, UINT probeIndex,
+                                    const std::shared_ptr<GCommandList>& cmdList);
+    void PopulatePrimaryProbeCommands(const std::shared_ptr<GCommandList>& cmdList);
+    void PopulateSecondaryProbeCommands(const std::shared_ptr<GCommandList>& cmdList);
+    void CopySharedProbeOutputsToPrimary(const std::shared_ptr<GCommandList>& cmdList);
+    void ResetProbeScheduling();
+    void InitCubeFacePasses();
+    ReflectionPassConstants GetCubeFacePass(UINT probeIndex, UINT face,
+                                             bool useBakedSecondaryLighting) const;
     void CreateDynamicTextures(GraphicsAdapter adapter);
 
     std::shared_ptr<Common::Window> window;
@@ -87,15 +113,27 @@ private:
     std::vector<std::unique_ptr<Common::Scene>>& scenes;
     DXGI_FORMAT backBufferFormat;
     DXGI_FORMAT depthStencilFormat;
-    UINT64 gpuTimes[ReflectionAdapterCount]{};
     bool hasSecondaryAdapter = false;
-    bool UseOnlyPrime = true;
+    static constexpr UINT ReflectionProbeCount = Common::Scene::ReflectionProbeCount;
+    static constexpr UINT InvalidProbeIndex = ReflectionProbeCount;
+    std::array<std::array<ReflectionPassConstants, CubeMapRenderTarget::FaceCount>, ReflectionProbeCount>
+        cubeFaceCameraPasses{};
+    ReflectionProbeConfiguration probeConfiguration;
+    UINT nextPrimaryProbeIndex = 0;
+    UINT nextPrimaryProbeFace = 0;
+    UINT nextSecondaryProbeIndex = InvalidProbeIndex;
+    UINT nextSecondaryProbeFace = 0;
+    UINT nextSharedProbeIndex = InvalidProbeIndex;
+    UINT nextSharedProbeFace = 0;
+    UINT64 secondaryProbeFenceValue = 0;
+    bool secondaryProbeSubmissionReady = false;
     UINT multi = 1;
     D3D12_VIEWPORT fullViewport{};
     D3D12_RECT fullRect{};
     std::shared_ptr<GRootSignature> primeDeviceSignature, ssaoPrimeRootSignature, ssaoSecondRootSignature, secondDeviceSignature;
     RenderModeFactory primePipelineResources, secondPipelineResources;
-    std::array<std::shared_ptr<GCrossAdapterResource>, CubeMapRenderTarget::FaceCount> crossAdapterCubeMaps;
+    std::array<std::array<std::shared_ptr<GCrossAdapterResource>, CubeMapRenderTarget::FaceCount>,
+               ReflectionProbeCount> crossAdapterCubeMaps;
     std::shared_ptr<ShadowMap> shadowPathPrimeDevice, shadowPathSecondDevice;
     std::vector<D3D12_INPUT_ELEMENT_DESC> defaultInputLayout{};
     std::shared_ptr<SSAO> ambientPrimePath;
@@ -111,9 +149,11 @@ private:
     DirectX::SimpleMath::Vector3 mLightPosW;
     DirectX::SimpleMath::Matrix mLightView = DirectX::SimpleMath::Matrix::Identity, mLightProj = DirectX::SimpleMath::Matrix::Identity, mShadowTransform = DirectX::SimpleMath::Matrix::Identity;
     static constexpr UINT DynamicCubeMapFirstPassIndex = 2, DynamicCubeMapSize = 1024;
-    std::shared_ptr<CubeMapRenderTarget> dynamicCubeMap;
-    std::shared_ptr<BakedCubeMapRenderTarget> bakedCubeMapSecond;
-    std::atomic<bool> isBaked = false;
+    std::array<std::shared_ptr<CubeMapRenderTarget>, ReflectionProbeCount> dynamicCubeMaps;
+    std::array<std::shared_ptr<BakedCubeMapRenderTarget>, ReflectionProbeCount> bakedCubeMapsPrime;
+    std::array<std::shared_ptr<BakedCubeMapRenderTarget>, ReflectionProbeCount> bakedCubeMapsSecond;
+    std::array<bool, ReflectionProbeCount> primeProbeBaked{};
+    std::array<bool, ReflectionProbeCount> secondProbeBaked{};
     static constexpr UINT BakedCubeMapFirstPassIndex = 2, BakedCubeMapSize = 1024;
     GTexture dynamicCubeMapFaceColor, dynamicCubeMapFaceDepth;
     GDescriptor dynamicCubeMapFaceRtv, dynamicCubeMapFaceDsv;

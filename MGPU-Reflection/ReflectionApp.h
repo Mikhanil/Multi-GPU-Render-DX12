@@ -13,9 +13,9 @@ public:
     explicit HybridCubeMapApp(HINSTANCE hInstance);
     ~HybridCubeMapApp() override;
     bool Initialize() override;
-    // Called only by Release benchmark states.  Scene owns the transform reset;
-    // the renderer only receives the selected device algorithm.
-    void SetReflectionBenchmarkConfiguration(bool useOnlyPrime);
+    // Called only by Release benchmark states. Scene owns transform reset;
+    // renderer receives the capture/update cadence and probe distribution.
+    void SetReflectionBenchmarkConfiguration(ReflectionProbeConfiguration configuration);
     void SetReflectionBenchmarkTitle(const std::wstring& stateName, uint32_t remainingSeconds,
                                      float averageFps, bool isSettling);
 
@@ -34,7 +34,6 @@ private:
     std::vector<std::shared_ptr<GDevice>> devices;
     std::vector<std::unique_ptr<Common::Scene>> scenes;
     std::unique_ptr<ReflectionRenderer> renderer;
-    UINT64 gpuTimes[ReflectionAdapterCount]{};
     BenchmarkService benchmark;
 };
 

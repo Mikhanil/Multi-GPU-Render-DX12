@@ -191,12 +191,22 @@ namespace Common
         typedRenderers[static_cast<size_t>(RenderMode::SkyBox)].push_back(skyRenderer);
         gameObjects.push_back(std::move(skySphere));
 
-        auto mirrorSphere = std::make_unique<GameObject>("MirrorSphere");
-        mirrorSphere->GetTransform()->SetPosition({0.0f, 20.0f, 0.0f});
-        mirrorSphere->GetTransform()->SetScale({2.0f, 2.0f, 2.0f});
-        mirrorSphereTransform = mirrorSphere->GetTransform();
-        AddObjectRenderer(mirrorSphere.get(), L"mirrorSphere", RenderMode::Reflection);
-        gameObjects.push_back(std::move(mirrorSphere));
+        constexpr std::array<Vector3, ReflectionProbeCount> reflectionProbePositions =
+        {
+            Vector3(0.0f, 20.0f, 0.0f),
+            Vector3(12.0f, 20.0f, 0.0f),
+            Vector3(0.0f, 20.0f, 12.0f),
+            Vector3(12.0f, 20.0f, 12.0f)
+        };
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            auto mirrorSphere = std::make_unique<GameObject>("MirrorSphere");
+            mirrorSphere->GetTransform()->SetPosition(reflectionProbePositions[probeIndex]);
+            mirrorSphere->GetTransform()->SetScale({2.0f, 2.0f, 2.0f});
+            reflectionProbeTransforms[probeIndex] = mirrorSphere->GetTransform();
+            AddObjectRenderer(mirrorSphere.get(), L"mirrorSphere", RenderMode::Reflection);
+            gameObjects.push_back(std::move(mirrorSphere));
+        }
 
         auto quad = std::make_unique<GameObject>("Quad");
         AddObjectRenderer(quad.get(), L"quad", RenderMode::Debug);
@@ -214,8 +224,12 @@ namespace Common
         auto orbitNano = std::make_unique<GameObject>("OrbitNano");
         orbitNano->SetScale(0.5f);
         AddObjectRenderer(orbitNano.get(), L"nano", RenderMode::DynamicOpaque);
+        auto reflectionProbeCenter = std::make_unique<GameObject>("ReflectionProbeCenter");
+        reflectionProbeCenter->GetTransform()->SetPosition({6.0f, 20.0f, 6.0f});
+        const auto reflectionProbeCenterTransform = reflectionProbeCenter->GetTransform();
+        gameObjects.push_back(std::move(reflectionProbeCenter));
         orbitNano->AddComponent(std::make_shared<Orbiter>(
-            mirrorSphereTransform, Vector3(5.0f, -5.0f, 0.0f), 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
+            reflectionProbeCenterTransform, Vector3(9.0f, -5.0f, 0.0f), 0.8f, Vector3(0.0f, 90.0f, 0.0f)));
         benchmarkMovingObject = orbitNano.get();
         benchmarkMovingObjectMatrix = orbitNano->GetTransform()->GetLocalMatrix();
         gameObjects.push_back(std::move(orbitNano));
@@ -390,6 +404,15 @@ namespace Common
         }
     }
 
+    void Scene::DrawReflectionProbe(const std::shared_ptr<GCommandList>& cmdList, const UINT probeIndex) const
+    {
+        const auto& reflectionRenderers = typedRenderers[static_cast<size_t>(RenderMode::Reflection)];
+        if (probeIndex < reflectionRenderers.size())
+        {
+            reflectionRenderers[probeIndex]->Draw(cmdList);
+        }
+    }
+
     GDescriptor* Scene::GetSrvHeap() { return &srvHeap; }
     std::shared_ptr<Camera> Scene::GetCamera() const { return sceneCamera; }
     const std::vector<Light*>& Scene::GetLights() const { return lights; }
@@ -403,5 +426,13 @@ namespace Common
     size_t Scene::GetMaterialCount() { return loader.GetMaterials().size(); }
     size_t Scene::GetTextureCount() { return loader.GetTextures().size(); }
     UINT Scene::GetTextureIndex(const std::wstring& name) { return loader.GetTextureIndex(name); }
-    Vector3 Scene::GetMirrorSpherePosition() const { return mirrorSphereTransform->GetWorldPosition(); }
+    std::array<Vector3, Scene::ReflectionProbeCount> Scene::GetReflectionProbePositions() const
+    {
+        std::array<Vector3, ReflectionProbeCount> positions{};
+        for (UINT probeIndex = 0; probeIndex < ReflectionProbeCount; ++probeIndex)
+        {
+            positions[probeIndex] = reflectionProbeTransforms[probeIndex]->GetWorldPosition();
+        }
+        return positions;
+    }
 }

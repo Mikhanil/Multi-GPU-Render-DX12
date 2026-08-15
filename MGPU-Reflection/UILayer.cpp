@@ -85,8 +85,6 @@ void UILayer::Update()
         renderer.SetUseOnlyPrime(primaryOnly);
     }
     ImGui::Text("Mode: %s", renderer.GetUseOnlyPrime() ? "Primary" : "MGPU");
-    ImGui::Text("Primary GPU: %llu us", static_cast<unsigned long long>(renderer.GetGpuTime(PEPEngine::Graphics::GraphicAdapterPrimary)));
-    ImGui::Text("Secondary GPU: %llu us", static_cast<unsigned long long>(renderer.GetGpuTime(PEPEngine::Graphics::GraphicAdapterSecond)));
     ImGui::End();
 }
 

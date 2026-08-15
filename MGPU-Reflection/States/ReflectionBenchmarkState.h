@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Services/States/BenchmarkState.h"
+#include "../ReflectionRenderer.h"
 #include <cstdint>
 
 class HybridCubeMapApp;
@@ -10,7 +11,7 @@ class HybridCubeMapApp;
 class ReflectionBenchmarkState final : public BenchmarkState
 {
 public:
-    ReflectionBenchmarkState(HybridCubeMapApp& app, bool useOnlyPrime, std::wstring name,
+    ReflectionBenchmarkState(HybridCubeMapApp& app, ReflectionProbeConfiguration configuration, std::wstring name,
                              uint32_t durationInSeconds, const FileQueueWriter& writer);
 
     void Enter() override;
@@ -23,7 +24,7 @@ protected:
 
 private:
     HybridCubeMapApp& app;
-    bool useOnlyPrime;
+    ReflectionProbeConfiguration configuration;
     std::wstring name;
     uint32_t durationInSeconds;
     float settleElapsed = 0.0f;

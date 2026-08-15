@@ -2,6 +2,7 @@
 
 #include "Window.h"
 #include "States/ReflectionBenchmarkState.h"
+#include "Utils.h"
 #include <cstdlib>
 #include <filesystem>
 #include <format>
@@ -69,8 +70,8 @@ bool HybridCubeMapApp::Initialize()
     OnResize();
 
 #if !defined(DEBUG) && !defined(_DEBUG)
-    // Keep the two existing rendering modes as separate, repeatable samples:
-    // primary-only is the baseline and the second state enables the MGPU path.
+    // Every benchmark axis is explicit in both the state title and log name:
+    // capture strategy, update cadence, and primary/secondary probe split.
     constexpr uint32_t benchmarkDurationSeconds = 20;
     const auto logDirectory = std::filesystem::current_path() / L"BenchmarkLogs";
     std::error_code error;
@@ -82,15 +83,73 @@ bool HybridCubeMapApp::Initialize()
                     L"MGPU-Reflection benchmark error", MB_OK | MB_ICONERROR);
         return false;
     }
-    const auto primaryName = devices[GraphicAdapterPrimary]->GetName();
     benchmark.SetLooping(false);
-    benchmark.AddState<ReflectionBenchmarkState>(*this, true, L"Primary baseline",
-        benchmarkDurationSeconds, FileQueueWriter(logDirectory / (L"MGPU-Reflection_Primary_" + primaryName + L".log")));
-    if (devices.size() == ReflectionAdapterCount)
+    constexpr std::array captureModes =
     {
-        const auto secondName = devices[GraphicAdapterSecond]->GetName();
-        benchmark.AddState<ReflectionBenchmarkState>(*this, false, L"MGPU reflection",
-            benchmarkDurationSeconds, FileQueueWriter(logDirectory / (L"MGPU-Reflection_MGPU_" + primaryName + L"+" + secondName + L".log")));
+        ReflectionProbeCaptureMode::BakedDynamicOverlay,
+        ReflectionProbeCaptureMode::FullDynamic
+    };
+    constexpr std::array updateModes =
+    {
+        ReflectionProbeUpdateMode::AllProbesPerFrame,
+        ReflectionProbeUpdateMode::OneProbePerFrame,
+        ReflectionProbeUpdateMode::OneFacePerFrame
+    };
+    for (const auto captureMode : captureModes)
+    {
+        const std::wstring captureName = captureMode == ReflectionProbeCaptureMode::FullDynamic
+                                             ? L"Full dynamic"
+                                             : L"Baked + dynamic overlay";
+        const std::wstring captureLogName = captureMode == ReflectionProbeCaptureMode::FullDynamic
+                                                ? L"FullDynamic"
+                                                : L"BakedOverlay";
+        for (const auto updateMode : updateModes)
+        {
+            std::wstring updateName;
+            std::wstring updateLogName;
+            switch (updateMode)
+            {
+            case ReflectionProbeUpdateMode::AllProbesPerFrame:
+                updateName = L"All probes/frame";
+                updateLogName = L"AllProbes";
+                break;
+            case ReflectionProbeUpdateMode::OneProbePerFrame:
+                updateName = L"One probe/frame";
+                updateLogName = L"OneProbe";
+                break;
+            case ReflectionProbeUpdateMode::OneFacePerFrame:
+                updateName = L"One face/frame";
+                updateLogName = L"OneFace";
+                break;
+            }
+
+            for (UINT primaryProbeCount = 0;
+                 primaryProbeCount <= Common::Scene::ReflectionProbeCount;
+                 ++primaryProbeCount)
+            {
+                if (devices.size() < ReflectionAdapterCount &&
+                    primaryProbeCount != Common::Scene::ReflectionProbeCount)
+                {
+                    continue;
+                }
+
+                const UINT secondaryProbeCount = Common::Scene::ReflectionProbeCount - primaryProbeCount;
+                const std::wstring distributionName = L"Primary " + std::to_wstring(primaryProbeCount) +
+                    L" / Secondary " + std::to_wstring(secondaryProbeCount);
+                const std::wstring stateName = captureName + L" | " + updateName + L" | " + distributionName;
+                const std::wstring logPrefix = L"MGPU-Reflection_" + captureLogName + L"_" + updateLogName +
+                    L"_Primary" + std::to_wstring(primaryProbeCount) + L"-Secondary" +
+                    std::to_wstring(secondaryProbeCount) + L" ";
+                const auto logPath = devices.size() == ReflectionAdapterCount
+                                         ? Benchmark::GetLogFile(logPrefix, *devices[GraphicAdapterPrimary],
+                                                                 *devices[GraphicAdapterSecond])
+                                         : logDirectory / (logPrefix + devices[GraphicAdapterPrimary]->GetName() +
+                                                           L"+SingleGPU.log");
+                benchmark.AddState<ReflectionBenchmarkState>(
+                    *this, ReflectionProbeConfiguration{primaryProbeCount, captureMode, updateMode}, stateName,
+                    benchmarkDurationSeconds, FileQueueWriter(logPath));
+            }
+        }
     }
     benchmark.Start();
 #endif
@@ -130,15 +189,12 @@ bool HybridCubeMapApp::InitMainWindow()
 
 void HybridCubeMapApp::CalculateFrameStats()
 {
-    if (!renderer) return;
-    for (UINT i = 0; i < devices.size(); ++i)
-        gpuTimes[i] = renderer->GetGpuTime(static_cast<GraphicsAdapter>(i));
 #if defined(DEBUG) || defined(_DEBUG)
     D3DApp::CalculateFrameStats();
 #endif
 }
 
-void HybridCubeMapApp::SetReflectionBenchmarkConfiguration(const bool useOnlyPrime)
+void HybridCubeMapApp::SetReflectionBenchmarkConfiguration(const ReflectionProbeConfiguration configuration)
 {
     Flush();
     for (const auto& scene : scenes)
@@ -146,11 +202,7 @@ void HybridCubeMapApp::SetReflectionBenchmarkConfiguration(const bool useOnlyPri
         scene->ResetBenchmarkAnimation();
     }
     renderer->ResetBenchmarkAnimation();
-    renderer->SetUseOnlyPrime(useOnlyPrime);
-    for (auto& gpuTime : gpuTimes)
-    {
-        gpuTime = 0;
-    }
+    renderer->SetReflectionProbeConfiguration(configuration);
 }
 
 void HybridCubeMapApp::SetReflectionBenchmarkTitle(const std::wstring& stateName,

@@ -9,6 +9,7 @@
 #include "GraphicPSO.h"
 #include "Light.h"
 #include <DirectXCollision.h>
+#include <array>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -26,6 +27,8 @@ namespace Common
     class Scene
     {
     public:
+        static constexpr UINT ReflectionProbeCount = 4;
+
         explicit Scene(const std::shared_ptr<PEPEngine::Graphics::GDevice>& device);
 
         void Initialize(float aspectRatio, const DirectX::SimpleMath::Vector3& directionalLightDirection);
@@ -33,6 +36,8 @@ namespace Common
         void ResetBenchmarkAnimation();
         void UpdateMaterials(FrameResource* frameResource, bool useSecondGpuBuffer = false);
         void Draw(const std::shared_ptr<PEPEngine::Graphics::GCommandList>& cmdList, PEPEngine::Graphics::RenderMode mode) const;
+        void DrawReflectionProbe(const std::shared_ptr<PEPEngine::Graphics::GCommandList>& cmdList,
+                                 UINT probeIndex) const;
 
         GDescriptor* GetSrvHeap();
         std::shared_ptr<Camera> GetCamera() const;
@@ -43,7 +48,7 @@ namespace Common
         size_t GetMaterialCount();
         size_t GetTextureCount();
         UINT GetTextureIndex(const std::wstring& name);
-        DirectX::SimpleMath::Vector3 GetMirrorSpherePosition() const;
+        std::array<DirectX::SimpleMath::Vector3, ReflectionProbeCount> GetReflectionProbePositions() const;
 
     private:
         void LoadTextures(const std::shared_ptr<PEPEngine::Graphics::GCommandList>& cmdList);
@@ -72,7 +77,7 @@ namespace Common
         DirectX::SimpleMath::Matrix benchmarkCameraMatrix = DirectX::SimpleMath::Matrix::Identity;
         DirectX::SimpleMath::Matrix benchmarkCameraOrbitMatrix = DirectX::SimpleMath::Matrix::Identity;
         DirectX::SimpleMath::Matrix benchmarkMovingObjectMatrix = DirectX::SimpleMath::Matrix::Identity;
-        std::shared_ptr<Transform> mirrorSphereTransform;
+        std::array<std::shared_ptr<Transform>, ReflectionProbeCount> reflectionProbeTransforms;
         DirectX::BoundingSphere bounds;
     };
 }
