@@ -161,10 +161,6 @@ private:
     UINT nextSecondaryProbeFace = 0;
     UINT nextSharedProbeIndex = InvalidProbeIndex;
     UINT nextSharedProbeFace = 0;
-    UINT64 secondaryProbeFenceValue = 0;
-    UINT64 secondarySsrFenceValue = 0;
-    bool secondaryProbeSubmissionReady = false;
-    bool secondarySsrSubmissionReady = false;
     UINT multi = 1;
     D3D12_VIEWPORT fullViewport{};
     D3D12_RECT fullRect{};

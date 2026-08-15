@@ -435,14 +435,11 @@ void ReflectionRenderer::Update(const GameTimer& gt)
         commandQueue->WaitForFenceValue(currentFrameResource->PrimeRenderFenceValue);
     }
 
-    // Secondary probe work is deliberately decoupled from the primary frame.
-    // If the previous submission is still in flight, this frame does not touch
-    // GPU2 upload data and Draw() skips producing a newer shared version.
-    secondaryProbeSubmissionReady = hasSecondaryAdapter &&
-        probeConfiguration.PrimaryProbeCount < ReflectionProbeCount &&
-        (secondaryProbeFenceValue == 0 || secondQueue->IsFinish(secondaryProbeFenceValue));
-    secondarySsrSubmissionReady = probeConfiguration.SsrMode == SsrExecutionMode::Secondary && hasSecondaryAdapter &&
-        (secondarySsrFenceValue == 0 || secondQueue->IsFinish(secondarySsrFenceValue));
+    if (hasSecondaryAdapter && currentFrameResource->SecondRenderFenceValue != 0 &&
+        !secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+    {
+        secondQueue->WaitForFenceValue(currentFrameResource->SecondRenderFenceValue);
+    }
 
     mLightRotationAngle += 0.1f * gt.DeltaTime();
 
@@ -456,7 +453,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
 
     scenes[GraphicAdapterPrimary]->Update();
     scenes[GraphicAdapterPrimary]->UpdateMaterials(currentFrameResource.get());
-    if (secondaryProbeSubmissionReady)
+    if (hasSecondaryAdapter && probeConfiguration.PrimaryProbeCount < ReflectionProbeCount)
     {
         scenes[GraphicAdapterSecond]->Update();
         scenes[GraphicAdapterSecond]->UpdateMaterials(currentFrameResource.get(), true);
@@ -466,7 +463,7 @@ void ReflectionRenderer::Update(const GameTimer& gt)
     UpdateMainPassCB(gt);
     UpdateShadowPassCB();
     UpdateSsaoCB();
-    if (uiLayer && (probeConfiguration.SsrMode != SsrExecutionMode::Secondary || secondarySsrSubmissionReady))
+    if (uiLayer)
         uiLayer->Update();
 }
 
@@ -536,7 +533,7 @@ void ReflectionRenderer::UpdateShadowPassCB()
     shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
     shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
 
-    if (secondaryProbeSubmissionReady)
+    if (hasSecondaryAdapter && probeConfiguration.PrimaryProbeCount < ReflectionProbeCount)
     {
         auto currPassCB = currentFrameResource->SecondPassConstantUploadBuffer;
         currPassCB->CopyData(1, shadowPassCB);
@@ -993,19 +990,23 @@ void ReflectionRenderer::ApplyPresentationDevice()
     uiLayer.reset();
     BuildPresentationViews();
     currentFrameResourceIndex = window->GetCurrentBackBufferIndex();
-    secondarySsrFenceValue = 0;
     uiLayer = std::make_unique<UILayer>(devices[adapter], window->GetWindowHandle(),
                                         GetSRGBFormat(backBufferFormat), *this);
 }
 
 void ReflectionRenderer::Draw(const GameTimer& gt)
 {
-    if (secondaryProbeSubmissionReady)
+    currentFrameResource = frameResources[currentFrameResourceIndex];
+    if (hasSecondaryAdapter && probeConfiguration.PrimaryProbeCount < ReflectionProbeCount)
     {
         auto commandQueue = devices[GraphicAdapterSecond]->GetCommandQueue();
-        const auto cmdList = commandQueue->GetCommandList();
-        PopulateSecondaryProbeCommands(cmdList);
-        secondaryProbeFenceValue = commandQueue->ExecuteCommandList(cmdList);
+        if (currentFrameResource->SecondRenderFenceValue == 0 ||
+            commandQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
+        {
+            const auto cmdList = commandQueue->GetCommandList();
+            PopulateSecondaryProbeCommands(cmdList);
+            currentFrameResource->SecondRenderFenceValue = commandQueue->ExecuteCommandList(cmdList);
+        }
     }
 
     auto commandQueue = devices[GraphicAdapterPrimary]->GetCommandQueue(GQueueType::Graphics);
@@ -1045,28 +1046,29 @@ void ReflectionRenderer::Draw(const GameTimer& gt)
     if (activePresentationMode == SsrExecutionMode::Secondary && hasSecondaryAdapter)
     {
         const auto secondQueue = devices[GraphicAdapterSecond]->GetCommandQueue(GQueueType::Graphics);
-        if (!secondarySsrSubmissionReady)
-            return;
-
-        currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
-        const auto secondCmdList = secondQueue->GetCommandList();
-        secondCmdList->CopyResource(secondSsrSceneColor, sharedSsrSceneColor->GetSharedResource());
-        secondCmdList->CopyResource(secondSsrSceneDepth, sharedSsrSceneDepth->GetSharedResource());
-        secondCmdList->CopyResource(secondSsrSceneNormal, sharedSsrSceneNormal->GetSharedResource());
-        const auto backBufferIndex = window->GetCurrentBackBufferIndex();
-        const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
-        const SsrInputSet inputs{&secondSsrSceneColor, &secondSsrSceneDepth,
-                                 &secondSsrSceneNormal, &secondSsrInputSrvs};
-        PopulateSsrCommands(secondCmdList, GraphicAdapterSecond, inputs,
-                            window->GetCurrentBackBuffer(), &backBufferRtv);
-        if (uiLayer)
+        if (currentFrameResource->SecondRenderFenceValue == 0 ||
+            secondQueue->IsFinish(currentFrameResource->SecondRenderFenceValue))
         {
-            GCommandListMarker marker(secondCmdList, L"UI");
-            uiLayer->Render(secondCmdList);
+            currentFrameResource->SecondPassConstantUploadBuffer->CopyData(0, mainPassCB);
+            const auto secondCmdList = secondQueue->GetCommandList();
+            secondCmdList->CopyResource(secondSsrSceneColor, sharedSsrSceneColor->GetSharedResource());
+            secondCmdList->CopyResource(secondSsrSceneDepth, sharedSsrSceneDepth->GetSharedResource());
+            secondCmdList->CopyResource(secondSsrSceneNormal, sharedSsrSceneNormal->GetSharedResource());
+            const auto backBufferIndex = window->GetCurrentBackBufferIndex();
+            const auto backBufferRtv = presentationBackBufferRtvs.Offset(backBufferIndex);
+            const SsrInputSet inputs{&secondSsrSceneColor, &secondSsrSceneDepth,
+                                     &secondSsrSceneNormal, &secondSsrInputSrvs};
+            PopulateSsrCommands(secondCmdList, GraphicAdapterSecond, inputs,
+                                window->GetCurrentBackBuffer(), &backBufferRtv);
+            if (uiLayer)
+            {
+                GCommandListMarker marker(secondCmdList, L"UI");
+                uiLayer->Render(secondCmdList);
+            }
+            secondCmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+            secondCmdList->FlushResourceBarriers();
+            currentFrameResource->SecondRenderFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
         }
-        secondCmdList->TransitionBarrier(window->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
-        secondCmdList->FlushResourceBarriers();
-        secondarySsrFenceValue = secondQueue->ExecuteCommandList(secondCmdList);
     }
 
     currentFrameResourceIndex = window->Present();
