@@ -489,6 +489,8 @@ void CrossAdapterGrassEmitter::EnsureExpandWindVelocitySnapshot()
 
 void CrossAdapterGrassEmitter::GenerateGrassDataCPU()
 {
+    grassDataCPU.resize(emitterData.GrassCount);
+
     float cellSize = emitterData.WorldSize / static_cast<float>(emitterData.GridSize);
     float halfWorld = emitterData.WorldSize * 0.5f;
 
