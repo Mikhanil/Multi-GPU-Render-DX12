@@ -28,6 +28,7 @@ public:
     void Update() override;
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
     void Dispatch(const std::shared_ptr<GCommandList>& cmdList);
+    void MarkSharedOutputReady() { sharedOutputReady_ = true; }
 
     void SetWindStrength(float strength);
     void SetWindIntensity(float intensity);
@@ -76,8 +77,6 @@ public:
     {
         return renderPath_ == RenderPath::SingleExpanded ? singleWindFluid_ : windFluid;
     }
-    /// Stable post-sim velocity copy used by expand + debug readback (same device as wind sim).
-    Microsoft::WRL::ComPtr<ID3D12Resource> GetExpandWindVelocityResource() const;
     void SetWorldConstantsBuffer(const GBuffer* worldConstants);
     void SetFrustumCullingData(const Matrix& viewProj, const Vector3& eyePos, float maxDistance = 1500.0f,
                                float lod0Distance = 300.0f, float lod1Distance = 900.0f,
@@ -100,8 +99,8 @@ private:
     void EnsureSingleExpandResourcesInitialized();
     void EnsureWindFluidGpuInitialized();
     void EnsureSingleWindFluidGpuInitialized();
-    void EnsureExpandWindVelocitySnapshot();
-    void EnsureSingleExpandWindVelocitySnapshot();
+    void EnsureExpandWindVelocitySrv();
+    void EnsureSingleExpandWindVelocitySrv();
     void ApplyLod0DebugGradientToEmitterData();
     void GenerateGrassDataCPU();
 
@@ -146,14 +145,10 @@ private:
     std::shared_ptr<GraphicPSO> expandedDrawPSO;
 
     PEPEngine::Graphics::WindFluidSimulator windFluid{};
-    std::unique_ptr<GResource> expandWindVelSnapshot_;
     std::unique_ptr<GResource> expandWindVelFallback_;
-    uint32_t expandWindVelGrid_{0};
 
     PEPEngine::Graphics::WindFluidSimulator singleWindFluid_{};
-    std::unique_ptr<GResource> singleExpandWindVelSnapshot_;
     std::unique_ptr<GResource> singleExpandWindVelFallback_;
-    uint32_t singleExpandWindVelGrid_{0};
 
     GrassEmitterData emitterData = {};
     GrassCullData cullData = {};
@@ -161,6 +156,7 @@ private:
 
     RenderPath renderPath_{RenderPath::SingleGeometry};
     bool sharedComputeResourcesInitialized_ = false;
+    bool sharedOutputReady_ = false;
     bool singleExpandResourcesInitialized_ = false;
     bool needRegenerate = true;
 

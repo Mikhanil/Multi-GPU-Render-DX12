@@ -92,9 +92,6 @@ protected:
     void EnsureWindGradientPreviewTexture();
     void ReleaseWindGradientPreviewTexture();
     void RefreshWindGradientPreviewTexture(const std::shared_ptr<GCommandList>& cmdList);
-    void AppendWindFluidPreviewReadbackIfDue(const std::shared_ptr<GCommandList>& cmdList);
-    bool TryRebuildWindGradientPreviewFromSecondGpu(UINT8* uploadMappedBase);
-    void EnsureWindFluidReadbackMatchesVelocity(ID3D12Resource* velocityTex);
 
     void GetGrassWindFieldExtents(float& outCenterX, float& outCenterZ, float& outHalfExtent) const;
     bool TryPickGrassGroundFromMouse(int clientX, int clientY, Vector3& outHitWorld) const;
@@ -235,24 +232,8 @@ protected:
     UINT windGradientPreviewH = 128;
     UINT windGradientPreviewRowPitch = 0;
     bool windGradientPreviewReady = false;
-    bool windGradientPreviewShowsGpuFluid_{false};
-    bool windPreviewLiveGpuReadback_{true};
 
-    Microsoft::WRL::ComPtr<ID3D12Resource> windFluidReadbackSecond_;
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT windFluidRbLayout_{};
-    UINT64 windFluidRbTotalBytes_{0};
-    UINT windFluidReadbackGrid_{0};
-    UINT64 windFluidReadbackFenceValue_{0};
-    bool windFluidReadbackQueued_{false};
-    std::vector<UINT8> windFluidReadbackCpu_;
-    uint32_t windFluidGpuPreviewFrameCounter_{};
-    bool windFluidGpuPreviewCacheValid_{false};
-    std::vector<unsigned char> windFluidGpuPreviewCache_;
-    std::vector<float> windPreviewDye_;
-    std::vector<float> windPreviewDyeTmp_;
-    bool windPreviewDyeValid_{false};
-    float windPreviewDyeExposure_{4.0f};
-    int windPreviewMode_ = 0; // 0=abs velocity, 1=signed velocity, 2=dye
+    int windPreviewMode_ = 0; // 0=abs velocity, 1=signed velocity
     DXGI_ADAPTER_DESC3 primeAdapterDesc{};
     DXGI_ADAPTER_DESC3 secondAdapterDesc{};
     bool primeAdapterDescValid = false;

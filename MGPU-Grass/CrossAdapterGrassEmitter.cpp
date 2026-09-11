@@ -275,6 +275,7 @@ void CrossAdapterGrassEmitter::InitExpandedDrawPSO()
 
 void CrossAdapterGrassEmitter::CreateBuffers()
 {
+    sharedOutputReady_ = false;
     if (grassBuffer)
     {
         grassBuffer->Reset();
@@ -426,7 +427,7 @@ void CrossAdapterGrassEmitter::DescriptorInitialize()
     srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     grassBuffer->CreateShaderResourceView(&srvDesc, &expandDescriptors, 0);
 
-    EnsureExpandWindVelocitySnapshot();
+    EnsureExpandWindVelocitySrv();
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC expandedUavDesc = {};
     expandedUavDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -478,7 +479,7 @@ void CrossAdapterGrassEmitter::DescriptorInitializeExpandedDraw()
     vertSrv.Buffer.NumElements = emitterData.GrassCount * kMaxVerticesPerBlade;
     vertSrv.Buffer.StructureByteStride = sizeof(GrassRenderVertex);
     vertSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-    crossAdapterExpandedVertexBuffer->GetPrimeResource().CreateShaderResourceView(
+    primeExpandedVertexBuffer->CreateShaderResourceView(
         &vertSrv, &expandedDrawDescriptors, 1);
 
     D3D12_SHADER_RESOURCE_VIEW_DESC counterSrv = {};
@@ -489,7 +490,7 @@ void CrossAdapterGrassEmitter::DescriptorInitializeExpandedDraw()
     counterSrv.Buffer.NumElements = 1;
     counterSrv.Buffer.StructureByteStride = sizeof(uint32_t);
     counterSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-    crossAdapterVisibleVertexCountBuffer->GetPrimeResource().CreateShaderResourceView(
+    primeVisibleVertexCountBuffer->CreateShaderResourceView(
         &counterSrv, &expandedDrawDescriptors, 2);
 }
 
@@ -518,7 +519,7 @@ void CrossAdapterGrassEmitter::DescriptorInitializeSingleExpand()
     grassSrv.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
     singleGrassBuffer_->CreateShaderResourceView(&grassSrv, &singleExpandDescriptors_, 0);
 
-    EnsureSingleExpandWindVelocitySnapshot();
+    EnsureSingleExpandWindVelocitySrv();
 
     D3D12_UNORDERED_ACCESS_VIEW_DESC expandedUav{};
     expandedUav.Format = DXGI_FORMAT_UNKNOWN;
@@ -614,7 +615,7 @@ void CrossAdapterGrassEmitter::EnsureWindFluidGpuInitialized()
         return;
 
     windFluid.Initialize(secondDevice, windFluidGridResolution_);
-    EnsureExpandWindVelocitySnapshot();
+    EnsureExpandWindVelocitySrv();
     if (!windFluid.IsInitialized())
         windFluidInitGiveUp_ = true;
 }
@@ -627,12 +628,12 @@ void CrossAdapterGrassEmitter::EnsureSingleWindFluidGpuInitialized()
         return;
 
     singleWindFluid_.Initialize(primeDevice, windFluidGridResolution_);
-    EnsureSingleExpandWindVelocitySnapshot();
+    EnsureSingleExpandWindVelocitySrv();
     if (!singleWindFluid_.IsInitialized())
         singleWindFluidInitGiveUp_ = true;
 }
 
-void CrossAdapterGrassEmitter::EnsureExpandWindVelocitySnapshot()
+void CrossAdapterGrassEmitter::EnsureExpandWindVelocitySrv()
 {
     auto bindVelocitySrv = [this](GResource& resource)
     {
@@ -647,34 +648,7 @@ void CrossAdapterGrassEmitter::EnsureExpandWindVelocitySnapshot()
 
     if (windFluid.IsInitialized())
     {
-        const uint32_t grid = windFluid.GetGridResolution();
-        if (expandWindVelSnapshot_ && expandWindVelGrid_ == grid)
-        {
-            bindVelocitySrv(*expandWindVelSnapshot_);
-            return;
-        }
-
-        expandWindVelSnapshot_.reset();
-        expandWindVelGrid_ = grid;
-
-        const CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
-            DXGI_FORMAT_R16G16_FLOAT,
-            static_cast<UINT64>(grid),
-            grid,
-            1u,
-            1u,
-            1u,
-            0u,
-            D3D12_RESOURCE_FLAG_NONE);
-
-        expandWindVelSnapshot_ = std::make_unique<GResource>(
-            secondDevice,
-            desc,
-            L"Expand Wind Velocity Snapshot",
-            nullptr,
-            D3D12_RESOURCE_STATE_COMMON);
-
-        bindVelocitySrv(*expandWindVelSnapshot_);
+        windFluid.PublishReadableSrvTo(&expandDescriptors, 1);
         return;
     }
 
@@ -704,7 +678,7 @@ void CrossAdapterGrassEmitter::EnsureExpandWindVelocitySnapshot()
     bindVelocitySrv(*expandWindVelFallback_);
 }
 
-void CrossAdapterGrassEmitter::EnsureSingleExpandWindVelocitySnapshot()
+void CrossAdapterGrassEmitter::EnsureSingleExpandWindVelocitySrv()
 {
     auto bindVelocitySrv = [this](GResource& resource)
     {
@@ -719,34 +693,7 @@ void CrossAdapterGrassEmitter::EnsureSingleExpandWindVelocitySnapshot()
 
     if (singleWindFluid_.IsInitialized())
     {
-        const uint32_t grid = singleWindFluid_.GetGridResolution();
-        if (singleExpandWindVelSnapshot_ && singleExpandWindVelGrid_ == grid)
-        {
-            bindVelocitySrv(*singleExpandWindVelSnapshot_);
-            return;
-        }
-
-        singleExpandWindVelSnapshot_.reset();
-        singleExpandWindVelGrid_ = grid;
-
-        const CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
-            DXGI_FORMAT_R16G16_FLOAT,
-            static_cast<UINT64>(grid),
-            grid,
-            1u,
-            1u,
-            1u,
-            0u,
-            D3D12_RESOURCE_FLAG_NONE);
-
-        singleExpandWindVelSnapshot_ = std::make_unique<GResource>(
-            primeDevice,
-            desc,
-            L"Single GPU Expand Wind Velocity Snapshot",
-            nullptr,
-            D3D12_RESOURCE_STATE_COMMON);
-
-        bindVelocitySrv(*singleExpandWindVelSnapshot_);
+        singleWindFluid_.PublishReadableSrvTo(&singleExpandDescriptors_, 1);
         return;
     }
 
@@ -862,13 +809,28 @@ void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList
         renderPath_ == RenderPath::MultiExpanded && sharedComputeResourcesInitialized_;
     const bool drawSingleExpanded =
         renderPath_ == RenderPath::SingleExpanded && singleExpandResourcesInitialized_;
+    if (drawMultiExpanded)
+    {
+        if (!sharedOutputReady_)
+            return;
+        // Same transfer path as the other hybrid samples: copy shared output
+        // every primary frame, independently of the next secondary dispatch.
+        cmdList->CopyResource(primeExpandedVertexBuffer->GetD3D12Resource(),
+                             crossAdapterExpandedVertexBuffer->GetPrimeResource().GetD3D12Resource());
+        cmdList->CopyResource(primeVisibleVertexCountBuffer->GetD3D12Resource(),
+                             crossAdapterVisibleVertexCountBuffer->GetPrimeResource().GetD3D12Resource());
+        cmdList->TransitionBarrier(crossAdapterExpandedVertexBuffer->GetPrimeResource().GetD3D12Resource(),
+                                   D3D12_RESOURCE_STATE_COMMON);
+        cmdList->TransitionBarrier(crossAdapterVisibleVertexCountBuffer->GetPrimeResource().GetD3D12Resource(),
+                                   D3D12_RESOURCE_STATE_COMMON);
+    }
     if (drawMultiExpanded || drawSingleExpanded)
     {
         const GResource* expandedOnPrime = drawMultiExpanded
-                                               ? &crossAdapterExpandedVertexBuffer->GetPrimeResource()
+                                               ? primeExpandedVertexBuffer.get()
                                                : singleExpandedVertexBuffer_.get();
         const GResource* counterOnPrime = drawMultiExpanded
-                                              ? &crossAdapterVisibleVertexCountBuffer->GetPrimeResource()
+                                              ? primeVisibleVertexCountBuffer.get()
                                               : singleVisibleVertexCountBuffer_.get();
         GDescriptor* drawDescriptors = drawMultiExpanded
                                            ? &expandedDrawDescriptors
@@ -1026,35 +988,9 @@ void CrossAdapterGrassEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmd
 
         activeWindFluid.Simulate(cmdList, wf);
         if (multiExpanded)
-            EnsureExpandWindVelocitySnapshot();
+            EnsureExpandWindVelocitySrv();
         else
-            EnsureSingleExpandWindVelocitySnapshot();
-
-        if (gpuFluidLive)
-        {
-            // Bind post-sim readable velocity directly for expand (avoids stale snapshot SRV).
-            activeWindFluid.PublishReadableSrvTo(activeExpandDescriptors, 1);
-
-            GResource* velocitySnapshot = multiExpanded
-                                              ? expandWindVelSnapshot_.get()
-                                              : singleExpandWindVelSnapshot_.get();
-            if (multiExpanded && velocitySnapshot)
-            {
-                if (const auto readableVel = activeWindFluid.GetVelocityResource())
-                {
-                    cmdList->TransitionBarrier(readableVel.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
-                    cmdList->TransitionBarrier(velocitySnapshot->GetD3D12Resource().Get(),
-                                               D3D12_RESOURCE_STATE_COPY_DEST);
-                    cmdList->FlushResourceBarriers();
-                    cmdList->CopyResource(velocitySnapshot->GetD3D12Resource().Get(),
-                                          readableVel.Get());
-                    cmdList->TransitionBarrier(velocitySnapshot->GetD3D12Resource().Get(),
-                                               D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                    cmdList->TransitionBarrier(readableVel.Get(),
-                                               D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                }
-            }
-        }
+            EnsureSingleExpandWindVelocitySrv();
 
         GrassEmitterData grassCb = emitterData;
         if (!gpuFluidLive)
@@ -1187,23 +1123,19 @@ void CrossAdapterGrassEmitter::SetWindFluidSimulationTuning(float injectStrength
         windFluidGridResolution_ = newGrid;
         windFluidInitGiveUp_ = false;
         singleWindFluidInitGiveUp_ = false;
-        expandWindVelGrid_ = 0;
-        expandWindVelSnapshot_.reset();
-        singleExpandWindVelGrid_ = 0;
-        singleExpandWindVelSnapshot_.reset();
         if (sharedComputeResourcesInitialized_ && secondDevice)
         {
             secondDevice->Flush();
             windFluid.Initialize(secondDevice, windFluidGridResolution_);
             if (windFluid.IsInitialized())
-                EnsureExpandWindVelocitySnapshot();
+                EnsureExpandWindVelocitySrv();
         }
         if (singleExpandResourcesInitialized_ && primeDevice)
         {
             primeDevice->Flush();
             singleWindFluid_.Initialize(primeDevice, windFluidGridResolution_);
             if (singleWindFluid_.IsInitialized())
-                EnsureSingleExpandWindVelocitySnapshot();
+                EnsureSingleExpandWindVelocitySrv();
         }
     }
 }
@@ -1352,16 +1284,6 @@ void CrossAdapterGrassEmitter::SetDebugNearestOriginTint(bool enabled)
     {
         primeGrassEmitter->SetDebugNearestOriginTint(enabled);
     }
-}
-
-Microsoft::WRL::ComPtr<ID3D12Resource> CrossAdapterGrassEmitter::GetExpandWindVelocityResource() const
-{
-    const GResource* snapshot = renderPath_ == RenderPath::SingleExpanded
-                                    ? singleExpandWindVelSnapshot_.get()
-                                    : expandWindVelSnapshot_.get();
-    if (!snapshot || !snapshot->IsValid())
-        return nullptr;
-    return snapshot->GetD3D12Resource();
 }
 
 void CrossAdapterGrassEmitter::SetWindDirection(const Vector2& direction)

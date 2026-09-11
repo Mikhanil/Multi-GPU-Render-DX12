@@ -14,7 +14,6 @@
 #include <locale>
 #include <string>
 #include <thread>
-#include <DirectXPackedVector.h>
 #include "CameraController.h"
 #include "CrossAdapterParticleEmitter.h"
 #include "GameObject.h"
@@ -71,29 +70,6 @@ namespace
         case GrassRenderPath::MultiExpanded: return L"multi_gpu_expand";
         }
         return L"unknown";
-    }
-
-    /// Cross-adapter ID3D12CommandQueue::Wait on shared fences often raises DXGI invalid-call (0x87A) in validation;
-    /// waiting on the fence from the CPU preserves the dependency without using queue Wait.
-    void WaitForSharedFenceValueCpu(const ComPtr<ID3D12Fence>& fence, UINT64 value)
-    {
-        if (!fence)
-            return;
-        if (fence->GetCompletedValue() >= value)
-            return;
-
-        static HANDLE s_completionEvent = nullptr;
-        if (!s_completionEvent)
-        {
-            s_completionEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-            if (!s_completionEvent)
-                return;
-        }
-
-        if (FAILED(fence->SetEventOnCompletion(value, s_completionEvent)))
-            return;
-
-        WaitForSingleObject(s_completionEvent, INFINITE);
     }
 
     // Matches `SampleWindGradient` in GrassDraw.hlsl / ComputeGrass.hlsl:
@@ -175,64 +151,6 @@ namespace
         }
 
         return Vector2::Zero;
-    }
-
-    float HalfBitsToFloat(const uint16_t bits)
-    {
-        union Bits
-        {
-            uint16_t u;
-            DirectX::PackedVector::HALF h;
-        };
-        Bits b{};
-        b.u = bits;
-        return static_cast<float>(b.h);
-    }
-
-    Vector2 SampleFluidRg16Nearest(const UINT8* row0, const UINT rowPitchBytes, const UINT grid, const int ix, const int iy)
-    {
-        const int gx = std::clamp(ix, 0, static_cast<int>(grid) - 1);
-        const int gy = std::clamp(iy, 0, static_cast<int>(grid) - 1);
-        const UINT8* p =
-            row0 + static_cast<size_t>(gy) * rowPitchBytes + static_cast<size_t>(gx) * sizeof(uint16_t) * 2;
-        uint16_t hx = 0, hy = 0;
-        std::memcpy(&hx, p, sizeof(uint16_t));
-        std::memcpy(&hy, p + sizeof(uint16_t), sizeof(uint16_t));
-        return Vector2(HalfBitsToFloat(hx), HalfBitsToFloat(hy));
-    }
-
-    Vector2 SampleFluidRg16Bilinear(const UINT8* row0, const UINT rowPitchBytes, const UINT gridW,
-                                   const UINT gridH, const float su, const float sv)
-    {
-        const UINT gridX = std::max(gridW, 1u);
-        const UINT gridY = std::max(gridH, gridX);
-        const float gx = su * static_cast<float>(gridX) - 0.5f;
-        const float gy = sv * static_cast<float>(gridY) - 0.5f;
-
-        const int x0 = static_cast<int>(std::floorf(gx));
-        const int y0 = static_cast<int>(std::floorf(gy));
-
-        const float tx = gx - static_cast<float>(x0);
-        const float ty = gy - static_cast<float>(y0);
-
-        Vector2 v00 = SampleFluidRg16Nearest(row0, rowPitchBytes, gridX, x0, y0);
-        Vector2 v10 = SampleFluidRg16Nearest(row0, rowPitchBytes, gridX, x0 + 1, y0);
-        Vector2 v01 = SampleFluidRg16Nearest(row0, rowPitchBytes, gridX, x0, y0 + 1);
-        Vector2 v11 = SampleFluidRg16Nearest(row0, rowPitchBytes, gridX, x0 + 1, y0 + 1);
-
-        const Vector2 lerpBottom = v00 + (v10 - v00) * tx;
-        const Vector2 lerpTop = v01 + (v11 - v01) * tx;
-        return lerpBottom + (lerpTop - lerpBottom) * ty;
-    }
-
-    Vector2 WorldPosToFluidUv(const Vector3& worldPos, const Vector4& windFieldWorldParams)
-    {
-        const float he = std::max(windFieldWorldParams.z, 1e-4f);
-        const float su =
-            (worldPos.x - windFieldWorldParams.x) / (2.0f * he) + 0.5f;
-        const float sv =
-            (worldPos.z - windFieldWorldParams.y) / (2.0f * he) + 0.5f;
-        return Vector2(std::clamp(su, 0.0f, 1.0f), std::clamp(sv, 0.0f, 1.0f));
     }
 
     Vector2 WorldPosToGrassPatchUv(const Vector3& worldPos, const float worldSize,
@@ -479,6 +397,7 @@ void HybridGrassApp::Update(const GameTimer& gt)
             emitter->SetGrassCount(static_cast<uint32_t>(pendingGrassBladeCount));
         }
         pendingGrassBladeCount = -1;
+        sharedComputeFenceValue = 0; // Rebuilt output buffers need their own first result.
     }
 
     if (pendingGrassWorldSize > 0.0f)
@@ -876,17 +795,20 @@ void HybridGrassApp::Draw(const GameTimer& gt)
 
     auto renderQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
 
-    if (useCrossGpuPath)
-    {
-        WaitForSharedFenceValueCpu(secondRenderFence, sharedRenderFenceValue);
-    }
-    else
+    if (!useCrossGpuPath)
     {
         computeQueue->Wait(renderQueue);
     }
 
-
+    // Secondary work is submitted only when its own previous batch is done.
+    // The primary GPU never waits for it and keeps drawing its local copy.
+    if (!useCrossGpuPath || sharedComputeFenceValue == 0 || computeQueue->IsFinish(sharedComputeFenceValue))
     {
+        if (useCrossGpuPath && sharedComputeFenceValue != 0)
+        {
+            for (auto* emitter : crossGrassEmitters)
+                emitter->MarkSharedOutputReady();
+        }
         const auto cmdList = computeQueue->GetCommandList();
 
         cmdList->EndQuery(timestampHeapIndex);
@@ -913,24 +835,14 @@ void HybridGrassApp::Draw(const GameTimer& gt)
             emitter->Dispatch(cmdList);
         }
 
-        if (showWindFieldDebug && windPreviewLiveGpuReadback_)
-            AppendWindFluidPreviewReadbackIfDue(cmdList);
-
         cmdList->EndQuery(timestampHeapIndex + 1);
         cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
 
         currentFrameResource->ComputeFenceValue = computeQueue->ExecuteCommandList(cmdList);
 
-        if (windFluidReadbackQueued_)
-        {
-            windFluidReadbackFenceValue_ = currentFrameResource->ComputeFenceValue;
-            windFluidReadbackQueued_ = false;
-        }
-
         if (useCrossGpuPath)
         {
             sharedComputeFenceValue = currentFrameResource->ComputeFenceValue;
-            computeQueue->Signal(secondComputeFence, sharedComputeFenceValue);
         }
     }
 
@@ -941,11 +853,7 @@ void HybridGrassApp::Draw(const GameTimer& gt)
 
         cmdList->EndQuery(timestampHeapIndex);
 
-        if (useCrossGpuPath)
-        {
-            WaitForSharedFenceValueCpu(primeComputeFence, sharedComputeFenceValue);
-        }
-        else
+        if (!useCrossGpuPath)
         {
             renderQueue->Wait(computeQueue);
         }
@@ -968,11 +876,6 @@ void HybridGrassApp::Draw(const GameTimer& gt)
 
         currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
 
-        if (useCrossGpuPath)
-        {
-            sharedRenderFenceValue = currentFrameResource->PrimeRenderFenceValue;
-            renderQueue->Signal(primeRenderFence, sharedRenderFenceValue);
-        }
     }
 
     currentFrameResourceIndex = MainWindow->Present();
@@ -2495,8 +2398,6 @@ void HybridGrassApp::InitWindGradientPreviewTexture()
         imguiSrvDescriptors.GetCPUHandle(windGradientPreviewSrvIndex));
     windGradientPreviewSrvGpu = imguiSrvDescriptors.GetGPUHandle(windGradientPreviewSrvIndex);
     windGradientPreviewReady = true;
-    windFluidGpuPreviewCacheValid_ = false;
-    windFluidGpuPreviewCache_.clear();
 }
 
 void HybridGrassApp::ReleaseWindGradientPreviewTexture()
@@ -2505,237 +2406,6 @@ void HybridGrassApp::ReleaseWindGradientPreviewTexture()
     windGradientPreviewUpload.Reset();
     windGradientPreviewSrvGpu.ptr = 0;
     windGradientPreviewReady = false;
-    windGradientPreviewShowsGpuFluid_ = false;
-    windFluidReadbackSecond_.Reset();
-    windFluidReadbackGrid_ = 0;
-    windFluidRbTotalBytes_ = 0;
-    windFluidRbLayout_ = {};
-    windFluidReadbackFenceValue_ = 0;
-    windFluidReadbackQueued_ = false;
-    windFluidReadbackCpu_.clear();
-    windFluidGpuPreviewCacheValid_ = false;
-    windFluidGpuPreviewCache_.clear();
-    windFluidGpuPreviewFrameCounter_ = 0;
-    windPreviewDye_.clear();
-    windPreviewDyeTmp_.clear();
-    windPreviewDyeValid_ = false;
-}
-
-void HybridGrassApp::EnsureWindFluidReadbackMatchesVelocity(ID3D12Resource* velocityTex)
-{
-    if (!velocityTex || !secondDevice)
-        return;
-
-    const D3D12_RESOURCE_DESC desc = velocityTex->GetDesc();
-    const UINT grid = static_cast<UINT>(desc.Width);
-    if (grid == 0 || grid != desc.Height)
-        return;
-
-    UINT numRows = 0;
-    UINT64 rowSize = 0;
-    UINT64 totalBytes = 0;
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
-    secondDevice->GetDXDevice()->GetCopyableFootprints(&desc, 0u, 1u, 0ull, &footprint, &numRows, &rowSize,
-                                                       &totalBytes);
-
-    const bool unchanged = windFluidReadbackSecond_ && windFluidReadbackGrid_ == grid &&
-                           windFluidRbTotalBytes_ == totalBytes;
-
-    windFluidRbLayout_ = footprint;
-    if (unchanged)
-        return;
-
-    windFluidReadbackSecond_.Reset();
-    windFluidReadbackGrid_ = grid;
-    windFluidRbTotalBytes_ = totalBytes;
-
-    CD3DX12_HEAP_PROPERTIES heapReadback(D3D12_HEAP_TYPE_READBACK);
-    const CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(totalBytes);
-
-    HRESULT hr = secondDevice->GetDXDevice()->CreateCommittedResource(
-        &heapReadback,
-        D3D12_HEAP_FLAG_NONE,
-        &bufferDesc,
-        D3D12_RESOURCE_STATE_COMMON,
-        nullptr,
-        IID_PPV_ARGS(windFluidReadbackSecond_.GetAddressOf()));
-    if (FAILED(hr))
-    {
-        windFluidReadbackSecond_.Reset();
-        windFluidReadbackGrid_ = 0;
-        windFluidRbTotalBytes_ = 0;
-        windFluidRbLayout_ = {};
-    }
-    else
-    {
-        windFluidReadbackFenceValue_ = 0;
-        windFluidReadbackCpu_.clear();
-    }
-}
-
-void HybridGrassApp::AppendWindFluidPreviewReadbackIfDue(const std::shared_ptr<GCommandList>& cmdList)
-{
-    if (!cmdList || !UsesCrossAdapter() || !secondDevice || crossGrassEmitters.empty() ||
-        crossGrassEmitters[0] == nullptr)
-        return;
-
-    CrossAdapterGrassEmitter* emitter = crossGrassEmitters[0];
-    if (!emitter->IsCrossAdapterSharedComputeActive() || !emitter->IsWindFluidGpuReady())
-        return;
-
-    const uint32_t intervalFrames = (windPreviewMode_ == 2) ? 20u : 8u;
-    if ((++windFluidGpuPreviewFrameCounter_ % intervalFrames) != 0u)
-        return;
-
-    Microsoft::WRL::ComPtr<ID3D12Resource> vel = emitter->GetExpandWindVelocityResource();
-    if (!vel)
-        return;
-
-    EnsureWindFluidReadbackMatchesVelocity(vel.Get());
-    if (!windFluidReadbackSecond_ || windFluidRbTotalBytes_ == 0)
-        return;
-
-    cmdList->TransitionBarrier(vel, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    cmdList->TransitionBarrier(windFluidReadbackSecond_, D3D12_RESOURCE_STATE_COPY_DEST);
-    cmdList->FlushResourceBarriers();
-
-    CD3DX12_TEXTURE_COPY_LOCATION dstRb(windFluidReadbackSecond_.Get(), windFluidRbLayout_);
-    CD3DX12_TEXTURE_COPY_LOCATION srcVel(vel.Get(), 0u);
-    cmdList->GetGraphicsCommandList()->CopyTextureRegion(&dstRb, 0, 0, 0, &srcVel, nullptr);
-
-    cmdList->TransitionBarrier(vel, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    cmdList->TransitionBarrier(windFluidReadbackSecond_, D3D12_RESOURCE_STATE_COMMON);
-    cmdList->FlushResourceBarriers();
-
-    windFluidReadbackQueued_ = true;
-}
-
-bool HybridGrassApp::TryRebuildWindGradientPreviewFromSecondGpu(UINT8* mapped)
-{
-    if (!mapped || !secondDevice || crossGrassEmitters.empty() || crossGrassEmitters[0] == nullptr)
-        return false;
-
-    const size_t cacheBytes =
-        static_cast<size_t>(windGradientPreviewRowPitch) * static_cast<size_t>(windGradientPreviewH);
-
-    CrossAdapterGrassEmitter* emitter = crossGrassEmitters[0];
-    if (!emitter->IsCrossAdapterSharedComputeActive() || !emitter->IsWindFluidGpuReady())
-        return false;
-
-    if (!windFluidReadbackSecond_ || windFluidRbTotalBytes_ == 0)
-        return false;
-
-    if (windFluidGpuPreviewCacheValid_ && windFluidGpuPreviewCache_.size() == cacheBytes)
-    {
-        const auto computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
-        const ComPtr<ID3D12Fence> fence = computeQueue ? computeQueue->GetFence() : nullptr;
-        if (!fence || fence->GetCompletedValue() < windFluidReadbackFenceValue_)
-        {
-            std::memcpy(mapped, windFluidGpuPreviewCache_.data(), cacheBytes);
-            return true;
-        }
-    }
-
-    if (windFluidReadbackFenceValue_ == 0)
-        return false;
-
-    const auto computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
-    if (!computeQueue)
-        return false;
-
-    WaitForSharedFenceValueCpu(computeQueue->GetFence(), windFluidReadbackFenceValue_);
-
-    BYTE* mappedReadback = nullptr;
-    if (FAILED(windFluidReadbackSecond_->Map(0u, nullptr, reinterpret_cast<void**>(&mappedReadback))))
-    {
-        if (windFluidGpuPreviewCacheValid_ && windFluidGpuPreviewCache_.size() == cacheBytes)
-        {
-            std::memcpy(mapped, windFluidGpuPreviewCache_.data(), cacheBytes);
-            return true;
-        }
-        return false;
-    }
-
-    const UINT rbPitchBytes = windFluidRbLayout_.Footprint.RowPitch;
-    const UINT8* fluidRows =
-        reinterpret_cast<const UINT8*>(mappedReadback) + windFluidRbLayout_.Offset;
-
-    if (windFluidReadbackCpu_.size() != windFluidRbTotalBytes_)
-        windFluidReadbackCpu_.resize(static_cast<size_t>(windFluidRbTotalBytes_));
-    std::memcpy(windFluidReadbackCpu_.data(), mappedReadback, static_cast<size_t>(windFluidRbTotalBytes_));
-
-    const size_t dyeSize = static_cast<size_t>(windGradientPreviewW) * static_cast<size_t>(windGradientPreviewH);
-    if (windPreviewDye_.size() != dyeSize)
-    {
-        windPreviewDye_.assign(dyeSize, 0.0f);
-        windPreviewDyeTmp_.assign(dyeSize, 0.0f);
-        windPreviewDyeValid_ = false;
-        windPreviewDyeExposure_ = 4.0f;
-    }
-    if (!windPreviewDyeValid_)
-    {
-        std::fill(windPreviewDye_.begin(), windPreviewDye_.end(), 0.0f);
-        windPreviewDyeValid_ = true;
-        windPreviewDyeExposure_ = 4.0f;
-    }
-
-    const UINT gridW = std::max(windFluidRbLayout_.Footprint.Width, 1u);
-    const UINT gridH = std::max(windFluidRbLayout_.Footprint.Height, gridW);
-
-    for (UINT py = 0; py < windGradientPreviewH; ++py)
-    {
-        UINT8* rowBase = mapped + static_cast<size_t>(py) * windGradientPreviewRowPitch;
-        for (UINT px = 0; px < windGradientPreviewW; ++px)
-        {
-            const float su = (static_cast<float>(px) + 0.5f) / static_cast<float>(windGradientPreviewW);
-            const float sv = (static_cast<float>(py) + 0.5f) / static_cast<float>(windGradientPreviewH);
-            Vector3 rgb = Vector3::Zero;
-            const Vector2 wind =
-                SampleFluidRg16Bilinear(fluidRows, rbPitchBytes, gridW, gridH, su, sv);
-            if (windPreviewMode_ == 2)
-            {
-                const float mag = std::sqrt(std::max(wind.x * wind.x + wind.y * wind.y, 0.0f));
-                const float vis = std::pow(std::clamp(mag * 0.008f, 0.0f, 1.0f), 0.55f);
-                rgb = Vector3(vis * 0.88f, vis * 0.94f, vis);
-            }
-            else if (windPreviewMode_ == 1)
-            {
-                rgb = WindVectorToPreviewColorSigned(wind, 0.08f);
-            }
-            else
-            {
-                rgb = WindVectorToPreviewColorAbs(wind, 0.008f);
-            }
-            const float wallMask = PreviewWallMask(su, sv, grassGpuWindWallEnable,
-                                                   grassGpuWindWallPosU, grassGpuWindWallPosV,
-                                                   grassGpuWindWallAngleDeg * (3.1415926535f / 180.0f),
-                                                   grassGpuWindWallHalfLength, grassGpuWindWallHalfWidth);
-            if (wallMask > 0.0f)
-            {
-                const float a = std::clamp(wallMask, 0.0f, 1.0f);
-                rgb = rgb * (1.0f - a) + Vector3(0.5f, 0.5f, 0.5f) * a;
-            }
-
-            const auto enc = [](const float c) -> UINT8 {
-                const int v =
-                    static_cast<int>(std::lround(std::clamp(c, 0.0f, 1.0f) * 255.0f));
-                return static_cast<UINT8>(v);
-            };
-
-            rowBase[static_cast<size_t>(px) * 4u + 0u] = enc(rgb.x);
-            rowBase[static_cast<size_t>(px) * 4u + 1u] = enc(rgb.y);
-            rowBase[static_cast<size_t>(px) * 4u + 2u] = enc(rgb.z);
-            rowBase[static_cast<size_t>(px) * 4u + 3u] = 255;
-        }
-    }
-
-    if (windFluidGpuPreviewCache_.size() != cacheBytes)
-        windFluidGpuPreviewCache_.resize(cacheBytes);
-    std::memcpy(windFluidGpuPreviewCache_.data(), mapped, cacheBytes);
-    windFluidGpuPreviewCacheValid_ = true;
-
-    windFluidReadbackSecond_->Unmap(0u, nullptr);
-    return true;
 }
 
 void HybridGrassApp::RefreshWindGradientPreviewTexture(const std::shared_ptr<GCommandList>& cmdList)
@@ -2749,11 +2419,6 @@ void HybridGrassApp::RefreshWindGradientPreviewTexture(const std::shared_ptr<GCo
     if (FAILED(windGradientPreviewUpload->Map(0, &readRange,
                                                reinterpret_cast<void**>(&mapped))))
         return;
-
-    const bool gpuEligible =
-        UsesCrossAdapter() && secondDevice && !crossGrassEmitters.empty() && crossGrassEmitters[0] &&
-        crossGrassEmitters[0]->IsCrossAdapterSharedComputeActive() &&
-        crossGrassEmitters[0]->IsWindFluidGpuReady();
 
     if (grassLod0DebugGradient && showWindFieldDebug)
     {
@@ -2776,16 +2441,8 @@ void HybridGrassApp::RefreshWindGradientPreviewTexture(const std::shared_ptr<GCo
                 rowBase[static_cast<size_t>(px) * 4 + 3] = 255;
             }
         }
-        windGradientPreviewShowsGpuFluid_ = false;
     }
     else
-    {
-    const bool usedGpuFluid =
-        windPreviewLiveGpuReadback_ && gpuEligible &&
-        TryRebuildWindGradientPreviewFromSecondGpu(mapped);
-    windGradientPreviewShowsGpuFluid_ = usedGpuFluid;
-
-    if (!usedGpuFluid)
     {
         float fieldCenterX = 0.f;
         float fieldCenterZ = 0.f;
@@ -2841,7 +2498,6 @@ void HybridGrassApp::RefreshWindGradientPreviewTexture(const std::shared_ptr<GCo
                 rowBase[static_cast<size_t>(px) * 4 + 3] = 255;
             }
         }
-    }
     }
 
     windGradientPreviewUpload->Unmap(0, nullptr);
@@ -3082,7 +2738,7 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         ImGui::TextDisabled("Compute LOD0: intensity controls sway speed, amplitude controls sway amount.");
 
         ImGui::SeparatorText("Debug");
-        const char* previewModes[] = {"Velocity abs (Shadertoy)", "Velocity direction (debug)", "Smoke magnitude"};
+        const char* previewModes[] = {"Velocity abs (Shadertoy)", "Velocity direction (debug)"};
         ImGui::Combo("Preview mode", &windPreviewMode_, previewModes, IM_ARRAYSIZE(previewModes));
         if (windPreviewMode_ == 1)
             ImGui::TextColored(ImVec4(1.f, 0.75f, 0.2f, 1.f),
@@ -3090,14 +2746,11 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         if (ImGui::Button("Use abs preview"))
             windPreviewMode_ = 0;
         ImGui::Checkbox("Show wind field debug", &showWindFieldDebug);
-        ImGui::Checkbox("Live GPU preview readback", &windPreviewLiveGpuReadback_);
         ImGui::SliderInt("Wind field grid", &windFieldGridResolution, 1, 40);
         ImGui::SeparatorText(
             grassLod0DebugGradient
                 ? "Wind preview (LOD0 debug linear gradient)"
-                : (windGradientPreviewShowsGpuFluid_
-                       ? "Wind velocity preview (live GPU fluid readback)"
-                       : "Wind velocity preview (CPU analytic - GPU fluid unavailable)"));
+                : "Wind velocity preview (CPU analytic)");
         if (!showWindFieldDebug)
         {
             ImGui::TextDisabled("Preview updates paused (enable 'Show wind field debug').");
@@ -3106,27 +2759,7 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         {
             ImGui::Image(ImTextureRef(static_cast<ImTextureID>(windGradientPreviewSrvGpu.ptr)),
                          ImVec2(288.0f, 288.0f));
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_None))
-            {
-                if (windGradientPreviewShowsGpuFluid_)
-                    ImGui::SetTooltip(
-                        "Read-back of DXGI_FORMAT_R16G16_FLOAT wind velocity after the solver on the compute adapter.\n"
-                        "Sampling matches ComputeGrass.hlsl SampleFluidWindXZ (world XZ projected into uv 0-1).\n"
-                        "RG encodes direction scaled by strength; faint blue marks magnitude.");
-                else
-                    ImGui::SetTooltip(
-                        "CPU reconstruction of analytic wind (constant base flow + LMB disturbances).\n"
-                        "Use multi-GPU with shared grass compute and an initialized fluid sim for live GPU read-back.");
-            }
-            if (windGradientPreviewShowsGpuFluid_)
-                ImGui::TextDisabled("%ux%u - GPU velocity read-back throttled (%s mode)",
-                                    windGradientPreviewW,
-                                    windGradientPreviewH,
-                                    windPreviewMode_ == 2 ? "dye" : "velocity");
-            else
-                ImGui::TextDisabled("%ux%u - CPU analytic origins only, no live fluid read-back this frame",
-                                    windGradientPreviewW,
-                                    windGradientPreviewH);
+            ImGui::TextDisabled("%ux%u - CPU analytic preview", windGradientPreviewW, windGradientPreviewH);
         }
     }
     ImGui::End();
@@ -3165,29 +2798,6 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         else if (!crossGrassEmitters.empty() && crossGrassEmitters[0] && crossGrassEmitters[0]->gameObject)
             groundY = crossGrassEmitters[0]->gameObject->GetTransform()->GetWorldPosition().y;
 
-        bool mappedFluidForDebug = false;
-        const UINT8* debugFluidRows = nullptr;
-        UINT debugFluidPitch = 0;
-        UINT debugFluidGrid = 0;
-        const bool gpuDebugEligible =
-            windGradientPreviewShowsGpuFluid_ && !windFluidReadbackCpu_.empty() &&
-            windFluidReadbackGrid_ > 0 && windFluidRbLayout_.Footprint.RowPitch > 0;
-        if (gpuDebugEligible)
-        {
-            mappedFluidForDebug = true;
-            debugFluidRows =
-                windFluidReadbackCpu_.data() + windFluidRbLayout_.Offset;
-            debugFluidPitch = windFluidRbLayout_.Footprint.RowPitch;
-            debugFluidGrid = windFluidReadbackGrid_;
-        }
-
-        const UINT debugGridW = windFluidRbLayout_.Footprint.Width > 0
-                                    ? windFluidRbLayout_.Footprint.Width
-                                    : debugFluidGrid;
-        const UINT debugGridH = windFluidRbLayout_.Footprint.Height > 0
-                                    ? windFluidRbLayout_.Footprint.Height
-                                    : debugGridW;
-
         float debugGrassWorldSize = grassWorldSize;
         if (!crossGrassEmitters.empty() && crossGrassEmitters[0] != nullptr)
             debugGrassWorldSize = crossGrassEmitters[0]->GetEmitterWorldSize();
@@ -3212,19 +2822,6 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
                 return SampleLod0DebugGradientWindLocal(
                     localPos, debugGrassWorldSize, grassLod0DebugGradMin, grassLod0DebugGradMax,
                     grassLod0DebugGradAxis, debugFlowDir);
-            }
-            if (mappedFluidForDebug && debugFluidRows)
-            {
-                const Vector4 fieldParams = haveGpuWindFieldParams
-                                                ? gpuWindFieldParams
-                                                : Vector4(fieldCenterX, fieldCenterZ, fieldHalf, 0.0f);
-                const Vector2 uv = WorldPosToGrassPatchUv(worldPos, debugGrassWorldSize, grassFieldTransform.get());
-                Vector2 simVel = SampleFluidRg16Bilinear(
-                    debugFluidRows, debugFluidPitch, debugGridW, debugGridH, uv.x, uv.y);
-                float cellWorld = fieldParams.w;
-                if (cellWorld <= 1e-4f && debugFluidGrid > 0)
-                    cellWorld = (2.0f * std::max(fieldParams.z, 1.0f)) / static_cast<float>(debugFluidGrid);
-                return simVel * std::max(cellWorld, 1e-4f) * 2.0f;
             }
             return SampleWindGradientHlslXZ(
                 worldPos,
