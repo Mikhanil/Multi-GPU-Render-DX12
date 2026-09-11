@@ -71,6 +71,11 @@ protected:
     void LogWriting();
     void WritePerformanceTestResults();
     void WritePerformanceSweepResults();
+    void ApplyGrassRenderPath(CrossAdapterGrassEmitter::RenderPath path);
+    bool UsesCrossAdapter() const
+    {
+        return grassRenderPath == CrossAdapterGrassEmitter::RenderPath::MultiExpanded;
+    }
     void UpdateMaterials();
     void UpdateShadowTransform(const GameTimer& gt);
     void UpdateShadowPassCB(const GameTimer& gt);
@@ -124,7 +129,9 @@ protected:
     bool performanceSweepMode = false;
     int perfWarmupSeconds = 5;
     int perfSampleSeconds = 20;
-    int perfCurrentStage = 0; // 0 = single GPU, 1 = multi GPU
+    static constexpr int PerfRenderPathCount =
+        static_cast<int>(CrossAdapterGrassEmitter::RenderPath::Count);
+    int perfCurrentStage = 0; // Single GS -> Single Expand -> Multi-GPU Expand
     double perfStageStartTime = -1.0;
     bool perfStageInitialized = false;
     std::wstring perfResultPath;
@@ -140,7 +147,7 @@ protected:
         double minFps = std::numeric_limits<double>::max();
         double maxFps = std::numeric_limits<double>::lowest();
     };
-    std::array<PerfAggregate, 2> perfAggregates{};
+    std::array<PerfAggregate, PerfRenderPathCount> perfAggregates{};
     struct PerfScenario
     {
         std::wstring name;
@@ -152,7 +159,7 @@ protected:
         float fieldInfluenceScale = 1.0f;
     };
     std::vector<PerfScenario> perfScenarios{};
-    std::vector<std::array<PerfAggregate, 2>> perfScenarioAggregates{};
+    std::vector<std::array<PerfAggregate, PerfRenderPathCount>> perfScenarioAggregates{};
 
     const UINT StatisticStepSecondsCount = 120;
 
@@ -167,7 +174,8 @@ protected:
     std::vector<std::vector<std::shared_ptr<Renderer>>> typedRenderer = std::vector<std::vector<
         std::shared_ptr<Renderer>>>();
 
-    bool UseCrossAdapter = false;
+    CrossAdapterGrassEmitter::RenderPath grassRenderPath =
+        CrossAdapterGrassEmitter::RenderPath::SingleGeometry;
     /// At least two DXGI hardware adapters (excludes WARP).
     bool HaveTwoHardwareAdapters = false;
     /// Shared cross-adapter fences were created successfully (runtime; not tied to CrossAdapterRowMajorTexture).
@@ -269,10 +277,10 @@ protected:
     float grassLod1BladeHeightScale = 1.0f;
     /// 0 while LMB up; 1 with a valid ground hit under the cursor while LMB is held (outside ImGui).
     int grassWindOriginCount = 0;
-    float grassWindCursorRadius = 900.0f;
+    float grassWindCursorRadius = 150.0f;
     float grassWindCursorStrength = 3.0f;
-    float grassWindBaseStrength = 0.35f;
-    float grassWindBaseAngleDeg = 0.0f;
+    float grassWindBaseStrength = 0.1f;
+    float grassWindBaseAngleDeg = 67.5f;
     float grassWindBaseCoverage = 1.2f;
     float grassWindMapFalloff = 1.5f;
     float grassFieldInfluenceScale = 2.0f;
@@ -315,7 +323,7 @@ protected:
     float grassLod0DebugGradMax = 80.0f;
     int grassLod0DebugGradAxis = 0;
     int grassBladeCount = 5000;
-    float grassWorldSize = 2000.0f;
+    float grassWorldSize = 100.0f;
     float grassFieldScaleXZ = 15.0f;
     float grassFieldScaleY = 11.0f;
     std::shared_ptr<Transform> grassFieldTransform = nullptr;

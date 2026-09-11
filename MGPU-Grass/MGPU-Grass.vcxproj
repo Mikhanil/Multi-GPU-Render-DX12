@@ -164,6 +164,8 @@
     <ClCompile Include="..\Submodule\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\Submodule\imgui\imgui_widgets.cpp" />
     <ClCompile Include="FrameResource.cpp" />
+    <ClCompile Include="CrossAdapterGrassEmitter.cpp" />
+    <ClCompile Include="GrassEmitter.cpp" />
     <ClCompile Include="HybridGrassApp.cpp" />
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
@@ -193,6 +195,8 @@
     <ClInclude Include="..\Submodule\imgui\imstb_textedit.h" />
     <ClInclude Include="..\Submodule\imgui\imstb_truetype.h" />
     <ClInclude Include="FrameResource.h" />
+    <ClInclude Include="CrossAdapterGrassEmitter.h" />
+    <ClInclude Include="GrassEmitter.h" />
     <ClInclude Include="HybridGrassApp.h" />
   </ItemGroup>
   <ItemGroup>

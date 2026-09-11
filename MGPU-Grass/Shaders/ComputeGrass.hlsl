@@ -42,6 +42,7 @@ cbuffer GrassEmitterData : register(b0)
     float WindFluidBlend;
     float WindFluidPad0;
     float Lod0LeanGain;
+    float2 WindFluidPad1;
     float4 WindFieldWorldParams;
     float4 WindOriginData[4];
     float4 WindDirectionData[4];
@@ -529,8 +530,12 @@ void CS_ExpandGrassToVertices(uint3 dispatchThreadID : SV_DispatchThreadID)
     for (uint blade = 0u; blade < bladeCount; ++blade)
     {
         float bladeN = (bladeCount > 1u) ? (float(blade) / float(bladeCount - 1u)) : 0.5f;
-        float bladeCenter = lerp(-0.75f, 0.75f, bladeN) * width;
-        float bladeWidth = width * (useLod0 ? 0.30f : 0.35f);
+        // Match the GS blade contract. The previous 0.30/0.35 factors made
+        // expanded blades 7.5x wider at LOD0 and over 2x wider at LOD1.
+        float bladeSpread = useLod0 ? 0.75f : (useLod1 ? 0.90f : 0.0f);
+        float bladeHalfWidth = useLod0 ? 0.04f : (useLod1 ? 0.16f : 0.10f);
+        float bladeCenter = lerp(-bladeSpread, bladeSpread, bladeN) * width;
+        float bladeWidth = width * bladeHalfWidth;
         float bladePhaseOffset = (bladeN - 0.5f) * 0.6f;
 
         [loop]
@@ -640,11 +645,24 @@ void CS_ExpandGrassToVertices(uint3 dispatchThreadID : SV_DispatchThreadID)
                 bendDir = Lod0ResolveBendDir(segMapVel, effectiveSpeed01);
                 float horiz0 = leanDrive * width * 2.25f * leanProfile0;
                 float horiz1 = leanDrive * width * 2.25f * leanProfile1;
-                bendCapScale = lerp(1.15f, 2.45f, effectiveSpeed01);
-                float bendCap0 = max(0.0f, height * bendCapScale * t0);
-                float bendCap1 = max(0.0f, height * bendCapScale * t1);
+                // Leave room for sway without flattening the blade.
+                bendCapScale = 0.55f;
+                float bendCap0 = height * bendCapScale * leanProfile0;
+                float bendCap1 = height * bendCapScale * leanProfile1;
                 bendWorld0 = min(horiz0, bendCap0);
                 bendWorld1 = min(horiz1, bendCap1);
+
+                // Sway after limiting the static bend, so strong steady wind cannot
+                // clamp away the animation. Keep the root anchored by leanProfile.
+                if (WindFluidObstacleB.w < 0.5f && WindIntensity > 0.0f)
+                {
+                    float phase = grass.WindOffset + grass.Position.x * 0.17f + grass.Position.z * 0.11f;
+                    float sway = sin(Time * WindIntensity * 2.0f + phase);
+                    float amplitude = min(max(WindAmplitude, 0.0f) * 0.20f, 0.35f);
+                    float swayScale = 1.0f + amplitude * sway;
+                    bendWorld0 *= swayScale;
+                    bendWorld1 *= swayScale;
+                }
 
                 float2 offset0 = bendDir * bendWorld0;
                 float2 offset1 = bendDir * bendWorld1;
@@ -657,13 +675,12 @@ void CS_ExpandGrassToVertices(uint3 dispatchThreadID : SV_DispatchThreadID)
                 rtR.x += offset1.x;
                 rtR.z += offset1.y;
 
-                float groundLay = effectiveSpeed01 * effectiveSpeed01;
-                float groundSink0 = height * groundLay * leanProfile0 * lerp(0.75f, 1.35f, effectiveSpeed01);
-                float groundSink1 = height * groundLay * leanProfile1 * lerp(0.75f, 1.35f, effectiveSpeed01);
-                rbL.y -= abs(bendWorld0) * lerp(0.65f, 1.55f, effectiveSpeed01) * leanProfile0 + groundSink0;
-                rbR.y -= abs(bendWorld0) * lerp(0.65f, 1.55f, effectiveSpeed01) * leanProfile0 + groundSink0;
-                rtL.y -= abs(bendWorld1) * lerp(0.65f, 1.55f, effectiveSpeed01) * leanProfile1 + groundSink1;
-                rtR.y -= abs(bendWorld1) * lerp(0.65f, 1.55f, effectiveSpeed01) * leanProfile1 + groundSink1;
+                // Derive height from the bounded sideways displacement instead of
+                // subtracting wind-dependent ground sink (which could exceed height).
+                float bentHeight0 = sqrt(max(y0 * y0 - bendWorld0 * bendWorld0, 0.0f));
+                float bentHeight1 = sqrt(max(y1 * y1 - bendWorld1 * bendWorld1, 0.0f));
+                rbL.y = rbR.y = grass.Position.y + bentHeight0;
+                rtL.y = rtR.y = grass.Position.y + bentHeight1;
             }
             else
             {

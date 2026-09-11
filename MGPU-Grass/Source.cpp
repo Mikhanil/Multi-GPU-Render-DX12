@@ -22,6 +22,11 @@ int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,
         {
             theApp.EnablePerformanceTestMode(5, 20);
         }
+        
+#if !defined(DEBUG) | !defined(_DEBUG)
+        theApp.EnablePerformanceSweepMode(4, 12);
+#endif
+        
         if (!theApp.Initialize())
             return 0;
 

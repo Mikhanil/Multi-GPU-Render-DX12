@@ -66,6 +66,7 @@ cbuffer GrassEmitterData : register(b2)
     float WindFluidBlend;
     float WindFluidPad0;
     float Lod0LeanGain;
+    float2 WindFluidPad1;
     float4 WindFieldWorldParams;
     float4 WindOriginData[4];
     float4 WindDirectionData[4];
@@ -308,7 +309,7 @@ GSOutput CreateQuadVertex(GSInput input, float2 offset, float2 uv, float windFac
     {
         // LOD0: field-only lean toward ground — ignores intensity/amplitude/strength.
         const float leanGain = max(Lod0LeanGain, 0.5f);
-        float lod0Gust = clamp(gustMag * leanGain, 0.18f * leanGain, 6.0f);
+        float lod0Gust = clamp(gustMag * leanGain, 0.0f, 6.0f);
         float windSpeed01 = saturate(lod0Gust / 6.0f);
         float fieldOsc = sin(Time * 1.35f + input.WindOffset);
         float leanDrive = lod0Gust * lerp(1.15f, 2.05f, windSpeed01);
@@ -317,7 +318,7 @@ GSOutput CreateQuadVertex(GSInput input, float2 offset, float2 uv, float windFac
         float bendCap = max(0.0f, height * lerp(1.05f, 2.05f, windSpeed01) * bendFactor);
         directionalBend = min(directionalBend, bendCap);
         worldWindOffset = float3(windDir.x, 0.0f, windDir.y) * directionalBend;
-        float groundLay = max(windSpeed01 * windSpeed01, 0.08f);
+        float groundLay = windSpeed01 * windSpeed01;
         verticalOffset -= abs(directionalBend) * lerp(0.55f, 1.45f, windSpeed01) * bendProfile;
         verticalOffset -= height * groundLay * bendProfile * lerp(0.70f, 1.25f, windSpeed01);
     }

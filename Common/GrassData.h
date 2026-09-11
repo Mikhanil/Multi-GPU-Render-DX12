@@ -1,6 +1,8 @@
 #pragma once
 #include "MathHelper.h"
 
+#include <cstddef>
+
 using namespace DirectX::SimpleMath;
 
 struct GrassData
@@ -22,6 +24,9 @@ struct GrassRenderVertex
     float WindStress01 = 0.0f;        // wind bend / field magnitude for PS darkening
     float ExtraPad0 = 0.0f;
 };
+
+static_assert(sizeof(GrassData) == 40, "GrassData must match the HLSL structured-buffer stride");
+static_assert(sizeof(GrassRenderVertex) == 40, "GrassRenderVertex must match the HLSL structured-buffer stride");
 
 // ��������� �������� �����
 struct GrassEmitterData
@@ -57,6 +62,7 @@ struct GrassEmitterData
     float WindFluidBlend = 0.88f; ///< lerp analytic -> fluid when fluid enabled
     float WindFluidPad0 = 0.0f;
     float Lod0LeanGain = 3.0f; ///< Multi-GPU LOD0 field lean multiplier (ImGui: LOD0 lean gain)
+    Vector2 WindFluidPad1 = Vector2::Zero; ///< Align the following float4 to an HLSL 16-byte register.
     /** xz world center `.xy`, square half-extent `.z`, cell world size `.w` (for fluid->world scaling). */
     Vector4 WindFieldWorldParams =
         Vector4(0.0f, 0.0f, 500.0f, 1.0f);
@@ -79,6 +85,11 @@ struct GrassEmitterData
     /** B.x/B.y/B.z: debug min/max/axis when B.w=1, else wall radius/wake/drag. B.w=1 enables LOD0 debug gradient. */
     Vector4 WindFluidObstacleB = Vector4(0.10f, 0.55f, 0.75f, 0.0f);
 };
+
+static_assert(offsetof(GrassEmitterData, WindFieldWorldParams) == 128,
+              "GrassEmitterData must match the HLSL cbuffer layout");
+static_assert(sizeof(GrassEmitterData) == 304,
+              "GrassEmitterData must match the HLSL cbuffer size");
 
 struct GrassCullData
 {

@@ -41,6 +41,37 @@ namespace
     using DirectX::SimpleMath::Vector3;
     using DirectX::SimpleMath::Vector4;
     using Microsoft::WRL::ComPtr;
+    using GrassRenderPath = CrossAdapterGrassEmitter::RenderPath;
+
+    constexpr std::array<GrassRenderPath, static_cast<size_t>(GrassRenderPath::Count)>
+        kPerformanceRenderPaths =
+    {
+        GrassRenderPath::SingleGeometry,
+        GrassRenderPath::SingleExpanded,
+        GrassRenderPath::MultiExpanded
+    };
+
+    const wchar_t* PerformanceRenderPathTitle(const GrassRenderPath path)
+    {
+        switch (path)
+        {
+        case GrassRenderPath::SingleGeometry: return L"Single GS";
+        case GrassRenderPath::SingleExpanded: return L"Single Expand";
+        case GrassRenderPath::MultiExpanded: return L"Multi-GPU Expand";
+        }
+        return L"Unknown";
+    }
+
+    const wchar_t* PerformanceRenderPathCsvName(const GrassRenderPath path)
+    {
+        switch (path)
+        {
+        case GrassRenderPath::SingleGeometry: return L"single_gpu_gs";
+        case GrassRenderPath::SingleExpanded: return L"single_gpu_expand";
+        case GrassRenderPath::MultiExpanded: return L"multi_gpu_expand";
+        }
+        return L"unknown";
+    }
 
     /// Cross-adapter ID3D12CommandQueue::Wait on shared fences often raises DXGI invalid-call (0x87A) in validation;
     /// waiting on the fence from the CPU preserves the dependency without using queue Wait.
@@ -427,7 +458,8 @@ void HybridGrassApp::EnablePerformanceSweepMode(int warmupSeconds, int sampleSec
         {L"dense_mixed", 12000, 350.0f, 1000.0f, 3, 1, 1.0f},
         {L"ultra_dense_lod0_heavy", 20000, 1800.0f, 1800.0f, 4, 1, 1.5f}
     };
-    perfScenarioAggregates.assign(perfScenarios.size(), std::array<PerfAggregate, 2>{});
+    perfScenarioAggregates.assign(
+        perfScenarios.size(), std::array<PerfAggregate, PerfRenderPathCount>{});
 }
 
 void HybridGrassApp::Update(const GameTimer& gt)
@@ -498,7 +530,9 @@ void HybridGrassApp::Update(const GameTimer& gt)
             grassWindOriginCount = std::min(4, idx + 1);
 
             clickFluidUv = WorldPosToGrassPatchUv(cursorHit, grassWorldSize, grassFieldTransform.get());
-            const float fieldSpan = std::max(grassWorldSize, 1.0f);
+            // The cursor radius is expressed in world units.  The fluid texture covers the
+            // transformed grass field, not the emitter's unscaled local world size.
+            const float fieldSpan = std::max(fieldHalf * 2.0f, 1.0f);
             const float radiusUv = std::clamp(grassWindCursorRadius / fieldSpan, 0.01f, 0.35f);
             clickFluidRadiusSq = radiusUv * radiusUv;
         }
@@ -537,12 +571,13 @@ void HybridGrassApp::Update(const GameTimer& gt)
         emitter->SetDebugNearestOriginTint(debugNearestOriginTint);
         emitter->SetWindDirection(baseFlowDir);
         emitter->SetClickWindBoost(clickWindActive ? 1.0f : 0.0f);
-        if (clickWindActive && UseCrossAdapter && grassGpuWindFluid)
+        const bool useExpandedGrass = grassRenderPath != GrassRenderPath::SingleGeometry;
+        if (clickWindActive && useExpandedGrass && grassGpuWindFluid)
         {
             emitter->SetWindFluidClickImpulse(
                 clickFluidUv.x,
                 clickFluidUv.y,
-                grassWindCursorStrength * 120.0f,
+                grassWindCursorStrength,
                 clickFluidRadiusSq);
         }
         else
@@ -550,7 +585,7 @@ void HybridGrassApp::Update(const GameTimer& gt)
             emitter->SetWindFluidClickImpulse(0.0f, 0.0f, 0.0f, 0.0f);
         }
         const float fluidEn =
-            UseCrossAdapter && grassGpuWindFluid ? 1.0f : 0.0f;
+            useExpandedGrass && grassGpuWindFluid ? 1.0f : 0.0f;
         emitter->SetGpuWindFluid(fluidEn, grassGpuWindFluidBlend,
                                  static_cast<uint32_t>(
                                      std::clamp(grassGpuWindJacobiIterations, 2, 40)));
@@ -582,8 +617,18 @@ void HybridGrassApp::Update(const GameTimer& gt)
     primeGPURenderingTime = primeDevice->GetCommandQueue()->GetTimestamp(olderIndex);
     secondGPURenderingTime = secondDevice->GetCommandQueue()->GetTimestamp(olderIndex);
 
-    primeGPUComputingTime = primeDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
-    secondGPUComputingTime = secondDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
+    if (UsesCrossAdapter())
+    {
+        primeGPUComputingTime = 0;
+        secondGPUComputingTime =
+            secondDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
+    }
+    else
+    {
+        primeGPUComputingTime =
+            primeDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
+        secondGPUComputingTime = 0;
+    }
 
     const auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
 
@@ -816,7 +861,7 @@ void HybridGrassApp::Draw(const GameTimer& gt)
     const bool crossFencesReady = secondRenderFence && secondComputeFence && primeRenderFence &&
                                   primeComputeFence;
     // Use second GPU + cross-adapter fences only when enabled and fences exist; otherwise same-GPU queue waits.
-    const bool useCrossGpuPath = UseCrossAdapter && crossFencesReady;
+    const bool useCrossGpuPath = UsesCrossAdapter() && crossFencesReady;
 
     std::shared_ptr<GCommandQueue> computeQueue;
 
@@ -1011,7 +1056,9 @@ void HybridGrassApp::InitDevices()
         TryCreateCrossAdapterFences();
     }
 
-    UseCrossAdapter = CrossAdapterFencesCreated;
+    // All benchmark flows start from the comparable baseline and advance in
+    // order: Single GS -> Single Expand -> Multi-GPU Expand.
+    grassRenderPath = GrassRenderPath::SingleGeometry;
 
     assets = std::make_shared<AssetsLoader>(primeDevice);
 
@@ -1549,22 +1596,34 @@ void HybridGrassApp::CreateGO()
     typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
     gameObjects.push_back(std::move(desertDragon));
 
+    ApplyGrassRenderPath(GrassRenderPath::SingleGeometry);
+
+    //logQueue.Push(std::wstring(L"\nFinish create GO"));
+}
+
+void HybridGrassApp::ApplyGrassRenderPath(const GrassRenderPath requestedPath)
+{
+    if (requestedPath == GrassRenderPath::MultiExpanded && !CrossAdapterFencesCreated)
+    {
+        logQueue.Push(L"\nMulti-GPU Expand unavailable: cross-adapter fences were not created.");
+        return;
+    }
+
+    grassRenderPath = requestedPath;
+    const bool useCrossAdapter = UsesCrossAdapter();
+
     for (auto* emitter : crossEmitter)
     {
-        if (UseCrossAdapter)
-            emitter->EnableShared();
-        else
-            emitter->DisableShared();
-    }
-    for (auto* emitter : crossGrassEmitters)
-    {
-        if (UseCrossAdapter)
+        if (useCrossAdapter)
             emitter->EnableShared();
         else
             emitter->DisableShared();
     }
 
-    //logQueue.Push(std::wstring(L"\nFinish create GO"));
+    for (auto* emitter : crossGrassEmitters)
+    {
+        emitter->SetRenderPath(grassRenderPath);
+    }
 }
 
 void HybridGrassApp::CalculateFrameStats()
@@ -1586,9 +1645,8 @@ void HybridGrassApp::CalculateFrameStats()
             Flush();
             // Disable VSync for benchmark mode to avoid refresh-rate capping.
             MainWindow->SetVSync(false);
-            const int scenarioIndex = performanceSweepMode ? (perfCurrentStage / 2) : 0;
-            const int modeIndex = performanceSweepMode ? (perfCurrentStage % 2) : perfCurrentStage;
-            const bool multi = modeIndex == 1;
+            const int scenarioIndex = performanceSweepMode ? (perfCurrentStage / PerfRenderPathCount) : 0;
+            const int modeIndex = performanceSweepMode ? (perfCurrentStage % PerfRenderPathCount) : perfCurrentStage;
 
             if (performanceSweepMode && scenarioIndex >= 0 && scenarioIndex < static_cast<int>(perfScenarios.size()))
             {
@@ -1602,16 +1660,13 @@ void HybridGrassApp::CalculateFrameStats()
                 grassFieldInfluenceScale = std::max(0.0f, s.fieldInfluenceScale);
             }
 
-            UseCrossAdapter = multi && CrossAdapterFencesCreated;
-            for (auto* emitter : crossEmitter)
+            const GrassRenderPath requestedPath = kPerformanceRenderPaths[modeIndex];
+            ApplyGrassRenderPath(requestedPath);
+            if (grassRenderPath != requestedPath)
             {
-                if (UseCrossAdapter) emitter->EnableShared();
-                else emitter->DisableShared();
-            }
-            for (auto* emitter : crossGrassEmitters)
-            {
-                if (UseCrossAdapter) emitter->EnableShared();
-                else emitter->DisableShared();
+                logQueue.Push(L"\nPerformance test stopped: requested render path is unavailable.");
+                IsStop = true;
+                return;
             }
             perfStageStartTime = timer.TotalTime();
             perfStageInitialized = true;
@@ -1625,8 +1680,8 @@ void HybridGrassApp::CalculateFrameStats()
             PerfAggregate* aggregate = nullptr;
             if (performanceSweepMode)
             {
-                const int scenarioIndex = perfCurrentStage / 2;
-                const int modeIndex = perfCurrentStage % 2;
+                const int scenarioIndex = perfCurrentStage / PerfRenderPathCount;
+                const int modeIndex = perfCurrentStage % PerfRenderPathCount;
                 if (scenarioIndex >= 0 && scenarioIndex < static_cast<int>(perfScenarioAggregates.size()))
                 {
                     aggregate = &perfScenarioAggregates[scenarioIndex][modeIndex];
@@ -1658,8 +1713,8 @@ void HybridGrassApp::CalculateFrameStats()
             perfCurrentStage++;
             perfStageInitialized = false;
             const int stageCount = performanceSweepMode
-                                       ? static_cast<int>(perfScenarios.size() * 2)
-                                       : 2;
+                                       ? static_cast<int>(perfScenarios.size() * PerfRenderPathCount)
+                                       : PerfRenderPathCount;
             if (perfCurrentStage >= stageCount)
             {
                 if (performanceSweepMode)
@@ -1671,15 +1726,16 @@ void HybridGrassApp::CalculateFrameStats()
                     WritePerformanceTestResults();
                 }
                 IsStop = true;
+                return;
             }
         }
 
-        const int modeIndex = performanceSweepMode ? (perfCurrentStage % 2) : perfCurrentStage;
+        const int modeIndex = performanceSweepMode ? (perfCurrentStage % PerfRenderPathCount) : perfCurrentStage;
         std::wstring title = L"Perf test: ";
-        title += (modeIndex == 0 ? L"Single GPU" : L"Multi GPU");
+        title += PerformanceRenderPathTitle(kPerformanceRenderPaths[modeIndex]);
         if (performanceSweepMode)
         {
-            const int scenarioIndex = perfCurrentStage / 2;
+            const int scenarioIndex = perfCurrentStage / PerfRenderPathCount;
             if (scenarioIndex >= 0 && scenarioIndex < static_cast<int>(perfScenarios.size()))
             {
                 title += L" | " + perfScenarios[scenarioIndex].name;
@@ -1731,15 +1787,23 @@ void HybridGrassApp::CalculateFrameStats()
         timeElapsed += 1.0f;
 
 
-        const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (
-                UseCrossAdapter ? L"2" : L"1") + L"/2" + L" Progress: " + std::to_wstring(
+#if defined(DEBUG) || defined(_DEBUG)
+        const std::wstring title = L"FPS " + std::to_wstring(fps) + L" (" +
+            PerformanceRenderPathTitle(grassRenderPath) + L")";
+#else
+        const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" +
+            std::to_wstring(static_cast<int>(grassRenderPath) + 1) + L"/" +
+            std::to_wstring(PerfRenderPathCount) + L" (" +
+            PerformanceRenderPathTitle(grassRenderPath) + L") Progress: " + std::to_wstring(
                 (static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" +
             std::to_wstring(100);
+#endif
 
         if (writeStaticticCount >= StatisticStepSecondsCount)
         {
             const std::wstring staticticStr =
-                L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
+                L"\nRender Path: " + std::wstring(PerformanceRenderPathTitle(grassRenderPath))
+                + L"\nUse Cross Adapter: " + std::to_wstring(UsesCrossAdapter())
                 + L"\n\tMin FPS:" + std::to_wstring(minFps)
                 + L"\n\tMin MSPF:" + std::to_wstring(minMspf)
                 + L"\n\tMax FPS:" + std::to_wstring(maxFps)
@@ -1770,29 +1834,24 @@ void HybridGrassApp::CalculateFrameStats()
             secondGPUComputingTimeMax = std::numeric_limits<UINT64>::min();
             secondGPUComputingTimeMin = std::numeric_limits<UINT64>::max();
 
-            if (!HaveTwoHardwareAdapters || !CrossAdapterFencesCreated)
-            {
-                IsStop = true;
-            }
-            else if (UseCrossAdapter == false)
+#if !defined(DEBUG) && !defined(_DEBUG)
+            // Interactive Debug sessions keep the selected path and stay open.
+            if (grassRenderPath == GrassRenderPath::SingleGeometry)
             {
                 Flush();
-                for (auto&& emitter : crossEmitter)
-                {
-                    emitter->EnableShared();
-                }
-
-                for (auto& emitter : crossGrassEmitters) //crossGrassEmitters
-                {
-                    emitter->EnableShared();
-                }
-                UseCrossAdapter = true;
-              
+                ApplyGrassRenderPath(GrassRenderPath::SingleExpanded);
+            }
+            else if (grassRenderPath == GrassRenderPath::SingleExpanded &&
+                     HaveTwoHardwareAdapters && CrossAdapterFencesCreated)
+            {
+                Flush();
+                ApplyGrassRenderPath(GrassRenderPath::MultiExpanded);
             }
             else
             {
                 IsStop = true;
             }
+#endif
         }
         else
         {
@@ -1845,8 +1904,10 @@ void HybridGrassApp::WritePerformanceTestResults()
              << avgPrimeRender << L";" << avgSecondRender << L";"
              << avgPrimeCompute << L";" << avgSecondCompute << L"\n";
     };
-    writeRow(L"single_gpu", perfAggregates[0]);
-    writeRow(L"multi_gpu", perfAggregates[1]);
+    for (int mode = 0; mode < PerfRenderPathCount; ++mode)
+    {
+        writeRow(PerformanceRenderPathCsvName(kPerformanceRenderPaths[mode]), perfAggregates[mode]);
+    }
     file.close();
     logQueue.Push(L"\nPerformance test saved: " + perfResultPath);
 }
@@ -1868,7 +1929,7 @@ void HybridGrassApp::WritePerformanceSweepResults()
     for (size_t i = 0; i < perfScenarios.size(); ++i)
     {
         const PerfScenario& s = perfScenarios[i];
-        for (int mode = 0; mode < 2; ++mode)
+        for (int mode = 0; mode < PerfRenderPathCount; ++mode)
         {
             const PerfAggregate& a = perfScenarioAggregates[i][mode];
             const double n = std::max(1, a.samples);
@@ -1880,7 +1941,7 @@ void HybridGrassApp::WritePerformanceSweepResults()
             const double minFps = a.samples > 0 ? a.minFps : 0.0;
             const double maxFps = a.samples > 0 ? a.maxFps : 0.0;
 
-            file << s.name << L";" << (mode == 0 ? L"single_gpu" : L"multi_gpu") << L";"
+            file << s.name << L";" << PerformanceRenderPathCsvName(kPerformanceRenderPaths[mode]) << L";"
                  << s.grassCount << L";" << std::fixed << std::setprecision(1)
                  << s.lod0Distance << L";" << s.lod1Distance << L";"
                  << s.lod0BladeCount << L";" << s.lod1BladeCount << L";"
@@ -2514,7 +2575,7 @@ void HybridGrassApp::EnsureWindFluidReadbackMatchesVelocity(ID3D12Resource* velo
 
 void HybridGrassApp::AppendWindFluidPreviewReadbackIfDue(const std::shared_ptr<GCommandList>& cmdList)
 {
-    if (!cmdList || !UseCrossAdapter || !secondDevice || crossGrassEmitters.empty() ||
+    if (!cmdList || !UsesCrossAdapter() || !secondDevice || crossGrassEmitters.empty() ||
         crossGrassEmitters[0] == nullptr)
         return;
 
@@ -2690,7 +2751,7 @@ void HybridGrassApp::RefreshWindGradientPreviewTexture(const std::shared_ptr<GCo
         return;
 
     const bool gpuEligible =
-        UseCrossAdapter && secondDevice && !crossGrassEmitters.empty() && crossGrassEmitters[0] &&
+        UsesCrossAdapter() && secondDevice && !crossGrassEmitters.empty() && crossGrassEmitters[0] &&
         crossGrassEmitters[0]->IsCrossAdapterSharedComputeActive() &&
         crossGrassEmitters[0]->IsWindFluidGpuReady();
 
@@ -2819,53 +2880,35 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
 
     if (ImGui::Begin("Navier-Stokes Wind", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        bool useMultiGpuRender = UseCrossAdapter;
-        if (!HaveTwoHardwareAdapters)
+        int renderPathIndex = static_cast<int>(grassRenderPath);
+        const char* renderPaths[] = {"Single GPU - Geometry Shader",
+                                     "Single GPU - Compute Expand",
+                                     "Multi-GPU - Compute Expand"};
+        if (ImGui::Combo("Grass render path", &renderPathIndex, renderPaths, IM_ARRAYSIZE(renderPaths)))
         {
-            ImGui::BeginDisabled();
-            useMultiGpuRender = false;
-        }
-        if (ImGui::Checkbox("Use Multi-GPU render", &useMultiGpuRender))
-        {
-            if (useMultiGpuRender && !CrossAdapterFencesCreated)
+            const auto requestedPath = static_cast<GrassRenderPath>(renderPathIndex);
+            if (requestedPath == GrassRenderPath::MultiExpanded && !CrossAdapterFencesCreated)
             {
                 TryCreateCrossAdapterFences();
             }
-            if (!CrossAdapterFencesCreated)
-            {
-                useMultiGpuRender = false;
-            }
-
-            UseCrossAdapter = useMultiGpuRender && CrossAdapterFencesCreated;
-
-            for (auto* emitter : crossEmitter)
-            {
-                if (UseCrossAdapter)
-                    emitter->EnableShared();
-                else
-                    emitter->DisableShared();
-            }
-
-            for (auto* emitter : crossGrassEmitters)
-            {
-                if (UseCrossAdapter)
-                    emitter->EnableShared();
-                else
-                    emitter->DisableShared();
-            }
+            ApplyGrassRenderPath(requestedPath);
         }
         if (!HaveTwoHardwareAdapters)
         {
-            ImGui::EndDisabled();
-            ImGui::TextDisabled("(requires two hardware GPUs)");
+            ImGui::TextDisabled("Multi-GPU Expand requires two hardware GPUs.");
         }
         else if (!CrossAdapterFencesCreated)
         {
-            ImGui::TextDisabled("(cross-adapter fences not created — check the box to try again)");
+            ImGui::TextDisabled("Multi-GPU Expand unavailable: cross-adapter fences were not created.");
         }
 
-        ImGui::Text("Cross-adapter compute: %s", UseCrossAdapter ? "on (second GPU)" : "off (prime GPU)");
-        if (UseCrossAdapter)
+        const char* computeDeviceText = grassRenderPath == GrassRenderPath::MultiExpanded
+                                            ? "second GPU"
+                                            : (grassRenderPath == GrassRenderPath::SingleExpanded
+                                                   ? "prime GPU"
+                                                   : "off (geometry shader)");
+        ImGui::Text("Grass compute-expand: %s", computeDeviceText);
+        if (UsesCrossAdapter())
         {
             ImGui::TextDisabled("Cross-adapter GPU fences: on (automatic shared fences)");
         }
@@ -2908,8 +2951,9 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         ImGui::TextDisabled("Hold LMB on the 3D view (not ImGui) to inject a local pulse into the flow.");
         ImGui::SliderFloat("Wind map falloff", &grassWindMapFalloff, 0.1f, 6.0f, "%.2f");
 
-        ImGui::SeparatorText("GPU wind fluid (cross-adapter expand)");
-        if (!UseCrossAdapter)
+        ImGui::SeparatorText("GPU wind fluid (compute expand)");
+        const bool expandedGrassPath = grassRenderPath != GrassRenderPath::SingleGeometry;
+        if (!expandedGrassPath)
         {
             ImGui::BeginDisabled();
         }
@@ -2921,6 +2965,7 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         ImGui::SliderInt("Pressure solve iterations", &grassGpuWindJacobiIterations, 4, 40);
         ImGui::SliderInt("Grid resolution", &grassGpuWindGridResolution, 32, 512);
         ImGui::SliderFloat("Inject strength", &grassGpuWindInjectStrength, 0.0f, 2.0f, "%.3f");
+        ImGui::TextDisabled("Fluid force = source strength x Inject strength (base flow or LMB).");
         ImGui::SliderFloat("Dissipation", &grassGpuWindDissipation, 0.90f, 0.9999f, "%.4f");
         ImGui::TextDisabled("Dissipation damps velocity each step (0.97-0.99 = softer, smoother flow).");
         grassGpuWindDt = std::clamp(grassGpuWindDt, 0.001f, 0.05f);
@@ -2946,12 +2991,12 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         ImGui::SliderFloat("Obstacle radius", &grassGpuWindWallHalfLength, 0.02f, 0.25f, "%.3f");
         ImGui::SliderFloat("Obstacle wake lean", &grassGpuWindWallWake, 0.0f, 200.0f, "%.2f");
         ImGui::TextDisabled("0 = upright under obstacle. 200 = max lean under circle + downstream wake.");
-        if (!UseCrossAdapter)
+        if (!expandedGrassPath)
         {
             ImGui::EndDisabled();
-            ImGui::TextUnformatted("(Requires cross-adapter compute on second GPU.)");
+            ImGui::TextUnformatted("(Requires a Single or Multi-GPU Compute Expand path.)");
         }
-        if (UseCrossAdapter && !crossGrassEmitters.empty())
+        if (expandedGrassPath && !crossGrassEmitters.empty())
         {
             if (crossGrassEmitters[0]->IsWindFluidGpuReady())
                 ImGui::TextUnformatted("GPU fluid sim: ready (textures update each compute frame).");
@@ -3009,28 +3054,32 @@ void HybridGrassApp::DrawImGui(const std::shared_ptr<GCommandList>& cmdList)
         ImGui::TextDisabled("SDOF sliders apply to single-GPU geometry path only.");
         ImGui::TextDisabled(
             "LOD0 (green gradient blades): driven ONLY by GPU wind map velocity.\n"
-            "Requires cross-adapter + Navier-Stokes enabled. Turn OFF debug linear gradient.\n"
+            "Requires Compute Expand + Navier-Stokes enabled. Turn OFF debug linear gradient.\n"
             "Circle wake lean comes from fluid flow around the obstacle, not extra sliders.");
         ImGui::SliderFloat("LOD0 fluid lean gain", &grassLod0LeanGain, 0.5f, 12.0f, "%.2f");
         ImGui::TextDisabled("Scales GPU velocity map -> bend (debug gradient ignores this).");
-        if (UseCrossAdapter && !crossGrassEmitters.empty() && crossGrassEmitters[0] != nullptr)
+        if (!crossGrassEmitters.empty() && crossGrassEmitters[0] != nullptr)
         {
             const auto& fp = crossGrassEmitters[0]->GetWindFieldWorldParams();
             ImGui::TextDisabled(
                 "Expand field: center (%.0f, %.0f), half %.0f, cell %.2f world units",
                 fp.x, fp.y, fp.z, fp.w);
-            if (crossGrassEmitters[0]->IsCrossAdapterSharedComputeActive())
-                ImGui::TextDisabled("Grass path: GPU expand + VS_Expanded (bend baked in compute).");
+            if (crossGrassEmitters[0]->IsExpandedComputeActive())
+                ImGui::TextDisabled(
+                    grassRenderPath == GrassRenderPath::MultiExpanded
+                        ? "Grass path: Multi-GPU expand + VS_Expanded (compute on second GPU)."
+                        : "Grass path: Single-GPU expand + VS_Expanded (compute on prime GPU).");
             else
                 ImGui::TextColored(ImVec4(1.f, 0.55f, 0.2f, 1.f),
                                    "Grass path: single-GPU GS (does NOT read GPU wind map for LOD0).");
         }
 
-        ImGui::SeparatorText("LOD1+ wind response");
+        ImGui::SeparatorText("Wind response");
         ImGui::SliderFloat("Field influence scale", &grassFieldInfluenceScale, 0.0f, 6.0f, "%.2f");
         ImGui::TextDisabled("Affects textured LOD1+ only; LOD0 ignores this.");
         ImGui::SliderFloat("Wind intensity", &grassWindIntensity, 0.0f, 200.0f, "%.2f");
         ImGui::SliderFloat("Wind amplitude", &grassWindAmplitude, 0.0f, 200.0f, "%.2f");
+        ImGui::TextDisabled("Compute LOD0: intensity controls sway speed, amplitude controls sway amount.");
 
         ImGui::SeparatorText("Debug");
         const char* previewModes[] = {"Velocity abs (Shadertoy)", "Velocity direction (debug)", "Smoke magnitude"};

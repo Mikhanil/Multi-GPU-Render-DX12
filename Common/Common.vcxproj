@@ -183,7 +183,6 @@
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="CloudGenerator.h" />
     <ClInclude Include="Component.h" />
-    <ClInclude Include="CrossAdapterGrassEmitter.h" />
     <ClInclude Include="CrossAdapterParticleEmitter.h" />
     <ClInclude Include="CubeMapRenderTarget.h" />
     <ClInclude Include="d3dApp.h" />
@@ -193,7 +192,6 @@
     <ClInclude Include="GCrossAdapterResource.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="GrassData.h" />
-    <ClInclude Include="GrassEmitter.h" />
     <ClInclude Include="KeyboardDevice.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Material.h" />
@@ -234,7 +232,6 @@
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="CloudGenerator.cpp" />
     <ClCompile Include="Component.cpp" />
-    <ClCompile Include="CrossAdapterGrassEmitter.cpp" />
     <ClCompile Include="CrossAdapterParticleEmitter.cpp" />
     <ClCompile Include="CubeMapRenderTarget.cpp" />
     <ClCompile Include="d3dApp.cpp" />
@@ -242,7 +239,6 @@
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GCrossAdapterResource.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
-    <ClCompile Include="GrassEmitter.cpp" />
     <ClCompile Include="KeyboardDevice.cpp" />
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="Material.cpp" />

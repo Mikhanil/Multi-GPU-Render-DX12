@@ -150,13 +150,7 @@
     <ClInclude Include="BakedCubeMapRenderTarget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CrossAdapterGrassEmitter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GrassData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GrassEmitter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SharedHBAO.h">
@@ -282,12 +276,6 @@
       <Filter>Components</Filter>
     </ClCompile>
     <ClCompile Include="BakedCubeMapRenderTarget.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CrossAdapterGrassEmitter.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GrassEmitter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SharedHBAO.cpp">
