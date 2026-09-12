@@ -219,7 +219,7 @@ struct VSOutput
 VSOutput VS(VSInput input)
 {
    // Читаем данные травинки по InstanceID (рендерим все травинки сразу)
-    uint grassIndex = SortedGrassIndices[input.InstanceID].y;
+    uint grassIndex = SortedGrassIndices[input.InstanceID].x;
     GrassData grass = GrassBuffer[grassIndex];
     
     // Применяем мировую трансформацию
@@ -520,12 +520,12 @@ ExpandedVSOut VS_Expanded(uint vertexID : SV_VertexID)
     ExpandedVSOut o = (ExpandedVSOut)0;
     uint2 sorted = SortedGrassIndices[vertexID / GrassVerticesPerInstance];
     uint localVertex = vertexID % GrassVerticesPerInstance;
-    if (sorted.x == 0xffffffffu)
+    if (sorted.y == 0xffffffffu)
     {
         o.PositionH = float4(0.0f, 0.0f, -1.0f, 1.0f);
         return o;
     }
-    uint baseVertex = sorted.y * GrassVerticesPerInstance;
+    uint baseVertex = sorted.x * GrassVerticesPerInstance;
     uint vertexCount = (uint)ExpandedGrassVertices[baseVertex].ExtraPad0;
     if (localVertex >= vertexCount)
     {

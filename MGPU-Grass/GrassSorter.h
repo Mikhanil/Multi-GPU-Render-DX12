@@ -1,6 +1,7 @@
 #pragma once
 #include "GBuffer.h"
 #include "ComputePSO.h"
+#include "GDescriptor.h"
 
 // Sorts small (distance, instance index) pairs; geometry stays in place.
 class GrassSorter
@@ -16,8 +17,13 @@ public:
 
 private:
     std::shared_ptr<PEPEngine::Graphics::GRootSignature> signature_;
+    std::shared_ptr<PEPEngine::Graphics::GRootSignature> bitonicSignature_;
     std::shared_ptr<PEPEngine::Graphics::ComputePSO> initializePSO_;
-    std::shared_ptr<PEPEngine::Graphics::ComputePSO> sortPSO_;
+    std::shared_ptr<PEPEngine::Graphics::ComputePSO> preSortPSO_;
+    std::shared_ptr<PEPEngine::Graphics::ComputePSO> outerSortPSO_;
+    std::shared_ptr<PEPEngine::Graphics::ComputePSO> innerSortPSO_;
     std::shared_ptr<PEPEngine::Graphics::GBuffer> indices_;
+    std::shared_ptr<PEPEngine::Graphics::GBuffer> counter_;
+    PEPEngine::Graphics::GDescriptor descriptors_;
     uint32_t capacity_ = 0;
 };

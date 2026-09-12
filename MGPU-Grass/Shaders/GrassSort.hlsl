@@ -21,19 +21,20 @@ cbuffer SortConstants : register(b2)
 {
     uint Count;
     uint Capacity;
-    uint Stage;
-    uint Step;
     uint SourceStride;
     uint Expanded;
 };
 
 ByteAddressBuffer Source : register(t0);
-RWStructuredBuffer<uint2> SortedIndices : register(u0);
+RWByteAddressBuffer SortedIndices : register(u0);
+RWByteAddressBuffer SortCounter : register(u1);
 
 [numthreads(256, 1, 1)]
 void CS_Initialize(uint3 tid : SV_DispatchThreadID)
 {
     uint i = tid.x;
+    if (i == 0)
+        SortCounter.Store(0, Capacity);
     if (i >= Capacity)
         return;
     uint key = 0xffffffffu;
@@ -53,27 +54,6 @@ void CS_Initialize(uint3 tid : SV_DispatchThreadID)
                 key = asuint(distanceSquared); // Nonnegative floats preserve order as uint.
         }
     }
-    SortedIndices[i] = uint2(key, i < Count ? i : 0xffffffffu);
-}
-
-bool Greater(uint2 a, uint2 b)
-{
-    return a.x > b.x || (a.x == b.x && a.y > b.y);
-}
-
-[numthreads(256, 1, 1)]
-void CS_Bitonic(uint3 tid : SV_DispatchThreadID)
-{
-    uint i = tid.x;
-    uint partner = i ^ Step;
-    if (i >= Capacity || partner <= i || partner >= Capacity)
-        return;
-    uint2 a = SortedIndices[i];
-    uint2 b = SortedIndices[partner];
-    bool ascending = (i & Stage) == 0u;
-    if (ascending ? Greater(a, b) : Greater(b, a))
-    {
-        SortedIndices[i] = b;
-        SortedIndices[partner] = a;
-    }
+    // MiniEngine's 64-bit layout is index in the low word, sort key in the high word.
+    SortedIndices.Store2(i * 8u, uint2(i < Count ? i : 0xffffffffu, key));
 }
