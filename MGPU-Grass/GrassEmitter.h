@@ -2,6 +2,7 @@
 #include "GDescriptor.h"
 #include "Renderer.h"
 #include "GrassData.h"
+#include "GrassSorter.h"
 
 class GrassEmitter : public Renderer
 {
@@ -66,6 +67,7 @@ public:
     const GBuffer* GetObjectPositionBuffer() const { return objectPositionBuffer.get(); }
 
 private:
+    GrassSorter sorter_;
     void Initialize();
     void CreateBuffers();
     void CreateRootSignatures();

@@ -119,6 +119,7 @@ void GrassEmitter::CreateRootSignatures()
         D3D12_TEXTURE_ADDRESS_MODE_WRAP);
     renderSignature->AddStaticSampler(sampler);
     
+    renderSignature->AddShaderResourceView(10, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     renderSignature->Initialize(device);
     
     // ��� compute (���� ������������)
@@ -452,6 +453,10 @@ void GrassEmitter::UpdateObjectConstants()
 
 void GrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
+    if (!worldConstantsBuffer || emitterData.GrassCount == 0)
+        return;
+    sorter_.Sort(cmdList, device, *grassBuffer, *objectPositionBuffer,
+                 *worldConstantsBuffer, emitterData.GrassCount);
     cmdList->TransitionBarrier(grassBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     cmdList->FlushResourceBarriers();
 
@@ -478,8 +483,9 @@ void GrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
     // t1+ - Textures
     cmdList->SetRootDescriptorTable(4, &grassDescriptors, 1);
 
+    cmdList->SetGraphicsRootShaderResourceView(5, sorter_.GetIndices());
     cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-    cmdList->Draw(6, emitterData.GrassCount, 0, 0);
+    cmdList->Draw(1, emitterData.GrassCount, 0, 0);
 
     cmdList->TransitionBarrier(grassBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
     cmdList->FlushResourceBarriers();

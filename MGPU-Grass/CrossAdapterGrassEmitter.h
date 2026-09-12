@@ -85,6 +85,7 @@ public:
 
 
 private:
+    GrassSorter expandedSorter_;
     void InitPSO(const std::shared_ptr<GDevice>& otherDevice);
     void InitSingleExpandPSO();
     void InitExpandedDrawPSO();

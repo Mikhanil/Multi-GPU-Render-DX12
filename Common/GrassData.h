@@ -22,7 +22,7 @@ struct GrassRenderVertex
     Vector2 TexCoord;
     Vector2 ExtraData = Vector2::Zero; // x = useTexture flag, y = blade height 0..1
     float WindStress01 = 0.0f;        // wind bend / field magnitude for PS darkening
-    float ExtraPad0 = 0.0f;
+    float ExtraPad0 = 0.0f;          // active vertex count in each expanded instance's first vertex
 };
 
 static_assert(sizeof(GrassData) == 40, "GrassData must match the HLSL structured-buffer stride");

@@ -1,4 +1,5 @@
 // ComputeGrass.hlsl
+#include "GrassDrawLayout.hlsli"
 // Compute шейдер для генерации травы на GPU
 
 struct GrassData
@@ -78,7 +79,7 @@ struct GrassRenderVertex
     float2 TexCoord;
     float2 ExtraData;      // x = useTexture(0/1/2), y = bladeHeight01
     float WindStress01;
-    float ExtraPad0;
+    float ExtraPad0; // Active vertex count; the first vertex is the instance header.
 };
 
 RWStructuredBuffer<GrassRenderVertex> ExpandedGrassBuffer : register(u0);
@@ -421,6 +422,10 @@ void CS_ExpandGrassToVertices(uint3 dispatchThreadID : SV_DispatchThreadID)
     if (grassIndex >= GrassCount)
         return;
 
+    // Fixed slots preserve instance identity for sorting after a cross-GPU copy.
+    // Clear the header before culling so invisible instances cannot reuse old geometry.
+    uint baseVertex = grassIndex * GrassVerticesPerInstance;
+    ExpandedGrassBuffer[baseVertex] = (GrassRenderVertex)0;
     GrassData grass = GrassInput[grassIndex];
 
     float baseWidth = QuadSize * grass.Scale * 0.5f;
@@ -516,9 +521,10 @@ void CS_ExpandGrassToVertices(uint3 dispatchThreadID : SV_DispatchThreadID)
         segments = 1u;
     }
     uint vertexCount = bladeCount * segments * 6u;
-    uint baseVertex;
-    InterlockedAdd(VisibleVertexCounter[0], vertexCount, baseVertex);
+    uint unusedOffset;
+    InterlockedAdd(VisibleVertexCounter[0], vertexCount, unusedOffset);
     GrassRenderVertex v = (GrassRenderVertex)0;
+    v.ExtraPad0 = float(vertexCount);
 
 #ifdef COMPUTE_GRASS_EXPAND_PASS
     float2 bladeBendDir = float2(0.0f, 0.0f);

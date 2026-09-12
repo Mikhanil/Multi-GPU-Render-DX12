@@ -1,4 +1,5 @@
 // GrassDraw.hlsl
+#include "GrassDrawLayout.hlsli"
 // Шейдер для отрисовки травы с одной текстурой
 
 // Debug switch:
@@ -194,6 +195,7 @@ struct GrassRenderVertex
 StructuredBuffer<GrassData> GrassBuffer : register(t0);
 StructuredBuffer<GrassRenderVertex> ExpandedGrassVertices : register(t8);
 StructuredBuffer<uint> VisibleVertexCounter : register(t9);
+StructuredBuffer<uint2> SortedGrassIndices : register(t10);
 Texture2D GrassTexture : register(t1);
 SamplerState Sampler : register(s0);
 
@@ -217,7 +219,8 @@ struct VSOutput
 VSOutput VS(VSInput input)
 {
    // Читаем данные травинки по InstanceID (рендерим все травинки сразу)
-    GrassData grass = GrassBuffer[input.InstanceID];
+    uint grassIndex = SortedGrassIndices[input.InstanceID].y;
+    GrassData grass = GrassBuffer[grassIndex];
     
     // Применяем мировую трансформацию
     float4 worldPos = mul(float4(grass.Position, 1.0f), World);
@@ -229,7 +232,7 @@ VSOutput VS(VSInput input)
     output.Rotation = grass.Rotation;
     output.WindOffset = grass.WindOffset;
     output.TextureIndex = grass.TextureIndex;
-    output.InstanceID = input.InstanceID;
+    output.InstanceID = grassIndex;
     
     return output;
 }
@@ -515,13 +518,21 @@ struct ExpandedVSOut
 ExpandedVSOut VS_Expanded(uint vertexID : SV_VertexID)
 {
     ExpandedVSOut o = (ExpandedVSOut)0;
-    uint visibleVertexCount = VisibleVertexCounter[0];
-    if (vertexID >= visibleVertexCount)
+    uint2 sorted = SortedGrassIndices[vertexID / GrassVerticesPerInstance];
+    uint localVertex = vertexID % GrassVerticesPerInstance;
+    if (sorted.x == 0xffffffffu)
     {
-        o.PositionH = float4(0.0f, 0.0f, 0.0f, 0.0f);
+        o.PositionH = float4(0.0f, 0.0f, -1.0f, 1.0f);
         return o;
     }
-    GrassRenderVertex v = ExpandedGrassVertices[vertexID];
+    uint baseVertex = sorted.y * GrassVerticesPerInstance;
+    uint vertexCount = (uint)ExpandedGrassVertices[baseVertex].ExtraPad0;
+    if (localVertex >= vertexCount)
+    {
+        o.PositionH = float4(0.0f, 0.0f, -1.0f, 1.0f);
+        return o;
+    }
+    GrassRenderVertex v = ExpandedGrassVertices[baseVertex + localVertex];
     float3 pos = v.Position;
     float4 posW = mul(float4(pos, 1.0f), World);
     o.PositionH = mul(posW, ViewProj);

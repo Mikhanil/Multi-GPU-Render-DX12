@@ -224,6 +224,7 @@ void CrossAdapterGrassEmitter::InitExpandedDrawPSO()
     drawRS->AddConstantBufferParameter(1);
     drawRS->AddDescriptorParameter(&expandedBufferRange, 1);
     drawRS->AddDescriptorParameter(&textureRange, 1);
+    drawRS->AddShaderResourceView(10, 0, D3D12_SHADER_VISIBILITY_VERTEX);
     CD3DX12_STATIC_SAMPLER_DESC sampler(
         0,
         D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -826,7 +827,7 @@ void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList
     }
     if (drawMultiExpanded || drawSingleExpanded)
     {
-        const GResource* expandedOnPrime = drawMultiExpanded
+        const GBuffer* expandedOnPrime = drawMultiExpanded
                                                ? primeExpandedVertexBuffer.get()
                                                : singleExpandedVertexBuffer_.get();
         const GResource* counterOnPrime = drawMultiExpanded
@@ -846,6 +847,9 @@ void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList
         const auto objectCB = primeGrassEmitter->GetObjectPositionBuffer();
         if (worldCB && objectCB && !drawDescriptors->IsNull())
         {
+            // In MGPU this is deliberately after the shared-to-primary copies above.
+            expandedSorter_.Sort(cmdList, primeDevice, *expandedOnPrime, *objectCB,
+                                 *worldCB, emitterData.GrassCount, kMaxVerticesPerBlade);
             cmdList->SetPipelineState(*expandedDrawPSO.get());
             cmdList->SetRootSignature(*drawRS);
             cmdList->SetDescriptorsHeap(drawDescriptors);
@@ -853,6 +857,7 @@ void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList
             cmdList->SetRootConstantBufferView(1, *worldCB);
             cmdList->SetRootDescriptorTable(2, drawDescriptors, 1);
             cmdList->SetRootDescriptorTable(3, drawDescriptors, 0);
+            cmdList->SetGraphicsRootShaderResourceView(4, expandedSorter_.GetIndices());
             cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             cmdList->Draw(emitterData.GrassCount * kMaxVerticesPerBlade, 1, 0, 0);
         }
