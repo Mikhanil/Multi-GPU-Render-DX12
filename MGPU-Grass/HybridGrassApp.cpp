@@ -1260,6 +1260,8 @@ void HybridGrassApp::LoadModels()
     load(L"fountain", "Data\\Objects\\Temple\\SM_Fountain.FBX");
     load(L"platform", "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
     load(L"griffon", "Data\\Objects\\Griffon\\Griffon.FBX");
+    load(L"mountDragon", "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
+    load(L"desertDragon", "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
     models[L"sphere"] = assets->GenerateSphere(cmdList);
     models[L"quad"] = assets->GenerateQuad(cmdList);
 
@@ -1492,7 +1494,7 @@ void HybridGrassApp::CreateGO()
 
     auto cameraObject = std::make_unique<GameObject>("MainCamera");
     cameraObject->GetTransform()->SetParent(cameraOrbitTransform.get());
-    const float cameraRadius = std::max(120.0f, grassWorldSize * grassFieldScaleXZ);
+    const float cameraRadius = std::max(200.0f, grassWorldSize * grassFieldScaleXZ * 1.8f);
     cameraObject->GetTransform()->SetPosition(Vector3(0.0f, cameraRadius * 0.6f, cameraRadius));
     cameraObject->GetTransform()->SetEulerRotate(Vector3(-31.0f, 0.0f, 0.0f));
     const auto sceneCamera = std::make_shared<Camera>(AspectRatio());
@@ -1503,17 +1505,22 @@ void HybridGrassApp::CreateGO()
     cameraObject->AddComponent(sceneCamera);
     gameObjects.push_back(std::move(cameraObject));
 
-    auto stair = std::make_unique<GameObject>();
+    auto stair = std::make_unique<GameObject>("Temple pedestal");
     stair->GetTransform()->SetParent(platform->GetTransform().get());
     stair->SetScale(0.2f);
     stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
     stair->GetTransform()->SetPosition(Vector3::Left * 700);
+    // Preserve the sample's temple hierarchy, fitting it behind the grass on this platform.
+    const Matrix templeWorld = stair->GetTransform()->GetWorldMatrix() * Matrix::CreateScale(0.5f) *
+        Matrix::CreateTranslation(fieldCenter + Vector3(0.0f, 0.5f, -134.0f));
+    stair->GetTransform()->SetParent(nullptr);
+    stair->GetTransform()->SetLocalMatrix(templeWorld);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"stair"]);
     stair->AddComponent(renderer);
     typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
 
 
-    auto columns = std::make_unique<GameObject>();
+    auto columns = std::make_unique<GameObject>("Temple statues and columns");
     columns->GetTransform()->SetParent(stair->GetTransform().get());
     columns->SetScale(0.8f);
     columns->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
@@ -1525,7 +1532,7 @@ void HybridGrassApp::CreateGO()
     auto fountain = std::make_unique<GameObject>();
     fountain->SetScale(0.005f);
     fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
-    fountain->GetTransform()->SetPosition(fieldCenter + Vector3(0.0f, 0.0f, -105.0f));
+    fountain->GetTransform()->SetPosition(fieldCenter + Vector3(0.0f, 0.0f, 95.0f));
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"fountain"]);
     fountain->AddComponent(renderer);
     typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
@@ -1537,14 +1544,26 @@ void HybridGrassApp::CreateGO()
 
     for (const float x : {-propRing, propRing})
     {
-        auto griffon = std::make_unique<GameObject>();
+        auto griffon = std::make_unique<GameObject>("Griffon");
         griffon->SetScale(0.08f);
         griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
-        griffon->GetTransform()->SetPosition(fieldCenter + Vector3(x, 0.0f, 105.0f));
+        griffon->GetTransform()->SetPosition(fieldCenter + Vector3(x, 0.1f, -45.0f));
         auto griffonRenderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
         griffon->AddComponent(griffonRenderer);
         typedRenderer[static_cast<int>(RenderMode::OpaqueAlphaDrop)].push_back(griffonRenderer);
         gameObjects.push_back(std::move(griffon));
+    }
+    const wchar_t* dragonModels[] = {L"mountDragon", L"desertDragon"};
+    for (int i = 0; i < 2; ++i)
+    {
+        auto statue = std::make_unique<GameObject>("Dragon statue");
+        statue->SetScale(0.015f);
+        statue->GetTransform()->SetEulerRotate(Vector3(90.0f, 0.0f, 0.0f));
+        statue->GetTransform()->SetPosition(fieldCenter + Vector3(i == 0 ? -12.0f : 12.0f, 19.0f, -87.0f));
+        const auto statueRenderer = std::make_shared<ModelRenderer>(primeDevice, models[dragonModels[i]]);
+        statue->AddComponent(statueRenderer);
+        typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(statueRenderer);
+        gameObjects.push_back(std::move(statue));
     }
     mSceneBounds.Center = fieldCenter;
     mSceneBounds.Radius = 600.0f;
