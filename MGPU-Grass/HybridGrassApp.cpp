@@ -1262,6 +1262,9 @@ void HybridGrassApp::LoadModels()
     load(L"griffon", "Data\\Objects\\Griffon\\Griffon.FBX");
     load(L"mountDragon", "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
     load(L"desertDragon", "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
+    models[L"griffon"]->scaleMatrix = Matrix::CreateScale(0.1f);
+    models[L"mountDragon"]->scaleMatrix = Matrix::CreateScale(0.1f);
+    models[L"desertDragon"]->scaleMatrix = Matrix::CreateScale(0.1f);
     models[L"sphere"] = assets->GenerateSphere(cmdList);
     models[L"quad"] = assets->GenerateQuad(cmdList);
 
@@ -1377,64 +1380,10 @@ void HybridGrassApp::CreateGO()
     sun1->AddComponent(light);
     gameObjects.push_back(std::move(sun1));
 
-    auto platform = std::make_unique<GameObject>("Platform");
-    platformTransform = platform->GetTransform();
-    platform->SetScale(0.2f);
-    platformTransform->SetEulerRotate(Vector3(90, 90, 0));
-    platformTransform->SetPosition(Vector3::Backward * -130.0f);
-    auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
-    platform->AddComponent(renderer);
-    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
-
-    // Use the actual rendered mesh, since the FBX pivot is not its center.
-    std::vector<Vector3> platformVertices;
-    for (UINT meshIndex = 0; meshIndex < models[L"platform"]->GetMeshesCount(); ++meshIndex)
-        for (const auto& vertex : models[L"platform"]->GetMesh(meshIndex)->GetMeshData()->GetVertexes())
-            platformVertices.push_back(Vector3::Transform(vertex.Position, platformTransform->GetWorldMatrix()));
-    BoundingBox platformBounds;
-    BoundingBox::CreateFromPoints(platformBounds, platformVertices.size(), platformVertices.data(), sizeof(Vector3));
-    Vector3 fieldCenter(platformBounds.Center.x, platformBounds.Center.y + platformBounds.Extents.y + 1.0f,
-                        platformBounds.Center.z);
-    const Vector3 rayOrigin = fieldCenter;
-    float nearestHit = std::numeric_limits<float>::max();
-    for (UINT meshIndex = 0; meshIndex < models[L"platform"]->GetMeshesCount(); ++meshIndex)
-    {
-        const auto mesh = models[L"platform"]->GetMesh(meshIndex)->GetMeshData();
-        const auto& vertices = mesh->GetVertexes();
-        const auto& indices = mesh->GetIndexes();
-        for (size_t i = 0; i + 2 < indices.size(); i += 3)
-        {
-            float distance;
-            const auto a = Vector3::Transform(vertices[indices[i]].Position, platformTransform->GetWorldMatrix());
-            const auto b = Vector3::Transform(vertices[indices[i + 1]].Position, platformTransform->GetWorldMatrix());
-            const auto c = Vector3::Transform(vertices[indices[i + 2]].Position, platformTransform->GetWorldMatrix());
-            if (TriangleTests::Intersects(rayOrigin, Vector3::Down, a, b, c, distance))
-                nearestHit = std::min(nearestHit, distance);
-        }
-    }
-    if (nearestHit == std::numeric_limits<float>::max())
-        throw std::runtime_error("Platform center has no surface for the grass field");
-    fieldCenter.y -= nearestHit - 0.1f;
-    grassFieldScaleXZ = 1.2f * std::min(platformBounds.Extents.x, platformBounds.Extents.z) / grassWorldSize;
-
-    auto grassField = std::make_unique<GameObject>("Grass Field");
-    grassFieldTransform = grassField->GetTransform();
-    grassFieldTransform->SetPosition(fieldCenter);
-    grassFieldTransform->SetScale(Vector3(grassFieldScaleXZ, grassFieldScaleY, grassFieldScaleXZ));
-    auto grassEmitter = std::make_shared<CrossAdapterGrassEmitter>(primeDevice, secondDevice,
-                                                                   static_cast<uint32_t>(grassBladeCount), grassWorldSize,
-                                                                   static_cast<uint32_t>(grassLod0BladeCount),
-                                                                   static_cast<uint32_t>(grassLod1BladeCount));
-    grassField->AddComponent(grassEmitter);
-    typedRenderer[static_cast<int>(RenderMode::Transparent)].push_back(grassEmitter);
-    crossGrassEmitters.push_back(grassEmitter.get()); // ���� ����� ������ ��� ����������
-    gameObjects.push_back(std::move(grassField));
-
-    const float propRing = grassWorldSize * grassFieldScaleXZ * 0.5f + 8.0f;
     for (int i = 0; i < 11; ++i)
     {
         auto nano = std::make_unique<GameObject>();
-        nano->GetTransform()->SetPosition(fieldCenter + Vector3(-propRing, 0.0f, 17.0f * (static_cast<float>(i) - 5.0f)));
+        nano->GetTransform()->SetPosition(Vector3::Right * -15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
         nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
         auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"nano"]);
         nano->AddComponent(renderer);
@@ -1444,7 +1393,7 @@ void HybridGrassApp::CreateGO()
 
         auto doom = std::make_unique<GameObject>();
         doom->SetScale(0.08f);
-        doom->GetTransform()->SetPosition(fieldCenter + Vector3(propRing, 0.0f, 17.0f * (static_cast<float>(i) - 5.0f)));
+        doom->GetTransform()->SetPosition(Vector3::Right * 15.0f + Vector3::Forward * 12.0f * static_cast<float>(i));
         doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
         renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"doom"]);
         doom->AddComponent(renderer);
@@ -1458,7 +1407,8 @@ void HybridGrassApp::CreateGO()
         {
             auto atlas = std::make_unique<GameObject>();
             atlas->GetTransform()->SetPosition(
-                fieldCenter + Vector3(-propRing - 8.0f * static_cast<float>(j), 11.0f, 16.0f * (static_cast<float>(i) - 5.5f)));
+                Vector3::Right * -60.0f + Vector3::Right * -30.0f * static_cast<float>(j) +
+                Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
             auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"atlas"]);
             atlas->AddComponent(renderer);
             typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
@@ -1467,7 +1417,8 @@ void HybridGrassApp::CreateGO()
 
             auto pbody = std::make_unique<GameObject>();
             pbody->GetTransform()->SetPosition(
-                fieldCenter + Vector3(propRing + 8.0f * static_cast<float>(j), 11.0f, 16.0f * (static_cast<float>(i) - 5.5f)));
+                Vector3::Right * 130.0f + Vector3::Right * -30.0f * static_cast<float>(j) +
+                Vector3::Up * 11.0f + Vector3::Forward * 10.0f * static_cast<float>(i));
             renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"pbody"]);
             pbody->AddComponent(renderer);
             typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
@@ -1475,52 +1426,81 @@ void HybridGrassApp::CreateGO()
         }
     }
 
-
     auto particle = std::make_unique<GameObject>("Particles");
-    particle->GetTransform()->SetPosition(fieldCenter + Vector3::Up);
-    const auto emitter = std::make_shared<ParticleEmitter>(primeDevice, 10000);
-    particle->AddComponent(emitter);
-    typedRenderer[static_cast<int>(RenderMode::Particle)].push_back(emitter);
-    sceneEmitters.push_back(emitter.get());
+    particle->GetTransform()->SetPosition(Vector3::Up);
+    const auto particleEmitter = std::make_shared<ParticleEmitter>(primeDevice, 10000);
+    particle->AddComponent(particleEmitter);
+    typedRenderer[static_cast<int>(RenderMode::Particle)].push_back(particleEmitter);
+    sceneEmitters.push_back(particleEmitter.get());
     gameObjects.push_back(std::move(particle));
 
-    auto orbit = std::make_unique<GameObject>("Camera Orbit");
-    cameraOrbitTransform = orbit->GetTransform();
-    cameraOrbitTransform->SetPosition(fieldCenter);
+    // Place the grass beside the SSAO particle emitter at the same transform.
+    grassFieldScaleXZ = 1.0f;
+    grassFieldScaleY = 1.0f;
+    auto grassField = std::make_unique<GameObject>("Grass Field");
+    grassFieldTransform = grassField->GetTransform();
+    grassFieldTransform->SetPosition(Vector3::Up);
+    grassFieldTransform->SetScale(Vector3(grassFieldScaleXZ, grassFieldScaleY, grassFieldScaleXZ));
+    auto grassEmitter = std::make_shared<CrossAdapterGrassEmitter>(primeDevice, secondDevice,
+                                                                   static_cast<uint32_t>(grassBladeCount), grassWorldSize,
+                                                                   static_cast<uint32_t>(grassLod0BladeCount),
+                                                                   static_cast<uint32_t>(grassLod1BladeCount));
+    grassField->AddComponent(grassEmitter);
+    typedRenderer[static_cast<int>(RenderMode::Transparent)].push_back(grassEmitter);
+    crossGrassEmitters.push_back(grassEmitter.get());
+    gameObjects.push_back(std::move(grassField));
+
+    // Keep the SSAO platform transform as the scene anchor. The Grass-local FBX is
+    // already rotated +90 degrees around X compared with the shared SSAO asset, so
+    // compensate only the rendered mesh and leave the camera/temple hierarchy intact.
+    auto platform = std::make_unique<GameObject>("Platform Anchor");
+    platform->SetScale(0.2f);
+    platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
+    platform->GetTransform()->SetPosition(Vector3::Backward * -130);
+
+    auto platformMesh = std::make_unique<GameObject>("Platform");
+    platformMesh->GetTransform()->SetParent(platform->GetTransform().get());
+    platformMesh->GetTransform()->SetEulerRotate(Vector3(-90, 0, 0));
+    auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
+    platformMesh->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+
+    auto rotater = std::make_unique<GameObject>("Grass Camera Orbit");
+    cameraOrbitTransform = rotater->GetTransform();
+    cameraOrbitTransform->SetParent(platform->GetTransform().get());
+    const Matrix platformWorldInverse = platform->GetTransform()->GetWorldMatrix().Invert();
+    const Vector3 grassOrbitLocalCenter =
+        Vector3::Transform(grassFieldTransform->GetWorldPosition(), platformWorldInverse);
+    cameraOrbitTransform->SetPosition(grassOrbitLocalCenter);
+    cameraOrbitTransform->SetEulerRotate(Vector3(0, -90, 90));
     cameraOrbitStartMatrix = cameraOrbitTransform->GetLocalMatrix();
-    if (performanceTestMode)
-        orbit->AddComponent(std::make_shared<Rotater>(10.0f, Vector3::UnitY));
-    gameObjects.push_back(std::move(orbit));
 
     auto cameraObject = std::make_unique<GameObject>("MainCamera");
     cameraObject->GetTransform()->SetParent(cameraOrbitTransform.get());
-    const float cameraRadius = std::max(200.0f, grassWorldSize * grassFieldScaleXZ * 1.8f);
-    cameraObject->GetTransform()->SetPosition(Vector3(0.0f, cameraRadius * 0.6f, cameraRadius));
-    cameraObject->GetTransform()->SetEulerRotate(Vector3(-31.0f, 0.0f, 0.0f));
+    cameraObject->GetTransform()->SetPosition(Vector3(-250, 345, -8));
+    cameraObject->GetTransform()->SetEulerRotate(Vector3(-30, 270, 0));
     const auto sceneCamera = std::make_shared<Camera>(AspectRatio());
-    if (performanceTestMode)
-        sceneCamera->SetLookAtTarget(cameraOrbitTransform.get());
-    else
-        cameraObject->AddComponent(std::make_shared<CameraController>(60.0f, 25.0f, 18.0f));
+    sceneCamera->SetLookAtTarget(grassFieldTransform.get());
     cameraObject->AddComponent(sceneCamera);
+#if defined(DEBUG) || defined(_DEBUG)
+    cameraObject->AddComponent(std::make_shared<CameraController>());
+#else
+    rotater->AddComponent(std::make_shared<Rotater>(10.0f));
+#endif
     gameObjects.push_back(std::move(cameraObject));
+    gameObjects.push_back(std::move(rotater));
 
-    auto stair = std::make_unique<GameObject>("Temple pedestal");
+    auto stair = std::make_unique<GameObject>();
     stair->GetTransform()->SetParent(platform->GetTransform().get());
     stair->SetScale(0.2f);
     stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
     stair->GetTransform()->SetPosition(Vector3::Left * 700);
-    // Preserve the sample's temple hierarchy, fitting it behind the grass on this platform.
-    const Matrix templeWorld = stair->GetTransform()->GetWorldMatrix() * Matrix::CreateScale(0.5f) *
-        Matrix::CreateTranslation(fieldCenter + Vector3(0.0f, 0.5f, -134.0f));
-    stair->GetTransform()->SetParent(nullptr);
-    stair->GetTransform()->SetLocalMatrix(templeWorld);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"stair"]);
     stair->AddComponent(renderer);
     typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
 
 
-    auto columns = std::make_unique<GameObject>("Temple statues and columns");
+    auto columns = std::make_unique<GameObject>();
     columns->GetTransform()->SetParent(stair->GetTransform().get());
     columns->SetScale(0.8f);
     columns->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
@@ -1532,45 +1512,54 @@ void HybridGrassApp::CreateGO()
     auto fountain = std::make_unique<GameObject>();
     fountain->SetScale(0.005f);
     fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
-    fountain->GetTransform()->SetPosition(fieldCenter + Vector3(0.0f, 0.0f, 95.0f));
+    fountain->GetTransform()->SetPosition(Vector3::Up * 35.0f + Vector3::Backward * 77.0f);
     renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"fountain"]);
     fountain->AddComponent(renderer);
     typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
 
-   gameObjects.push_back(std::move(platform));
-   gameObjects.push_back(std::move(stair));
-   gameObjects.push_back(std::move(columns));
-   gameObjects.push_back(std::move(fountain));
+    gameObjects.push_back(std::move(platform));
+    gameObjects.push_back(std::move(platformMesh));
+    gameObjects.push_back(std::move(stair));
+    gameObjects.push_back(std::move(columns));
+    gameObjects.push_back(std::move(fountain));
 
-    for (const float x : {-propRing, propRing})
-    {
-        auto griffon = std::make_unique<GameObject>("Griffon");
-        griffon->SetScale(0.08f);
-        griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
-        griffon->GetTransform()->SetPosition(fieldCenter + Vector3(x, 0.1f, -45.0f));
-        auto griffonRenderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
-        griffon->AddComponent(griffonRenderer);
-        typedRenderer[static_cast<int>(RenderMode::OpaqueAlphaDrop)].push_back(griffonRenderer);
-        gameObjects.push_back(std::move(griffon));
-    }
-    const wchar_t* dragonModels[] = {L"mountDragon", L"desertDragon"};
-    for (int i = 0; i < 2; ++i)
-    {
-        auto statue = std::make_unique<GameObject>("Dragon statue");
-        statue->SetScale(0.015f);
-        statue->GetTransform()->SetEulerRotate(Vector3(90.0f, 0.0f, 0.0f));
-        statue->GetTransform()->SetPosition(fieldCenter + Vector3(i == 0 ? -12.0f : 12.0f, 19.0f, -87.0f));
-        const auto statueRenderer = std::make_shared<ModelRenderer>(primeDevice, models[dragonModels[i]]);
-        statue->AddComponent(statueRenderer);
-        typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(statueRenderer);
-        gameObjects.push_back(std::move(statue));
-    }
-    mSceneBounds.Center = fieldCenter;
-    mSceneBounds.Radius = 600.0f;
+    auto mountDragon = std::make_unique<GameObject>();
+    mountDragon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    mountDragon->GetTransform()->SetPosition(Vector3::Right * -960 + Vector3::Up * 45 + Vector3::Backward * 775);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"mountDragon"]);
+    mountDragon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+    gameObjects.push_back(std::move(mountDragon));
+
+    auto desertDragon = std::make_unique<GameObject>();
+    desertDragon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    desertDragon->GetTransform()->SetPosition(Vector3::Right * 960 + Vector3::Up * -5 + Vector3::Backward * 775);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"desertDragon"]);
+    desertDragon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+    gameObjects.push_back(std::move(desertDragon));
+
+    auto griffon = std::make_unique<GameObject>();
+    griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    griffon->SetScale(0.8f);
+    griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
+    griffon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::OpaqueAlphaDrop)].push_back(renderer);
+    gameObjects.push_back(std::move(griffon));
+
+    griffon = std::make_unique<GameObject>();
+    griffon->SetScale(0.8f);
+    griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    griffon->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
+    griffon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::OpaqueAlphaDrop)].push_back(renderer);
+    gameObjects.push_back(std::move(griffon));
 
     ApplyGrassRenderPath(grassRenderPath);
 
-    //logQueue.Push(std::wstring(L"\nFinish create GO"));
+    logQueue.Push(std::wstring(L"\nFinish create GO"));
 }
 
 void HybridGrassApp::ApplyGrassRenderPath(const GrassRenderPath requestedPath)

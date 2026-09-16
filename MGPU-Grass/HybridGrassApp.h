@@ -311,7 +311,6 @@ protected:
     float grassFieldScaleXZ = 15.0f;
     float grassFieldScaleY = 1.0f;
     std::shared_ptr<Transform> grassFieldTransform = nullptr;
-    std::shared_ptr<Transform> platformTransform = nullptr;
     std::shared_ptr<Transform> cameraOrbitTransform;
     Matrix cameraOrbitStartMatrix = Matrix::Identity;
     std::vector<ParticleEmitter*> sceneEmitters;
