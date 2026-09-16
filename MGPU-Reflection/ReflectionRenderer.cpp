@@ -384,7 +384,7 @@ void ReflectionRenderer::InitRenderPaths()
         cmdList,
         window->GetClientWidth(), window->GetClientHeight()));
 
-    antiAliasingPrimePath = (std::make_shared<SSAA>(devices[GraphicAdapterPrimary], multi, window->GetClientWidth(),
+    antiAliasingPrimePath = (std::make_shared<SSAA>(devices[GraphicAdapterPrimary], 1, window->GetClientWidth(),
                                                     window->GetClientHeight()));
     antiAliasingPrimePath->OnResize(window->GetClientWidth(), window->GetClientHeight());
 
@@ -572,6 +572,13 @@ void ReflectionRenderer::UpdateMainPassCB(const GameTimer& gt)
                                              1.0f / mainPassCB.RenderTargetSize.y);
     mainPassCB.NearZ = 1.0f;
     mainPassCB.FarZ = 1000.0f;
+    mainPassCB.SsrMaxDistance = mainPassCB.FarZ;
+    mainPassCB.SsrThickness = 4.0f;
+    mainPassCB.SsrStride = 1.0f;
+    mainPassCB.SsrIntensity = 2.0f;
+    mainPassCB.SsrMaxSteps = 1024;
+    mainPassCB.SsrBinarySteps = 8;
+    mainPassCB.SsrEdgeFadeScale = 1000.0f;
     mainPassCB.TotalTime = gt.TotalTime();
     mainPassCB.DeltaTime = gt.DeltaTime();
     mainPassCB.AmbientLight = Vector4{0.25f, 0.25f, 0.35f, 1.0f};

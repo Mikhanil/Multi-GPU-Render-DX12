@@ -250,8 +250,8 @@ void AssetsLoader::LoadTextureForModel(const std::shared_ptr<GModel>& model, con
             }
             else
             {
-                texture = LoadTextureByPath(L"seamless", L"Data\\Textures\\seamless_grass.jpg", cmdList,
-                                            TextureUsage::Diffuse);
+                texture = LoadTextureByPath(L"white1x1Tex", L"Data\\Textures\\white1x1.dds", cmdList,
+                                             TextureUsage::Diffuse);
             }
 
             loadedTexturesForMesh[nativeMesh].push_back(texturesMap[texture->GetName()]);
