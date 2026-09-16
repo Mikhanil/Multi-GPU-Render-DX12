@@ -1900,49 +1900,56 @@ void HybridGrassApp::WritePerformanceTestResults()
 
 void HybridGrassApp::WritePerformanceSweepResults()
 {
-    const auto path = PerformanceResultPath();
-    perfResultPath = path;
-    std::wofstream file(path, std::ios::out | std::ios::trunc);
-    if (!file.is_open())
+    const std::filesystem::path basePath(PerformanceResultPath());
+    for (int ssaaIndex = 0; ssaaIndex < PerfSsaaCount; ++ssaaIndex)
     {
-        logQueue.Push(L"\nFailed to open " + path);
-        return;
-    }
-
-    file.imbue(std::locale::classic());
-    file << L"scenario;mode;ssaa_multiplier;grass_count;lod0_distance;lod1_distance;lod0_blades;lod1_blades;field_influence_scale;samples;avg_fps;min_fps;max_fps;avg_prime_render_ticks;avg_second_render_ticks;avg_prime_compute_ticks;avg_second_compute_ticks\n";
-
-    for (size_t i = 0; i < perfScenarios.size(); ++i)
-    {
-        const PerfScenario& s = perfScenarios[i];
-        for (int caseIndex = 0; caseIndex < PerfCaseCount; ++caseIndex)
+        const int ssaaMultiplier = ssaaIndex + 1;
+        const std::filesystem::path path = basePath.parent_path() /
+            (basePath.stem().wstring() + L"-ssaa-x" + std::to_wstring(ssaaMultiplier) + basePath.extension().wstring());
+        perfResultPath = path.wstring();
+        std::wofstream file(path, std::ios::out | std::ios::trunc);
+        if (!file.is_open())
         {
-            const PerfAggregate& a = perfScenarioAggregates[i][caseIndex];
-            assert(a.samples > 0);
-            const double n = std::max(1, a.samples);
-            const double avgFps = a.fpsSum / n;
-            const double avgPrimeRender = a.primeRenderSum / n;
-            const double avgSecondRender = a.secondRenderSum / n;
-            const double avgPrimeCompute = a.primeComputeSum / n;
-            const double avgSecondCompute = a.secondComputeSum / n;
-            const double minFps = a.samples > 0 ? a.minFps : 0.0;
-            const double maxFps = a.samples > 0 ? a.maxFps : 0.0;
-
-            file << s.name << L";" << PerformanceRenderPathCsvName(kPerformanceRenderPaths[caseIndex % PerfRenderPathCount]) << L";"
-                 << 1 + caseIndex / PerfRenderPathCount << L";"
-                 << s.grassCount << L";" << std::fixed << std::setprecision(1)
-                 << s.lod0Distance << L";" << s.lod1Distance << L";"
-                 << s.lod0BladeCount << L";" << s.lod1BladeCount << L";"
-                 << std::setprecision(2) << s.fieldInfluenceScale << L";"
-                 << a.samples << L";"
-                 << avgFps << L";" << minFps << L";" << maxFps << L";"
-                 << avgPrimeRender << L";" << avgSecondRender << L";"
-                 << avgPrimeCompute << L";" << avgSecondCompute << L"\n";
+            logQueue.Push(L"\nFailed to open " + perfResultPath);
+            continue;
         }
-    }
 
-    file.close();
-    logQueue.Push(L"\nPerformance sweep saved: " + perfResultPath);
+        file.imbue(std::locale::classic());
+        file << L"scenario;mode;ssaa_multiplier;grass_count;lod0_distance;lod1_distance;lod0_blades;lod1_blades;field_influence_scale;samples;avg_fps;min_fps;max_fps;avg_prime_render_ticks;avg_second_render_ticks;avg_prime_compute_ticks;avg_second_compute_ticks\n";
+
+        for (size_t i = 0; i < perfScenarios.size(); ++i)
+        {
+            const PerfScenario& s = perfScenarios[i];
+            for (int modeIndex = 0; modeIndex < PerfRenderPathCount; ++modeIndex)
+            {
+                const int caseIndex = ssaaIndex * PerfRenderPathCount + modeIndex;
+                const PerfAggregate& a = perfScenarioAggregates[i][caseIndex];
+                assert(a.samples > 0);
+                const double n = std::max(1, a.samples);
+                const double avgFps = a.fpsSum / n;
+                const double avgPrimeRender = a.primeRenderSum / n;
+                const double avgSecondRender = a.secondRenderSum / n;
+                const double avgPrimeCompute = a.primeComputeSum / n;
+                const double avgSecondCompute = a.secondComputeSum / n;
+                const double minFps = a.samples > 0 ? a.minFps : 0.0;
+                const double maxFps = a.samples > 0 ? a.maxFps : 0.0;
+
+                file << s.name << L";" << PerformanceRenderPathCsvName(kPerformanceRenderPaths[modeIndex]) << L";"
+                     << ssaaMultiplier << L";"
+                     << s.grassCount << L";" << std::fixed << std::setprecision(1)
+                     << s.lod0Distance << L";" << s.lod1Distance << L";"
+                     << s.lod0BladeCount << L";" << s.lod1BladeCount << L";"
+                     << std::setprecision(2) << s.fieldInfluenceScale << L";"
+                     << a.samples << L";"
+                     << avgFps << L";" << minFps << L";" << maxFps << L";"
+                     << avgPrimeRender << L";" << avgSecondRender << L";"
+                     << avgPrimeCompute << L";" << avgSecondCompute << L"\n";
+            }
+        }
+
+        file.close();
+        logQueue.Push(L"\nPerformance sweep saved: " + perfResultPath);
+    }
 }
 
 void HybridGrassApp::LogWriting()
