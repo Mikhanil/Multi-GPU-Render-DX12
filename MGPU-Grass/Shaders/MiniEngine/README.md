@@ -1,6 +1,6 @@
 # Microsoft MiniEngine bitonic sort
 
-The seven shader files in this directory are unmodified copies from
+The seven shader files in this directory are based on copies from
 [Microsoft DirectX-Graphics-Samples / MiniEngine](https://github.com/microsoft/DirectX-Graphics-Samples/tree/213dd4fd4918ea009dd8f35adee1aff1f2ecaba4/MiniEngine/Core/Shaders),
 commit `213dd4fd4918ea009dd8f35adee1aff1f2ecaba4`. The upstream MIT license is
 included in `LICENSE`.
@@ -16,7 +16,9 @@ of at least 2048 entries.
 2048-item shared-memory presort, then outer and inner merges with UAV barriers.
 It uses direct dispatches for the known padded capacity instead of upstream's
 GPU-generated indirect dispatch arguments. The shader root signature and sorting
-kernels are unchanged. No CPU sorting, readback, or upstream CPU validation code
+kernels retain the upstream algorithm. The presort's inner loop now explicitly
+uses `[unroll]`, eliminating FXC X3557 when the outer loop is expanded.
+No CPU sorting, readback, or upstream CPU validation code
 is included.
 
 All three Grass rendering modes use this sorter. Multi-GPU mode sorts the local

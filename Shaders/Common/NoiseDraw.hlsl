@@ -102,7 +102,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale;
     uv -= q - currentSpeed;
     float weight = 0.8;
-    for (int i = 0; i < 8; i++)
+    for (int ridgeOctave = 0; ridgeOctave < 8; ridgeOctave++)
     {
         r += abs(weight * noise(uv));
         uv = mul(m, uv) + currentSpeed;
@@ -115,7 +115,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale;
     uv -= q - currentSpeed;
     weight = 0.7;
-    for (int i = 0; i < 8; i++)
+    for (int shapeOctave = 0; shapeOctave < 8; shapeOctave++)
     {
         f += weight * noise(uv);
         uv = mul(m, uv) + currentSpeed;
@@ -131,7 +131,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale * 2.0;
     uv -= q - currentSpeed;
     weight = 0.4;
-    for (int i = 0; i < 7; i++)
+    for (int colourOctave = 0; colourOctave < 7; colourOctave++)
     {
         c += weight * noise(uv);
         uv = mul(m, uv) + currentSpeed;
@@ -145,7 +145,7 @@ float4 PS(VertexOut pin) : SV_Target
     uv *= CloudScale * 3.0;
     uv -= q - currentSpeed;
     weight = 0.4;
-    for (int i = 0; i < 7; i++)
+    for (int ridgeColourOctave = 0; ridgeColourOctave < 7; ridgeColourOctave++)
     {
         c1 += abs(weight * noise(uv));
         uv = mul(m, uv) + currentSpeed;

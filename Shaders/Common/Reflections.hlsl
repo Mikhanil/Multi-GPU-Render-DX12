@@ -20,7 +20,7 @@ VertexOut REFLECTIONS_VS(VertexIn vin)
     vout.PosL = vin.PosL;
     
     float4 posW = mul(float4(vin.PosL, 1.0f), objectBuffer.World);
-    vout.PosW = posW;
+    vout.PosW = posW.xyz;
     
     vout.PosC = mul(posW, worldBuffer.ViewProj);
     

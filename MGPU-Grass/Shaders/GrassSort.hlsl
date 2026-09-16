@@ -38,6 +38,8 @@ void CS_Initialize(uint3 tid : SV_DispatchThreadID)
     if (i >= Capacity)
         return;
     uint key = 0xffffffffu;
+    // Source is a root SRV with no bounds metadata: padding lanes must not load it.
+    [branch]
     if (i < Count)
     {
         uint address = i * SourceStride;
