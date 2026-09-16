@@ -272,6 +272,15 @@ void CrossAdapterGrassEmitter::InitExpandedDrawPSO()
     expandedDrawPSO = std::make_shared<GraphicPSO>(RenderMode::Transparent);
     expandedDrawPSO->SetPsoDesc(psoDesc);
     expandedDrawPSO->Initialize(primeDevice);
+
+    auto normalsPS = std::make_shared<GShader>(L"Shaders\\GrassDraw.hlsl", PixelShader, nullptr, "PS_ExpandedNormals", "ps_5_1");
+    normalsPS->LoadAndCompile();
+    psoDesc.PS = normalsPS->GetShaderResource();
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.RTVFormats[0] = NormalMapFormat;
+    normalsPSO_ = std::make_shared<GraphicPSO>(RenderMode::DrawNormalsOpaque);
+    normalsPSO_->SetPsoDesc(psoDesc);
+    normalsPSO_->Initialize(primeDevice);
 }
 
 void CrossAdapterGrassEmitter::CreateBuffers()
@@ -806,11 +815,21 @@ void CrossAdapterGrassEmitter::Update()
 
 void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
+    DrawPass(cmdList, false);
+}
+
+void CrossAdapterGrassEmitter::DrawNormals(const std::shared_ptr<GCommandList>& cmdList)
+{
+    DrawPass(cmdList, true);
+}
+
+void CrossAdapterGrassEmitter::DrawPass(const std::shared_ptr<GCommandList>& cmdList, bool normals)
+{
     const bool drawMultiExpanded =
         renderPath_ == RenderPath::MultiExpanded && sharedComputeResourcesInitialized_;
     const bool drawSingleExpanded =
         renderPath_ == RenderPath::SingleExpanded && singleExpandResourcesInitialized_;
-    if (drawMultiExpanded)
+    if (drawMultiExpanded && !drawPrepared_)
     {
         if (!sharedOutputReady_)
             return;
@@ -848,9 +867,10 @@ void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList
         if (worldCB && objectCB && !drawDescriptors->IsNull())
         {
             // In MGPU this is deliberately after the shared-to-primary copies above.
-            expandedSorter_.Sort(cmdList, primeDevice, *expandedOnPrime, *objectCB,
+            if (!drawPrepared_)
+                expandedSorter_.Sort(cmdList, primeDevice, *expandedOnPrime, *objectCB,
                                  *worldCB, emitterData.GrassCount, kMaxVerticesPerBlade);
-            cmdList->SetPipelineState(*expandedDrawPSO.get());
+            cmdList->SetPipelineState(normals ? *normalsPSO_ : *expandedDrawPSO);
             cmdList->SetRootSignature(*drawRS);
             cmdList->SetDescriptorsHeap(drawDescriptors);
             cmdList->SetRootConstantBufferView(0, *objectCB);
@@ -864,8 +884,12 @@ void CrossAdapterGrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList
     }
     else
     {
-        primeGrassEmitter->Draw(cmdList);
+        if (normals)
+            primeGrassEmitter->DrawNormals(cmdList);
+        else
+            primeGrassEmitter->Draw(cmdList);
     }
+    drawPrepared_ = normals;
 }
 
 void CrossAdapterGrassEmitter::Dispatch(const std::shared_ptr<GCommandList>& cmdList)

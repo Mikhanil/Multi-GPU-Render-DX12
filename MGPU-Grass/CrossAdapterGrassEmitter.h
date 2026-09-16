@@ -27,6 +27,7 @@ public:
 
     void Update() override;
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
+    void DrawNormals(const std::shared_ptr<GCommandList>& cmdList);
     void Dispatch(const std::shared_ptr<GCommandList>& cmdList);
     void MarkSharedOutputReady() { sharedOutputReady_ = true; }
 
@@ -85,6 +86,9 @@ public:
 
 
 private:
+    void DrawPass(const std::shared_ptr<GCommandList>& cmdList, bool normals);
+    bool drawPrepared_ = false;
+    std::shared_ptr<GraphicPSO> normalsPSO_;
     GrassSorter expandedSorter_;
     void InitPSO(const std::shared_ptr<GDevice>& otherDevice);
     void InitSingleExpandPSO();

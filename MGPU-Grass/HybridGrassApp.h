@@ -69,6 +69,7 @@ protected:
     void CreateGO();
     void CalculateFrameStats() override;
     void LogWriting();
+    std::wstring PerformanceResultPath() const;
     void WritePerformanceTestResults();
     void WritePerformanceSweepResults();
     void ApplyGrassRenderPath(CrossAdapterGrassEmitter::RenderPath path);
@@ -308,9 +309,12 @@ protected:
     int grassBladeCount = 5000;
     float grassWorldSize = 100.0f;
     float grassFieldScaleXZ = 15.0f;
-    float grassFieldScaleY = 11.0f;
+    float grassFieldScaleY = 1.0f;
     std::shared_ptr<Transform> grassFieldTransform = nullptr;
     std::shared_ptr<Transform> platformTransform = nullptr;
+    std::shared_ptr<Transform> cameraOrbitTransform;
+    Matrix cameraOrbitStartMatrix = Matrix::Identity;
+    std::vector<ParticleEmitter*> sceneEmitters;
     int pendingGrassBladeCount = -1;
     float pendingGrassWorldSize = -1.0f;
     bool fpsLimitEnabled = true;

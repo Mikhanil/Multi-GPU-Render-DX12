@@ -183,6 +183,15 @@ void GrassEmitter::CreatePipelineState()
     renderPSO = std::make_shared<GraphicPSO>(RenderMode::Transparent);
     renderPSO->SetPsoDesc(psoDesc);
     renderPSO->Initialize(device);
+
+    auto normalsPS = std::make_shared<GShader>(L"Shaders\\GrassDraw.hlsl", PixelShader, nullptr, "PS_Normals", "ps_5_1");
+    normalsPS->LoadAndCompile();
+    psoDesc.PS = normalsPS->GetShaderResource();
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.RTVFormats[0] = NormalMapFormat;
+    normalsPSO_ = std::make_shared<GraphicPSO>(RenderMode::DrawNormalsOpaque);
+    normalsPSO_->SetPsoDesc(psoDesc);
+    normalsPSO_->Initialize(device);
 }
 
 void GrassEmitter::CreateComputeShaders()
@@ -453,14 +462,25 @@ void GrassEmitter::UpdateObjectConstants()
 
 void GrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
 {
+    DrawPass(cmdList, false);
+}
+
+void GrassEmitter::DrawNormals(const std::shared_ptr<GCommandList>& cmdList)
+{
+    DrawPass(cmdList, true);
+}
+
+void GrassEmitter::DrawPass(const std::shared_ptr<GCommandList>& cmdList, bool normals)
+{
     if (!worldConstantsBuffer || emitterData.GrassCount == 0)
         return;
-    sorter_.Sort(cmdList, device, *grassBuffer, *objectPositionBuffer,
+    if (!drawPrepared_)
+        sorter_.Sort(cmdList, device, *grassBuffer, *objectPositionBuffer,
                  *worldConstantsBuffer, emitterData.GrassCount);
     cmdList->TransitionBarrier(grassBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     cmdList->FlushResourceBarriers();
 
-    cmdList->SetPipelineState(*renderPSO.get());
+    cmdList->SetPipelineState(normals ? *normalsPSO_ : *renderPSO);
     cmdList->SetRootSignature(*renderSignature);
 
     cmdList->SetDescriptorsHeap(&grassDescriptors);
@@ -486,6 +506,7 @@ void GrassEmitter::Draw(const std::shared_ptr<GCommandList>& cmdList)
     cmdList->SetGraphicsRootShaderResourceView(5, sorter_.GetIndices());
     cmdList->SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
     cmdList->Draw(1, emitterData.GrassCount, 0, 0);
+    drawPrepared_ = normals;
 
     cmdList->TransitionBarrier(grassBuffer->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
     cmdList->FlushResourceBarriers();

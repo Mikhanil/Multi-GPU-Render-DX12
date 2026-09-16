@@ -579,3 +579,30 @@ float4 PS_Expanded(ExpandedVSOut input) : SV_Target
 
     return float4(outRgb, color.a);
 }
+
+// Same silhouette as the color pass; SSAO consumes view-space normals and depth.
+float4 GrassSsaoNormal(float3 worldPos, float2 texCoord, float useTexture)
+{
+    if (useTexture > 0.5f)
+    {
+        float alpha = useTexture > 1.5f
+            ? GrassTexture.SampleLevel(Sampler, texCoord, 3.0f).a
+            : GrassTexture.Sample(Sampler, texCoord).a;
+        clip(alpha - 0.1f);
+    }
+    float3 normalW = normalize(cross(ddx(worldPos), ddy(worldPos)));
+    if (dot(normalW, EyePosW - worldPos) < 0.0f)
+        normalW = -normalW;
+    return float4(mul(normalW, (float3x3)View), 0.0f);
+}
+
+float4 PS_Normals(PSInput input) : SV_Target
+{
+    return GrassSsaoNormal(input.WorldPos, input.TexCoord, input.UseTexture);
+}
+
+float4 PS_ExpandedNormals(ExpandedVSOut input) : SV_Target
+{
+    clip(input.Alpha - 0.5f);
+    return GrassSsaoNormal(input.WorldPos, input.TexCoord, input.UseTexture);
+}

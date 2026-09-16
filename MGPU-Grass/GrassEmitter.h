@@ -15,6 +15,7 @@ public:
     void Update() override;
     void UpdateObjectConstants();
     void Draw(const std::shared_ptr<GCommandList>& cmdList) override;
+    void DrawNormals(const std::shared_ptr<GCommandList>& cmdList);
     void Dispatch(const std::shared_ptr<GCommandList>& cmdList); // ��� ��������� �� GPU
 
     // ����������
@@ -67,6 +68,9 @@ public:
     const GBuffer* GetObjectPositionBuffer() const { return objectPositionBuffer.get(); }
 
 private:
+    void DrawPass(const std::shared_ptr<GCommandList>& cmdList, bool normals);
+    bool drawPrepared_ = false;
+    std::shared_ptr<GraphicPSO> normalsPSO_;
     GrassSorter sorter_;
     void Initialize();
     void CreateBuffers();
