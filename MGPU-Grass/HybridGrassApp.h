@@ -128,7 +128,9 @@ protected:
     int perfSampleSeconds = 20;
     static constexpr int PerfRenderPathCount =
         static_cast<int>(CrossAdapterGrassEmitter::RenderPath::Count);
-    int perfCurrentStage = 0; // Single GS -> Single Expand -> Multi-GPU Expand
+    static constexpr int PerfSsaaCount = 6;
+    static constexpr int PerfCaseCount = PerfSsaaCount * PerfRenderPathCount;
+    int perfCurrentStage = 0; // Scenario -> SSAA 1..6 -> render path
     double perfStageStartTime = -1.0;
     bool perfStageInitialized = false;
     std::wstring perfResultPath;
@@ -144,7 +146,7 @@ protected:
         double minFps = std::numeric_limits<double>::max();
         double maxFps = std::numeric_limits<double>::lowest();
     };
-    std::array<PerfAggregate, PerfRenderPathCount> perfAggregates{};
+    std::array<PerfAggregate, PerfCaseCount> perfAggregates{};
     struct PerfScenario
     {
         std::wstring name;
@@ -156,7 +158,7 @@ protected:
         float fieldInfluenceScale = 1.0f;
     };
     std::vector<PerfScenario> perfScenarios{};
-    std::vector<std::array<PerfAggregate, PerfRenderPathCount>> perfScenarioAggregates{};
+    std::vector<std::array<PerfAggregate, PerfCaseCount>> perfScenarioAggregates{};
 
     const UINT StatisticStepSecondsCount = 120;
 
@@ -172,7 +174,7 @@ protected:
         std::shared_ptr<Renderer>>>();
 
     CrossAdapterGrassEmitter::RenderPath grassRenderPath =
-        CrossAdapterGrassEmitter::RenderPath::SingleGeometry;
+        CrossAdapterGrassEmitter::RenderPath::SingleExpanded;
     /// At least two DXGI hardware adapters (excludes WARP).
     bool HaveTwoHardwareAdapters = false;
     /// Shared cross-adapter fences were created successfully (runtime; not tied to CrossAdapterRowMajorTexture).

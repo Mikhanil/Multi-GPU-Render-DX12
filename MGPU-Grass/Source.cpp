@@ -7,13 +7,14 @@ int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,
                    PSTR cmdLine, int showCmd)
 {
     // Enable run-time memory check for debug builds.
-#if defined(DEBUG) | defined(_DEBUG)
+#if defined(DEBUG) || defined(_DEBUG)
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
     try
     {
         HybridGrassApp theApp(hInstance);
+#if !defined(DEBUG) && !defined(_DEBUG)
         if (cmdLine && strstr(cmdLine, "--perf-sweep") != nullptr)
         {
             theApp.EnablePerformanceSweepMode(4, 12);
@@ -22,9 +23,10 @@ int WINAPI WinMain(const HINSTANCE hInstance, HINSTANCE prevInstance,
         {
             theApp.EnablePerformanceTestMode(5, 20);
         }
-        
-#if !defined(DEBUG) | !defined(_DEBUG)
-        theApp.EnablePerformanceSweepMode(4, 12);
+        else
+        {
+            theApp.EnablePerformanceSweepMode(4, 12);
+        }
 #endif
         
         if (!theApp.Initialize())
