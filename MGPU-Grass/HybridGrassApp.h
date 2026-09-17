@@ -71,7 +71,7 @@ protected:
     void LogWriting();
     std::wstring PerformanceResultPath() const;
     void WritePerformanceTestResults();
-    void WritePerformanceSweepResults();
+    void WritePerformanceSweepResult(int ssaaIndex);
     void ApplyGrassRenderPath(CrossAdapterGrassEmitter::RenderPath path);
     bool UsesCrossAdapter() const
     {
@@ -131,7 +131,7 @@ protected:
         static_cast<int>(CrossAdapterGrassEmitter::RenderPath::Count);
     static constexpr int PerfSsaaCount = 6;
     static constexpr int PerfCaseCount = PerfSsaaCount * PerfRenderPathCount;
-    int perfCurrentStage = 0; // Scenario -> SSAA 1..6 -> render path
+    int perfCurrentStage = 0; // SSAA 1..6 -> scenario -> render path
     double perfStageStartTime = -1.0;
     bool perfStageInitialized = false;
     std::wstring perfResultPath;
