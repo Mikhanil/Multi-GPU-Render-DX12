@@ -139,7 +139,7 @@ protected:
     bool IsUseHBAO = false;
     bool IsUseFog = false;
     bool IsUsingSharedFog = true;
-    bool IsUsingSharedVolume = true;
+    bool IsUsingSharedVolume = false;
     
     GameObject* volumeObject = nullptr;
     

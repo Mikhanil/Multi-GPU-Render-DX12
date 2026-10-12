@@ -748,7 +748,7 @@ void HybridVolumeRenderingApp::PopulateForwardPathCommands(const std::shared_ptr
         cmdList->
             SetGraphicsRootConstantBufferView(StandardShaderSlot::CameraData,
                                               *currentFrameResource->PrimePassConstantUploadBuffer);
-        PopulateDrawCommands(cmdList, (RenderMode::Particle));
+        //PopulateDrawCommands(cmdList, (RenderMode::Particle));
 
 
         cmdList->TransitionBarrier(antiAliasingPrimePath->GetRenderTarget(),
@@ -2046,10 +2046,10 @@ void HybridVolumeRenderingApp::UpdateVolumeCB(const GameTimer& gt)
     currentVolumeConstants = volumeCB;
 
     VolumeConstants primeVolumeCB = volumeCB;
-    primeVolumeCB.Color = Vector3(0.0f, 1.0f, 0.0f); // GREEN
+    primeVolumeCB.Color = Vector3(0.0f, 1.f, 0.0f); // GREEN
 
     VolumeConstants secondVolumeCB = volumeCB;
-    secondVolumeCB.Color = Vector3(1.0f, 0.0f, 1.0f); // MAGENTA
+    secondVolumeCB.Color = Vector3(0.85f, 0.85f, 0.85f); // MAGENTA
 
     currentFrameResource->PrimeVolumeConstantUploadBuffer->CopyData(0, primeVolumeCB);
     currentFrameResource->SecondVolumeConstantUploadBuffer->CopyData(0, secondVolumeCB);
