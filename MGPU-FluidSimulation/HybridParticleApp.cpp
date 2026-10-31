@@ -1,0 +1,2100 @@
+#include "HybridParticleApp.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <limits>
+#include "CameraController.h"
+#include "CrossAdapterParticleEmitter.h"
+#include "GameObject.h"
+#include "GDeviceFactory.h"
+#include "GModel.h"
+#include "imgui.h"
+#include "MathHelper.h"
+#include "ModelRenderer.h"
+#include "ParticleEmitter.h"
+#include "Rotater.h"
+#include "SkyBox.h"
+#include "Transform.h"
+#include "Window.h"
+
+HybridParticleApp::HybridParticleApp(const HINSTANCE hInstance): D3DApp(hInstance)
+{
+    mSceneBounds.Center = Vector3(0.0f, 0.0f, 0.0f);
+    mSceneBounds.Radius = 200;
+}
+
+HybridParticleApp::~HybridParticleApp()
+{
+}
+
+void HybridParticleApp::Update(const GameTimer& gt)
+{
+    const UINT olderIndex = currentFrameResourceIndex - 1 > globalCountFrameResources
+                                ? 0
+                                : static_cast<UINT>(currentFrameResourceIndex);
+    primeGPURenderingTime = primeDevice->GetCommandQueue()->GetTimestamp(olderIndex);
+    secondGPURenderingTime = secondDevice->GetCommandQueue()->GetTimestamp(olderIndex);
+
+    primeGPUComputingTime = primeDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
+    secondGPUComputingTime = secondDevice->GetCommandQueue(GQueueType::Compute)->GetTimestamp(olderIndex);
+
+    const auto primeRenderQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
+    const auto primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
+    const auto secondaryComputeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
+
+    currentFrameResource = frameResources[currentFrameResourceIndex];
+
+    if ((currentFrameResource->PrimeRenderFenceValue != 0 && !primeRenderQueue->IsFinish(currentFrameResource->PrimeRenderFenceValue))
+        || (currentFrameResource->PrimeComputeFenceValue != 0 && !primeComputeQueue->IsFinish(currentFrameResource->PrimeComputeFenceValue)))
+    {
+        primeRenderQueue->WaitForFenceValue(currentFrameResource->PrimeRenderFenceValue);
+        primeComputeQueue->WaitForFenceValue(currentFrameResource->PrimeComputeFenceValue);
+    }
+    else
+    {
+        primeDevice->ReleaseStaleDescriptors(currentFrameResource->PrimeRenderFenceValue);
+    }
+    
+    if (UseCrossSync)
+    {
+        if ((currentFrameResource->SecondaryComputeFenceValue != 0 && !secondaryComputeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue)))
+        {
+            secondaryComputeQueue->WaitForFenceValue(currentFrameResource->SecondaryComputeFenceValue);
+        }
+        else
+        {
+            secondDevice->ReleaseStaleDescriptors(currentFrameResource->SecondaryComputeFenceValue);
+        }
+    }
+    else if (currentFrameResource->SecondaryComputeFenceValue == 0
+        || secondaryComputeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
+    {
+        secondDevice->ReleaseStaleDescriptors(currentFrameResource->SecondaryComputeFenceValue);
+    }
+
+    mLightRotationAngle += 0.1f * gt.DeltaTime();
+
+    const Matrix R = Matrix::CreateRotationY(mLightRotationAngle);
+    for (int i = 0; i < 3; ++i)
+    {
+        auto lightDir = mBaseLightDirections[i];
+        lightDir = Vector3::TransformNormal(lightDir, R);
+        mRotatedLightDirections[i] = lightDir;
+    }
+
+    for (auto& e : gameObjects)
+    {
+        e->Update(&gt);
+    }
+
+    UpdateMaterials();
+
+    UpdateShadowTransform(gt);
+    UpdateMainPassCB(gt);
+    UpdateShadowPassCB(gt);
+    UpdateSsaoCB(gt);
+}
+
+void HybridParticleApp::PopulateShadowMapCommands(std::shared_ptr<GCommandList> cmdList)
+{
+    cmdList->SetRootSignature(*primeDeviceSignature.get());
+    cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+                                       *currentFrameResource->MaterialBuffer, 1);
+    cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
+    cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+                                       *currentFrameResource->PrimePassConstantUploadBuffer, 1);
+
+    shadowPath->PopulatePreRenderCommands(cmdList);
+
+    cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque));
+    PopulateDrawCommands(cmdList, RenderMode::Opaque);
+    PopulateDrawCommands(cmdList, RenderMode::OpaqueAlphaDrop);
+
+    cmdList->TransitionBarrier(shadowPath->GetTexture(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->FlushResourceBarriers();
+}
+
+void HybridParticleApp::PopulateNormalMapCommands(const std::shared_ptr<GCommandList>& cmdList)
+{
+    //Draw Normals
+    {
+        cmdList->SetDescriptorsHeap(&srvTexturesMemory);
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
+        cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+                                           *currentFrameResource->MaterialBuffer);
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
+
+        cmdList->SetViewports(&fullViewport, 1);
+        cmdList->SetScissorRects(&fullRect, 1);
+
+        const auto normalMap = ambientPrimePath->NormalMap();
+        const auto normalDepthMap = ambientPrimePath->NormalDepthMap();
+        const auto normalMapRtv = ambientPrimePath->NormalMapRtv();
+        const auto normalMapDsv = ambientPrimePath->NormalMapDSV();
+
+        cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        cmdList->FlushResourceBarriers();
+        float clearValue[] = {0.0f, 0.0f, 1.0f, 0.0f};
+        cmdList->ClearRenderTarget(normalMapRtv, 0, clearValue);
+        cmdList->ClearDepthStencil(normalMapDsv, 0,
+                                   D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+
+        cmdList->SetRenderTargets(1, normalMapRtv, 0, normalMapDsv);
+        cmdList->SetRootConstantBufferView(1, *currentFrameResource->PrimePassConstantUploadBuffer);
+
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaque));
+        PopulateDrawCommands(cmdList, RenderMode::Opaque);
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::DrawNormalsOpaqueDrop));
+        PopulateDrawCommands(cmdList, RenderMode::OpaqueAlphaDrop);
+
+
+        cmdList->TransitionBarrier(normalMap, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->TransitionBarrier(normalDepthMap, D3D12_RESOURCE_STATE_COMMON);
+        cmdList->FlushResourceBarriers();
+    }
+}
+
+void HybridParticleApp::PopulateAmbientMapCommands(const std::shared_ptr<GCommandList>& cmdList)
+{
+    //Draw Ambient
+    {
+        cmdList->SetDescriptorsHeap(&srvTexturesMemory);
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
+        cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+                                           *currentFrameResource->MaterialBuffer);
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
+
+        cmdList->SetRootSignature(*ssaoPrimeRootSignature.get());
+        ambientPrimePath->ComputeSsao(cmdList, currentFrameResource->SsaoConstantUploadBuffer, 3);
+    }
+}
+
+void HybridParticleApp::PopulateForwardPathCommands(const std::shared_ptr<GCommandList>& cmdList)
+{
+    //Forward Path with SSAA
+    {
+        cmdList->SetDescriptorsHeap(&srvTexturesMemory);
+        cmdList->SetRootSignature(*primeDeviceSignature.get());
+        cmdList->SetRootShaderResourceView(StandardShaderSlot::MaterialData,
+                                           *currentFrameResource->MaterialBuffer);
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::TexturesMap, &srvTexturesMemory);
+
+        cmdList->SetViewports(&antiAliasingPrimePath->GetViewPort(), 1);
+        cmdList->SetScissorRects(&antiAliasingPrimePath->GetRect(), 1);
+
+        cmdList->TransitionBarrier((antiAliasingPrimePath->GetRenderTarget()), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        cmdList->TransitionBarrier(antiAliasingPrimePath->GetDepthMap(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        cmdList->FlushResourceBarriers();
+
+        cmdList->ClearRenderTarget(antiAliasingPrimePath->GetRTV(), 0, Colors::Black);
+        cmdList->ClearDepthStencil(antiAliasingPrimePath->GetDSV(), 0,
+                                   D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0);
+
+        cmdList->SetRenderTargets(1, antiAliasingPrimePath->GetRTV(), 0,
+                                  antiAliasingPrimePath->GetDSV());
+
+
+        cmdList->
+            SetRootConstantBufferView(StandardShaderSlot::CameraData,
+                                      *currentFrameResource->PrimePassConstantUploadBuffer);
+
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::ShadowMap, shadowPath->GetSrv());
+        cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, ambientPrimePath->AmbientMapSrv(), 0);
+
+
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::SkyBox));
+        PopulateDrawCommands(cmdList, (RenderMode::SkyBox));
+
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Opaque));
+        PopulateDrawCommands(cmdList, (RenderMode::Opaque));
+
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::OpaqueAlphaDrop));
+        PopulateDrawCommands(cmdList, (RenderMode::OpaqueAlphaDrop));
+
+        cmdList->SetPipelineState(*defaultPrimePipelineResources.GetPSO(RenderMode::Transparent));
+        PopulateDrawCommands(cmdList, (RenderMode::Transparent));
+
+
+        /*
+        cmdList->SetRootConstantBufferView(StandardShaderSlot::CameraData,
+                                           *currentFrameResource->PrimePassConstantUploadBuffer.get(), 0);
+        PopulateDrawCommands(cmdList, RenderMode::Particle);
+        */
+
+        PopulateDrawCommands(cmdList, RenderMode::Fluid);
+
+
+        cmdList->TransitionBarrier(antiAliasingPrimePath->GetRenderTarget(),
+                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        cmdList->TransitionBarrier((antiAliasingPrimePath->GetDepthMap()), D3D12_RESOURCE_STATE_DEPTH_READ);
+        cmdList->FlushResourceBarriers();
+    }
+}
+
+void HybridParticleApp::PopulateDrawCommands(std::shared_ptr<GCommandList> cmdList,
+                                             RenderMode type)
+{
+    for (auto&& renderer : typedRenderer[static_cast<int>(type)])
+    {
+        renderer->Draw(cmdList);
+    }
+}
+
+void HybridParticleApp::PopulateInitRenderTarget(const std::shared_ptr<GCommandList>& cmdList, GTexture& renderTarget,
+                                                 GDescriptor* rtvMemory, const UINT offsetRTV)
+{
+    cmdList->SetViewports(&fullViewport, 1);
+    cmdList->SetScissorRects(&fullRect, 1);
+
+    cmdList->TransitionBarrier(renderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    cmdList->FlushResourceBarriers();
+    cmdList->ClearRenderTarget(rtvMemory, offsetRTV, Colors::Black);
+
+    cmdList->SetRenderTargets(1, rtvMemory, offsetRTV);
+}
+
+void HybridParticleApp::PopulateDrawFullQuadTexture(const std::shared_ptr<GCommandList>& cmdList,
+                                                    GDescriptor* renderTextureSRVMemory,
+                                                    const UINT renderTextureMemoryOffset, GraphicPSO& pso)
+{
+    cmdList->SetRootSignature(*primeDeviceSignature.get());
+    cmdList->SetDescriptorsHeap(renderTextureSRVMemory);
+
+    cmdList->SetRootDescriptorTable(StandardShaderSlot::AmbientMap, renderTextureSRVMemory, renderTextureMemoryOffset);
+
+    cmdList->SetPipelineState(pso);
+    PopulateDrawCommands(cmdList, (RenderMode::Quad));
+}
+
+
+void HybridParticleApp::Draw(const GameTimer& gt)
+{
+    if (isResizing) return;
+
+    const UINT timestampHeapIndex = 2 * currentFrameResourceIndex;
+
+    auto renderQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
+
+    std::shared_ptr<GCommandQueue> computeQueue;
+    if (UseCrossAdapter)
+    {
+        computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
+    }
+    else
+    {
+        computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
+    }
+
+    const auto& primeComputeQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
+    const auto primeCommandList = primeComputeQueue->GetCommandList();
+    {
+        if (fluidParticleEmitter != nullptr)
+        {
+            if (UseCrossAdapter)
+            {
+                secondaryDispatchAccumulatedDt += gt.DeltaTime();
+
+                if (currentFrameResource->SecondaryComputeFenceValue == 0 || computeQueue->IsFinish(currentFrameResource->SecondaryComputeFenceValue))
+                {
+                    auto& resources = fluidParticleEmitter->SecondaryResources;
+                    const auto& crossResources = fluidParticleEmitter->CrossResources;
+
+                    auto& computeQueue = secondDevice->GetCommandQueue(GQueueType::Compute);
+                    const auto secondCommandList = computeQueue->GetCommandList();
+
+                    secondCommandList->EndQuery(timestampHeapIndex);
+                    fluidParticleEmitter->Dispatch(secondCommandList, resources, secondaryDispatchAccumulatedDt);
+                    secondaryDispatchAccumulatedDt = 0.0f;
+
+                    secondCommandList->CopyResource(crossResources.sharedPositions->GetSharedResource(), *resources.PositionsBuffer);
+                    secondCommandList->CopyResource(crossResources.sharedVelocities->GetSharedResource(), *resources.VelocityBuffer);
+                    secondCommandList->EndQuery(timestampHeapIndex + 1);
+                    secondCommandList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+                    currentFrameResource->SecondaryComputeFenceValue = computeQueue->ExecuteCommandList(secondCommandList);
+
+                    // Only copy from shared buffer after the secondary GPU has finished writing
+                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.PositionsBuffer, fluidParticleEmitter->CrossResources.sharedPositions->GetPrimeResource());
+                    primeCommandList->CopyResource(*fluidParticleEmitter->PrimaryResources.VelocityBuffer, fluidParticleEmitter->CrossResources.sharedVelocities->GetPrimeResource());
+                }
+            }
+            else
+            {
+                secondaryDispatchAccumulatedDt = 0.0f;
+                fluidParticleEmitter->Dispatch(primeCommandList, fluidParticleEmitter->PrimaryResources, gt.DeltaTime());
+            }
+        }
+    }
+
+    {
+        //const auto cmdList = renderQueue->GetCommandList();
+
+        const auto& cmdList = primeCommandList;
+
+        cmdList->EndQuery(timestampHeapIndex);
+        PopulateNormalMapCommands(cmdList);
+        PopulateAmbientMapCommands(cmdList);
+        PopulateShadowMapCommands(cmdList);
+        PopulateForwardPathCommands(cmdList);
+        PopulateInitRenderTarget(cmdList, MainWindow->GetCurrentBackBuffer(),
+                                 &currentFrameResource->BackBufferRTVMemory, 0);
+        PopulateDrawFullQuadTexture(cmdList, antiAliasingPrimePath->GetSRV(),
+                                    0, *defaultPrimePipelineResources.GetPSO(RenderMode::Quad));
+
+
+        cmdList->TransitionBarrier(MainWindow->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT);
+        cmdList->FlushResourceBarriers();
+        cmdList->EndQuery(timestampHeapIndex + 1);
+        cmdList->ResolveQuery(timestampHeapIndex, 2, timestampHeapIndex * sizeof(UINT64));
+
+        currentFrameResource->PrimeRenderFenceValue = renderQueue->ExecuteCommandList(cmdList);
+    }
+
+    currentFrameResourceIndex = MainWindow->Present();
+}
+
+bool HybridParticleApp::Initialize()
+{
+    InitDevices();
+    InitMainWindow();
+    Flush();
+
+    LoadStudyTexture();
+    Flush();
+    LoadModels();
+    Flush();
+    CreateMaterials();
+    Flush();
+    MipMasGenerate();
+    Flush();
+
+    InitRenderPaths();
+    Flush();
+    InitSRVMemoryAndMaterials();
+    Flush();
+    InitRootSignature();
+    Flush();
+    InitPipeLineResource();
+    Flush();
+    CreateGO();
+    Flush();
+    SortGO();
+    Flush();
+    InitFrameResource();
+    Flush();
+
+    OnResize();
+    ApplyRenderPathTuningPreset(currentRenderPathPreset);
+
+    UseCrossAdapter = true;
+    UseCrossSync = true;
+    fluidCalibrationIterations = 0;
+    fluidCalibrationTargetParticleCount = std::clamp(fluidSpawnRegion.TargetParticleCount, 10'000u, 300'000u);
+    RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
+    ResetPerformanceSamplingWindow();
+
+    std::wstring fluidCalibrationLog = L"\nFluid calibration started" + std::wstring()
+                                     + L"\n\tMode: second GPU compute"
+                                     + L"\n\tTarget second GPU FPS: 60"
+                                     + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+                                     + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+                                     + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor)
+                                     + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                     + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
+                                     + L"\n\tSpawn area size: " + std::to_wstring(fluidSpawnRegion.Size.x) + L"x"
+                                     + std::to_wstring(fluidSpawnRegion.Size.y) + L"x"
+                                     + std::to_wstring(fluidSpawnRegion.Size.z)
+                                     + L"\n\tBounds scale: " + std::to_wstring(fluidSimulationScale.x) + L"x"
+                                     + std::to_wstring(fluidSimulationScale.y) + L"x"
+                                     + std::to_wstring(fluidSimulationScale.z);
+    logQueue.Push(fluidCalibrationLog);
+
+    Flush();
+
+    return true;
+}
+
+void HybridParticleApp::InitDevices()
+{
+    auto allDevices = GDeviceFactory::GetAllDevices(true);
+
+    const auto firstDevice = allDevices[0];
+    const auto otherDevice = allDevices[1];
+
+    if (!(firstDevice->GetName().find(L"NVIDIA") != std::wstring::npos))
+    {
+        if (otherDevice->GetName().find(L"NVIDIA") != std::wstring::npos)
+        {
+            primeDevice = otherDevice;
+            secondDevice = firstDevice;
+        }
+    }
+    else
+    {
+        primeDevice = firstDevice;
+        secondDevice = otherDevice;
+    }
+
+    assets = std::make_shared<AssetsLoader>(primeDevice);
+
+
+    for (int i = 0; i < static_cast<uint8_t>(RenderMode::Count); ++i)
+    {
+        typedRenderer.push_back(
+            MemoryAllocator::CreateVector<std::shared_ptr<Renderer>>());
+    }
+    
+    logQueue.Push(L"\nPrime Device: " + (primeDevice->GetName()));
+    logQueue.Push(
+        L"\t\n Cross Adapter Texture Support: " + std::to_wstring(
+            primeDevice->IsCrossAdapterTextureSupported()));
+    logQueue.Push(L"\nSecond Device: " + (secondDevice->GetName()));
+    logQueue.Push(
+        L"\t\n Cross Adapter Texture Support: " + std::to_wstring(
+            secondDevice->IsCrossAdapterTextureSupported()));
+
+    Flush();
+}
+
+void HybridParticleApp::InitFrameResource()
+{
+    for (int i = 0; i < globalCountFrameResources; ++i)
+    {
+        frameResources.push_back(std::make_unique<FrameResource>(primeDevice,
+                                                                 primeDevice, 2,
+                                                                 assets->GetMaterials().size()));
+    }
+    logQueue.Push(std::wstring(L"\nInit FrameResource "));
+}
+
+void HybridParticleApp::InitRootSignature()
+{
+    auto rootSignature = std::make_shared<GRootSignature>();
+    CD3DX12_DESCRIPTOR_RANGE texParam[4];
+    texParam[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::SkyMap - 3, 0); //SkyMap
+    texParam[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::ShadowMap - 3, 0); //ShadowMap
+    texParam[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, StandardShaderSlot::AmbientMap - 3, 0); //SsaoMap
+    texParam[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+                     assets->GetLoadTexturesCount() > 0 ? assets->GetLoadTexturesCount() : 1,
+                     StandardShaderSlot::TexturesMap - 3, 0);
+
+
+    rootSignature->AddConstantBufferParameter(0);
+    rootSignature->AddConstantBufferParameter(1);
+    rootSignature->AddShaderResourceView(0, 1);
+    rootSignature->AddDescriptorParameter(&texParam[0], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootSignature->AddDescriptorParameter(&texParam[1], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootSignature->AddDescriptorParameter(&texParam[2], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootSignature->AddDescriptorParameter(&texParam[3], 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    rootSignature->Initialize(primeDevice);
+
+    primeDeviceSignature = rootSignature;
+
+
+    logQueue.Push(std::wstring(L"\nInit RootSignature for " + primeDevice->GetName()));
+
+    ssaoPrimeRootSignature = std::make_shared<GRootSignature>();
+
+    CD3DX12_DESCRIPTOR_RANGE texTable0;
+    texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE texTable1;
+    texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0);
+
+    ssaoPrimeRootSignature->AddConstantBufferParameter(0);
+    ssaoPrimeRootSignature->AddConstantParameter(1, 1);
+    ssaoPrimeRootSignature->AddDescriptorParameter(&texTable0, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+    ssaoPrimeRootSignature->AddDescriptorParameter(&texTable1, 1, D3D12_SHADER_VISIBILITY_PIXEL);
+
+    const CD3DX12_STATIC_SAMPLER_DESC pointClamp(
+        0, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_POINT, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+    const CD3DX12_STATIC_SAMPLER_DESC linearClamp(
+        1, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_CLAMP); // addressW
+
+    const CD3DX12_STATIC_SAMPLER_DESC depthMapSam(
+        2, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_BORDER, // addressW
+        0.0f,
+        0,
+        D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE);
+
+    const CD3DX12_STATIC_SAMPLER_DESC linearWrap(
+        3, // shaderRegister
+        D3D12_FILTER_MIN_MAG_MIP_LINEAR, // filter
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressU
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP, // addressV
+        D3D12_TEXTURE_ADDRESS_MODE_WRAP); // addressW
+
+    std::array<CD3DX12_STATIC_SAMPLER_DESC, 4> staticSamplers =
+    {
+        pointClamp, linearClamp, depthMapSam, linearWrap
+    };
+
+    for (auto&& sampler : staticSamplers)
+    {
+        ssaoPrimeRootSignature->AddStaticSampler(sampler);
+    }
+
+    ssaoPrimeRootSignature->Initialize(primeDevice);
+}
+
+void HybridParticleApp::InitPipeLineResource()
+{
+    defaultInputLayout =
+    {
+        {
+            "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+        },
+        {
+            "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+        },
+        {
+            "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+        },
+        {
+            "TANGENT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,
+            D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+        },
+    };
+
+    const D3D12_INPUT_LAYOUT_DESC desc = {defaultInputLayout.data(), defaultInputLayout.size()};
+
+    defaultPrimePipelineResources = RenderModeFactory();
+    defaultPrimePipelineResources.LoadDefaultShaders();
+    defaultPrimePipelineResources.LoadDefaultPSO(primeDevice, primeDeviceSignature, desc,
+                                                 BackBufferFormat, DepthStencilFormat, ssaoPrimeRootSignature,
+                                                 NormalMapFormat, AmbientMapFormat);
+
+    ambientPrimePath->SetPipelineData(*defaultPrimePipelineResources.GetPSO(RenderMode::Ssao),
+                                      *defaultPrimePipelineResources.GetPSO(RenderMode::SsaoBlur));
+
+
+    logQueue.Push(std::wstring(L"\nInit PSO for " + primeDevice->GetName()));
+
+    const auto primeDeviceShadowMapPso = defaultPrimePipelineResources.GetPSO(RenderMode::ShadowMapOpaque);
+}
+
+void HybridParticleApp::CreateMaterials()
+{
+    auto seamless = std::make_shared<Material>(L"seamless", RenderMode::Opaque);
+    seamless->FresnelR0 = Vector3(0.02f, 0.02f, 0.02f);
+    seamless->Roughness = 0.1f;
+
+    auto tex = assets->GetTextureIndex(L"seamless");
+    seamless->SetDiffuseTexture(assets->GetTexture(tex), tex);
+
+    tex = assets->GetTextureIndex(L"defaultNormalMap");
+
+    seamless->SetNormalMap(assets->GetTexture(tex), tex);
+    assets->AddMaterial(seamless);
+
+
+    models[L"quad"]->SetMeshMaterial(0, assets->GetMaterial(assets->GetMaterialIndex(L"seamless")));
+
+    logQueue.Push(std::wstring(L"\nCreate Materials"));
+}
+
+void HybridParticleApp::InitSRVMemoryAndMaterials()
+{
+    srvTexturesMemory =
+        primeDevice->AllocateDescriptors(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, assets->GetTextures().size());
+
+    auto materials = assets->GetMaterials();
+
+    for (int j = 0; j < materials.size(); ++j)
+    {
+        auto material = materials[j];
+
+        material->InitMaterial(&srvTexturesMemory);
+    }
+
+    logQueue.Push(std::wstring(L"\nInit Views for " + primeDevice->GetName()));
+    ambientPrimePath->BuildDescriptors();
+}
+
+void HybridParticleApp::InitRenderPaths()
+{
+    primeDevice->SharedFence(primeComputeFence, secondDevice, secondComputeFence, sharedComputeFenceValue);
+    primeDevice->SharedFence(primeRenderFence, secondDevice, secondRenderFence, sharedRenderFenceValue);
+
+    const UINT ssaoDivisor = std::max<UINT>(1, currentRenderPathPreset.SsaoDivisor);
+    const UINT ssaoWidth = std::max<UINT>(1, MainWindow->GetClientWidth() / ssaoDivisor);
+    const UINT ssaoHeight = std::max<UINT>(1, MainWindow->GetClientHeight() / ssaoDivisor);
+
+    auto commandQueue = primeDevice->GetCommandQueue(GQueueType::Graphics);
+    auto cmdList = commandQueue->GetCommandList();
+
+    ambientPrimePath = (std::make_shared<SSAO>(
+        primeDevice,
+        cmdList,
+        ssaoWidth, ssaoHeight));
+
+    antiAliasingPrimePath = (std::make_shared<SSAA>(primeDevice, currentRenderPathPreset.SsaaMultiplier, MainWindow->GetClientWidth(),
+                                                    MainWindow->GetClientHeight()));
+    antiAliasingPrimePath->OnResize(MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+
+    commandQueue->WaitForFenceValue(commandQueue->ExecuteCommandList(cmdList));
+
+    logQueue.Push(std::wstring(L"\nInit Render path data for " + primeDevice->GetName())
+        + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+        + L"\n\tSSAA Multiplier: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+        + L"\n\tSSAO Divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor));
+
+    shadowPath = (std::make_shared<ShadowMap>(primeDevice, currentRenderPathPreset.ShadowMapSize, currentRenderPathPreset.ShadowMapSize));
+}
+
+void HybridParticleApp::LoadStudyTexture()
+{
+    auto queue = primeDevice->GetCommandQueue(GQueueType::Compute);
+
+    const auto cmdList = queue->GetCommandList();
+
+    auto bricksTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\bricks2.dds", cmdList);
+    bricksTex->SetName(L"bricksTex");
+    assets->AddTexture(bricksTex);
+
+    auto stoneTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\stone.dds", cmdList);
+    stoneTex->SetName(L"stoneTex");
+    assets->AddTexture(stoneTex);
+
+    auto tileTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\tile.dds", cmdList);
+    tileTex->SetName(L"tileTex");
+    assets->AddTexture(tileTex);
+
+    auto fenceTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\WireFence.dds", cmdList);
+    fenceTex->SetName(L"fenceTex");
+    assets->AddTexture(fenceTex);
+
+    auto waterTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\water1.dds", cmdList);
+    waterTex->SetName(L"waterTex");
+    assets->AddTexture(waterTex);
+
+    auto skyTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\skymap.dds", cmdList);
+    skyTex->SetName(L"skyTex");
+    assets->AddTexture(skyTex);
+
+    auto grassTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\grass.dds", cmdList);
+    grassTex->SetName(L"grassTex");
+    assets->AddTexture(grassTex);
+
+    auto treeArrayTex = GTexture::LoadTextureFromFile(L"Data\\Textures\\treeArray2.dds", cmdList);
+    treeArrayTex->SetName(L"treeArrayTex");
+    assets->AddTexture(treeArrayTex);
+
+    auto seamless = GTexture::LoadTextureFromFile(L"Data\\Textures\\seamless_grass.jpg", cmdList);
+    seamless->SetName(L"seamless");
+    assets->AddTexture(seamless);
+
+
+    std::vector<std::wstring> texNormalNames =
+    {
+        L"bricksNormalMap",
+        L"tileNormalMap",
+        L"defaultNormalMap"
+    };
+
+    std::vector<std::wstring> texNormalFilenames =
+    {
+        L"Data\\Textures\\bricks2_nmap.dds",
+        L"Data\\Textures\\tile_nmap.dds",
+        L"Data\\Textures\\default_nmap.dds"
+    };
+
+    for (int j = 0; j < texNormalNames.size(); ++j)
+    {
+        auto texture = GTexture::LoadTextureFromFile(texNormalFilenames[j], cmdList, TextureUsage::Normalmap);
+        texture->SetName(texNormalNames[j]);
+        assets->AddTexture(texture);
+    }
+
+    queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
+
+    logQueue.Push(std::wstring(L"\nLoad DDS Texture"));
+}
+
+void HybridParticleApp::LoadModels()
+{
+    auto queue = primeDevice->GetCommandQueue(GQueueType::Compute);
+    const auto cmdList = queue->GetCommandList();
+
+    auto nano = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Nanosuit\\Nanosuit.obj");
+    models[L"nano"] = std::move(nano);
+
+    auto atlas = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Atlas\\Atlas.obj");
+    models[L"atlas"] = std::move(atlas);
+    auto pbody = assets->CreateModelFromFile(cmdList, "Data\\Objects\\P-Body\\P-Body.obj");
+    models[L"pbody"] = std::move(pbody);
+
+    auto griffon = assets->CreateModelFromFile(cmdList, "Data\\Objects\\Griffon\\Griffon.FBX");
+    griffon->scaleMatrix = Matrix::CreateScale(0.1);
+    models[L"griffon"] = std::move(griffon);
+
+    auto mountDragon = assets->CreateModelFromFile(
+        cmdList, "Data\\Objects\\MOUNTAIN_DRAGON\\MOUNTAIN_DRAGON.FBX");
+    mountDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    models[L"mountDragon"] = std::move(mountDragon);
+
+    auto desertDragon = assets->CreateModelFromFile(
+        cmdList, "Data\\Objects\\DesertDragon\\DesertDragon.FBX");
+    desertDragon->scaleMatrix = Matrix::CreateScale(0.1);
+    models[L"desertDragon"] = std::move(desertDragon);
+
+    auto sphere = assets->GenerateSphere(cmdList);
+    models[L"sphere"] = std::move(sphere);
+
+    auto quad = assets->GenerateQuad(cmdList);
+    models[L"quad"] = std::move(quad);
+
+    auto stair = assets->CreateModelFromFile(
+        cmdList, "Data\\Objects\\Temple\\SM_AsianCastle_A.FBX");
+    models[L"stair"] = std::move(stair);
+
+    auto columns = assets->CreateModelFromFile(
+        cmdList, "Data\\Objects\\Temple\\SM_AsianCastle_E.FBX");
+    models[L"columns"] = std::move(columns);
+
+    auto fountain = assets->
+        CreateModelFromFile(cmdList, "Data\\Objects\\Temple\\SM_Fountain.FBX");
+    models[L"fountain"] = std::move(fountain);
+
+    auto platform = assets->CreateModelFromFile(
+        cmdList, "Data\\Objects\\Temple\\SM_PlatformSquare.FBX");
+    models[L"platform"] = std::move(platform);
+
+    auto doom = assets->CreateModelFromFile(cmdList, "Data\\Objects\\DoomSlayer\\doommarine.obj");
+    models[L"doom"] = std::move(doom);
+
+    queue->WaitForFenceValue(queue->ExecuteCommandList(cmdList));
+    queue->Flush();
+
+    logQueue.Push(std::wstring(L"\nLoad Models Data"));
+}
+
+void HybridParticleApp::MipMasGenerate()
+{
+    try
+    {
+        std::vector<GTexture*> generatedMipTextures;
+
+        auto textures = assets->GetTextures();
+
+        for (auto&& texture : textures)
+        {
+            texture->ClearTrack();
+
+            if (texture->GetD3D12Resource()->GetDesc().Flags != D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+                continue;
+
+            if (!texture->HasMipMap)
+            {
+                generatedMipTextures.push_back(texture.get());
+            }
+        }
+
+        const auto computeQueue = primeDevice->GetCommandQueue(GQueueType::Compute);
+        auto computeList = computeQueue->GetCommandList();
+        GTexture::GenerateMipMaps(computeList, generatedMipTextures.data(), generatedMipTextures.size());
+        computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
+        logQueue.Push(std::wstring(L"\nMip Map Generation for " + primeDevice->GetName()));
+
+        computeList = computeQueue->GetCommandList();
+        for (auto&& texture : generatedMipTextures)
+            computeList->TransitionBarrier(texture->GetD3D12Resource(), D3D12_RESOURCE_STATE_COMMON);
+        computeList->FlushResourceBarriers();
+        logQueue.Push(std::wstring(L"\nTexture Barrier Generation for " + primeDevice->GetName()));
+        computeQueue->WaitForFenceValue(computeQueue->ExecuteCommandList(computeList));
+
+        logQueue.Push(std::wstring(L"\nMipMap Generation cmd list executing " + primeDevice->GetName()));
+        for (auto&& pair : textures)
+            pair->ClearTrack();
+        logQueue.Push(std::wstring(L"\nFinish Mip Map Generation for " + primeDevice->GetName()));
+    }
+    catch (DxException& e)
+    {
+        logQueue.Push(L"\n" + e.Filename + L" " + e.FunctionName + L" " + std::to_wstring(e.LineNumber));
+        MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+    }
+    catch (...)
+    {
+        logQueue.Push(L"\nWTF???? How It Fix");
+    }
+}
+
+void HybridParticleApp::SortGO()
+{
+    for (auto&& item : gameObjects)
+    {
+        auto light = item->GetComponent<Light>();
+        if (light != nullptr)
+        {
+            lights.push_back(light.get());
+        }
+
+        auto cam = item->GetComponent<Camera>();
+        if (cam != nullptr)
+        {
+            camera = (cam);
+        }
+    }
+}
+
+void HybridParticleApp::CreateGO()
+{
+    logQueue.Push(std::wstring(L"\nStart Create GO"));
+    auto skySphere = std::make_unique<GameObject>("Sky");
+    skySphere->GetTransform()->SetScale({500, 500, 500});
+    {
+        const auto renderer = std::make_shared<SkyBox>(primeDevice,
+                                                       models[L"sphere"],
+                                                       *assets->GetTexture(
+                                                           assets->
+                                                           GetTextureIndex(L"skyTex")).get(),
+                                                       &srvTexturesMemory,
+                                                       assets->GetTextureIndex(L"skyTex"));
+
+        skySphere->AddComponent(renderer);
+        typedRenderer[static_cast<int>(RenderMode::SkyBox)].push_back((renderer));
+    }
+    gameObjects.push_back(std::move(skySphere));
+
+    auto quadRitem = std::make_unique<GameObject>("Quad");
+    {
+        auto renderer = std::make_shared<ModelRenderer>(primeDevice,
+                                                        models[L"quad"]);
+        renderer->SetModel(models[L"quad"]);
+        quadRitem->AddComponent(renderer);
+        typedRenderer[static_cast<int>(RenderMode::Debug)].push_back(renderer);
+        typedRenderer[static_cast<int>(RenderMode::Quad)].push_back(renderer);
+    }
+    gameObjects.push_back(std::move(quadRitem));
+
+
+    auto sun1 = std::make_unique<GameObject>("Directional Light");
+    auto light = std::make_shared<Light>(Directional);
+    light->Direction({0.57735f, -0.57735f, 0.57735f});
+    light->Strength({0.8f, 0.8f, 0.8f});
+    sun1->AddComponent(light);
+    gameObjects.push_back(std::move(sun1));
+
+    for (int i = 1; i < 11; ++i)
+    {
+        auto nano = std::make_unique<GameObject>();
+        nano->GetTransform()->SetPosition(Vector3::Right * -15 + Vector3::Forward * 12 * i);
+        nano->GetTransform()->SetEulerRotate(Vector3(0, -90, 0));
+        auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"nano"]);
+        nano->AddComponent(renderer);
+        typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+        gameObjects.push_back(std::move(nano));
+
+
+        auto doom = std::make_unique<GameObject>();
+        doom->SetScale(0.08);
+        doom->GetTransform()->SetPosition(Vector3::Right * 15 + Vector3::Forward * 12 * i);
+        doom->GetTransform()->SetEulerRotate(Vector3(0, 90, 0));
+        renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"doom"]);
+        doom->AddComponent(renderer);
+        typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+        gameObjects.push_back(std::move(doom));
+    }
+
+    for (int i = 0; i < 12; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            auto atlas = std::make_unique<GameObject>();
+            atlas->GetTransform()->SetPosition(
+                Vector3::Right * -60 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+            auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"atlas"]);
+            atlas->AddComponent(renderer);
+            typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+            gameObjects.push_back(std::move(atlas));
+
+
+
+            auto pbody = std::make_unique<GameObject>();
+            pbody->GetTransform()->SetPosition(
+                Vector3::Right * 130 + Vector3::Right * -30 * j + Vector3::Up * 11 + Vector3::Forward * 10 * i);
+            renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"pbody"]);
+            pbody->AddComponent(renderer);
+            typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+            gameObjects.push_back(std::move(pbody));
+        }
+    }
+
+    /*
+    auto particle = std::make_unique<GameObject>();
+    particle->GetTransform()->SetPosition(Vector3::Up);
+    const auto emitter = std::make_shared<CrossAdapterParticleEmitter>(primeDevice, secondDevice, 10000 * 1);
+    particle->AddComponent(emitter);
+    typedRenderer[static_cast<int>(RenderMode::Particle)].push_back(emitter);
+    crossEmitter.push_back(emitter.get());
+    gameObjects.push_back(std::move(particle));
+    */
+
+    fluidSimulationPosition = Vector3::Up * 5.f;
+    fluidSimulationScale = CalculateFluidBoundsScale(fluidCalibrationTargetParticleCount);
+    fluidSpawnRegion = ParticleSpawner::SpawnRegion{};
+    fluidSpawnRegion.Center = Vector3::Up * 5.5f;
+    fluidSpawnRegion.Size = Vector3(5.f, 10.f, 10.f);
+    fluidSpawnRegion.TargetParticleCount = fluidCalibrationTargetParticleCount;
+
+    fluidSimulationTemplateData = FluidSimulationData{};
+    fluidSimulationTemplateData.viscosityStrength = 0.f;
+
+    logQueue.Push(L"\nStartup calibration: fixed render preset (ShadowMap=1024, SSAA=2) and tuning fluid particles for ~60 FPS on the second GPU.");
+
+    auto platform = std::make_unique<GameObject>();
+    platform->SetScale(0.2);
+    platform->GetTransform()->SetEulerRotate(Vector3(90, 90, 0));
+    platform->GetTransform()->SetPosition(Vector3::Backward * -130);
+    auto renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"platform"]);
+    platform->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+
+
+    auto rotater = std::make_unique<GameObject>();
+    rotater->GetTransform()->SetParent(platform->GetTransform().get());
+    rotater->GetTransform()->SetPosition(Vector3::Forward * 325 + Vector3::Left * 625);
+    rotater->GetTransform()->SetEulerRotate(Vector3(0, -90, 90));
+    rotater->AddComponent(std::make_shared<Rotater>(10));
+
+    auto camera = std::make_unique<GameObject>("MainCamera");
+    //camera->GetTransform()->SetParent(rotater->GetTransform().get());
+    camera->AddComponent(std::make_shared<CameraController>());
+    camera->GetTransform()->SetEulerRotate(Vector3(-30, 180, 0));
+    camera->GetTransform()->SetPosition(Vector3(0, 20, -30));
+    camera->AddComponent(std::make_shared<Camera>(AspectRatio()));
+
+    gameObjects.push_back(std::move(camera));
+    //gameObjects.push_back(std::move(rotater));
+
+
+    auto stair = std::make_unique<GameObject>();
+    stair->GetTransform()->SetParent(platform->GetTransform().get());
+    stair->SetScale(0.2);
+    stair->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
+    stair->GetTransform()->SetPosition(Vector3::Left * 700);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"stair"]);
+    stair->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+
+
+    auto columns = std::make_unique<GameObject>();
+    columns->GetTransform()->SetParent(stair->GetTransform().get());
+    columns->SetScale(0.8);
+    columns->GetTransform()->SetEulerRotate(Vector3(0, 0, 90));
+    columns->GetTransform()->SetPosition(Vector3::Up * 2000 + Vector3::Forward * 900);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"columns"]);
+    columns->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+
+    auto fountain = std::make_unique<GameObject>();
+    fountain->SetScale(0.005);
+    fountain->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    fountain->GetTransform()->SetPosition(Vector3::Up * 35 + Vector3::Backward * 77);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"fountain"]);
+    fountain->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+
+    gameObjects.push_back(std::move(platform));
+    gameObjects.push_back(std::move(stair));
+    gameObjects.push_back(std::move(columns));
+    gameObjects.push_back(std::move(fountain));
+
+
+    auto mountDragon = std::make_unique<GameObject>();
+    mountDragon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    mountDragon->GetTransform()->SetPosition(Vector3::Right * -960 + Vector3::Up * 45 + Vector3::Backward * 775);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"mountDragon"]);
+    mountDragon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+    gameObjects.push_back(std::move(mountDragon));
+
+
+    auto desertDragon = std::make_unique<GameObject>();
+    desertDragon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    desertDragon->GetTransform()->SetPosition(Vector3::Right * 960 + Vector3::Up * -5 + Vector3::Backward * 775);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"desertDragon"]);
+    desertDragon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::Opaque)].push_back(renderer);
+    gameObjects.push_back(std::move(desertDragon));
+
+    auto griffon = std::make_unique<GameObject>();
+    griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    griffon->SetScale(0.8);
+    griffon->GetTransform()->SetPosition(Vector3::Right * -355 + Vector3::Up * -7 + Vector3::Backward * 17);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
+    griffon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::OpaqueAlphaDrop)].push_back(renderer);
+    gameObjects.push_back(std::move(griffon));
+
+    griffon = std::make_unique<GameObject>();
+    griffon->SetScale(0.8);
+    griffon->GetTransform()->SetEulerRotate(Vector3(90, 0, 0));
+    griffon->GetTransform()->SetPosition(Vector3::Right * 355 + Vector3::Up * -7 + Vector3::Backward * 17);
+    renderer = std::make_shared<ModelRenderer>(primeDevice, models[L"griffon"]);
+    griffon->AddComponent(renderer);
+    typedRenderer[static_cast<int>(RenderMode::OpaqueAlphaDrop)].push_back(renderer);
+    gameObjects.push_back(std::move(griffon));
+
+    logQueue.Push(std::wstring(L"\nFinish create GO"));
+}
+
+void HybridParticleApp::ApplyRenderPathTuningPreset(const RenderPathTuningPreset& preset)
+{
+    currentRenderPathPreset = preset;
+
+    const UINT windowWidth = MainWindow->GetClientWidth();
+    const UINT windowHeight = MainWindow->GetClientHeight();
+    const UINT ssaoDivisor = std::max<UINT>(1, currentRenderPathPreset.SsaoDivisor);
+    const UINT ssaoWidth = std::max<UINT>(1, windowWidth / ssaoDivisor);
+    const UINT ssaoHeight = std::max<UINT>(1, windowHeight / ssaoDivisor);
+
+    if (shadowPath != nullptr)
+    {
+        shadowPath->OnResize(currentRenderPathPreset.ShadowMapSize, currentRenderPathPreset.ShadowMapSize);
+    }
+
+    if (ambientPrimePath != nullptr)
+    {
+        ambientPrimePath->OnResize(ssaoWidth, ssaoHeight);
+        ambientPrimePath->RebuildDescriptors();
+    }
+
+    if (antiAliasingPrimePath != nullptr)
+    {
+        antiAliasingPrimePath->SetMultiplier(currentRenderPathPreset.SsaaMultiplier, windowWidth, windowHeight);
+    }
+}
+
+void HybridParticleApp::ResetPerformanceSamplingWindow()
+{
+    frameCount = 0;
+    timeElapsed = timer.TotalTime();
+    secondaryGpuCalibrationTimeMicroseconds = 0.0;
+    secondaryGpuCalibrationSampleCount = 0;
+}
+
+Vector3 HybridParticleApp::CalculateFluidBoundsScale(const uint32_t targetParticleCount) const
+{
+    struct ScalePoint
+    {
+        uint32_t ParticleCount;
+        float WidthX;
+        float DepthZ;
+    };
+
+    static constexpr std::array<ScalePoint, 3> kScalePoints = {
+        ScalePoint{10'000, 5.f, 20.f},
+        ScalePoint{50'000, 10.f, 20.f},
+        ScalePoint{100'000, 20.f, 20.f}
+    };
+    static constexpr float kHeightY = 10.f;
+    static constexpr float kMinWidthX = 5.f;
+    static constexpr float kMaxWidthX = 20.f;
+    static constexpr float kMinDepthZ = 20.f;
+    static constexpr float kMaxDepthZ = 20.f;
+    static constexpr Vector3 kReferenceBounds{kMinWidthX, kHeightY, kMinDepthZ};
+
+    const uint32_t safeParticleCount = std::max(1u, targetParticleCount);
+
+    if (safeParticleCount < kScalePoints.front().ParticleCount)
+    {
+        const float t = std::cbrt(static_cast<float>(safeParticleCount) /
+                                  static_cast<float>(kScalePoints.front().ParticleCount));
+        return Vector3(kReferenceBounds.x * t, kReferenceBounds.y * t, kReferenceBounds.z * t);
+    }
+
+    const float clampedParticleCount = static_cast<float>(safeParticleCount);
+    const auto interpolate = [](float aValue, uint32_t aCount, float bValue, uint32_t bCount, float particleCount)
+    {
+        const float logA = std::log10(static_cast<float>(aCount));
+        const float logB = std::log10(static_cast<float>(bCount));
+        const float logValue = std::log10(particleCount);
+        const float t = (logValue - logA) / (logB - logA);
+        return aValue + (bValue - aValue) * t;
+    };
+
+    float widthX = kScalePoints.front().WidthX;
+    float depthZ = kScalePoints.front().DepthZ;
+
+    if (clampedParticleCount <= static_cast<float>(kScalePoints[1].ParticleCount))
+    {
+        widthX = interpolate(kScalePoints[0].WidthX, kScalePoints[0].ParticleCount,
+                             kScalePoints[1].WidthX, kScalePoints[1].ParticleCount, clampedParticleCount);
+        depthZ = interpolate(kScalePoints[0].DepthZ, kScalePoints[0].ParticleCount,
+                             kScalePoints[1].DepthZ, kScalePoints[1].ParticleCount, clampedParticleCount);
+    }
+    else if (clampedParticleCount <= static_cast<float>(kScalePoints[2].ParticleCount))
+    {
+        widthX = interpolate(kScalePoints[1].WidthX, kScalePoints[1].ParticleCount,
+                             kScalePoints[2].WidthX, kScalePoints[2].ParticleCount, clampedParticleCount);
+        depthZ = interpolate(kScalePoints[1].DepthZ, kScalePoints[1].ParticleCount,
+                             kScalePoints[2].DepthZ, kScalePoints[2].ParticleCount, clampedParticleCount);
+    }
+    else
+    {
+        const float extrapolatedWidth = interpolate(kScalePoints[1].WidthX, kScalePoints[1].ParticleCount,
+                                                    kScalePoints[2].WidthX, kScalePoints[2].ParticleCount, clampedParticleCount);
+        const float extrapolatedDepth = interpolate(kScalePoints[1].DepthZ, kScalePoints[1].ParticleCount,
+                                                    kScalePoints[2].DepthZ, kScalePoints[2].ParticleCount, clampedParticleCount);
+        widthX = std::max(kScalePoints[2].WidthX, extrapolatedWidth);
+        depthZ = std::max(kScalePoints[2].DepthZ, extrapolatedDepth);
+    }
+
+    widthX = std::clamp(widthX, kMinWidthX, kMaxWidthX);
+    depthZ = std::clamp(depthZ, kMinDepthZ, kMaxDepthZ);
+    return Vector3(widthX, kHeightY, depthZ);
+}
+
+Vector3 HybridParticleApp::CalculateFluidSpawnRegionSize(const uint32_t spawnedParticleCount, const Vector3& boundsScale) const
+{
+    const Vector3 particleDrivenScale = CalculateFluidBoundsScale(spawnedParticleCount);
+    const Vector3 paddedBoundsScale = boundsScale * 0.9f;
+
+    return Vector3(
+        std::min(particleDrivenScale.x, paddedBoundsScale.x),
+        std::min(particleDrivenScale.y, paddedBoundsScale.y),
+        std::min(particleDrivenScale.z, paddedBoundsScale.z));
+}
+
+void HybridParticleApp::RecreateFluidEmitter(const uint32_t targetParticleCount)
+{
+    auto& fluidRenderers = typedRenderer[static_cast<int>(RenderMode::Fluid)];
+
+    if (fluidParticleEmitter != nullptr)
+    {
+        fluidRenderers.erase(std::remove(fluidRenderers.begin(), fluidRenderers.end(), fluidParticleEmitter), fluidRenderers.end());
+        fluidParticleEmitter.reset();
+    }
+
+    if (fluidSimulationObject != nullptr)
+    {
+        gameObjects.erase(std::remove(gameObjects.begin(), gameObjects.end(), fluidSimulationObject), gameObjects.end());
+        fluidSimulationObject.reset();
+    }
+
+    fluidSpawnRegion.TargetParticleCount = targetParticleCount;
+    fluidSimulationScale = CalculateFluidBoundsScale(targetParticleCount);
+    fluidSpawnRegion.Size = CalculateFluidSpawnRegionSize(targetParticleCount, fluidSimulationScale);
+
+    ParticleSpawner spawner;
+    spawner.SpawnRegions.insert(spawner.SpawnRegions.end(), {fluidSpawnRegion});
+
+    auto spawnData = spawner.GetSpawnData();
+    fluidCalibrationActualParticleCount = static_cast<uint32_t>(spawnData.Points.size());
+    fluidSimulationScale = CalculateFluidBoundsScale(fluidCalibrationActualParticleCount);
+    fluidSpawnRegion.Size = CalculateFluidSpawnRegionSize(fluidCalibrationActualParticleCount, fluidSimulationScale);
+
+    ParticleSpawner adjustedSpawner;
+    adjustedSpawner.SpawnRegions.insert(adjustedSpawner.SpawnRegions.end(), {fluidSpawnRegion});
+    spawnData = adjustedSpawner.GetSpawnData();
+    fluidCalibrationActualParticleCount = static_cast<uint32_t>(spawnData.Points.size());
+
+    fluidSimulationObject = std::make_shared<GameObject>();
+    fluidSimulationObject->GetTransform()->SetPosition(fluidSimulationPosition);
+    fluidSimulationObject->SetScale(fluidSimulationScale);
+
+    auto simData = fluidSimulationTemplateData;
+    simData.localToWorld = fluidSimulationObject->GetTransform()->GetWorldMatrix();
+    simData.worldToLocal = simData.localToWorld.Invert();
+
+    fluidParticleEmitter = std::make_shared<SharedFluidParticleEmitter>(primeDevice, secondDevice, simData, adjustedSpawner);
+    fluidSimulationObject->AddComponent(fluidParticleEmitter);
+    fluidRenderers.push_back(fluidParticleEmitter);
+    gameObjects.push_back(fluidSimulationObject);
+}
+
+bool HybridParticleApp::HandleStartupCalibration(const float fps)
+{
+    static constexpr float kFluidMinFps = 45.f;
+    static constexpr float kFluidMaxFps = 55.f;
+    static constexpr float kFluidTargetFps = 50.f;
+    static constexpr uint32_t kMinParticleTarget = 1'000;
+    static constexpr uint32_t kMaxParticleTarget = 500'000;
+    static constexpr uint32_t kMaxFluidCalibrationIterations = 16;
+
+    if (startupCalibrationStage == StartupCalibrationStage::Completed)
+    {
+        return false;
+    }
+
+    if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles)
+    {
+        const bool isCalibrated = fps >= kFluidMinFps && fps <= kFluidMaxFps;
+        const bool reachedMaxIteration = fluidCalibrationIterations >= kMaxFluidCalibrationIterations;
+        auto finishFluidCalibration = [&](const bool reachedParticleLimit)
+        {
+            std::wstring selectedFluidCalibration = L"\nFluid calibration selected count" + std::wstring()
+                                                  + L"\n\tSecond GPU FPS: " + std::to_wstring(fps)
+                                                  + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                                  + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
+                                                  + L"\n\tSpawn area size: " + std::to_wstring(fluidSpawnRegion.Size.x) + L"x"
+                                                  + std::to_wstring(fluidSpawnRegion.Size.y) + L"x"
+                                                  + std::to_wstring(fluidSpawnRegion.Size.z)
+                                                  + L"\n\tBounds scale: " + std::to_wstring(fluidSimulationScale.x) + L"x"
+                                                  + std::to_wstring(fluidSimulationScale.y) + L"x"
+                                                  + std::to_wstring(fluidSimulationScale.z);
+            logQueue.Push(selectedFluidCalibration);
+
+            if (reachedParticleLimit && !isCalibrated)
+            {
+                logQueue.Push(L"\nFluid calibration warning: reached the configured particle-count limit before landing inside the 55-65 FPS window on the second GPU.");
+            }
+
+            Flush();
+            UseCrossSync = false;
+            UseCrossAdapter = false;
+            startupCalibrationStage = StartupCalibrationStage::TuneMainGpuRenderPath;
+            renderPathCalibrationAxis = RenderPathCalibrationAxis::ShadowMap;
+            renderPathCalibrationLastStepWasIncrease = false;
+            ResetPerformanceSamplingWindow();
+            logQueue.Push(L"\nFluid calibration done: disabling second-GPU sync and starting main-GPU render-path tuning (target 60-80 FPS).");
+        };
+
+        if (isCalibrated || reachedMaxIteration)
+        {
+            finishFluidCalibration(false);
+            return true;
+        }
+
+        double scaledTarget = static_cast<double>(fluidCalibrationTargetParticleCount) * (static_cast<double>(fps) / static_cast<double>(kFluidTargetFps));
+        const double clampedTarget = std::clamp(scaledTarget,
+            static_cast<double>(kMinParticleTarget),
+            static_cast<double>(kMaxParticleTarget));
+        uint32_t nextTargetParticleCount = static_cast<uint32_t>(std::round(clampedTarget));
+
+        if (nextTargetParticleCount == fluidCalibrationTargetParticleCount)
+        {
+            if (fps > kFluidTargetFps)
+            {
+                if (fluidCalibrationTargetParticleCount >= kMaxParticleTarget)
+                {
+                    finishFluidCalibration(true);
+                    return true;
+                }
+
+                const uint64_t bumpedTargetParticleCount = static_cast<uint64_t>(fluidCalibrationTargetParticleCount) + 64ull;
+                nextTargetParticleCount = static_cast<uint32_t>(std::min<uint64_t>(kMaxParticleTarget, bumpedTargetParticleCount));
+            }
+            else
+            {
+                if (fluidCalibrationTargetParticleCount <= kMinParticleTarget)
+                {
+                    finishFluidCalibration(true);
+                    return true;
+                }
+
+                nextTargetParticleCount = std::max(kMinParticleTarget, fluidCalibrationTargetParticleCount - 64);
+            }
+        }
+
+        fluidCalibrationTargetParticleCount = nextTargetParticleCount;
+        fluidCalibrationIterations++;
+
+        Flush();
+        RecreateFluidEmitter(fluidCalibrationTargetParticleCount);
+        ResetPerformanceSamplingWindow();
+        std::wstring fluidCalibrationStepLog = L"\nFluid calibration step: Second GPU FPS=" + std::to_wstring(fps)
+                                             + L", iteration=" + std::to_wstring(fluidCalibrationIterations)
+                                             + L"\n\tTarget particle count: " + std::to_wstring(fluidCalibrationTargetParticleCount)
+                                             + L"\n\tSpawned particle count: " + std::to_wstring(fluidCalibrationActualParticleCount)
+                                             + L"\n\tSpawn area size: " + std::to_wstring(fluidSpawnRegion.Size.x) + L"x"
+                                             + std::to_wstring(fluidSpawnRegion.Size.y) + L"x"
+                                             + std::to_wstring(fluidSpawnRegion.Size.z)
+                                             + L"\n\tBounds scale: " + std::to_wstring(fluidSimulationScale.x) + L"x"
+                                             + std::to_wstring(fluidSimulationScale.y) + L"x"
+                                             + std::to_wstring(fluidSimulationScale.z);
+        logQueue.Push(fluidCalibrationStepLog);
+
+        return true;
+    }
+
+    if (startupCalibrationStage == StartupCalibrationStage::TuneMainGpuRenderPath)
+    {
+        static constexpr float kMainMinFps = 60.f;
+        static constexpr float kMainMaxFps = 80.f;
+        static constexpr UINT kMaxShadowMapSize = 4096;
+        static constexpr UINT kMinShadowMapSize = 256;
+        static constexpr UINT kMaxSsaaMultiplier = 4;
+        static constexpr UINT kMinSsaaMultiplier = 1;
+        static constexpr UINT kMaxSsaoDivisor = 4;
+        static constexpr UINT kMinSsaoDivisor = 1;
+
+        const auto nextAxis = [](RenderPathCalibrationAxis axis)
+        {
+            switch (axis)
+            {
+            case RenderPathCalibrationAxis::ShadowMap: return RenderPathCalibrationAxis::Ssaa;
+            case RenderPathCalibrationAxis::Ssaa:      return RenderPathCalibrationAxis::Ssao;
+            case RenderPathCalibrationAxis::Ssao:
+            default:                                   return RenderPathCalibrationAxis::Completed;
+            }
+        };
+
+        const auto tryIncreaseAxis = [&](RenderPathTuningPreset& preset, RenderPathCalibrationAxis axis)
+        {
+            switch (axis)
+            {
+            case RenderPathCalibrationAxis::ShadowMap:
+                if (preset.ShadowMapSize < kMaxShadowMapSize)
+                {
+                    preset.ShadowMapSize = std::min(kMaxShadowMapSize, preset.ShadowMapSize * 2);
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssaa:
+                if (preset.SsaaMultiplier < kMaxSsaaMultiplier)
+                {
+                    ++preset.SsaaMultiplier;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssao:
+                if (preset.SsaoDivisor > kMinSsaoDivisor)
+                {
+                    --preset.SsaoDivisor;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Completed:
+                break;
+            }
+            return false;
+        };
+
+        const auto tryDecreaseAxis = [&](RenderPathTuningPreset& preset, RenderPathCalibrationAxis axis)
+        {
+            switch (axis)
+            {
+            case RenderPathCalibrationAxis::ShadowMap:
+                if (preset.ShadowMapSize > kMinShadowMapSize)
+                {
+                    preset.ShadowMapSize = std::max(kMinShadowMapSize, preset.ShadowMapSize / 2);
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssaa:
+                if (preset.SsaaMultiplier > kMinSsaaMultiplier)
+                {
+                    --preset.SsaaMultiplier;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Ssao:
+                if (preset.SsaoDivisor < kMaxSsaoDivisor)
+                {
+                    ++preset.SsaoDivisor;
+                    return true;
+                }
+                break;
+            case RenderPathCalibrationAxis::Completed:
+                break;
+            }
+            return false;
+        };
+
+        const auto applyPreset = [&](const RenderPathTuningPreset& preset,
+                                     RenderPathCalibrationAxis nextAxisValue,
+                                     bool wasIncrease)
+        {
+            Flush();
+            ApplyRenderPathTuningPreset(preset);
+            renderPathCalibrationAxis = nextAxisValue;
+            renderPathCalibrationLastStepWasIncrease = wasIncrease;
+            ResetPerformanceSamplingWindow();
+        };
+
+        const auto finishMainGpuCalibration = [&](const wchar_t* reason)
+        {
+            std::wstring selectedLog = L"\nMain-GPU render calibration complete" + std::wstring()
+                                     + L"\n\tFPS: " + std::to_wstring(fps)
+                                     + L"\n\tShadowMap: " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+                                     + L"\n\tSSAA: " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+                                     + L"\n\tSSAO divisor: " + std::to_wstring(currentRenderPathPreset.SsaoDivisor)
+                                     + L"\n\tReason: " + reason;
+            logQueue.Push(selectedLog);
+            Flush();
+            if (fluidParticleEmitter)
+            {
+                fluidParticleEmitter->ResetToSpawnState();
+            }
+            startupCalibrationStage = StartupCalibrationStage::Completed;
+            ResetPerformanceSamplingWindow();
+        };
+
+        const bool isWithinTargetWindow = fps >= kMainMinFps && fps <= kMainMaxFps;
+        if (isWithinTargetWindow)
+        {
+            finishMainGpuCalibration(L"FPS landed inside the 60-80 window");
+            return true;
+        }
+
+        if (fps > kMainMaxFps)
+        {
+            RenderPathCalibrationAxis axis = renderPathCalibrationAxis;
+            while (axis != RenderPathCalibrationAxis::Completed)
+            {
+                RenderPathTuningPreset nextPreset = currentRenderPathPreset;
+                if (tryIncreaseAxis(nextPreset, axis))
+                {
+                    applyPreset(nextPreset, axis, true);
+                    std::wstring stepLog = L"\nMain-GPU render calibration step: FPS=" + std::to_wstring(fps)
+                                         + L", increasing render load"
+                                         + L"\n\tShadowMap: " + std::to_wstring(nextPreset.ShadowMapSize)
+                                         + L"\n\tSSAA: " + std::to_wstring(nextPreset.SsaaMultiplier)
+                                         + L"\n\tSSAO divisor: " + std::to_wstring(nextPreset.SsaoDivisor);
+                    logQueue.Push(stepLog);
+                    return true;
+                }
+                axis = nextAxis(axis);
+            }
+            finishMainGpuCalibration(L"Reached heaviest render-path settings, FPS still above the target window");
+            return true;
+        }
+
+        if (renderPathCalibrationLastStepWasIncrease)
+        {
+            RenderPathTuningPreset revertedPreset = currentRenderPathPreset;
+            if (tryDecreaseAxis(revertedPreset, renderPathCalibrationAxis))
+            {
+                applyPreset(revertedPreset, nextAxis(renderPathCalibrationAxis), false);
+                std::wstring stepLog = L"\nMain-GPU render calibration step: FPS=" + std::to_wstring(fps)
+                                     + L", undoing last increase and skipping to next axis"
+                                     + L"\n\tShadowMap: " + std::to_wstring(revertedPreset.ShadowMapSize)
+                                     + L"\n\tSSAA: " + std::to_wstring(revertedPreset.SsaaMultiplier)
+                                     + L"\n\tSSAO divisor: " + std::to_wstring(revertedPreset.SsaoDivisor);
+                logQueue.Push(stepLog);
+                return true;
+            }
+        }
+
+        finishMainGpuCalibration(L"FPS below target window, no further lighter steps available");
+        return true;
+    }
+
+    startupCalibrationStage = StartupCalibrationStage::Completed;
+    return false;
+}
+
+void HybridParticleApp::CalculateFrameStats()
+{
+    static float minFps = std::numeric_limits<float>::max();
+    static float minMspf = std::numeric_limits<float>::max();
+    static float maxFps = std::numeric_limits<float>::min();
+    static float maxMspf = std::numeric_limits<float>::min();
+    static UINT writeStaticticCount = 0;
+
+    if (timer.DeltaTime() > 0.5f)
+    {
+        ResetPerformanceSamplingWindow();
+        return;
+    }
+
+    frameCount++;
+
+    if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles && secondGPUComputingTime > 0)
+    {
+        secondaryGpuCalibrationTimeMicroseconds += static_cast<double>(secondGPUComputingTime);
+        ++secondaryGpuCalibrationSampleCount;
+    }
+
+    const float sampleSeconds = startupCalibrationStage == StartupCalibrationStage::Completed
+        ? 1.0f
+        : CalibrationSampleSeconds;
+    const float elapsedSeconds = static_cast<float>(timer.TotalTime() - timeElapsed);
+
+    if (elapsedSeconds >= sampleSeconds)
+    {
+        float fps = static_cast<float>(frameCount) / elapsedSeconds;
+        if (startupCalibrationStage == StartupCalibrationStage::TuneFluidParticles && secondaryGpuCalibrationSampleCount > 0)
+        {
+            const double averageSecondGpuFrameTimeMicroseconds =
+                secondaryGpuCalibrationTimeMicroseconds / static_cast<double>(secondaryGpuCalibrationSampleCount);
+
+            if (averageSecondGpuFrameTimeMicroseconds > 0.0)
+            {
+                fps = static_cast<float>(1'000'000.0 / averageSecondGpuFrameTimeMicroseconds);
+            }
+        }
+
+        const float mspf = 1000.0f / fps;
+        const std::wstring presetTitle =
+            L" Preset: Shadow Map Size = " + std::to_wstring(currentRenderPathPreset.ShadowMapSize)
+            + L"; SSAA Multiplier = " + std::to_wstring(currentRenderPathPreset.SsaaMultiplier)
+            + L"; SSAO Divisor = " + std::to_wstring(currentRenderPathPreset.SsaoDivisor)
+            + L"; Particles = " + std::to_wstring(fluidCalibrationActualParticleCount) + L";";
+
+        ResetPerformanceSamplingWindow();
+
+        const StartupCalibrationStage stageBefore = startupCalibrationStage;
+        if (HandleStartupCalibration(fps))
+        {
+            if (startupCalibrationStage == StartupCalibrationStage::Completed)
+            {
+                MainWindow->SetWindowTitle(L"Calibration complete." + presetTitle);
+            }
+            else if (startupCalibrationStage == StartupCalibrationStage::TuneMainGpuRenderPath)
+            {
+                const std::wstring calibrationTitle = (stageBefore == StartupCalibrationStage::TuneFluidParticles
+                    ? L"Calibrating main GPU... starting from FPS "
+                    : L"Calibrating main GPU... FPS ") + std::to_wstring(fps) + presetTitle;
+                MainWindow->SetWindowTitle(calibrationTitle);
+            }
+            else
+            {
+                const std::wstring calibrationTitle = L"Calibrating second GPU... FPS " + std::to_wstring(fps) + presetTitle;
+                MainWindow->SetWindowTitle(calibrationTitle);
+            }
+            return;
+        }
+
+        minFps = std::min(fps, minFps);
+        minMspf = std::min(mspf, minMspf);
+        maxFps = std::max(fps, maxFps);
+        maxMspf = std::max(mspf, maxMspf);
+
+
+        const std::wstring title = L"FPS " + std::to_wstring(fps) + L" Step:" + (
+                UseCrossAdapter ? L"2" : L"1") + L"/2" + L" Progress: " + std::to_wstring(
+                (static_cast<float>(writeStaticticCount) / StatisticStepSecondsCount) * 100.0f) + L"/" +
+            std::to_wstring(100) + presetTitle;
+
+        if (writeStaticticCount >= StatisticStepSecondsCount)
+        {
+            const std::wstring staticticStr =
+                L"\nUse Cross Adapter: " + std::to_wstring(UseCrossAdapter)
+                + L"\n\tMin FPS:" + std::to_wstring(minFps)
+                + L"\n\tMin MSPF:" + std::to_wstring(minMspf)
+                + L"\n\tMax FPS:" + std::to_wstring(maxFps)
+                + L"\n\tMax MSPF:" + std::to_wstring(maxMspf);
+
+            logQueue.Push(staticticStr);
+
+
+            writeStaticticCount = 0;
+            minFps = std::numeric_limits<float>::max();
+            minMspf = std::numeric_limits<float>::max();
+            maxFps = std::numeric_limits<float>::min();
+            maxMspf = std::numeric_limits<float>::min();
+
+
+            if (UseCrossAdapter == false)
+            {
+                Flush();
+                UseCrossAdapter = true;
+            }
+            else
+            {
+                IsStop = true;
+            }
+        }
+        else
+        {
+            const std::wstring staticticStr =
+                L"\n" + std::to_wstring(fps) + L","
+                + std::to_wstring(mspf) + L";\n";
+
+            logQueue.Push(staticticStr);
+
+            writeStaticticCount++;
+        }
+
+
+        MainWindow->SetWindowTitle(title);
+    }
+}
+
+void HybridParticleApp::LogWriting()
+{
+    const std::filesystem::path filePath(
+        L"SharedParticle " + primeDevice->GetName() + L"+" + secondDevice->GetName() + L".txt");
+
+    const auto path = std::filesystem::current_path().wstring() + L"\\" + filePath.wstring();
+
+    OutputDebugStringW(path.c_str());
+
+    std::wofstream fileSteam;
+    fileSteam.open(path.c_str(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
+    if (fileSteam.is_open())
+    {
+        fileSteam << L"Information" << std::endl << L"Statistic step seconds:" << std::to_wstring(
+            StatisticStepSecondsCount) << std::endl;
+    }
+
+    std::wstring line;
+
+    while (logQueue.Size() > 0)
+    {
+        while (logQueue.TryPop(line))
+        {
+            fileSteam << line;
+        }
+    }
+
+    fileSteam << L"\nFinish Logs" << std::endl;
+
+    fileSteam.flush();
+    fileSteam.close();
+}
+
+int HybridParticleApp::Run()
+{
+    MSG msg = {nullptr};
+
+    timer.Reset();
+
+    while (msg.message != WM_QUIT)
+    {
+        // If there are Window messages then process them.
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        // Otherwise, do animation/game stuff.
+        else
+        {
+            if (IsStop)
+            {
+                MainWindow->SetWindowTitle(MainWindow->GetWindowName() + L" Finished. Wait...");
+                LogWriting();
+                Quit();
+                break;
+            }
+
+            timer.Tick();
+
+            //if (!isAppPaused)
+            {
+                CalculateFrameStats();
+                Update(timer);
+                Draw(timer);
+            }
+            //else
+            {
+                //Sleep(100);
+            }
+
+            primeDevice->ResetAllocators(frameCount);
+            secondDevice->ResetAllocators(frameCount);
+        }
+    }
+
+    return static_cast<int>(msg.wParam);
+}
+
+void HybridParticleApp::UpdateMaterials()
+{
+    {
+        auto currentMaterialBuffer = currentFrameResource->MaterialBuffer;
+
+        for (auto&& material : assets->GetMaterials())
+        {
+            material->Update();
+            auto constantData = material->GetMaterialConstantData();
+            currentMaterialBuffer->CopyData(material->GetIndex(), constantData);
+        }
+    }
+}
+
+void HybridParticleApp::UpdateShadowTransform(const GameTimer& gt)
+{
+    // Only the first "main" light casts a shadow.
+    Vector3 lightDir = mRotatedLightDirections[0];
+    Vector3 lightPos = -2.0f * mSceneBounds.Radius * lightDir;
+    Vector3 targetPos = mSceneBounds.Center;
+    Vector3 lightUp = Vector3::Up;
+    Matrix lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
+
+    mLightPosW = lightPos;
+
+
+    // Transform bounding sphere to light space.
+    Vector3 sphereCenterLS = Vector3::Transform(targetPos, lightView);
+
+
+    // Ortho frustum in light space encloses scene.
+    float l = sphereCenterLS.x - mSceneBounds.Radius;
+    float b = sphereCenterLS.y - mSceneBounds.Radius;
+    float n = sphereCenterLS.z - mSceneBounds.Radius;
+    float r = sphereCenterLS.x + mSceneBounds.Radius;
+    float t = sphereCenterLS.y + mSceneBounds.Radius;
+    float f = sphereCenterLS.z + mSceneBounds.Radius;
+
+    mLightNearZ = n;
+    mLightFarZ = f;
+    Matrix lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+    // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+    Matrix T(
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, -0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f);
+
+    Matrix S = lightView * lightProj * T;
+    mLightView = lightView;
+    mLightProj = lightProj;
+    mShadowTransform = S;
+}
+
+void HybridParticleApp::UpdateShadowPassCB(const GameTimer& gt)
+{
+    auto view = mLightView;
+    auto proj = mLightProj;
+
+    auto viewProj = (view * proj);
+    auto invView = view.Invert();
+    auto invProj = proj.Invert();
+    auto invViewProj = viewProj.Invert();
+
+    shadowPassCB.View = view.Transpose();
+    shadowPassCB.InvView = invView.Transpose();
+    shadowPassCB.Proj = proj.Transpose();
+    shadowPassCB.InvProj = invProj.Transpose();
+    shadowPassCB.ViewProj = viewProj.Transpose();
+    shadowPassCB.InvViewProj = invViewProj.Transpose();
+    shadowPassCB.EyePosW = mLightPosW;
+    shadowPassCB.NearZ = mLightNearZ;
+    shadowPassCB.FarZ = mLightFarZ;
+
+    UINT w = shadowPath->Width();
+    UINT h = shadowPath->Height();
+    shadowPassCB.RenderTargetSize = Vector2(static_cast<float>(w), static_cast<float>(h));
+    shadowPassCB.InvRenderTargetSize = Vector2(1.0f / w, 1.0f / h);
+
+    auto currPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
+    currPassCB->CopyData(1, shadowPassCB);
+}
+
+void HybridParticleApp::UpdateMainPassCB(const GameTimer& gt)
+{
+    auto view = camera->GetViewMatrix();
+    auto proj = camera->GetProjectionMatrix();
+
+    auto viewProj = (view * proj);
+    auto invView = view.Invert();
+    auto invProj = proj.Invert();
+    auto invViewProj = viewProj.Invert();
+    auto shadowTransform = mShadowTransform;
+
+    // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+    Matrix T(
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, -0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f);
+    Matrix viewProjTex = XMMatrixMultiply(viewProj, T);
+    mainPassCB.View = view.Transpose();
+    mainPassCB.InvView = invView.Transpose();
+    mainPassCB.Proj = proj.Transpose();
+    mainPassCB.InvProj = invProj.Transpose();
+    mainPassCB.ViewProj = viewProj.Transpose();
+    mainPassCB.InvViewProj = invViewProj.Transpose();
+    mainPassCB.ViewProjTex = viewProjTex.Transpose();
+    mainPassCB.ShadowTransform = shadowTransform.Transpose();
+    mainPassCB.EyePosW = camera->gameObject->GetTransform()->GetWorldPosition();
+    mainPassCB.RenderTargetSize = Vector2(static_cast<float>(MainWindow->GetClientWidth()),
+                                          static_cast<float>(MainWindow->GetClientHeight()));
+    mainPassCB.InvRenderTargetSize = Vector2(1.0f / mainPassCB.RenderTargetSize.x,
+                                             1.0f / mainPassCB.RenderTargetSize.y);
+    mainPassCB.NearZ = 1.0f;
+    mainPassCB.FarZ = 1000.0f;
+    mainPassCB.TotalTime = gt.TotalTime();
+    mainPassCB.DeltaTime = gt.DeltaTime();
+    mainPassCB.AmbientLight = Vector4{0.25f, 0.25f, 0.35f, 1.0f};
+
+    for (int i = 0; i < MaxLights; ++i)
+    {
+        if (i < lights.size())
+        {
+            mainPassCB.Lights[i] = lights[i]->GetData();
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    mainPassCB.Lights[0].Direction = mRotatedLightDirections[0];
+    mainPassCB.Lights[0].Strength = Vector3{0.9f, 0.8f, 0.7f};
+    mainPassCB.Lights[1].Direction = mRotatedLightDirections[1];
+    mainPassCB.Lights[1].Strength = Vector3{0.4f, 0.4f, 0.4f};
+    mainPassCB.Lights[2].Direction = mRotatedLightDirections[2];
+    mainPassCB.Lights[2].Strength = Vector3{0.2f, 0.2f, 0.2f};
+
+    auto currentPassCB = currentFrameResource->PrimePassConstantUploadBuffer;
+    currentPassCB->CopyData(0, mainPassCB);
+}
+
+void HybridParticleApp::UpdateSsaoCB(const GameTimer& gt)
+{
+    SsaoConstants ssaoCB;
+
+    auto P = camera->GetProjectionMatrix();
+
+    // Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+    Matrix T(
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, -0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f);
+
+    ssaoCB.Proj = mainPassCB.Proj;
+    ssaoCB.InvProj = mainPassCB.InvProj;
+    XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(P * T));
+
+    //for (int i = 0; i < GraphicAdapterCount; ++i)
+    {
+        ambientPrimePath->GetOffsetVectors(ssaoCB.OffsetVectors);
+
+        auto blurWeights = ambientPrimePath->CalcGaussWeights(2.5f);
+        ssaoCB.BlurWeights[0] = Vector4(&blurWeights[0]);
+        ssaoCB.BlurWeights[1] = Vector4(&blurWeights[4]);
+        ssaoCB.BlurWeights[2] = Vector4(&blurWeights[8]);
+
+        ssaoCB.InvRenderTargetSize = Vector2(1.0f / ambientPrimePath->SsaoMapWidth(),
+                                             1.0f / ambientPrimePath->SsaoMapHeight());
+
+        // Coordinates given in view space.
+        ssaoCB.OcclusionRadius = 0.5f;
+        ssaoCB.OcclusionFadeStart = 0.2f;
+        ssaoCB.OcclusionFadeEnd = 1.0f;
+        ssaoCB.SurfaceEpsilon = 0.05f;
+
+        auto currSsaoCB = currentFrameResource->SsaoConstantUploadBuffer;
+        currSsaoCB->CopyData(0, ssaoCB);
+    }
+}
+
+bool HybridParticleApp::InitMainWindow()
+{
+    MainWindow = CreateRenderWindow(primeDevice, L"MGPU Fluid Simulation", 1920, 1080, false);
+
+    logQueue.Push(std::wstring(L"\nInit Window"));
+    return true;
+}
+
+void HybridParticleApp::OnResize()
+{
+    D3DApp::OnResize();
+
+    fullViewport.Height = static_cast<float>(MainWindow->GetClientHeight());
+    fullViewport.Width = static_cast<float>(MainWindow->GetClientWidth());
+    fullViewport.MinDepth = 0.0f;
+    fullViewport.MaxDepth = 1.0f;
+    fullViewport.TopLeftX = 0;
+    fullViewport.TopLeftY = 0;
+    fullRect = D3D12_RECT{0, 0, MainWindow->GetClientWidth(), MainWindow->GetClientHeight()};
+
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+    rtvDesc.Format = GetSRGBFormat(BackBufferFormat);
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+    for (int i = 0; i < globalCountFrameResources; ++i)
+    {
+        MainWindow->GetBackBuffer(i).CreateRenderTargetView(&rtvDesc, &frameResources[i]->BackBufferRTVMemory);
+    }
+
+
+    if (camera != nullptr)
+    {
+        camera->SetAspectRatio(AspectRatio());
+    }
+
+    if (ambientPrimePath != nullptr)
+    {
+        const UINT ssaoDivisor = std::max<UINT>(1, currentRenderPathPreset.SsaoDivisor);
+        const UINT ssaoWidth = std::max<UINT>(1, MainWindow->GetClientWidth() / ssaoDivisor);
+        const UINT ssaoHeight = std::max<UINT>(1, MainWindow->GetClientHeight() / ssaoDivisor);
+        ambientPrimePath->OnResize(ssaoWidth, ssaoHeight);
+        ambientPrimePath->RebuildDescriptors();
+    }
+
+    if (antiAliasingPrimePath != nullptr)
+    {
+        antiAliasingPrimePath->SetMultiplier(currentRenderPathPreset.SsaaMultiplier, MainWindow->GetClientWidth(), MainWindow->GetClientHeight());
+    }
+
+    if (shadowPath != nullptr)
+    {
+        shadowPath->OnResize(currentRenderPathPreset.ShadowMapSize, currentRenderPathPreset.ShadowMapSize);
+    }
+
+    currentFrameResourceIndex = MainWindow->GetCurrentBackBufferIndex();
+}
+
+void HybridParticleApp::Flush()
+{
+    primeDevice->Flush();
+    secondDevice->Flush();
+}
+
+LRESULT HybridParticleApp::MsgProc(const HWND hwnd, const UINT msg, const WPARAM wParam, const LPARAM lParam)
+{
+    switch (msg)
+    {
+    case WM_INPUT:
+        {
+            UINT dataSize;
+            GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize,
+                            sizeof(RAWINPUTHEADER));
+            //Need to populate data size first
+
+            if (dataSize > 0)
+            {
+                const auto rawdata = std::make_unique<BYTE[]>(dataSize);
+                if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize,
+                                    sizeof(RAWINPUTHEADER)) == dataSize)
+                {
+                    auto raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
+                    if (raw->header.dwType == RIM_TYPEMOUSE)
+                    {
+                        mouse.OnMouseMoveRaw(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+                    }
+                }
+            }
+
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+    //Mouse Messages
+    case WM_MOUSEMOVE:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnMouseMove(x, y);
+            return 0;
+        }
+    case WM_LBUTTONDOWN:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnLeftPressed(x, y);
+            return 0;
+        }
+    case WM_RBUTTONDOWN:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnRightPressed(x, y);
+            return 0;
+        }
+    case WM_MBUTTONDOWN:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnMiddlePressed(x, y);
+            return 0;
+        }
+    case WM_LBUTTONUP:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnLeftReleased(x, y);
+            return 0;
+        }
+    case WM_RBUTTONUP:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnRightReleased(x, y);
+            return 0;
+        }
+    case WM_MBUTTONUP:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            mouse.OnMiddleReleased(x, y);
+            return 0;
+        }
+    case WM_MOUSEWHEEL:
+        {
+            const int x = LOWORD(lParam);
+            const int y = HIWORD(lParam);
+            if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+            {
+                mouse.OnWheelUp(x, y);
+            }
+            else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0)
+            {
+                mouse.OnWheelDown(x, y);
+            }
+            return 0;
+        }
+    case WM_KEYUP:
+
+        {
+            const unsigned char keycode = static_cast<unsigned char>(wParam);
+            keyboard.OnKeyReleased(keycode);
+
+
+            return 0;
+        }
+    case WM_KEYDOWN:
+        {
+            {
+                const unsigned char keycode = static_cast<unsigned char>(wParam);
+                if (keyboard.IsKeysAutoRepeat())
+                {
+                    keyboard.OnKeyPressed(keycode);
+                }
+                else
+                {
+                    const bool wasPressed = lParam & 0x40000000;
+                    if (!wasPressed)
+                    {
+                        keyboard.OnKeyPressed(keycode);
+                    }
+                }
+            }
+        }
+
+    case WM_CHAR:
+        {
+            const unsigned char ch = static_cast<unsigned char>(wParam);
+            if (keyboard.IsCharsAutoRepeat())
+            {
+                keyboard.OnChar(ch);
+            }
+            else
+            {
+                const bool wasPressed = lParam & 0x40000000;
+                if (!wasPressed)
+                {
+                    keyboard.OnChar(ch);
+                }
+            }
+            return 0;
+        }
+    }
+
+    return D3DApp::MsgProc(hwnd, msg, wParam, lParam);
+}
+
+void HybridParticleApp::SwitchDevice()
+{
+    Flush();
+    m_bUseSharedFluidSim = !m_bUseSharedFluidSim;
+}

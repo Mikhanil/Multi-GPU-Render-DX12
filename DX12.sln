@@ -47,6 +47,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MGPU-Atmosphere", "MGPU-Atm
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MGPU-SSR", "MGPU-SSR\MGPU-SSR.vcxproj", "{968A7BCD-D795-4490-94FF-440FE5569B53}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MGPU-FluidSimulation", "MGPU-FluidSimulation\MGPU-FluidSimulation.vcxproj", "{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -55,6 +57,12 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}.Debug|x64.ActiveCfg = Debug|x64
+		{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}.Debug|x64.Build.0 = Debug|x64
+		{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}.Debug|x86.ActiveCfg = Debug|x64
+		{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}.Release|x64.ActiveCfg = Release|x64
+		{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}.Release|x64.Build.0 = Release|x64
+		{69CDA405-A554-4ED2-89B3-A0CAB0BE6933}.Release|x86.ActiveCfg = Release|x64
 		{2AF6778B-2921-4079-B37E-4671349E8848}.Debug|x64.ActiveCfg = Debug|x64
 		{2AF6778B-2921-4079-B37E-4671349E8848}.Debug|x64.Build.0 = Debug|x64
 		{2AF6778B-2921-4079-B37E-4671349E8848}.Debug|x86.ActiveCfg = Debug|Win32
